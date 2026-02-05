@@ -1,25 +1,15 @@
-import React, { useEffect, useState } from "react";
-import { Outlet, useLocation, useNavigate } from "react-router-dom";
+import React from "react";
+import { useLocation, useNavigate } from "react-router-dom";
+import { EventFeed } from "../components/events/EventFeed";
 import Layout from "../components/layout/Layout";
-// Bổ sung Users vào danh sách import
-import { Calendar, CheckCircle2, Award, TrendingUp, Users } from "lucide-react";
+import { Award, TrendingUp, Users } from "lucide-react";
 
 const VangLaiPage = () => {
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState("all");
-  const [showModal, setShowModal] = useState(null);
   const location = useLocation();
-
-  useEffect(() => {
-    if (location.pathname === "/login") setShowModal("login");
-    else if (location.pathname === "/register") setShowModal("register");
-    else setShowModal(null);
-  }, [location.pathname]);
 
   const openModal = (type) => {
     if (type !== "login" && type !== "register") return;
-
-    setShowModal(type);
     navigate(type === "login" ? "/login" : "/register");
   };
 
@@ -28,29 +18,26 @@ const VangLaiPage = () => {
       navigate("/");
       setTimeout(() => {
         const el = document.getElementById("su-kien");
-        if (el) {
-          el.scrollIntoView({ behavior: "smooth" });
-        }
+        if (el) el.scrollIntoView({ behavior: "smooth" });
       }, 300);
     } else {
       const el = document.getElementById("su-kien");
-      if (el) {
-        el.scrollIntoView({ behavior: "smooth" });
-      }
+      if (el) el.scrollIntoView({ behavior: "smooth" });
     }
   };
+
   return (
     <Layout onLogin={() => openModal("login")}>
       <section
         id="gioi-thieu"
-        className="min-h-screen bg-white scroll-mt-[140px]"
+        className="min-h-screen bg-white scroll-mt-35"
       >
         <div className="relative bg-[#1a479a] text-white overflow-hidden py-12 md:py-20 px-4 md:px-20">
           <div className="absolute inset-0 opacity-10 pointer-events-none">
-            <div className="absolute right-[-5%] top-[-10%] w-[600px] h-[600px] rounded-full border-[60px] border-white"></div>
+            <div className="absolute right-[-5%] top-[-10%] w-150 h-150 rounded-full border-60 border-white"></div>
           </div>
 
-          <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-12 items-center relative z-10">
+          <div className="w-full grid grid-cols-1 lg:grid-cols-2 gap-12 items-center relative z-10">
             <div className="space-y-6 md:space-y-8">
               <div className="inline-flex items-center gap-2 bg-white/10 px-4 py-1.5 rounded-full border border-white/20">
                 <span className="w-2 h-2 bg-orange-500 rounded-full animate-pulse"></span>
@@ -167,8 +154,7 @@ const VangLaiPage = () => {
                   </div>
                 </div>
 
-                {/* Phù hiệu số lượng người tham gia */}
-                <div className="absolute -top-6 -right-6 bg-white p-4 rounded-[2rem] shadow-2xl flex items-center gap-3 transform rotate-3 hover:rotate-0 transition-transform">
+                <div className="absolute -top-6 -right-6 bg-white p-4 rounded-4xl shadow-2xl flex items-center gap-3 transform rotate-3 hover:rotate-0 transition-transform">
                   <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center text-green-600 shadow-inner">
                     <Users size={24} />
                   </div>
@@ -186,30 +172,10 @@ const VangLaiPage = () => {
           </div>
         </div>
 
-        {/* --- NAVIGATION TAB (Chuẩn menu IUH image_65f5d0.png) --- */}
-        {/* <div id="eventsSection" className="sticky top-0 z-40 bg-white/80 backdrop-blur-md border-b shadow-sm">
-          <div className="max-w-7xl mx-auto flex justify-center gap-12 py-5 uppercase font-black text-[13px] tracking-widest text-[#1a479a]">
-            <button
-              onClick={() => { setActiveTab('all'); navigate('/'); }}
-              className={`flex items-center gap-2 pb-2 transition-all relative group ${activeTab === 'all' ? 'text-blue-700' : 'opacity-50 hover:opacity-100'}`}
-            >
-              <Calendar size={18} /> Tất cả tin tức
-              {activeTab === 'all' && <span className="absolute bottom-0 left-0 w-full h-1 bg-[#1a479a] rounded-full"></span>}
-            </button>
-            <button
-              onClick={() => { setActiveTab('attendance'); navigate('/attendance'); }}
-              className={`flex items-center gap-2 pb-2 transition-all relative group ${activeTab === 'attendance' ? 'text-blue-700' : 'opacity-50 hover:opacity-100'}`}
-            >
-              <CheckCircle2 size={18} /> Điểm danh
-              {activeTab === 'attendance' && <span className="absolute bottom-0 left-0 w-full h-1 bg-[#1a479a] rounded-full"></span>}
-            </button>
-          </div>
-        </div> */}
-
         {/* --- CONTENT SECTION --- */}
         <div className="max-w-7xl mx-auto py-12 px-4">
-          <div className="bg-gray-50/50 rounded-[3rem] p-6 md:p-12 border border-gray-100 shadow-inner min-h-[400px]">
-            <Outlet />
+          <div className="bg-gray-50/50 rounded-[3rem] p-6 md:p-12 border border-gray-100 shadow-inner min-h-100">
+            <EventFeed />
           </div>
         </div>
       </section>

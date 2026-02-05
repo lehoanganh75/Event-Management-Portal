@@ -13,7 +13,7 @@ const roleMap = {
   STUDENT: "Sinh viên",
 };
 
-const Header = ({ user, onLogin, onLogout, showAuthButtons = true }) => {
+const Header = ({ user, onLogin, showAuthButtons = true }) => {
   const navigate = useNavigate();
   const location = useLocation();
   const isLecturerPage = location.pathname.startsWith("/lecturer");
@@ -21,13 +21,13 @@ const Header = ({ user, onLogin, onLogout, showAuthButtons = true }) => {
   const isLoginPage =
     location.pathname === "/login" || location.pathname === "/register";
 
-  const activeClass = "text-orange-500 font-bold";
-  const normalClass = "text-gray-700 hover:text-[#1a479a] transition-colors";
+  // const activeClass = "text-orange-500 font-bold";
+  // const normalClass = "text-gray-700 hover:text-[#1a479a] transition-colors";
   const [activeSection, setActiveSection] = useState(null);
 
   useEffect(() => {
     if (location.pathname !== "/") {
-      setActiveSection(null);
+      // setActiveSection(null);
       return;
     }
 
@@ -100,7 +100,7 @@ const Header = ({ user, onLogin, onLogout, showAuthButtons = true }) => {
             <GraduationCap size={16} /> Sinh viên
           </a>
 
-          <div className="h-4 w-[1px] bg-white/30 mx-1"></div>
+          <div className="h-4 w-px bg-white/30 mx-1"></div>
 
           <button className="hover:text-gray-200">
             <Search size={18} />
