@@ -5,9 +5,9 @@ const NotFound404 = () => {
   const navigate = useNavigate();
 
   return (
-    <div className='min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 via-blue-50 to-blue-50 p-6'>
+    <div className='min-h-screen flex items-center justify-center bg-linear-to-br from-slate-50 via-blue-50 to-blue-50 p-6'>
       <div className='max-w-4xl w-full bg-white/70 backdrop-blur-sm rounded-3xl shadow-2xl overflow-hidden grid md:grid-cols-2'>
-        <div className='relative flex items-center justify-center p-8 md:p-12 bg-gradient-to-tr from-white to-blue-50'>
+        <div className='relative flex items-center justify-center p-8 md:p-12 bg-linear-to-tr from-white to-blue-50'>
           <svg
             className='absolute -top-10 -left-10 w-44 opacity-40 animate-floatSlow'
             viewBox='0 0 200 200'
@@ -91,7 +91,7 @@ const NotFound404 = () => {
           </div>
         </div>
         <div className='p-8 md:p-12 flex flex-col justify-center'>
-          <h1 className='text-6xl md:text-7xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-blue-600'>
+          <h1 className='text-6xl md:text-7xl font-extrabold text-transparent bg-clip-text bg-linear-to-r from-blue-600 to-blue-600'>
             404
           </h1>
           <h2 className='mt-2 text-2xl font-semibold text-slate-800'>
@@ -100,7 +100,7 @@ const NotFound404 = () => {
           <p className='mt-4 text-slate-600 leading-relaxed'>
             Có thể đường dẫn bị sai, hoặc trang đã được di chuyển. Thử quay lại
             trang chủ hoặc kiểm tra URL một lần nữa.
-          </p>
+          </p>  
 
           <div className='mt-6 flex gap-3'>
             <button
@@ -111,7 +111,7 @@ const NotFound404 = () => {
             </button>
             <button
               onClick={() => navigate('/')}
-              className='px-5 py-3 rounded-lg bg-gradient-to-r from-blue-600 to-blue-600 text-white font-semibold hover:brightness-105 transition'
+              className='px-5 py-3 rounded-lg bg-linear-to-r from-blue-600 to-blue-600 text-white font-semibold hover:brightness-105 transition'
             >
               Về trang chủ
             </button>
