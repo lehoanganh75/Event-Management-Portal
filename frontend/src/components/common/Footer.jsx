@@ -1,5 +1,4 @@
 import React from "react";
-// @ts-ignore: allow importing image files without typing declarations
 import logo_iuh from "../../assets/images/logo_iuh.png";
 import { MapPin, Mail, Phone, MousePointer2, Users } from "lucide-react";
 import { useNavigate } from "react-router-dom";
