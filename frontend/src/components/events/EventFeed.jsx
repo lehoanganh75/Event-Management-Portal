@@ -22,6 +22,7 @@ import {
 } from "lucide-react";
 import Preloader from "./Preloader";
 import LuckyWheelModal from "../luckyWheelModal/LuckyWheelModal";
+import { useNavigate } from "react-router-dom";
 
 const mockPosts = [
   {
@@ -467,7 +468,7 @@ export function EventFeed() {
   const [searchKeyword, setSearchKeyword] = useState("");
   const [sortBy, setSortBy] = useState("newest");
   const [showFilterModal, setShowFilterModal] = useState(false);
-  const [filters, setFilters] = useState({
+  const [filters, setFilters] = useState({  
     status: "all",
     type: "all",
     organizer: "all",
@@ -484,7 +485,12 @@ export function EventFeed() {
   const totalPages = 3;
   const [showChat, setShowChat] = useState(false);
   const [showWheel, setShowWheel] = useState(false);
+  const navigate = useNavigate();
 
+  const handleEventClick = (eventId) => {
+    navigate(`/events/${eventId}`);
+  };
+  
   useEffect(() => {
     const timer = setTimeout(() => {
       setIsLoading(false);
@@ -495,7 +501,7 @@ export function EventFeed() {
 
   // Đếm số filter đang active
   const activeFilterCount = Object.values(filters).filter(
-    (v) => v !== "all" && v !== ""
+    (v) => v !== "all" && v !== "",
   ).length;
 
   // Logic lọc phức tạp
@@ -523,8 +529,7 @@ export function EventFeed() {
 
       // Lọc theo tình trạng chỗ
       const availabilityPercent =
-        ((post.maxParticipants - post.registeredCount) /
-          post.maxParticipants) *
+        ((post.maxParticipants - post.registeredCount) / post.maxParticipants) *
         100;
       const matchesAvailability =
         filters.availability === "all" ||
@@ -624,7 +629,9 @@ export function EventFeed() {
               </button>
 
               <div className="text-sm text-gray-600">
-                Tìm thấy <span className="font-bold">{filteredPosts.length}</span> sự kiện
+                Tìm thấy{" "}
+                <span className="font-bold">{filteredPosts.length}</span> sự
+                kiện
               </div>
             </div>
 
@@ -637,7 +644,9 @@ export function EventFeed() {
               >
                 <option value="newest">Mới nhất</option>
                 <option value="oldest">Cũ nhất</option>
-                <option value="most-registered">Nhiều người đăng ký nhất</option>
+                <option value="most-registered">
+                  Nhiều người đăng ký nhất
+                </option>
                 <option value="most-available">Còn nhiều chỗ nhất</option>
               </select>
             </div>
@@ -647,12 +656,15 @@ export function EventFeed() {
           <div className="space-y-4">
             {filteredPosts.length > 0 ? (
               filteredPosts.map((item) => {
-                const availableSlots = item.maxParticipants - item.registeredCount;
-                const availabilityPercent = (availableSlots / item.maxParticipants) * 100;
+                const availableSlots =
+                  item.maxParticipants - item.registeredCount;
+                const availabilityPercent =
+                  (availableSlots / item.maxParticipants) * 100;
 
                 return (
                   <div
                     key={item.id}
+                    onClick={() => handleEventClick(item.id)}
                     className="bg-white rounded-lg border p-4 flex gap-4 hover:shadow-lg transition-shadow"
                   >
                     <img
@@ -695,11 +707,12 @@ export function EventFeed() {
                             Còn chỗ
                           </span>
                         )}
-                        {availabilityPercent > 0 && availabilityPercent <= 20 && (
-                          <span className="text-xs px-2 py-1 rounded-full bg-orange-100 text-orange-700">
-                            Sắp hết chỗ
-                          </span>
-                        )}
+                        {availabilityPercent > 0 &&
+                          availabilityPercent <= 20 && (
+                            <span className="text-xs px-2 py-1 rounded-full bg-orange-100 text-orange-700">
+                              Sắp hết chỗ
+                            </span>
+                          )}
                         {availabilityPercent === 0 && (
                           <span className="text-xs px-2 py-1 rounded-full bg-red-100 text-red-700">
                             Đã đầy
@@ -725,10 +738,7 @@ export function EventFeed() {
                         {item.tags && (
                           <div className="flex gap-1">
                             {item.tags.map((tag, idx) => (
-                              <span
-                                key={idx}
-                                className="text-xs text-blue-600"
-                              >
+                              <span key={idx} className="text-xs text-blue-600">
                                 #{tag}
                               </span>
                             ))}
@@ -864,3 +874,5 @@ export function EventFeed() {
     </div>
   );
 }
+
+export default EventFeed;

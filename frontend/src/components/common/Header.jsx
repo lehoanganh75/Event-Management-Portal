@@ -3,7 +3,6 @@ import { LogIn, Search, Mail, User, GraduationCap, Globe } from "lucide-react";
 import logo_iuh from "../../assets/images/logo_iuh.png";
 import { useEffect, useState } from "react";
 
-
 const roleMap = {
   SUPER_ADMIN: "Quản Trị Viên",
   ADMIN: "Trưởng Khoa",
@@ -162,14 +161,24 @@ const Header = ({ user, onLogin, showAuthButtons = true }) => {
                     setTimeout(() => {
                       const el = document.getElementById("su-kien");
                       if (el) {
-                        el.scrollIntoView({ behavior: "smooth" });
+                        const yOffset = -140; 
+                        const y =
+                          el.getBoundingClientRect().top +
+                          window.pageYOffset +
+                          yOffset;
+                        window.scrollTo({ top: y, behavior: "smooth" });
                         setActiveSection("su-kien");
                       }
                     }, 300);
                   } else {
                     const el = document.getElementById("su-kien");
                     if (el) {
-                      el.scrollIntoView({ behavior: "smooth" });
+                      const yOffset = -140;
+                      const y =
+                        el.getBoundingClientRect().top +
+                        window.pageYOffset +
+                        yOffset;
+                      window.scrollTo({ top: y, behavior: "smooth" });
                       setActiveSection("su-kien");
                     }
                   }
@@ -229,9 +238,7 @@ const Header = ({ user, onLogin, showAuthButtons = true }) => {
                   alt="Avatar"
                   className="w-10 h-10 rounded-full border border-gray-200"
                 />
-                <button
-                  className="ml-2 text-xs font-bold text-red-600 hover:underline"
-                >
+                <button className="ml-2 text-xs font-bold text-red-600 hover:underline">
                   Đăng xuất
                 </button>
               </div>
