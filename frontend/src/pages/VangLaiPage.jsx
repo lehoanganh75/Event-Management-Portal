@@ -18,11 +18,19 @@ const VangLaiPage = () => {
       navigate("/");
       setTimeout(() => {
         const el = document.getElementById("su-kien");
-        if (el) el.scrollIntoView({ behavior: "smooth" });
+        if (el) {
+          const yOffset = -140;
+          const y = el.getBoundingClientRect().top + window.pageYOffset + yOffset;
+          window.scrollTo({ top: y, behavior: "smooth" });
+        }
       }, 300);
     } else {
       const el = document.getElementById("su-kien");
-      if (el) el.scrollIntoView({ behavior: "smooth" });
+      if (el) {
+        const yOffset = -140;
+        const y = el.getBoundingClientRect().top + window.pageYOffset + yOffset;
+        window.scrollTo({ top: y, behavior: "smooth" });
+      }
     }
   };
 
