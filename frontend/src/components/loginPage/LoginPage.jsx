@@ -14,10 +14,7 @@ const LoginPage = () => {
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
       <Header />
-
-      {/* Header đơn giản */}
       <div className="p-6 relative">
-        {/* NÚT QUAY LẠI */}
         <button
           onClick={() => navigate("/")}
           className="absolute left-4 top-4 w-10 h-10 bg-white rounded-full shadow-md flex items-center justify-center hover:bg-blue-50 transition"
