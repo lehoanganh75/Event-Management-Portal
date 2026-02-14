@@ -5,10 +5,11 @@ import {
   Search, Edit3, Trash2, MoreHorizontal, 
   Filter, ArrowUpDown, ChevronRight, Share2 
 } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 
 const ManagePosts = () => {
   const [searchTerm, setSearchTerm] = useState("");
-
+  const navigate = useNavigate();
   const posts = [
     { 
       id: 1, 
@@ -49,15 +50,18 @@ const ManagePosts = () => {
       className="space-y-6"
     >
       {/* Header Section */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-black text-slate-800 tracking-tight">Quản lý bài viết</h1>
-          <p className="text-slate-500 text-sm font-medium">Bạn đã đăng tổng cộng {posts.length} nội dung</p>
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div>
+            <h1 className="text-2xl font-black text-slate-800 tracking-tight">Quản lý bài viết</h1>
+            <p className="text-slate-500 text-sm font-medium">Bạn đã đăng tổng cộng {posts.length} nội dung</p>
+          </div>
+          <button 
+            onClick={() => navigate('/lecturer/posts/create')}
+            className="flex items-center gap-2 bg-slate-900 hover:bg-slate-800 text-white px-6 py-3 rounded-2xl font-bold shadow-lg transition-all active:scale-95"
+          >
+            <Plus size={20} /> Viết bài mới
+          </button>
         </div>
-        <button className="flex items-center gap-2 bg-slate-900 hover:bg-slate-800 text-white px-6 py-3 rounded-2xl font-bold shadow-lg transition-all active:scale-95">
-          <Plus size={20} /> Viết bài mới
-        </button>
-      </div>
 
       {/* Table Container */}
       <div className="bg-white rounded-4xl shadow-sm border border-slate-100 overflow-hidden">
