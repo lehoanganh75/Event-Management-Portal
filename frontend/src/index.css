@@ -89,6 +89,24 @@ body {
   color: #0f172a; /* slate-900 */
 }
 
+/* Trong file css chính hoặc global */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 5px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background-color: rgba(100, 116, 139, 0.3);
+  border-radius: 9999px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(100, 116, 139, 0.5);
+}
+
 .animate-fadeInDown {
   animation: fadeInDown 0.4s ease forwards;
 }
