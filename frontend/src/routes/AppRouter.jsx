@@ -19,6 +19,10 @@ import CreateEvent from '../components/events/CreateEvent';
 import ManagePosts from '../pages/lecturePage/ManagePosts'; 
 import CreatePost from '../components/events/CreatePost'; // Thêm import
 import NotificationPage from '../pages/lecturePage/Notifications';
+import AdminLayout from '../pages/adminPage/AdminPage';
+import Dashboard from '../components/admin/Dashboard';
+import EventPage from '../components/admin/EventPage';
+import SpinnerManagement from '../components/admin/SpinnerManagement';
 
 const AppRouter = () => {
   return (
@@ -54,6 +58,21 @@ const AppRouter = () => {
         <Route path='attendance' element={<AttendancePage />} />
         <Route path='plans' element={<PlansPage />} />
         <Route path='profile' element={<ProfileUser />} />
+      </Route>
+
+      <Route path="/admin" element={<AdminLayout />}>
+        <Route index element={<Dashboard />} />
+        <Route path="events" element={<EventPage />} />
+        <Route path="media" element={<EventPage />} />
+        <Route path="summaries" element={<EventPage />} />
+        <Route path="plans" element={<EventPage />} />
+        <Route path="templates" element={<EventPage />} />
+        <Route path="departments" element={<EventPage />} />
+        <Route path="roles" element={<EventPage />} />
+        <Route path="accounts" element={<EventPage />} />
+        <Route path="library" element={<EventPage />} />
+        <Route path="spinner" element={<SpinnerManagement />} />
+        {/* Thêm các route tương ứng với Sidebar của bạn tại đây */}
       </Route>
 
       <Route path='*' element={<NotFound404 />} />
