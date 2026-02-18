@@ -21,9 +21,13 @@ const Header = ({ user, onLogin, showAuthButtons = true }) => {
     location.pathname === "/login" || location.pathname === "/register";
 
   // const activeClass = "text-orange-500 font-bold";
-  // const normalClass = "text-gray-700 hover:text-[#1a479a] transition-colors";
+  // const normalClass = "text-gray-700 hover:text-[#245bb5] transition-colors";
   const [activeSection, setActiveSection] = useState(null);
+  const [lang, setLang] = useState("VNI");
 
+  const handleToggleLang = () => {
+    setLang((prev) => (prev === "VNI" ? "ENG" : "VNI"));
+  };
   useEffect(() => {
     if (location.pathname !== "/") {
       // setActiveSection(null);
@@ -74,7 +78,7 @@ const Header = ({ user, onLogin, showAuthButtons = true }) => {
 
   return (
     <header className="w-full font-sans sticky top-0 z-50 bg-white">
-      <div className="bg-[#1a479a] text-white py-2 px-4 md:px-10 flex flex-wrap justify-between items-center text-sm">
+      <div className="bg-[#245bb5] text-white py-2 px-4 md:px-10 flex flex-wrap justify-between items-center text-sm">
         <div className="hidden md:block">
           Chào mừng bạn đến với Đại học Công nghiệp Thành phố Hồ Chí Minh
         </div>
@@ -105,8 +109,11 @@ const Header = ({ user, onLogin, showAuthButtons = true }) => {
             <Search size={18} />
           </button>
 
-          <div className="flex items-center gap-1 bg-white text-[#1a479a] px-2 py-0.5 rounded-md font-bold text-xs cursor-pointer">
-            <Globe size={14} /> VNI
+          <div
+            onClick={handleToggleLang}
+            className="flex items-center gap-1 bg-white text-[#245bb5] px-2 py-0.5 rounded-md font-bold text-xs cursor-pointer hover:bg-gray-100 transition"
+          >
+            <Globe size={14} /> {lang}
           </div>
         </div>
       </div>
@@ -147,7 +154,7 @@ const Header = ({ user, onLogin, showAuthButtons = true }) => {
                 className={`cursor-pointer ${
                   activeSection === "gioi-thieu"
                     ? "text-orange-500 font-bold"
-                    : "text-gray-700 hover:text-[#1a479a]"
+                    : "text-gray-700 hover:text-[#245bb5]"
                 }`}
               >
                 Giới thiệu
@@ -161,7 +168,7 @@ const Header = ({ user, onLogin, showAuthButtons = true }) => {
                     setTimeout(() => {
                       const el = document.getElementById("su-kien");
                       if (el) {
-                        const yOffset = -140; 
+                        const yOffset = -140;
                         const y =
                           el.getBoundingClientRect().top +
                           window.pageYOffset +
@@ -186,7 +193,7 @@ const Header = ({ user, onLogin, showAuthButtons = true }) => {
                 className={`cursor-pointer ${
                   activeSection === "su-kien"
                     ? "text-orange-500 font-bold"
-                    : "text-gray-700 hover:text-[#1a479a]"
+                    : "text-gray-700 hover:text-[#245bb5]"
                 }`}
               >
                 Sự kiện
@@ -198,7 +205,7 @@ const Header = ({ user, onLogin, showAuthButtons = true }) => {
                 className={
                   location.pathname === "/attendance"
                     ? "text-orange-500 font-bold"
-                    : "text-gray-700 hover:text-[#1a479a]"
+                    : "text-gray-700 hover:text-[#245bb5]"
                 }
               >
                 Điểm danh
@@ -210,7 +217,7 @@ const Header = ({ user, onLogin, showAuthButtons = true }) => {
                 className={`cursor-pointer ${
                   location.pathname.includes("/lecturer")
                     ? "text-orange-500 font-bold"
-                    : "text-gray-700 hover:text-[#1a479a]"
+                    : "text-gray-700 hover:text-[#245bb5]"
                 }`}
               >
                 Quản lý
@@ -219,7 +226,7 @@ const Header = ({ user, onLogin, showAuthButtons = true }) => {
           )}
 
           {/* User Auth Section */}
-          <div className="flex items-center gap-4 border-l pl-6">
+          <div className="flex items-center gap-4  pl-6">
             {user?.data ? (
               <div className="flex items-center gap-3">
                 <div className="text-right">
@@ -246,9 +253,9 @@ const Header = ({ user, onLogin, showAuthButtons = true }) => {
               showAuthButtons && (
                 <button
                   onClick={onLogin}
-                  className="flex items-center gap-2 bg-[#1a479a] text-white px-5 py-2 rounded-full text-sm font-bold hover:bg-blue-800 transition-all"
+                  className="flex items-center gap-2 bg-[#245bb5] text-white px-3 py-2 rounded-full text-sm font-bold hover:bg-blue-800 transition-all"
                 >
-                  <LogIn size={16} /> ĐĂNG NHẬP
+                  <LogIn size={13} /> ĐĂNG NHẬP
                 </button>
               )
             )}
