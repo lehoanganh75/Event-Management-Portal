@@ -20,7 +20,8 @@ const VangLaiPage = () => {
         const el = document.getElementById("su-kien");
         if (el) {
           const yOffset = -140;
-          const y = el.getBoundingClientRect().top + window.pageYOffset + yOffset;
+          const y =
+            el.getBoundingClientRect().top + window.pageYOffset + yOffset;
           window.scrollTo({ top: y, behavior: "smooth" });
         }
       }, 300);
@@ -36,11 +37,8 @@ const VangLaiPage = () => {
 
   return (
     <Layout onLogin={() => openModal("login")}>
-      <section
-        id="gioi-thieu"
-        className="min-h-screen bg-white scroll-mt-35"
-      >
-        <div className="relative bg-[#1a479a] text-white overflow-hidden py-12 md:py-20 px-4 md:px-20">
+      <section id="gioi-thieu" className="min-h-screen bg-white scroll-mt-35">
+        <div className="relative bg-[#245bb5] text-white overflow-hidden py-12 md:py-20 px-4 md:px-20">
           <div className="absolute inset-0 opacity-10 pointer-events-none">
             <div className="absolute right-[-5%] top-[-10%] w-150 h-150 rounded-full border-60 border-white"></div>
           </div>
@@ -73,13 +71,13 @@ const VangLaiPage = () => {
               <div className="flex flex-wrap gap-4">
                 <button
                   onClick={scrollToSuKien}
-                  className="px-8 py-3.5 bg-[#ffcc00] text-[#1a479a] rounded-xl font-black uppercase text-sm hover:bg-yellow-400 transition-all transform hover:-translate-y-1 shadow-xl"
+                  className="px-8 py-3.5 bg-[#ffcc00] text-[#245bb5] rounded-xl font-black uppercase text-sm hover:bg-yellow-400 transition-all transform hover:-translate-y-1 shadow-xl"
                 >
                   Khám phá sự kiện
                 </button>
                 <button
                   onClick={() => openModal("register")}
-                  className="px-8 py-3.5 bg-white/10 border-2 border-white/30 text-white rounded-xl font-black uppercase text-sm hover:bg-white hover:text-[#1a479a] transition-all transform hover:-translate-y-1"
+                  className="px-8 py-3.5 bg-white/10 border-2 border-white/30 text-white rounded-xl font-black uppercase text-sm hover:bg-white hover:text-[#245bb5] transition-all transform hover:-translate-y-1"
                 >
                   Tạo sự kiện mới
                 </button>
@@ -181,8 +179,8 @@ const VangLaiPage = () => {
         </div>
 
         {/* --- CONTENT SECTION --- */}
-        <div className="max-w-7xl mx-auto py-12 px-4">
-          <div className="bg-gray-50/50 rounded-[3rem] p-6 md:p-12 border border-gray-100 shadow-inner min-h-100">
+        <div className="w-full py-12 px-3 md:px-6">
+          <div className="p-3 md:p-6 min-h-screen">
             <EventFeed />
           </div>
         </div>
