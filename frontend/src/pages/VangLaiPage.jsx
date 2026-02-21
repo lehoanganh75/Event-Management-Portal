@@ -1,12 +1,44 @@
-import React from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { EventFeed } from "../components/events/EventFeed";
 import Layout from "../components/layout/Layout";
 import { Award, TrendingUp, Users } from "lucide-react";
+import React, { useState, useEffect } from "react";
+import { getFeaturedEvents } from "../api/eventApi";
 
 const VangLaiPage = () => {
   const navigate = useNavigate();
   const location = useLocation();
+  const [featuredEvents, setFeaturedEvents] = useState([]);
+  const [totalParticipants, setTotalParticipants] = useState(0);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const loadFeaturedData = async () => {
+      try {
+        setLoading(true);
+        const response = await getFeaturedEvents();
+        setFeaturedEvents(response.data);
+      } catch (error) {
+        console.error("Lỗi khi load sự kiện đang diễn ra:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadFeaturedData();
+  }, []);
+
+  useEffect(() => {
+    const loadData = async () => {
+      const res = await getFeaturedEvents();
+      console.log("Dữ liệu từ API:", res.data);
+      setFeaturedEvents(res.data);
+
+      const sum = res.data.reduce((acc, ev) => acc + ev.registeredCount, 0);
+      setTotalParticipants(sum);
+    };
+    loadData();
+  }, []);
 
   const openModal = (type) => {
     if (type !== "login" && type !== "register") return;
@@ -58,7 +90,9 @@ const VangLaiPage = () => {
                 </h2>
                 <h1 className="text-4xl md:text-6xl lg:text-7xl font-extrabold tracking-tight">
                   Sự Kiện IUH{" "}
-                  <span className="text-[#ffcc00] drop-shadow-md">2026</span>
+                  <span className="text-[#ffcc00] drop-shadow-md">
+                    {new Date().getFullYear()}
+                  </span>
                 </h1>
               </div>
 
@@ -114,50 +148,47 @@ const VangLaiPage = () => {
             <div className="relative hidden lg:block perspective-1000">
               <div className="bg-white/10 backdrop-blur-xl rounded-[40px] p-8 border border-white/20 shadow-2xl relative">
                 <h3 className="text-xl font-black mb-6 flex items-center gap-2 uppercase tracking-wider">
-                  Sự kiện nổi bật{" "}
+                  Sự kiện đang diễn ra{" "}
                   <span className="text-[10px] bg-red-600 px-2 py-0.5 rounded-full animate-bounce">
                     LIVE
                   </span>
                 </h3>
 
                 <div className="space-y-5">
-                  <div className="bg-white rounded-3xl p-4 flex gap-4 text-gray-800 shadow-2xl transform hover:scale-105 transition-all cursor-pointer">
-                    <img
-                      src="https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=400"
-                      alt="event"
-                      className="w-20 h-20 rounded-2xl object-cover shadow-md"
-                    />
-                    <div className="flex flex-col justify-center">
-                      <div className="text-[10px] font-black text-blue-600 uppercase mb-1">
-                        Hôm nay • 14:00
-                      </div>
-                      <div className="font-bold text-base leading-tight">
-                        Ngày hội việc làm IUH 2026
-                      </div>
-                      <div className="text-[11px] text-gray-500 mt-1">
-                        📍 Hội trường A
-                      </div>
+                  {loading ? (
+                    <div className="text-white/50 text-center py-4">
+                      Đang tải...
                     </div>
-                  </div>
-
-                  <div className="bg-white/90 rounded-3xl p-4 flex gap-4 text-gray-800 shadow-2xl transform hover:scale-105 transition-all cursor-pointer opacity-95">
-                    <img
-                      src="https://images.unsplash.com/photo-1517245386807-bb43f82c33c4?w=400"
-                      alt="event"
-                      className="w-20 h-20 rounded-2xl object-cover shadow-md"
-                    />
-                    <div className="flex flex-col justify-center">
-                      <div className="text-[10px] font-black text-blue-600 uppercase mb-1">
-                        Ngày mai • 08:00
+                  ) : featuredEvents.length > 0 ? (
+                    featuredEvents.map((event) => (
+                      <div
+                        key={event.id}
+                        className="bg-white rounded-3xl p-4 flex gap-4 text-gray-800 shadow-2xl transform hover:scale-105 transition-all cursor-pointer"
+                      >
+                        <img
+                          src={event.imageUrl}
+                          alt={event.title}
+                          className="w-20 h-20 rounded-2xl object-cover shadow-md"
+                        />
+                        <div className="flex flex-col justify-center">
+                          <div className="text-[10px] font-black text-blue-600 uppercase mb-1">
+                            {event.eventDate} •{" "}
+                            {event.eventTime.split(" - ")[0]}{" "}
+                          </div>
+                          <div className="font-bold text-base leading-tight">
+                            {event.title}
+                          </div>
+                          <div className="text-[11px] text-gray-500 mt-1">
+                            📍 {event.location}
+                          </div>
+                        </div>
                       </div>
-                      <div className="font-bold text-base leading-tight">
-                        Workshop: AI trong Giáo dục
-                      </div>
-                      <div className="text-[11px] text-gray-500 mt-1">
-                        📍 Hội trường H
-                      </div>
+                    ))
+                  ) : (
+                    <div className="text-white/50 text-sm italic">
+                      Hiện không có sự kiện nào.
                     </div>
-                  </div>
+                  )}
                 </div>
 
                 <div className="absolute -top-6 -right-6 bg-white p-4 rounded-4xl shadow-2xl flex items-center gap-3 transform rotate-3 hover:rotate-0 transition-transform">
@@ -166,7 +197,7 @@ const VangLaiPage = () => {
                   </div>
                   <div>
                     <div className="text-gray-900 font-black text-xl leading-none">
-                      2.5k+
+                      {totalParticipants}+
                     </div>
                     <div className="text-gray-400 text-[10px] uppercase font-bold tracking-tighter">
                       Tham gia
@@ -180,7 +211,7 @@ const VangLaiPage = () => {
 
         {/* --- CONTENT SECTION --- */}
         <div className="w-full py-12 px-3 md:px-6">
-          <div className="p-3 md:p-6 min-h-screen">
+          <div id="su-kien" className="p-3 md:p-6 min-h-screen">
             <EventFeed />
           </div>
         </div>

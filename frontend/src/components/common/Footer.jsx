@@ -5,6 +5,15 @@ import { useNavigate } from "react-router-dom";
 
 const Footer = () => {
   const navigate = useNavigate();
+
+  const openMap = (address) => {
+    const encodedAddress = encodeURIComponent(address);
+    window.open(
+      `https://www.google.com/maps/search/?api=1&query=${encodedAddress}`,
+      "_blank",
+    );
+  };
+
   return (
     <footer className="w-full bg-[#245bb5] text-white pt-10 pb-4 font-sans">
       <div className="max-w-350 mx-auto px-4 md:px-10">
@@ -73,12 +82,16 @@ const Footer = () => {
                   Địa chỉ: Số 10 Nguyễn Văn Dung, Phường An Nhơn, TP.HCM - ĐT:
                   0283.8940 390
                 </p>
-                <a
-                  href="#"
+                <button
+                  onClick={() =>
+                    openMap(
+                      "Số 10 Nguyễn Văn Dung, Phường 6, Gò Vấp, Thành phố Hồ Chí Minh",
+                    )
+                  }
                   className="inline-flex items-center gap-1 text-xs bg-white/10 hover:bg-white/20 px-2 py-1 rounded transition-all"
                 >
                   <MapPin size={14} /> Xem bản đồ
-                </a>
+                </button>
               </div>
 
               {/* Phạm Văn Chiêu */}
@@ -90,12 +103,16 @@ const Footer = () => {
                   Địa chỉ: Số 20 Đường số 53, Phường An Hội Tây, TP.HCM - ĐT:
                   0283.8940 390
                 </p>
-                <a
-                  href="#"
+                <button
+                  onClick={() =>
+                    openMap(
+                      "20 Đường số 53, Phường 14, Gò Vấp, Thành phố Hồ Chí Minh",
+                    )
+                  }
                   className="inline-flex items-center gap-1 text-xs bg-white/10 hover:bg-white/20 px-2 py-1 rounded transition-all"
                 >
                   <MapPin size={14} /> Xem bản đồ
-                </a>
+                </button>
               </div>
 
               {/* Trung tâm VH-TT */}
@@ -107,12 +124,16 @@ const Footer = () => {
                   Địa chỉ: Số 5A Nguyễn Văn Lượng, phường An Hội Đông, TP.HCM -
                   ĐT: 0283.8940 390
                 </p>
-                <a
-                  href="#"
+                <button
+                  onClick={() =>
+                    openMap(
+                      "5A Nguyễn Văn Lượng, Phường 16, Gò Vấp, Thành phố Hồ Chí Minh",
+                    )
+                  }
                   className="inline-flex items-center gap-1 text-xs bg-white/10 hover:bg-white/20 px-2 py-1 rounded transition-all"
                 >
                   <MapPin size={14} /> Xem bản đồ
-                </a>
+                </button>
               </div>
 
               {/* Nhơn Trạch */}
@@ -121,12 +142,14 @@ const Footer = () => {
                   Nhơn Trạch
                 </h4>
                 <p>Địa chỉ: xã Phước An, tỉnh Đồng Nai - ĐT: 0283.8940 390</p>
-                <a
-                  href="#"
+                <button
+                  onClick={() =>
+                    openMap("Đại học Công nghiệp TP.HCM cơ sở Nhơn Trạch")
+                  }
                   className="inline-flex items-center gap-1 text-xs bg-white/10 hover:bg-white/20 px-2 py-1 rounded transition-all"
                 >
                   <MapPin size={14} /> Xem bản đồ
-                </a>
+                </button>
               </div>
 
               {/* Thanh Hóa */}
@@ -137,12 +160,14 @@ const Footer = () => {
                 <p>
                   Địa chỉ: Phường Quảng Phú, tỉnh Thanh Hóa - ĐT: 02373.675.092
                 </p>
-                <a
-                  href="#"
+                <button
+                  onClick={() =>
+                    openMap("5 ĐL Nam Sông Mã, Quảng Phú, Thanh Hóa, Vietnam")
+                  }
                   className="inline-flex items-center gap-1 text-xs bg-white/10 hover:bg-white/20 px-2 py-1 rounded transition-all"
                 >
                   <MapPin size={14} /> Xem bản đồ
-                </a>
+                </button>
               </div>
 
               {/* Quảng Ngãi */}
@@ -154,12 +179,14 @@ const Footer = () => {
                   Địa chỉ: Số 938 đường Quang Trung, phường Chánh Lộ, tỉnh Quảng
                   Ngãi - ĐT: (0255) 625 0075
                 </p>
-                <a
-                  href="#"
+                <button
+                  onClick={() =>
+                    openMap("447 Hải Thượng Lãn Ông, Quảng Phú, TP. Thanh Hóa")
+                  }
                   className="inline-flex items-center gap-1 text-xs bg-white/10 hover:bg-white/20 px-2 py-1 rounded transition-all"
                 >
                   <MapPin size={14} /> Xem bản đồ
-                </a>
+                </button>
               </div>
             </div>
           </div>
@@ -178,7 +205,7 @@ const Footer = () => {
             </span>
           </div>
           <div className="text-center md:text-right">
-            © 2025 Đại học Công nghiệp TP.HCM - IUH
+            © 2026 Đại học Công nghiệp TP.HCM - IUH
           </div>
         </div>
       </div>
