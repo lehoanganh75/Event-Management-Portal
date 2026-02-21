@@ -26,74 +26,13 @@ import {
 import Preloader from "./Preloader";
 import LuckyWheelModal from "../luckyWheelModal/LuckyWheelModal";
 import { useNavigate } from "react-router-dom";
-
-const mockPosts = [
-  {
-    id: 1,
-    title: "Hội thảo Khoa học: AI và Machine Learning trong Công nghiệp 4.0",
-    description:
-      "Hội thảo về ứng dụng AI và ML trong các ngành công nghiệp hiện đại",
-    imageUrl:
-      "https://images.unsplash.com/photo-1677442136019-21780ecad995?w=800&h=400&fit=crop",
-    eventDate: "15/12/2025",
-    eventTime: "08:00 - 11:30",
-    registeredCount: 450,
-    maxParticipants: 500,
-    status: "upcoming",
-    type: "workshop",
-    organizer: "cntt",
-    location: "hoi-truong-a",
-    hasPoints: true,
-    fee: "free",
-    duration: "2-4h",
-    target: "all",
-    tags: ["AI", "MachineLearning"],
-  },
-  {
-    id: 2,
-    title: "Ngày Hội Việc Làm IUH Career Fair 2025",
-    description: "Sự kiện kết nối sinh viên với các doanh nghiệp hàng đầu",
-    imageUrl:
-      "https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=800&h=400&fit=crop",
-    eventDate: "20/12/2025",
-    eventTime: "07:30 - 16:30",
-    registeredCount: 1850,
-    maxParticipants: 2000,
-    status: "ongoing",
-    type: "career",
-    organizer: "ctsv",
-    location: "san-van-dong",
-    hasPoints: true,
-    fee: "free",
-    duration: "full-day",
-    target: "all",
-    tags: ["TìmViệc", "CareerFair"],
-  },
-  {
-    id: 3,
-    title: "Workshop: Kỹ năng phỏng vấn cho sinh viên",
-    description: "Hướng dẫn cách chuẩn bị và vượt qua phỏng vấn xin việc",
-    imageUrl:
-      "https://images.unsplash.com/photo-1552664730-d307ca884978?w=800&h=400&fit=crop",
-    eventDate: "01/12/2025",
-    eventTime: "14:00 - 17:00",
-    registeredCount: 200,
-    maxParticipants: 200,
-    status: "completed",
-    type: "workshop",
-    organizer: "ctsv",
-    location: "online",
-    hasPoints: true,
-    fee: "free",
-    duration: "2-4h",
-    target: "year-4",
-    tags: ["KỹNăngMềm"],
-  },
-];
+import { getAllEvents } from "../../api/eventApi";
 
 /* ─── LEFT SIDEBAR (desktop only) ─── */
-function LeftSidebar({ onSearchChange }) {
+function LeftSidebar({ onSearchChange, variant = "full" }) {
   const [keyword, setKeyword] = useState("");
+
+  if (variant === "minimal") return null;
 
   return (
     <aside className="w-72 shrink-0 space-y-6 hidden lg:block">
@@ -122,11 +61,31 @@ function LeftSidebar({ onSearchChange }) {
         </div>
         <div className="p-4 space-y-3">
           {[
-            { icon: <Bell className="w-4 h-4" />, label: "Thông báo mới", link: "/notifications" },
-            { icon: <Calendar className="w-4 h-4" />, label: "Sự kiện sắp diễn ra", link: "/?filter=upcoming" },
-            { icon: <CheckCircle className="w-4 h-4" />, label: "Điểm danh hôm nay", link: "/attendance?today=true" },
-            { icon: <FileText className="w-4 h-4" />, label: "Sự kiện đã tham gia", link: "/?tab=joined" },
-            { icon: <Star className="w-4 h-4" />, label: "Sự kiện nổi bật", link: "/?filter=featured" },
+            {
+              icon: <Bell className="w-4 h-4" />,
+              label: "Thông báo mới",
+              link: "/notifications",
+            },
+            {
+              icon: <Calendar className="w-4 h-4" />,
+              label: "Sự kiện sắp diễn ra",
+              link: "/?filter=upcoming",
+            },
+            {
+              icon: <CheckCircle className="w-4 h-4" />,
+              label: "Điểm danh hôm nay",
+              link: "/attendance?today=true",
+            },
+            {
+              icon: <FileText className="w-4 h-4" />,
+              label: "Sự kiện đã tham gia",
+              link: "/?tab=joined",
+            },
+            {
+              icon: <Star className="w-4 h-4" />,
+              label: "Sự kiện nổi bật",
+              link: "/?filter=featured",
+            },
           ].map((item, idx) => (
             <a key={idx} href={item.link} className="block">
               <button className="w-full flex items-center gap-2 px-3 py-2 text-sm text-blue-700 hover:bg-blue-50 rounded-md transition">
@@ -167,11 +126,11 @@ function MobileSearchBar({ onSearchChange }) {
 function FilterModal({ isOpen, onClose, filters, setFilters }) {
   const [localFilters, setLocalFilters] = useState(filters);
 
-useEffect(() => {
-  if (isOpen) {
-    setLocalFilters(filters);
-  }
-}, [isOpen, filters]);
+  useEffect(() => {
+    if (isOpen) {
+      setLocalFilters(filters);
+    }
+  }, [isOpen, filters]);
 
   const handleApply = () => {
     setFilters(localFilters);
@@ -180,9 +139,17 @@ useEffect(() => {
 
   const handleReset = () => {
     const resetFilters = {
-      status: "all", type: "all", organizer: "all", location: "all",
-      availability: "all", hasPoints: "all", fee: "all", duration: "all",
-      target: "all", dateFrom: "", dateTo: "",
+      status: "all",
+      type: "all",
+      organizer: "all",
+      location: "all",
+      availability: "all",
+      hasPoints: "all",
+      fee: "all",
+      duration: "all",
+      target: "all",
+      dateFrom: "",
+      dateTo: "",
     };
     setLocalFilters(resetFilters);
     setFilters(resetFilters);
@@ -204,7 +171,10 @@ useEffect(() => {
             <SlidersHorizontal className="w-5 h-5" />
             <h2 className="text-lg font-bold">Bộ lọc nâng cao</h2>
           </div>
-          <button onClick={onClose} className="hover:bg-white/20 p-2 rounded-full transition">
+          <button
+            onClick={onClose}
+            className="hover:bg-white/20 p-2 rounded-full transition"
+          >
             <X className="w-5 h-5" />
           </button>
         </div>
@@ -216,7 +186,13 @@ useEffect(() => {
             {/* Trạng thái */}
             <div>
               <label className={labelClass}>Trạng thái</label>
-              <select value={localFilters.status} onChange={(e) => setLocalFilters({ ...localFilters, status: e.target.value })} className={selectClass}>
+              <select
+                value={localFilters.status}
+                onChange={(e) =>
+                  setLocalFilters({ ...localFilters, status: e.target.value })
+                }
+                className={selectClass}
+              >
                 <option value="all">Tất cả</option>
                 <option value="upcoming">Sắp diễn ra</option>
                 <option value="ongoing">Đang diễn ra</option>
@@ -227,7 +203,13 @@ useEffect(() => {
             {/* Loại sự kiện */}
             <div>
               <label className={labelClass}>Loại sự kiện</label>
-              <select value={localFilters.type} onChange={(e) => setLocalFilters({ ...localFilters, type: e.target.value })} className={selectClass}>
+              <select
+                value={localFilters.type}
+                onChange={(e) =>
+                  setLocalFilters({ ...localFilters, type: e.target.value })
+                }
+                className={selectClass}
+              >
                 <option value="all">Tất cả</option>
                 <option value="seminar">Hội thảo</option>
                 <option value="sport">Thi đấu thể thao</option>
@@ -242,7 +224,16 @@ useEffect(() => {
             {/* Đơn vị tổ chức */}
             <div>
               <label className={labelClass}>Đơn vị tổ chức</label>
-              <select value={localFilters.organizer} onChange={(e) => setLocalFilters({ ...localFilters, organizer: e.target.value })} className={selectClass}>
+              <select
+                value={localFilters.organizer}
+                onChange={(e) =>
+                  setLocalFilters({
+                    ...localFilters,
+                    organizer: e.target.value,
+                  })
+                }
+                className={selectClass}
+              >
                 <option value="all">Tất cả</option>
                 <option value="ctsv">Phòng CTSV</option>
                 <option value="cntt">Khoa CNTT</option>
@@ -255,7 +246,13 @@ useEffect(() => {
             {/* Địa điểm */}
             <div>
               <label className={labelClass}>Địa điểm</label>
-              <select value={localFilters.location} onChange={(e) => setLocalFilters({ ...localFilters, location: e.target.value })} className={selectClass}>
+              <select
+                value={localFilters.location}
+                onChange={(e) =>
+                  setLocalFilters({ ...localFilters, location: e.target.value })
+                }
+                className={selectClass}
+              >
                 <option value="all">Tất cả</option>
                 <option value="hoi-truong-a">Hội trường A</option>
                 <option value="hoi-truong-b">Hội trường B</option>
@@ -268,7 +265,16 @@ useEffect(() => {
             {/* Tình trạng chỗ */}
             <div>
               <label className={labelClass}>Tình trạng chỗ</label>
-              <select value={localFilters.availability} onChange={(e) => setLocalFilters({ ...localFilters, availability: e.target.value })} className={selectClass}>
+              <select
+                value={localFilters.availability}
+                onChange={(e) =>
+                  setLocalFilters({
+                    ...localFilters,
+                    availability: e.target.value,
+                  })
+                }
+                className={selectClass}
+              >
                 <option value="all">Tất cả</option>
                 <option value="available">Còn chỗ (&gt; 20%)</option>
                 <option value="limited">Sắp hết chỗ (&lt; 20%)</option>
@@ -279,7 +285,16 @@ useEffect(() => {
             {/* Điểm rèn luyện */}
             <div>
               <label className={labelClass}>Điểm rèn luyện</label>
-              <select value={localFilters.hasPoints} onChange={(e) => setLocalFilters({ ...localFilters, hasPoints: e.target.value })} className={selectClass}>
+              <select
+                value={localFilters.hasPoints}
+                onChange={(e) =>
+                  setLocalFilters({
+                    ...localFilters,
+                    hasPoints: e.target.value,
+                  })
+                }
+                className={selectClass}
+              >
                 <option value="all">Tất cả</option>
                 <option value="yes">Có điểm rèn luyện</option>
                 <option value="no">Không có</option>
@@ -289,7 +304,13 @@ useEffect(() => {
             {/* Phí tham gia */}
             <div>
               <label className={labelClass}>Phí tham gia</label>
-              <select value={localFilters.fee} onChange={(e) => setLocalFilters({ ...localFilters, fee: e.target.value })} className={selectClass}>
+              <select
+                value={localFilters.fee}
+                onChange={(e) =>
+                  setLocalFilters({ ...localFilters, fee: e.target.value })
+                }
+                className={selectClass}
+              >
                 <option value="all">Tất cả</option>
                 <option value="free">Miễn phí</option>
                 <option value="paid">Có phí</option>
@@ -299,7 +320,13 @@ useEffect(() => {
             {/* Thời lượng */}
             <div>
               <label className={labelClass}>Thời lượng</label>
-              <select value={localFilters.duration} onChange={(e) => setLocalFilters({ ...localFilters, duration: e.target.value })} className={selectClass}>
+              <select
+                value={localFilters.duration}
+                onChange={(e) =>
+                  setLocalFilters({ ...localFilters, duration: e.target.value })
+                }
+                className={selectClass}
+              >
                 <option value="all">Tất cả</option>
                 <option value="under-2h">Dưới 2 giờ</option>
                 <option value="2-4h">2-4 giờ</option>
@@ -312,7 +339,13 @@ useEffect(() => {
             {/* Đối tượng */}
             <div>
               <label className={labelClass}>Đối tượng</label>
-              <select value={localFilters.target} onChange={(e) => setLocalFilters({ ...localFilters, target: e.target.value })} className={selectClass}>
+              <select
+                value={localFilters.target}
+                onChange={(e) =>
+                  setLocalFilters({ ...localFilters, target: e.target.value })
+                }
+                className={selectClass}
+              >
                 <option value="all">Tất cả sinh viên</option>
                 <option value="year-1">Sinh viên năm 1</option>
                 <option value="year-2-3">Sinh viên năm 2-3</option>
@@ -325,8 +358,25 @@ useEffect(() => {
             <div className="sm:col-span-2 lg:col-span-3">
               <label className={labelClass}>Khoảng thời gian</label>
               <div className="grid grid-cols-2 gap-3">
-                <input type="date" value={localFilters.dateFrom} onChange={(e) => setLocalFilters({ ...localFilters, dateFrom: e.target.value })} className={selectClass} />
-                <input type="date" value={localFilters.dateTo} onChange={(e) => setLocalFilters({ ...localFilters, dateTo: e.target.value })} className={selectClass} />
+                <input
+                  type="date"
+                  value={localFilters.dateFrom}
+                  onChange={(e) =>
+                    setLocalFilters({
+                      ...localFilters,
+                      dateFrom: e.target.value,
+                    })
+                  }
+                  className={selectClass}
+                />
+                <input
+                  type="date"
+                  value={localFilters.dateTo}
+                  onChange={(e) =>
+                    setLocalFilters({ ...localFilters, dateTo: e.target.value })
+                  }
+                  className={selectClass}
+                />
               </div>
             </div>
           </div>
@@ -334,14 +384,23 @@ useEffect(() => {
 
         {/* Footer */}
         <div className="border-t px-5 py-4 bg-gray-50 flex justify-between items-center shrink-0">
-          <button onClick={handleReset} className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800 font-medium">
+          <button
+            onClick={handleReset}
+            className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800 font-medium"
+          >
             Đặt lại
           </button>
           <div className="flex gap-3">
-            <button onClick={onClose} className="px-5 py-2 text-sm border border-gray-300 rounded-lg hover:bg-gray-100 font-medium">
+            <button
+              onClick={onClose}
+              className="px-5 py-2 text-sm border border-gray-300 rounded-lg hover:bg-gray-100 font-medium"
+            >
               Hủy
             </button>
-            <button onClick={handleApply} className="px-5 py-2 text-sm bg-blue-700 text-white rounded-lg hover:bg-blue-800 font-medium">
+            <button
+              onClick={handleApply}
+              className="px-5 py-2 text-sm bg-blue-700 text-white rounded-lg hover:bg-blue-800 font-medium"
+            >
               Áp dụng
             </button>
           </div>
@@ -381,12 +440,20 @@ function EventCard({ item, onClick }) {
               <span>{item.eventDate}</span>
             </div>
 
-            <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
-              item.status === "upcoming" ? "bg-blue-100 text-blue-700" :
-              item.status === "ongoing" ? "bg-green-100 text-green-700" :
-              "bg-gray-100 text-gray-600"
-            }`}>
-              {item.status === "upcoming" ? "Sắp diễn ra" : item.status === "ongoing" ? "Đang diễn ra" : "Đã kết thúc"}
+            <span
+              className={`text-xs px-2 py-0.5 rounded-full font-medium ${
+                item.status === "upcoming"
+                  ? "bg-blue-100 text-blue-700"
+                  : item.status === "ongoing"
+                    ? "bg-green-100 text-green-700"
+                    : "bg-gray-100 text-gray-600"
+              }`}
+            >
+              {item.status === "upcoming"
+                ? "Sắp diễn ra"
+                : item.status === "ongoing"
+                  ? "Đang diễn ra"
+                  : "Đã kết thúc"}
             </span>
 
             {item.hasPoints && (
@@ -396,13 +463,19 @@ function EventCard({ item, onClick }) {
             )}
 
             {availabilityPercent > 20 && (
-              <span className="text-xs px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 font-medium">Còn chỗ</span>
+              <span className="text-xs px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 font-medium">
+                Còn chỗ
+              </span>
             )}
             {availabilityPercent > 0 && availabilityPercent <= 20 && (
-              <span className="text-xs px-2 py-0.5 rounded-full bg-orange-100 text-orange-700 font-medium">Sắp hết chỗ</span>
+              <span className="text-xs px-2 py-0.5 rounded-full bg-orange-100 text-orange-700 font-medium">
+                Sắp hết chỗ
+              </span>
             )}
             {availabilityPercent === 0 && (
-              <span className="text-xs px-2 py-0.5 rounded-full bg-red-100 text-red-700 font-medium">Đã đầy</span>
+              <span className="text-xs px-2 py-0.5 rounded-full bg-red-100 text-red-700 font-medium">
+                Đã đầy
+              </span>
             )}
           </div>
 
@@ -424,12 +497,17 @@ function EventCard({ item, onClick }) {
             </div>
             <div className="flex gap-1 items-center">
               <Users className="w-3.5 h-3.5" />
-              <span>{item.registeredCount.toLocaleString()} / {item.maxParticipants.toLocaleString()}</span>
+              <span>
+                {item.registeredCount.toLocaleString()} /{" "}
+                {item.maxParticipants.toLocaleString()}
+              </span>
             </div>
             {item.tags && (
               <div className="flex gap-1">
                 {item.tags.map((tag, idx) => (
-                  <span key={idx} className="text-blue-500 font-medium">#{tag}</span>
+                  <span key={idx} className="text-blue-500 font-medium">
+                    #{tag}
+                  </span>
                 ))}
               </div>
             )}
@@ -442,6 +520,7 @@ function EventCard({ item, onClick }) {
 
 /* ─── MAIN COMPONENT ─── */
 export function EventFeed() {
+  const [posts, setPosts] = useState([]);
   const [currentPage, setCurrentPage] = useState(1);
   const [isLoading, setIsLoading] = useState(true);
   const [searchKeyword, setSearchKeyword] = useState("");
@@ -450,65 +529,128 @@ export function EventFeed() {
   const [showChat, setShowChat] = useState(false);
   const [showWheel, setShowWheel] = useState(false);
   const [filters, setFilters] = useState({
-    status: "all", type: "all", organizer: "all", location: "all",
-    availability: "all", hasPoints: "all", fee: "all", duration: "all",
-    target: "all", dateFrom: "", dateTo: "",
+    status: "all",
+    type: "all",
+    organizer: "all",
+    location: "all",
+    availability: "all",
+    hasPoints: "all",
+    fee: "all",
+    duration: "all",
+    target: "all",
+    dateFrom: "",
+    dateTo: "",
   });
-
-  const totalPages = 3;
+  const ITEMS_PER_PAGE = 5;
   const navigate = useNavigate();
+  const isLecturerView = location.pathname.startsWith("/lecturer");
 
   const handleEventClick = (eventId) => navigate(`/events/${eventId}`);
 
   useEffect(() => {
-    const timer = setTimeout(() => setIsLoading(false), 1000);
-    return () => clearTimeout(timer);
+    getAllEvents()
+      .then((res) => setPosts(res.data))
+      .catch((err) => {
+        console.error("Lỗi tải sự kiện:", err);
+        setPosts([]);
+      })
+      .finally(() => setIsLoading(false));
   }, []);
 
-  const activeFilterCount = Object.values(filters).filter((v) => v !== "all" && v !== "").length;
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchKeyword, filters, sortBy]);
 
-  const filteredPosts = mockPosts
+  // useEffect(() => {
+  //   const timer = setTimeout(() => setIsLoading(false), 1000);
+  //   return () => clearTimeout(timer);
+  // }, []);
+
+  const activeFilterCount = Object.values(filters).filter(
+    (v) => v !== "all" && v !== "",
+  ).length;
+
+  const filteredPosts = posts
     .filter((post) => {
-      const matchesKeyword = post.title.toLowerCase().includes(searchKeyword.toLowerCase());
-      const matchesStatus = filters.status === "all" || post.status === filters.status;
+      const matchesKeyword = post.title
+        .toLowerCase()
+        .includes(searchKeyword.toLowerCase());
+      const matchesStatus =
+        filters.status === "all" || post.status === filters.status;
       const matchesType = filters.type === "all" || post.type === filters.type;
-      const matchesOrganizer = filters.organizer === "all" || post.organizer === filters.organizer;
-      const matchesLocation = filters.location === "all" || post.location === filters.location;
-      const availabilityPercent = ((post.maxParticipants - post.registeredCount) / post.maxParticipants) * 100;
+      const matchesOrganizer =
+        filters.organizer === "all" || post.organizer === filters.organizer;
+      const matchesLocation =
+        filters.location === "all" ||
+        (filters.location === "online" && post.eventMode === "Online") ||
+        (filters.location !== "online" && post.eventMode === "Offline");
+      const availabilityPercent =
+        ((post.maxParticipants - post.registeredCount) / post.maxParticipants) *
+        100;
       const matchesAvailability =
         filters.availability === "all" ||
         (filters.availability === "available" && availabilityPercent > 20) ||
-        (filters.availability === "limited" && availabilityPercent > 0 && availabilityPercent <= 20) ||
+        (filters.availability === "limited" &&
+          availabilityPercent > 0 &&
+          availabilityPercent <= 20) ||
         (filters.availability === "full" && availabilityPercent === 0);
       const matchesPoints =
         filters.hasPoints === "all" ||
         (filters.hasPoints === "yes" && post.hasPoints) ||
         (filters.hasPoints === "no" && !post.hasPoints);
       const matchesFee = filters.fee === "all" || post.fee === filters.fee;
-      const matchesDuration = filters.duration === "all" || post.duration === filters.duration;
-      const matchesTarget = filters.target === "all" || post.target === filters.target;
-      return matchesKeyword && matchesStatus && matchesType && matchesOrganizer && matchesLocation && matchesAvailability && matchesPoints && matchesFee && matchesDuration && matchesTarget;
+      const matchesDuration =
+        filters.duration === "all" || post.duration === filters.duration;
+      const matchesTarget =
+        filters.target === "all" || post.target === filters.target;
+      return (
+        matchesKeyword &&
+        matchesStatus &&
+        matchesType &&
+        matchesOrganizer &&
+        matchesLocation &&
+        matchesAvailability &&
+        matchesPoints &&
+        matchesFee &&
+        matchesDuration &&
+        matchesTarget
+      );
     })
     .sort((a, b) => {
       switch (sortBy) {
-        case "newest": return b.id - a.id;
-        case "oldest": return a.id - b.id;
-        case "most-registered": return b.registeredCount - a.registeredCount;
-        case "most-available": return (b.maxParticipants - b.registeredCount) - (a.maxParticipants - a.registeredCount);
-        default: return 0;
+        case "newest":
+          return String(b.id).localeCompare(String(a.id));
+        case "oldest":
+          return String(a.id).localeCompare(String(b.id));
+        case "most-registered":
+          return b.registeredCount - a.registeredCount;
+        case "most-available":
+          return (
+            b.maxParticipants -
+            b.registeredCount -
+            (a.maxParticipants - a.registeredCount)
+          );
+        default:
+          return 0;
       }
     });
+  const totalPages = Math.ceil(filteredPosts.length / ITEMS_PER_PAGE);
+
+  const paginatedPosts = filteredPosts.slice(
+    (currentPage - 1) * ITEMS_PER_PAGE,
+    currentPage * ITEMS_PER_PAGE,
+  );
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
       {isLoading && <Preloader />}
 
       {/* Mobile search bar */}
-      <MobileSearchBar onSearchChange={setSearchKeyword} />
+      {!isLecturerView && <MobileSearchBar onSearchChange={setSearchKeyword} />}
 
       <div className="w-full px-4 sm:px-6 md:px-8 lg:px-12 flex gap-6 flex-1 py-4">
         {/* Desktop Sidebar */}
-        <LeftSidebar onSearchChange={setSearchKeyword} />
+        {!isLecturerView && <LeftSidebar onSearchChange={setSearchKeyword} />}
 
         <main className="flex-1 min-w-0">
           {/* Header */}
@@ -517,8 +659,12 @@ export function EventFeed() {
               <Newspaper className="w-5 h-5 sm:w-6 sm:h-6 text-blue-600" />
             </div>
             <div>
-              <h1 className="text-xl sm:text-2xl font-bold text-blue-700">SỰ KIỆN</h1>
-              <p className="text-sm text-gray-500 hidden sm:block">Cập nhật thông tin sự kiện mới nhất tại IUH</p>
+              <h1 className="text-xl sm:text-2xl font-bold text-blue-700">
+                SỰ KIỆN
+              </h1>
+              <p className="text-sm text-gray-500 hidden sm:block">
+                Cập nhật thông tin sự kiện mới nhất tại IUH
+              </p>
             </div>
           </div>
 
@@ -538,7 +684,11 @@ export function EventFeed() {
                 )}
               </button>
               <div className="text-xs sm:text-sm text-gray-500 truncate">
-                Tìm thấy <span className="font-bold text-gray-700">{filteredPosts.length}</span> sự kiện
+                Tìm thấy{" "}
+                <span className="font-bold text-gray-700">
+                  {filteredPosts.length}
+                </span>{" "}
+                sự kiện
               </div>
             </div>
 
@@ -560,14 +710,22 @@ export function EventFeed() {
           {/* Event list */}
           <div className="space-y-3 sm:space-y-4">
             {filteredPosts.length > 0 ? (
-              filteredPosts.map((item) => (
-                <EventCard key={item.id} item={item} onClick={handleEventClick} />
+              paginatedPosts.map((item) => (
+                <EventCard
+                  key={item.id}
+                  item={item}
+                  onClick={handleEventClick}
+                />
               ))
             ) : (
               <div className="bg-white rounded-xl border p-12 text-center">
                 <Search className="w-14 h-14 text-gray-300 mx-auto mb-3" />
-                <p className="text-gray-600 font-medium">Không tìm thấy sự kiện nào phù hợp</p>
-                <p className="text-sm text-gray-400 mt-1">Thử điều chỉnh bộ lọc hoặc tìm kiếm khác</p>
+                <p className="text-gray-600 font-medium">
+                  Không tìm thấy sự kiện nào phù hợp
+                </p>
+                <p className="text-sm text-gray-400 mt-1">
+                  Thử điều chỉnh bộ lọc hoặc tìm kiếm khác
+                </p>
               </div>
             )}
           </div>
@@ -596,7 +754,9 @@ export function EventFeed() {
                 </button>
               ))}
               <button
-                onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                onClick={() =>
+                  setCurrentPage((p) => Math.min(totalPages, p + 1))
+                }
                 className="w-9 h-9 sm:w-10 sm:h-10 border rounded-lg flex items-center justify-center hover:bg-gray-50 disabled:opacity-40"
                 disabled={currentPage === totalPages}
               >
@@ -636,16 +796,24 @@ export function EventFeed() {
       {/* Chat Modal */}
       {showChat && (
         <div className="fixed inset-0 z-100 flex items-end sm:items-end justify-end bg-black/30">
-          <div className="w-full sm:w-88 sm:max-w-sm bg-white sm:rounded-2xl shadow-2xl sm:m-6 overflow-hidden flex flex-col rounded-t-2xl"
-            style={{ height: "min(520px, 85dvh)" }}>
+          <div
+            className="w-full sm:w-88 sm:max-w-sm bg-white sm:rounded-2xl shadow-2xl sm:m-6 overflow-hidden flex flex-col rounded-t-2xl"
+            style={{ height: "min(520px, 85dvh)" }}
+          >
             <div className="bg-linear-to-r from-blue-500 to-purple-500 text-white px-4 py-3 flex justify-between items-center shrink-0">
               <span className="font-bold">AI Assistant</span>
-              <button onClick={() => setShowChat(false)} className="hover:bg-white/20 w-8 h-8 rounded-full flex items-center justify-center">
+              <button
+                onClick={() => setShowChat(false)}
+                className="hover:bg-white/20 w-8 h-8 rounded-full flex items-center justify-center"
+              >
                 <X className="w-4 h-4" />
               </button>
             </div>
             <div className="flex-1 p-4 overflow-y-auto">
-              <p className="text-gray-600 text-sm">Xin chào! Tôi là AI Assistant của IUH. Tôi có thể giúp bạn tìm kiếm sự kiện phù hợp!</p>
+              <p className="text-gray-600 text-sm">
+                Xin chào! Tôi là AI Assistant của IUH. Tôi có thể giúp bạn tìm
+                kiếm sự kiện phù hợp!
+              </p>
             </div>
             <div className="p-3 border-t flex gap-2 shrink-0">
               <input
