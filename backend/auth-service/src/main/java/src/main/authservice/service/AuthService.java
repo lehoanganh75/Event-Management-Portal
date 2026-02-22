@@ -6,8 +6,8 @@ import src.main.authservice.dto.RegisterRequest;
 import src.main.authservice.entity.Account;
 
 public interface AuthService {
-    AuthResponse login(LoginRequest request);
-    AuthResponse refreshToken(String token);
-    void logout(String accountId);
     Account register(RegisterRequest request);
+    AuthResponse login(LoginRequest request);
+    AuthResponse refreshToken(String refreshToken);
+    void logout(String token);
 }

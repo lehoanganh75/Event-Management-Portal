@@ -19,10 +19,11 @@ public class SecurityConfig {
 
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
-        http.csrf(csrf -> csrf.disable()) // Microservices dùng JWT nên tắt CSRF
+        http.csrf(csrf -> csrf.disable())
+                .cors(cors -> cors.disable())
                 .sessionManagement(ss -> ss.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/api/v1/auth/**").permitAll() // Cho phép Login/Register
+                        .requestMatchers("/api/**").permitAll()
                         .anyRequest().authenticated()
                 );
         return http.build();
