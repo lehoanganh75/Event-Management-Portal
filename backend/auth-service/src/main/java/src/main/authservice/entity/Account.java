@@ -24,6 +24,8 @@ public class Account {
     private String username;
     @Column(nullable = false)
     private String password;
+    @Column(nullable = false)
+    private String email;
 
     @Enumerated(EnumType.STRING)
     private AccountStatus status;

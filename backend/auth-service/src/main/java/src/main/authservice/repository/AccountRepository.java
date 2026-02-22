@@ -5,8 +5,9 @@ import org.springframework.stereotype.Repository;
 import src.main.authservice.entity.Account;
 
 import java.util.List;
+import java.util.Optional;
 
 @Repository
 public interface AccountRepository extends JpaRepository<Account,String> {
-    List<Account> findByUsername(String username);
+    Optional<Object> findByUsername(String username);
 }

@@ -2,14 +2,16 @@ package src.main.authservice.util;
 
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
+import lombok.Getter;
 import org.springframework.stereotype.Component;
 import src.main.authservice.entity.Account;
 
 import java.util.Date;
 
 @Component
+@Getter
 public class JwtUtils {
-    private String secret = "your-very-long-secret-key-for-jwt-signing";
+    private String secret = "NQ0sEQnwIDQjGqHQkl8kKQcofxfhuXeMJ1rCwHSC2q4n6UuelkIlrHNljkTN6NJmimhXBjD4Y90fva/q/1IL8A==";
     private long expiration = 86400000; // 1 ngày
 
     public String generateToken(Account account) {

@@ -5,8 +5,9 @@ import org.springframework.stereotype.Repository;
 import src.main.authservice.entity.RefreshToken;
 
 import java.util.List;
+import java.util.Optional;
 
 @Repository
 public interface RefreshTokenRepository extends JpaRepository<RefreshToken,String> {
-    List<RefreshToken> findAll();
+    Optional<RefreshToken> findByToken(String token);
 }
