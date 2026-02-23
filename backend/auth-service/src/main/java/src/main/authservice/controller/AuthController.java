@@ -11,7 +11,7 @@ import src.main.authservice.dto.RegisterRequest;
 import src.main.authservice.service.AuthService;
 
 @RestController
-@RequestMapping("/api")
+@RequestMapping("/api/auth")
 @RequiredArgsConstructor
 public class AuthController {
     private final AuthService authService;

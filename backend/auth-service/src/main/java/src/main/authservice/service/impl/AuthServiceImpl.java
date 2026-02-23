@@ -1,6 +1,7 @@
 package src.main.authservice.service.impl;
 
 import lombok.RequiredArgsConstructor;
+import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -17,9 +18,7 @@ import src.main.authservice.service.AuthService;
 import src.main.authservice.util.JwtUtils;
 
 import java.time.LocalDateTime;
-import java.util.HashSet;
-import java.util.Set;
-import java.util.UUID;
+import java.util.*;
 
 @Service
 @RequiredArgsConstructor
@@ -28,6 +27,7 @@ public class AuthServiceImpl implements AuthService {
     private final RefreshTokenRepository refreshTokenRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtUtils jwtUtils;
+    private final KafkaTemplate<String, Object> kafkaTemplate;
 
     @Override
     @Transactional
@@ -45,7 +45,19 @@ public class AuthServiceImpl implements AuthService {
 
         account.setStatus(AccountStatus.Active);
         account.setCreatedAt(LocalDateTime.now());
-        return accountRepository.save(account);
+
+        Account savedAccount = accountRepository.save(account);
+
+        Map<String, String> message = new HashMap();
+        System.out.println("Đã lưu account, chuẩn bị gửi message: " + savedAccount.getId());
+        message.put("accountId", savedAccount.getId());
+        message.put("fullName", request.getFullName());
+        message.put("gender", request.getGender());
+        message.put("dateOfBirth", request.getDateOfBirth().toString());
+
+        kafkaTemplate.send("user-registration-topic", message);
+
+        return savedAccount;
     }
 
     @Override

@@ -5,6 +5,7 @@ import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 @Entity
@@ -22,16 +23,17 @@ public class UserProfile {
     private String loginCode;
     private String fullName;
     private String gender;
-    private LocalDateTime birthDate;
+    private LocalDate dateOfBirth;
     private String majorName;
 
     @Enumerated(EnumType.STRING)
     private ApprovalStatus approvalStatus;
 
     @CreationTimestamp
+    @Column(nullable = false, updatable = false)
     private LocalDateTime createdAt;
     @UpdateTimestamp
     private LocalDateTime updatedAt;
-    private LocalDateTime deletedAt;
+    private boolean isDeleted;
 }
 

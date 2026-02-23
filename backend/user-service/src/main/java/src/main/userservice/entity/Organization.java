@@ -3,9 +3,10 @@ package src.main.userservice.entity;
 import jakarta.persistence.*;
 import jakarta.persistence.Id;
 import lombok.*;
+import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.UpdateTimestamp;
 
 import java.time.LocalDateTime;
-import java.util.List;
 
 @Entity
 @Table(name = "organizations")
@@ -24,10 +25,10 @@ public class Organization {
 
     private String description;
 
-    @ElementCollection
-    private List<String> majors;
-
+    @CreationTimestamp
+    @Column(nullable = false, updatable = false)
     private LocalDateTime createdAt;
+    @UpdateTimestamp
     private LocalDateTime updatedAt;
-    private LocalDateTime deletedAt;
+    private boolean isDeleted;
 }
