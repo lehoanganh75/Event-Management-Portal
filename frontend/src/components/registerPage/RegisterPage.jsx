@@ -16,9 +16,7 @@ const RegisterPage = () => {
     <div className="min-h-screen bg-gray-50 flex flex-col font-sans">
       <Header />
 
-      {/* Header Form */}
       <div className="pt-10 pb-6 relative text-center">
-        {/* NÚT QUAY LẠI */}
         <button
           onClick={() => navigate(-1)}
           className="absolute left-4 top-4 w-10 h-10 bg-white rounded-full shadow-md flex items-center justify-center hover:bg-blue-50 transition"

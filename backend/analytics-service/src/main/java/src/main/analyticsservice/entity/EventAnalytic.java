@@ -17,11 +17,16 @@ public class EventAnalytic {
 
     private int totalRegistrations;
     private int totalAttendees;
+    private int totalLikes;
+    private int totalShares;
+    private int totalComments;
+    private String topHashtags;
     private double conversionRate;
     private double averageRating;
     private double npsScore;
     @CreationTimestamp
     private LocalDateTime lastUpdatedAt;
+
 
     public void calculateConversion() {
         if (totalRegistrations > 0) {
