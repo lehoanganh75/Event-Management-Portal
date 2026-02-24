@@ -1,9 +1,11 @@
 package src.main.eventservice.controller;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import src.main.eventservice.EventService;
+import src.main.eventservice.entity.enums.EventStatus;
+import src.main.eventservice.service.EventService;
 import src.main.eventservice.entity.Event;
 
 import java.util.List;
@@ -46,5 +48,38 @@ public class EventController {
     public ResponseEntity<Void> deleteEvent(@PathVariable String id) {
         eventService.deleteEvent(id);
         return ResponseEntity.noContent().build();
+    }
+
+    //5. Update theo id
+    @PutMapping("/{id}")
+    public ResponseEntity<Event> update(@PathVariable String id, @RequestBody Event event) {
+        Event updatedEvent = eventService.updateEvent(id, event);
+        return ResponseEntity.ok(updatedEvent);
+    }
+
+    // 6. Lấy danh sách kế hoạch
+    @GetMapping("/plans")
+    public ResponseEntity<List<Event>> getAllPlans() {
+        return ResponseEntity.ok(eventService.getAllPlans());
+    }
+
+    // 7. Tạo kế hoạch mới
+    @PostMapping("/plans")
+    public ResponseEntity<Event> createPlan(@RequestBody Event event) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(eventService.saveEvent(event));
+    }
+
+    // 8. Phê duyệt kế hoạch
+    @PatchMapping("/{id}/approve")
+    public ResponseEntity<Event> approvePlan(@PathVariable String id, @RequestParam String approverId) {
+        Event approvedEvent = eventService.updateEventStatus(id, EventStatus.Published, approverId);
+        return ResponseEntity.ok(approvedEvent);
+    }
+
+    // 9. Từ chối kế hoạch
+    @PatchMapping("/{id}/reject")
+    public ResponseEntity<Event> rejectPlan(@PathVariable String id) {
+        Event rejectedEvent = eventService.updateEventStatus(id, EventStatus.Cancelled, null);
+        return ResponseEntity.ok(rejectedEvent);
     }
 }

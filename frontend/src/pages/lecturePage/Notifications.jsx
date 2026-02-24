@@ -1,13 +1,11 @@
 import React, { useState, useEffect } from "react";
-import { useParams } from "react-router-dom"; // Hook lấy ID từ URL
+import { useParams } from "react-router-dom"; 
 import { Clock, Check, MoreVertical, Loader2 } from "lucide-react";
 import notificationApi from "../../api/notificationApi";
 
 const NotificationPage = () => {
-  // 1. Lấy userId từ URL (ví dụ: /lecturer/notifications/user-iuh-001)
   const { userId: urlUserId } = useParams();
 
-  // 2. Xác định UserID ưu tiên: URL > LocalStorage > Mặc định
   const currentUserId =
     urlUserId || localStorage.getItem("userId") || "user-iuh-001";
 
@@ -123,7 +121,7 @@ const NotificationPage = () => {
               className="group flex items-start gap-4 py-6 hover:bg-slate-50/50 transition-all rounded-xl px-4 -mx-4 cursor-pointer"
             >
               <div className="mt-1.5 shrink-0">
-                {n.read === false ? ( // Nếu chưa đọc (false) thì hiện chấm xanh
+                {n.read === false ? ( 
                   <div className="w-2.5 h-2.5 bg-blue-600 rounded-full shadow-[0_0_8px_rgba(37,99,235,0.5)]" />
                 ) : (
                   <div className="w-2.5 h-2.5 bg-slate-200 rounded-full" />
