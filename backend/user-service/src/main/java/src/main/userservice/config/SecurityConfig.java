@@ -31,7 +31,13 @@ public class SecurityConfig {
                 .cors(cors -> cors.disable())  // hoặc config cụ thể nếu có frontend
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/api/profiles/me", "/api/profiles/**").authenticated()  // yêu cầu auth
+                        .requestMatchers(
+                                "/api/profiles/by-account/**"
+                        ).permitAll()
+                        .requestMatchers(
+                                "/api/profiles/**",
+                                "/api/organizations/**"
+                        ).authenticated()  // yêu cầu auth
                         .anyRequest().permitAll()
                 )
                 .oauth2ResourceServer(oauth2 -> oauth2
@@ -59,12 +65,12 @@ public class SecurityConfig {
 
     @Bean
     public JwtDecoder jwtDecoder() {
-        SecretKeySpec secretKeySpec = new SecretKeySpec(
-                JWT_SECRET.getBytes(),
-                "HmacSHA512"
+        SecretKey key = Keys.hmacShaKeyFor(
+                JWT_SECRET.getBytes()
         );
-        return NimbusJwtDecoder.withSecretKey(secretKeySpec)
-                .macAlgorithm(MacAlgorithm.HS512) // BẮT BUỘC thêm dòng này
+
+        return NimbusJwtDecoder.withSecretKey(key)
+                .macAlgorithm(MacAlgorithm.HS512)
                 .build();
     }
 }

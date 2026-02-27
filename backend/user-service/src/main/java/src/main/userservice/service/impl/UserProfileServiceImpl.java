@@ -50,4 +50,11 @@ public class UserProfileServiceImpl implements UserProfileService {
         userProfile.setApprovalStatus(status);
         return userProfileRepository.save(userProfile);
     }
+
+    @Override
+    public String getUserProfileIdByAccountId(String accountId) {
+        UserProfile profile = userProfileRepository.findByAccountId(accountId)
+                .orElseThrow(() -> new RuntimeException("Profile not found"));
+        return profile.getId();
+    }
 }

@@ -1,19 +1,31 @@
 package src.main.authservice.service.impl;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import jakarta.mail.MessagingException;
+import jakarta.mail.internet.MimeMessage;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.ResponseEntity;
 import org.springframework.kafka.core.KafkaTemplate;
+import org.springframework.mail.javamail.JavaMailSender;
+import org.springframework.mail.javamail.MimeMessageHelper;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.client.RestTemplate;
+import org.thymeleaf.TemplateEngine;
+import org.thymeleaf.context.Context;
+import src.main.authservice.client.UserClient;
 import src.main.authservice.dto.AuthResponse;
+import src.main.authservice.dto.UserTokenInfo;
 import src.main.authservice.dto.LoginRequest;
 import src.main.authservice.dto.RegisterRequest;
-import src.main.authservice.entity.Account;
-import src.main.authservice.entity.AccountStatus;
-import src.main.authservice.entity.RefreshToken;
-import src.main.authservice.entity.Role;
+import src.main.authservice.entity.*;
+import src.main.authservice.exception.*;
 import src.main.authservice.repository.AccountRepository;
 import src.main.authservice.repository.RefreshTokenRepository;
+import src.main.authservice.repository.VerificationTokenRepository;
 import src.main.authservice.service.AuthService;
 import src.main.authservice.util.JwtUtils;
 
@@ -25,55 +37,142 @@ import java.util.*;
 public class AuthServiceImpl implements AuthService {
     private final AccountRepository accountRepository;
     private final RefreshTokenRepository refreshTokenRepository;
+    private final VerificationTokenRepository verificationTokenRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtUtils jwtUtils;
     private final KafkaTemplate<String, Object> kafkaTemplate;
+    private final UserClient userClient;
+    private final JavaMailSender mailSender;
+    private final TemplateEngine templateEngine;
+
+    @Value("${zerobounce.api.key}")
+    private String zeroBounceApiKey;
 
     @Override
     @Transactional
-    public Account register(RegisterRequest request) {
-        if (accountRepository.findByUsername(request.getUsername()).isPresent()) {
-            throw new RuntimeException("Username already exists");
+    public Map<String, String> register(RegisterRequest request) {
+        Map<String, String> response = new HashMap<>();
+
+        validateRegistration(request);
+        
+        if (!isRealEmail(request.getEmail())) {
+            throw new EmailNotExistsException("Email không tồn tại hoặc không hợp lệ.");
         }
 
+        Account account = createPendingAccount(request);
+        Account savedAccount = accountRepository.save(account);
+
+        // Tạo verification token
+        String token = UUID.randomUUID().toString();
+        String verificationUrl = "http://localhost:8081/api/auth/verify?token=" + token;
+
+        VerificationToken vToken = createVerificationToken(savedAccount, request, token);
+        verificationTokenRepository.save(vToken);
+
+        // Gửi email async (không chặn request)
+        sendVerificationEmailAsync(request.getEmail(), verificationUrl, request.getFullName());
+
+        response.put("status", "success");
+        response.put("message", "Đã gửi email xác nhận. Vui lòng kiểm tra hộp thư (bao gồm thư rác/spam).");
+        response.put("timestamp", String.valueOf(LocalDateTime.now()));
+        return response;
+    }
+
+    private void validateRegistration(RegisterRequest request) {
+        if (accountRepository.findByUsername(request.getUsername()).isPresent()) {
+            throw new UsernameAlreadyExistsException("Tên đăng nhập đã tồn tại.");
+        }
+        if (accountRepository.findByEmail(request.getEmail()).isPresent()) {
+            throw new EmailAlreadyExistsException("Email đã được sử dụng.");
+        }
+    }
+
+    private Account createPendingAccount(RegisterRequest request) {
         Account account = new Account();
         account.setUsername(request.getUsername());
         account.setPassword(passwordEncoder.encode(request.getPassword()));
         account.setEmail(request.getEmail());
-
         assignRolesByEmail(account, request.getEmail());
-
-        account.setStatus(AccountStatus.Active);
+        account.setStatus(AccountStatus.PENDING);
         account.setCreatedAt(LocalDateTime.now());
+        return account;
+    }
 
-        Account savedAccount = accountRepository.save(account);
+    private VerificationToken createVerificationToken(Account account, RegisterRequest request, String token) {
+        VerificationToken vToken = new VerificationToken();
+        vToken.setToken(token);
+        vToken.setAccount(account);
+        vToken.setFullName(request.getFullName());
+        vToken.setDateOfBirth(request.getDateOfBirth());
+        vToken.setGender(request.getGender());
+        vToken.setExpiryDate(LocalDateTime.now().plusMinutes(15));
+        return vToken;
+    }
 
-        Map<String, String> message = new HashMap();
-        System.out.println("Đã lưu account, chuẩn bị gửi message: " + savedAccount.getId());
-        message.put("accountId", savedAccount.getId());
-        message.put("fullName", request.getFullName());
-        message.put("gender", request.getGender());
-        message.put("dateOfBirth", request.getDateOfBirth().toString());
+    @Async
+    public void sendVerificationEmailAsync(String toEmail, String verificationUrl, String fullName) {
+        MimeMessage message = mailSender.createMimeMessage();
 
-        kafkaTemplate.send("user-registration-topic", message);
+        try {
+            MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
+            Context context = new Context();
+            context.setVariable("fullName", fullName);
+            context.setVariable("verificationUrl", verificationUrl);
+            context.setVariable("logoUrl", "https://i.imgur.com/YourLogoHere.png"); // Thay bằng link thật
 
-        return savedAccount;
+            String html = templateEngine.process("email/verification-email", context);
+
+            helper.setTo(toEmail);
+            helper.setSubject("Xác nhận đăng ký tài khoản - Event Management System");
+            helper.setText(html, true);
+
+            mailSender.send(message);
+            System.out.println("Đã gửi email xác nhận đến: " + toEmail);
+        } catch (MessagingException e) {
+            throw new RuntimeException("Không thể gửi email xác nhận. Vui lòng thử lại sau.", e);
+        }
+    }
+
+    private boolean isRealEmail(String email) {
+        if (email == null || email.trim().isEmpty()) return false;
+
+        RestTemplate restTemplate = new RestTemplate();
+
+        String url = "https://emailreputation.abstractapi.com/v1/?api_key=" + zeroBounceApiKey + "&email=" + email;
+
+        try {
+            ResponseEntity<JsonNode> apiResponse = restTemplate.getForEntity(url, JsonNode.class);
+            if (apiResponse.getStatusCode().is2xxSuccessful() && apiResponse.getBody() != null) {
+                String deliverability = apiResponse.getBody().get("email_deliverability").get("status").asText();
+                System.out.println("ZeroBounce check for" + email + " : " + deliverability);
+                return "deliverable".equalsIgnoreCase(deliverability);
+            }
+        } catch (Exception e) {
+            throw new RuntimeException(e.getMessage());
+        }
+        return true;
     }
 
     @Override
     @Transactional
     public AuthResponse login(LoginRequest request) {
         Account account = (Account) accountRepository.findByUsername(request.getUsername())
-                .orElseThrow(() -> new RuntimeException("Invalid username or password"));
+                .orElseThrow(() -> new InvalidCredentialsException("Invalid username or password"));
 
         if (!passwordEncoder.matches(request.getPassword(), account.getPassword())) {
-            throw new RuntimeException("Invalid username or password");
+            throw new InvalidCredentialsException("Invalid username or password");
         }
 
-        // Tạo Access Token
-        String accessToken = jwtUtils.generateToken(account);
+        String userProfileId = userClient.getUserProfileIdByAccountId(account.getId());
 
-        // Tạo Refresh Token
+        UserTokenInfo info = new UserTokenInfo();
+        info.setUserName(account.getUsername());
+        info.setAccountId(account.getId());
+        info.setRoles(account.getRoles());
+        info.setUserProfileId(userProfileId);
+
+        String accessToken = jwtUtils.generateToken(info);
+
         String refreshTokenStr = UUID.randomUUID().toString();
         RefreshToken refreshToken = new RefreshToken();
         refreshToken.setToken(refreshTokenStr);
@@ -100,19 +199,27 @@ public class AuthServiceImpl implements AuthService {
     @Transactional
     public AuthResponse refreshToken(String token) {
         RefreshToken refreshToken = refreshTokenRepository.findByToken(token)
-                .orElseThrow(() -> new RuntimeException("Refresh token not found"));
+                .orElseThrow(() -> new RefreshTokenNotFoundException("Refresh token không tồn tại hoặc không hợp lệ."));
 
         if (refreshToken.isRevoked()) {
-            throw new RuntimeException("Refresh token has been revoked");
+            throw new RefreshTokenRevokedException("Refresh token đã bị thu hồi. Vui lòng đăng nhập lại.");
         }
 
         if (refreshToken.getExpiryDate().isBefore(LocalDateTime.now())) {
             refreshTokenRepository.delete(refreshToken);
-            throw new RuntimeException("Refresh token expired");
+            throw new RefreshTokenExpiredException("Refresh token đã hết hạn. Vui lòng đăng nhập lại.");
         }
 
         Account account = refreshToken.getAccount();
-        String newAccessToken = jwtUtils.generateToken(account);
+        String userProfileId = userClient.getUserProfileIdByAccountId(account.getId());
+
+        UserTokenInfo info = new UserTokenInfo();
+        info.setUserName(account.getUsername());
+        info.setAccountId(account.getId());
+        info.setRoles(account.getRoles());
+        info.setUserProfileId(userProfileId);
+
+        String newAccessToken = jwtUtils.generateToken(info);
 
         AuthResponse response = new AuthResponse();
         response.setAccessToken(newAccessToken);
@@ -148,5 +255,38 @@ public class AuthServiceImpl implements AuthService {
                 break;
         }
         account.setRoles(roles);
+    }
+
+    @Override
+    public Map<String, String> checkEmailVerification(String token) {
+        VerificationToken verificationToken = verificationTokenRepository.findByToken(token)
+                .orElseThrow(() -> new TokenInvalidException("Token không hợp lệ hoặc đã hết hạn"));
+
+        if (verificationToken.isUsed()) {
+            throw new TokenUsedException("Token đã được sử dụng");
+        }
+
+        if (verificationToken.getExpiryDate().isBefore(LocalDateTime.now())) {
+            throw new TokenExpiredException("Token đã hết hạn");
+        }
+
+        Account account = verificationToken.getAccount();
+        account.setStatus(AccountStatus.ACTIVE);
+        accountRepository.save(account);
+
+        Map<String, String> kafkaMessage = new HashMap<>();
+        kafkaMessage.put("accountId", account.getId());
+        kafkaMessage.put("fullName", verificationToken.getFullName());
+        kafkaMessage.put("gender", verificationToken.getGender());
+        kafkaMessage.put("dateOfBirth", verificationToken.getDateOfBirth().toString());
+        kafkaTemplate.send("user-registration-topic", kafkaMessage);
+
+        verificationTokenRepository.delete(verificationToken);
+
+        Map<String, String> response = new HashMap<>();
+        response.put("status", "success");
+        response.put("message", "Xác nhận email thành công! Bạn đã có thể đăng nhập.");
+
+        return response;
     }
 }

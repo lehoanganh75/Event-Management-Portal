@@ -2,7 +2,10 @@ package src.main.luckydrawservice.entity;
 
 import jakarta.persistence.*;
 import lombok.*;
+import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.UpdateTimestamp;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Entity
@@ -14,19 +17,20 @@ public class LuckyDraw {
     @GeneratedValue(strategy = GenerationType.UUID)
     private String id;
 
-    // Thuộc event-service -> chỉ lưu ID
     @Column(nullable = false)
     private String eventId;
-
     private String createdByAccountId;
 
     @Column(nullable = false)
     private String title;
+    private String description;
 
     @Enumerated(EnumType.STRING)
     private DrawStatus status;
 
     private boolean allowMultipleWins;
+    private LocalDateTime startTime;
+    private LocalDateTime endTime;
 
     // 1 LuckyDraw có nhiều Prize
     @OneToMany(mappedBy = "luckyDraw",
@@ -45,4 +49,10 @@ public class LuckyDraw {
             cascade = CascadeType.ALL,
             orphanRemoval = true)
     private List<DrawResult> results;
+
+    @CreationTimestamp
+    private LocalDateTime createdAt;
+    @UpdateTimestamp
+    private LocalDateTime updatedAt;
+    private boolean isDeleted;
 }

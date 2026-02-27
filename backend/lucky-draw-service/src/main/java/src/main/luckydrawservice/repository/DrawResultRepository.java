@@ -6,4 +6,5 @@ import src.main.luckydrawservice.entity.DrawResult;
 
 @Repository
 public interface DrawResultRepository extends JpaRepository<DrawResult, String> {
+    boolean existsByLuckyDrawIdAndWinnerProfileId(String luckyDrawId, String winnerProfileId);
 }
