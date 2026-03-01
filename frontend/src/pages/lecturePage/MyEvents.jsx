@@ -4,6 +4,7 @@ import {
   Plus,
   Search,
   Edit2,
+  Eye,
   Trash2,
   BarChart2,
   Calendar as CalendarIcon,
@@ -238,9 +239,9 @@ const MyEvents = () => {
                         </button>
                         <button
                           title="Xem chi tiết"
-                          className="p-2 text-slate-300 hover:text-slate-600 transition-all"
+                          className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-all"
                         >
-                          <ChevronRight size={20} />
+                          <Eye size={20} />
                         </button>
                       </div>
                     </td>
@@ -253,11 +254,15 @@ const MyEvents = () => {
 
         {/* Pagination Placeholder */}
         <div className="p-6 bg-slate-50/30 flex justify-between items-center border-t border-slate-50">
-          <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">
-            Hiển thị 1 - 3 của 3 sự kiện
+          <p className="text-xs font-medium text-slate-500">
+            Hiển thị 3 trên 3 sự kiện
           </p>
           <div className="flex gap-2">
-            <button className="px-4 py-2 bg-white border border-slate-200 rounded-lg text-xs font-bold text-slate-400 hover:text-blue-600 transition-colors">
+            <button
+              className="px-3 py-1.5 text-xs font-semibold border border-slate-200 rounded-lg hover:bg-white disabled:opacity-50 transition-all"
+              disabled
+            >
+              {" "}
               Trước
             </button>
             <button className="px-4 py-2 bg-blue-600 rounded-lg text-xs font-bold text-white shadow-md shadow-blue-100">

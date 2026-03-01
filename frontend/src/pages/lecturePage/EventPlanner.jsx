@@ -1,76 +1,81 @@
-import React, { useState } from 'react';
-import { ArrowLeft } from 'lucide-react';
-// Import các component con từ đúng thư mục theo cấu trúc của bạn
+import React, { useState } from "react";
+import { ArrowLeft } from "lucide-react";
 import { TemplateSelectionStep } from "../../components/eventPlanner/TemplateSelectionStep";
 import { ManualInputStep } from "../../components/eventPlanner/ManualInputStep";
 import { PreviewStep } from "../../components/eventPlanner/PreviewStep";
 
-/**
- * Component chính điều hướng toàn bộ quy trình lập kế hoạch
- * Bước 1: Chọn bản mẫu (TemplateSelectionStep)
- * Bước 2: Nhập liệu thủ công (ManualInputStep)
- * Bước 3: Xem trước và xuất file (PreviewStep)
- */
 export const EventPlanner = ({ onBack }) => {
-  // Quản lý bước hiện tại: 1, 2, hoặc 3
   const [step, setStep] = useState(1);
-  
-  // Lưu trữ thông tin mẫu đã chọn (để truyền vào các bước sau nếu cần)
+
   const [selectedTemplate, setSelectedTemplate] = useState(null);
 
-  // Xử lý khi nhấn nút quay lại ở thanh header chung
   const handleGlobalBack = () => {
     if (step === 1) {
-      onBack(); // Thoát hẳn module Event Planner
+      onBack();
     } else {
-      setStep(step - 1); // Quay lại bước trước đó
+      setStep(step - 1);
     }
   };
 
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col">
-      {/* HEADER ĐIỀU HƯỚNG CHUNG 
-        Chỉ hiển thị khi không ở bước Preview (vì Preview có header riêng theo thiết kế của bạn)
-      */}
       {step < 3 && (
         <div className="bg-white border-b px-6 py-4 flex items-center justify-between sticky top-0 z-20 shadow-sm">
-          <button 
+          <button
             onClick={handleGlobalBack}
             className="flex items-center gap-2 text-slate-500 hover:text-slate-900 font-bold text-xs uppercase tracking-wider transition-colors"
           >
             <ArrowLeft size={16} /> Quay lại
           </button>
-          
-          <div className="text-center">
-            <p className="text-[10px] font-black text-blue-600 uppercase tracking-[0.2em]">
-              Bước {step} / 3
-            </p>
-            <p className="text-sm font-bold text-slate-800">
-              {step === 1 ? "Thiết lập bản mẫu" : "Điền thông tin chi tiết"}
-            </p>
+
+          <div className="flex flex-col items-center space-y-4 mb-8">
+            <div className="text-center">
+              <span className="text-[11px] font-bold text-blue-600 uppercase tracking-[0.2em] block mb-1">
+                Bước {step} / 3
+              </span>
+              <h2 className="text-lg font-black text-slate-800 tracking-tight">
+                {step === 1
+                  ? "Thiết lập bản mẫu"
+                  : step === 2
+                    ? "Điền thông tin chi tiết"
+                    : "Hoàn tất kế hoạch"}
+              </h2>
+            </div>
+            <div className="flex items-center gap-2">
+              {[1, 2, 3].map((s) => (
+                <div
+                  key={s}
+                  className={`h-1.5 rounded-full transition-all duration-300 ${
+                    s === step
+                      ? "w-8 bg-blue-600"
+                      : s < step
+                        ? "w-4 bg-blue-300"
+                        : "w-4 bg-slate-200"
+                  }`}
+                />
+              ))}
+            </div>
           </div>
-          
-          <div className="w-24"></div> {/* Spacer để cân bằng layout */}
+
+          <div className="w-24"></div>
         </div>
       )}
 
-      {/* VÙNG HIỂN THỊ NỘI DUNG CHÍNH */}
-      <div className={`flex-1 ${step === 3 ? "p-4 md:p-6" : "p-8"}`}>
-        
+      <div className={`flex-1 ${step === 3 ? "p-4" : "p-8"}`}>
         {/* BƯỚC 1: CHỌN BẢN MẪU */}
         {step === 1 && (
-          <TemplateSelectionStep 
+          <TemplateSelectionStep
             onTemplateSelect={(template) => {
               setSelectedTemplate(template);
               console.log("Template selected:", template);
             }}
-            onNext={() => setStep(2)} 
+            onNext={() => setStep(2)}
           />
         )}
 
         {/* BƯỚC 2: NHẬP THỦ CÔNG (FORM CHI TIẾT) */}
         {step === 2 && (
-          <ManualInputStep 
+          <ManualInputStep
             onBack={() => setStep(1)}
             onNext={() => setStep(3)}
             selectedTemplate={selectedTemplate}
@@ -79,15 +84,13 @@ export const EventPlanner = ({ onBack }) => {
 
         {/* BƯỚC 3: XEM TRƯỚC (PREVIEW) */}
         {step === 3 && (
-          <PreviewStep 
+          <PreviewStep
             onEdit={() => setStep(2)}
             onSave={() => {
               alert("Kế hoạch đã được lưu vào hệ thống!");
-              // Logic xử lý API lưu dữ liệu ở đây
             }}
           />
         )}
-        
       </div>
     </div>
   );
