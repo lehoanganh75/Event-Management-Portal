@@ -10,9 +10,6 @@ import src.main.userservice.entity.ApprovalStatus;
 import src.main.userservice.entity.UserProfile;
 import src.main.userservice.service.UserProfileService;
 
-import java.util.List;
-import java.util.Optional;
-
 @RestController
 @RequestMapping("/api/profiles")
 @RequiredArgsConstructor
@@ -28,6 +25,12 @@ public class UserProfileController {
         }
 
         return ResponseEntity.ok(profileService.getProfileByAccountId(accountId));
+    }
+
+    @GetMapping("/by-account/{accountId}")
+    public ResponseEntity<String> getByAccountId(
+            @PathVariable String accountId) {
+        return ResponseEntity.ok(profileService.getUserProfileIdByAccountId(accountId));
     }
 
     // 2. Cập nhật hồ sơ cá nhân

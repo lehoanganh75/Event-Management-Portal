@@ -3,11 +3,14 @@ package src.main.authservice.service;
 import src.main.authservice.dto.AuthResponse;
 import src.main.authservice.dto.LoginRequest;
 import src.main.authservice.dto.RegisterRequest;
-import src.main.authservice.entity.Account;
+
+import java.util.Map;
 
 public interface AuthService {
-    Account register(RegisterRequest request);
+    Map<String, String> register(RegisterRequest request);
     AuthResponse login(LoginRequest request);
     AuthResponse refreshToken(String refreshToken);
     void logout(String token);
+    void sendVerificationEmailAsync(String toEmail, String verificationUrl, String fullName);
+    Map<String, String> checkEmailVerification(String token);
 }
