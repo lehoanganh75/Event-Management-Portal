@@ -157,10 +157,14 @@ public class AuthServiceImpl implements AuthService {
     @Transactional
     public AuthResponse login(LoginRequest request) {
         Account account = (Account) accountRepository.findByUsername(request.getUsername())
-                .orElseThrow(() -> new InvalidCredentialsException("Invalid username or password"));
+                .orElseThrow(() -> new InvalidCredentialsException("Username không tồn tại"));
 
         if (!passwordEncoder.matches(request.getPassword(), account.getPassword())) {
-            throw new InvalidCredentialsException("Invalid username or password");
+            throw new InvalidCredentialsException("Password không đúng");
+        }
+
+        if (account.getStatus() == AccountStatus.PENDING) {
+            throw new AccountNotActivatedException("Tài khoản chưa được kích hoạt. Vui lòng kiểm tra email để xác nhận.");
         }
 
         String userProfileId = userClient.getUserProfileIdByAccountId(account.getId());

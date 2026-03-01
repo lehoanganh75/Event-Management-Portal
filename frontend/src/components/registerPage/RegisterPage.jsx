@@ -6,12 +6,14 @@ import FloatingInput from "../custom/FloatingInput";
 import axios from "axios";
 import { ca } from "date-fns/locale";
 import ErrorNotification from "../notification/ErrorNotification";
+import { useNavigate } from "react-router-dom";
 
 const RegisterPage = () => {
   const [toastVisible, setToastVisible] = useState(false);
   const [message, setMessage] = useState("");
   const [errorToastVisible, setErrorToastVisible] = useState(false); 
   const [errorMessage, setErrorMessage] = useState(""); 
+  const navigate = useNavigate();
 
   const [formData, setFormData] = useState({
     fullName: "",
@@ -145,14 +147,18 @@ const RegisterPage = () => {
 
   const handleRegister = async (e) => {
     e.preventDefault();
+
+    if (!validateForm()) {
+      return;
+    }
     
     const payload = {
-      username: "moon2222",
-      password: 123456,
-      email: "hiennguyenbuitan@gmail.com",
-      dateOfBirth: "2026-02-23",
-      fullName: "Lê Văn Tèo",
-      gender: "Male"
+      username: formData.username.trim(),
+      password: formData.password.trim(),
+      email: formData.email.trim(),
+      dateOfBirth: formData.dateOfBirth.trim(),
+      fullName: formData.fullName.trim(),
+      gender: formData.gender.trim()
     };
 
     console.log("Dữ liệu gửi lên server:", payload);
@@ -162,7 +168,7 @@ const RegisterPage = () => {
       const response = await axios.post(API, payload);
 
       if (response.data?.status === "success") {
-        setMessage(response.data.message || "Đăng ký thành công!"); // set message động nếu cần
+        setMessage(response.data.message || "Đăng ký thành công!");
         setToastVisible(true);
 
         setFormData({
@@ -244,7 +250,10 @@ const RegisterPage = () => {
             <p className="text-sm tracking-widest font-medium">
               Đã có tài khoản?
             </p>
-            <button className="px-8 py-3 bg-white/10 backdrop-blur-sm border border-white/30 rounded-xl text-base font-semibold hover:bg-white hover:text-blue-700 transition-all duration-300 flex items-center justify-center gap-2">
+            <button 
+              onClick={() => navigate("/login")}
+              className="px-8 py-3 bg-white/10 backdrop-blur-sm border border-white/30 rounded-xl text-base font-semibold hover:bg-white hover:text-blue-700 transition-all duration-300 flex items-center justify-center gap-2"
+            >
               <LogIn size={20} />
               Đăng nhập ngay
             </button>
@@ -252,8 +261,7 @@ const RegisterPage = () => {
         </div>
 
         {/* RIGHT SIDE */}
-        <div className="md:w-[60%]  p-10">
-          
+        <div className="md:w-[60%] p-10">  
           <div className="mb-10">
             <h2 className="text-3xl font-bold text-slate-700 mb-3">
               Tạo tài khoản mới

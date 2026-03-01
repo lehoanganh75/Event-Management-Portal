@@ -112,6 +112,16 @@ public class GlobalExceptionHandler {
         );
     }
 
+    @ExceptionHandler(AccountNotActivatedException.class)
+    public ResponseEntity<Map<String, Object>> handleRefreshTokenRevoked(AccountNotActivatedException ex) {
+        return buildErrorResponse(
+                HttpStatus.BAD_REQUEST,
+                "Bad Request",
+                ex.getMessage(),
+                "https://mail.google.com/mail/u/0/#inbox"
+        );
+    }
+
     private ResponseEntity<Map<String, Object>> buildErrorResponse(HttpStatus status, String error, String message, String path) {
         Map<String, Object> body = new HashMap<>();
         body.put("timestamp", LocalDateTime.now());
