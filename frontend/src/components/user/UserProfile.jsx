@@ -25,20 +25,29 @@ const UserProfile = () => {
 
   // State cho chỉnh sửa
   const [isEditing, setIsEditing] = useState(false);
-  const [formData, setFormData] = useState({});
   const [isSaving, setIsSaving] = useState(false);
+
+  const [formData, setFormData] = useState({
+    fullName: "",
+    dateOfBirth: "",
+    gender: "",
+    majorName: ""
+  });
 
   useEffect(() => {
     const fetchProfile = async () => {
       const token = localStorage.getItem("accessToken");
-      if (!token) { navigate("/login"); return; }
+      if (!token) {
+        navigate("/login");
+        return;
+      }
 
       try {
         const decoded = jwtDecode(token);
         setAccountInfo({
-          email: decoded.email,
-          roles: decoded.role || [],
-          accountId: decoded.accountId // Lấy accountId từ JWT để dùng cho hàm update
+          email: decoded.email || "Chưa có email",
+          roles: decoded.role || decoded.roles || [],
+          accountId: decoded.accountId || ""
         });
 
         const response = await axios.get("http://localhost:8082/api/profiles/me", {
@@ -46,7 +55,12 @@ const UserProfile = () => {
         });
 
         setProfile(response.data);
-        setFormData(response.data); // Copy dữ liệu vào form
+        setFormData({
+          fullName: response.data.fullName || "",
+          dateOfBirth: response.data.dateOfBirth || "",
+          gender: response.data.gender || "",
+          majorName: response.data.majorName || ""
+        });
       } catch (err) {
         if (err.response?.status === 401) {
           localStorage.clear();
@@ -58,58 +72,66 @@ const UserProfile = () => {
         setLoading(false);
       }
     };
+
     fetchProfile();
   }, [navigate]);
 
-  // Hàm xử lý lưu thông tin
   const handleSave = async () => {
     const token = localStorage.getItem("accessToken");
     setIsSaving(true);
     try {
-      // Gọi đúng hàm updateProfile(accountId, updatedProfile) từ Backend
       const response = await axios.put(
-        `http://localhost:8082/api/profiles/${accountInfo.accountId}`, 
+        "http://localhost:8082/api/profiles/me", 
         formData,
-        { headers: { Authorization: `Bearer ${token}` } }
+        { 
+          headers: { 
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json"
+          } 
+        }
       );
       
       setProfile(response.data);
       setIsEditing(false);
-      // Bạn có thể thêm toast thông báo thành công ở đây
+      alert("Cập nhật thành công!");
     } catch (err) {
-      alert("Lỗi khi cập nhật: " + (err.response?.data?.message || "Vui lòng thử lại"));
+      alert(err.response?.data?.message || "Lỗi khi cập nhật");
     } finally {
       setIsSaving(false);
     }
   };
 
-  if (loading) return <div className="min-h-screen flex items-center justify-center bg-slate-50"><Loader2 className="w-10 h-10 animate-spin text-blue-600" /></div>;
+  if (loading) return (
+    <div className="min-h-screen flex items-center justify-center bg-slate-50">
+      <Loader2 className="w-10 h-10 animate-spin text-blue-600" />
+    </div>
+  );
 
   return (
     <div className="min-h-screen bg-slate-50/50 pb-20">
-      <div className="h-48 bg-linear-to-r from-blue-700 to-indigo-600 w-full" />
+      <div className="h-48 bg-gradient-to-r from-blue-700 to-indigo-600 w-full" />
       
       <div className="max-w-5xl mx-auto px-4 -mt-24">
         <div className="flex flex-col lg:flex-row gap-8">
           
           {/* SIDEBAR */}
           <div className="lg:w-1/3">
-            <div className="bg-white rounded-3xl shadow-xl p-6 text-center border border-slate-100">
-              <div className="relative w-32 h-32 mx-auto mb-6">
+            <div className="bg-white rounded-3xl shadow-xl p-6 text-center border border-slate-100 sticky top-6">
+              <div className="relative w-32 h-32 mx-auto mb-6 group">
                 <img
                   src={profile?.avatar || "https://cdn-icons-png.flaticon.com/512/3135/3135715.png"}
                   alt="Avatar"
-                  className="w-full h-full rounded-full object-cover border-4 border-white shadow-md"
+                  className="w-full h-full rounded-full object-cover border-4 border-white shadow-lg"
                 />
-                <label className="absolute bottom-1 right-1 p-2 bg-blue-600 text-white rounded-full cursor-pointer hover:bg-blue-700 shadow-lg transition-all">
-                  <Camera size={14} />
+                <label className="absolute bottom-2 right-2 p-2.5 bg-blue-600 text-white rounded-full shadow-lg cursor-pointer hover:bg-blue-700 transition-all">
+                  <Camera size={16} />
                   <input type="file" className="hidden" />
                 </label>
               </div>
 
-              <h2 className="text-xl font-black text-slate-800">{profile?.fullName}</h2>
-              
-              <div className="flex flex-wrap justify-center gap-2 mt-3 mb-6">
+              <h2 className="text-2xl font-black text-slate-800 tracking-tight mb-2">{profile?.fullName}</h2>
+
+              <div className="flex flex-wrap justify-center gap-2 mb-6">
                 {accountInfo.roles.map((role, idx) => (
                   <span key={idx} className="px-3 py-1 bg-blue-50 text-blue-700 text-[10px] font-black uppercase rounded-full border border-blue-100">
                     {roleMap[role] || role}
@@ -118,9 +140,12 @@ const UserProfile = () => {
               </div>
 
               <div className="space-y-2">
-                <SidebarBtn active={activeTab === "info"} onClick={() => setActiveTab("info")} icon={<User size={18}/>} label="Thông tin hồ sơ" />
+                <SidebarBtn active={activeTab === "info"} onClick={() => setActiveTab("info")} icon={<User size={18}/>} label="Thông tin cá nhân" />
                 <SidebarBtn active={activeTab === "security"} onClick={() => setActiveTab("security")} icon={<Key size={18}/>} label="Bảo mật" />
-                <button onClick={() => { localStorage.clear(); navigate("/login"); }} className="w-full flex items-center gap-3 px-4 py-3 rounded-2xl text-sm font-bold text-red-500 hover:bg-red-50 transition-all mt-4">
+                <button 
+                  onClick={() => { localStorage.clear(); navigate("/login"); }} 
+                  className="w-full flex items-center gap-3 px-5 py-3.5 rounded-2xl text-sm font-bold text-red-600 hover:bg-red-50 transition-all mt-4"
+                >
                   <LogOut size={18} /> Đăng xuất
                 </button>
               </div>
@@ -129,16 +154,16 @@ const UserProfile = () => {
 
           {/* MAIN CONTENT */}
           <div className="lg:w-2/3">
-            <div className="bg-white rounded-3xl shadow-xl border border-slate-100 p-8 min-h-[500px]">
+            <div className="bg-white rounded-3xl shadow-xl border border-slate-100 p-8 min-h-[550px]">
               {activeTab === "info" ? (
-                <div className="animate-in fade-in duration-500">
+                <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
                   <div className="flex items-center justify-between mb-8 pb-4 border-b border-slate-50">
-                    <h3 className="text-xl font-black text-slate-800">Thông tin chi tiết</h3>
+                    <h3 className="text-2xl font-black text-slate-800">Hồ sơ chi tiết</h3>
                     
                     {!isEditing ? (
                       <button 
                         onClick={() => setIsEditing(true)}
-                        className="flex items-center gap-2 px-4 py-2 bg-blue-50 text-blue-600 rounded-xl font-bold text-sm hover:bg-blue-100 transition-all"
+                        className="flex items-center gap-2 px-4 py-2 bg-blue-50 text-blue-700 rounded-xl font-bold text-sm hover:bg-blue-100 transition-all"
                       >
                         <Edit2 size={14} /> Chỉnh sửa
                       </button>
@@ -149,7 +174,7 @@ const UserProfile = () => {
                           disabled={isSaving}
                           className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-xl font-bold text-sm hover:bg-blue-700 disabled:opacity-50"
                         >
-                          {isSaving ? <Loader2 size={14} className="animate-spin"/> : <Save size={14} />} Lưu
+                          {isSaving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />} Lưu
                         </button>
                         <button 
                           onClick={() => { setIsEditing(false); setFormData(profile); }}
@@ -161,10 +186,12 @@ const UserProfile = () => {
                     )}
                   </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {/* Chỉ đọc (Email & Status) */}
                     <InfoBox label="Địa chỉ Email" value={accountInfo.email} icon={Mail} highlight />
-                    
-                    {/* Các trường có thể chỉnh sửa */}
+                    <InfoBox label="Trạng thái phê duyệt" value={profile?.approvalStatus} icon={BadgeCheck} />
+
+                    {/* Có thể chỉnh sửa */}
                     <EditableInput 
                       label="Họ và tên" 
                       value={formData.fullName} 
@@ -199,10 +226,9 @@ const UserProfile = () => {
                       icon={Shield}
                     />
 
-                    {/* Các trường chỉ đọc */}
-                    <InfoBox label="Trạng thái hồ sơ" value={profile?.approvalStatus} icon={BadgeCheck} />
-                    <InfoBox label="Ngày tham gia" value={formatDate(profile?.createdAt)} icon={Calendar} />
-                    <InfoBox label="ID định danh" value={profile?.id} icon={CheckCircle2} />
+                    {/* Các thông tin hệ thống chỉ đọc */}
+                    <InfoBox label="Ngày tạo hồ sơ" value={formatDate(profile?.createdAt)} icon={Calendar} />
+                    <InfoBox label="Mã định danh" value={profile?.id} icon={CheckCircle2} />
                   </div>
                 </div>
               ) : (
@@ -222,59 +248,73 @@ const UserProfile = () => {
 // --- SUB-COMPONENTS ---
 
 const SidebarBtn = ({ active, onClick, icon, label }) => (
-  <button onClick={onClick} className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl text-sm font-bold transition-all ${active ? "bg-blue-600 text-white shadow-lg shadow-blue-200" : "text-slate-500 hover:bg-slate-50"}`}>
+  <button onClick={onClick} className={`w-full flex items-center gap-3 px-5 py-3.5 rounded-2xl text-sm font-bold transition-all ${active ? "bg-blue-600 text-white shadow-lg shadow-blue-200" : "text-slate-600 hover:bg-slate-50"}`}>
     {icon} {label}
   </button>
 );
 
 const InfoBox = ({ label, value, icon: Icon, highlight = false }) => (
-  <div className={`p-4 rounded-2xl border transition-all duration-300 ${highlight ? "bg-blue-50/50 border-blue-100" : "bg-slate-50 border-slate-50"}`}>
-    <div className="flex items-center gap-2 mb-1">
-      <Icon size={14} className={highlight ? "text-blue-600" : "text-slate-400"} />
-      <span className="text-[10px] font-black text-slate-400 uppercase tracking-tighter">{label}</span>
+  <div className={`p-5 rounded-2xl border transition-all duration-300 ${highlight ? "bg-blue-50/50 border-blue-100" : "bg-slate-50/70 border-slate-100"}`}>
+    <div className="flex items-center gap-3 mb-2">
+      <div className={`p-2 rounded-lg ${highlight ? "bg-blue-100 text-blue-600" : "bg-white text-slate-400 shadow-sm"}`}>
+        <Icon size={18} />
+      </div>
+      <span className="text-xs font-black text-slate-500 uppercase tracking-wider">{label}</span>
     </div>
-    <p className={`text-sm font-bold truncate pl-6 ${highlight ? "text-blue-700" : "text-slate-700"}`}>{value || "N/A"}</p>
+    <p className={`text-sm font-semibold truncate ${highlight ? "text-blue-700" : "text-slate-800"}`}>{value || "N/A"}</p>
   </div>
 );
 
 const EditableInput = ({ label, value, isEditing, onChange, icon: Icon, type = "text" }) => (
-  <div className={`p-4 rounded-2xl border transition-all ${isEditing ? "bg-white border-blue-500 ring-2 ring-blue-50" : "bg-slate-50 border-slate-50"}`}>
-    <div className="flex items-center gap-2 mb-1">
-      <Icon size={14} className={isEditing ? "text-blue-600" : "text-slate-400"} />
-      <span className="text-[10px] font-black text-slate-400 uppercase tracking-tighter">{label}</span>
+  <div className={`p-5 rounded-2xl border transition-all duration-300 ${isEditing ? "bg-white border-blue-500 ring-4 ring-blue-50" : "bg-slate-50/70 border-slate-100"}`}>
+    <div className="flex items-center gap-3 mb-2">
+      <div className={`p-2 rounded-lg ${isEditing ? "bg-blue-600 text-white shadow-md" : "bg-white text-slate-400 shadow-sm"}`}>
+        <Icon size={18} />
+      </div>
+      <span className="text-xs font-black text-slate-500 uppercase tracking-wider">{label}</span>
     </div>
     {isEditing ? (
       <input 
         type={type} 
         value={value || ""} 
         onChange={onChange}
-        className="w-full text-sm font-bold text-slate-700 pl-6 outline-none bg-transparent"
+        className="w-full text-sm font-bold text-slate-800 bg-transparent outline-none border-b-2 border-blue-100 focus:border-blue-600 transition-colors py-1"
       />
     ) : (
-      <p className="text-sm font-bold text-slate-700 pl-6">{type === "date" ? formatDate(value) : (value || "Chưa cập nhật")}</p>
+      <p className="text-sm font-semibold text-slate-800">{type === "date" ? formatDate(value) : (value || "Chưa cập nhật")}</p>
     )}
   </div>
 );
 
 const EditableSelect = ({ label, value, isEditing, onChange, icon: Icon, options }) => (
-  <div className={`p-4 rounded-2xl border transition-all ${isEditing ? "bg-white border-blue-500 ring-2 ring-blue-50" : "bg-slate-50 border-slate-50"}`}>
-    <div className="flex items-center gap-2 mb-1">
-      <Icon size={14} className={isEditing ? "text-blue-600" : "text-slate-400"} />
-      <span className="text-[10px] font-black text-slate-400 uppercase tracking-tighter">{label}</span>
+  <div className={`p-5 rounded-2xl border transition-all duration-300 ${isEditing ? "bg-white border-blue-500 ring-4 ring-blue-50" : "bg-slate-50/70 border-slate-100"}`}>
+    <div className="flex items-center gap-3 mb-2">
+      <div className={`p-2 rounded-lg ${isEditing ? "bg-blue-600 text-white shadow-md" : "bg-white text-slate-400 shadow-sm"}`}>
+        <Icon size={18} />
+      </div>
+      <span className="text-xs font-black text-slate-500 uppercase tracking-wider">{label}</span>
     </div>
     {isEditing ? (
-      <select value={value || ""} onChange={onChange} className="w-full text-sm font-bold text-slate-700 pl-6 outline-none bg-transparent">
+      <select 
+        value={value || ""} 
+        onChange={onChange} 
+        className="w-full text-sm font-bold text-slate-800 bg-transparent outline-none border-b-2 border-blue-100 focus:border-blue-600 transition-colors py-1"
+      >
         {options.map(opt => <option key={opt.v} value={opt.v}>{opt.l}</option>)}
       </select>
     ) : (
-      <p className="text-sm font-bold text-slate-700 pl-6">{options.find(o => o.v === value)?.l || "Chưa cập nhật"}</p>
+      <p className="text-sm font-semibold text-slate-800">{options.find(o => o.v === value)?.l || "Chưa cập nhật"}</p>
     )}
   </div>
 );
 
 const formatDate = (dateStr) => {
   if (!dateStr) return "Chưa cập nhật";
-  return new Date(dateStr).toLocaleDateString("vi-VN", { day: "2-digit", month: "2-digit", year: "numeric" });
+  return new Date(dateStr).toLocaleDateString("vi-VN", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  });
 };
 
 export default UserProfile;
