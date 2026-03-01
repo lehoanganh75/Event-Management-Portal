@@ -20,6 +20,7 @@ import AdminLayout from '../pages/adminPage/AdminPage';
 import Dashboard from '../components/admin/Dashboard';
 import EventPage from '../components/admin/EventPage';
 import SpinnerManagement from '../components/admin/SpinnerManagement';
+import UserProfile from '../components/user/UserProfile';
 
 const AppRouterIndex = () => {
   return (
@@ -29,6 +30,7 @@ const AppRouterIndex = () => {
       <Route path='/register' element={<RegisterPage />} />
       <Route path='/attendance' element={<AttendancePage />} />
       <Route path="/events/:id" element={<EventDetail />} />
+      <Route path='/userprofile' element={<UserProfile />} />
 
       <Route
         path='/lecturer'

@@ -26,7 +26,7 @@ const HeaderAdmin = () => {
   }, []);
 
   const handleLogout = () => {
-    localStorage.clear(); // Xóa sạch token và user info
+    localStorage.clear();
     navigate("/login");
   };
 

@@ -22,7 +22,7 @@ const FloatingInput = ({ id, label, type = "text", value, onChange, error, isPas
       >
         {label}
       </label>
-      {error && <p className="mt-1 text-xs text-red-600 font-medium">{error}</p>}
+      {error && <p className="text-red-500 text-xs font-bold mt-1 uppercase tracking-tighter">{error}</p>}
       {isPassword && (
         <button
           type="button"

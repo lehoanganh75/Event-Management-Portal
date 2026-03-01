@@ -172,6 +172,7 @@ public class AuthServiceImpl implements AuthService {
         UserTokenInfo info = new UserTokenInfo();
         info.setUserName(account.getUsername());
         info.setAccountId(account.getId());
+        info.setEmail(account.getEmail());
         info.setRoles(account.getRoles());
         info.setUserProfileId(userProfileId);
 

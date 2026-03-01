@@ -66,6 +66,7 @@ const LoginPage = () => {
       if (response.data && response.data.accessToken) {
         localStorage.setItem("accessToken", response.data.accessToken);
         localStorage.setItem("refreshToken", response.data.refreshToken);
+        localStorage.setItem("tokenType", response.data.tokenType);
         localStorage.setItem("user", JSON.stringify({
           username: response.data.username,
           roles: response.data.roles
@@ -150,7 +151,7 @@ const LoginPage = () => {
         <div className="lg:w-[50%] p-10 lg:p-16 flex flex-col justify-center bg-white">  
           <div className="mb-10">
             <h2 className="text-3xl font-bold text-slate-700 mb-3">
-              Đăng nhập vào tài khoản của bạn
+              Tài khoản của bản
             </h2>
             <div className="h-1 w-20 bg-linear-to-r from-indigo-600 to-blue-600 rounded-full"></div>
           </div>
@@ -165,7 +166,6 @@ const LoginPage = () => {
                 error={errors.username}
                 autoComplete="username"
               />
-              {errors.username && <p className="text-red-500 text-xs font-bold mt-1 uppercase tracking-tighter">{errors.username}</p>}
             </div>
 
             <div className="relative">
@@ -177,8 +177,7 @@ const LoginPage = () => {
                 onChange={handleChange}
                 error={errors.password}
                 autoComplete="current-password"
-              />
-              {errors.password && <p className="text-red-500 text-xs font-bold mt-1 uppercase tracking-tighter">{errors.password}</p>}
+              />              
             </div>
 
             <div className="flex justify-end items-center -mt-4">

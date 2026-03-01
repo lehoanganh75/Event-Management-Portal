@@ -13,37 +13,40 @@ import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
 import org.springframework.security.oauth2.server.resource.authentication.JwtGrantedAuthoritiesConverter;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.web.cors.CorsConfiguration;
+import org.springframework.web.cors.CorsConfigurationSource;
+import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
 import javax.crypto.SecretKey;
-import javax.crypto.spec.SecretKeySpec;
 import java.nio.charset.StandardCharsets;
+import java.util.Arrays;
+import java.util.List;
+
+import org.springframework.http.HttpMethod;
 
 @Configuration
 @EnableWebSecurity
 @EnableMethodSecurity
 public class SecurityConfig {
+
     private static final String JWT_SECRET = "NQ0sEQnwIDQjGqHQkl8kKQcofxfhuXeMJ1rCwHSC2q4n6UuelkIlrHNljkTN6NJmimhXBjD4Y90fva/q/1IL8A==";
 
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
                 .csrf(csrf -> csrf.disable())
-                .cors(cors -> cors.disable())  // hoặc config cụ thể nếu có frontend
+                .cors(cors -> cors.configurationSource(corsConfigurationSource())) // ← Bật CORS
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers(
-                                "/api/profiles/by-account/**"
-                        ).permitAll()
-                        .requestMatchers(
-                                "/api/profiles/**",
-                                "/api/organizations/**"
-                        ).authenticated()  // yêu cầu auth
+                        .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll() // ← Fix preflight
+                        .requestMatchers("/api/profiles/by-account/**").permitAll()
+                        .requestMatchers("/api/profiles/**", "/api/organizations/**").authenticated()
                         .anyRequest().permitAll()
                 )
                 .oauth2ResourceServer(oauth2 -> oauth2
                         .jwt(jwt -> jwt
                                 .decoder(jwtDecoder())
-                                .jwtAuthenticationConverter(jwtAuthenticationConverter()) // Thêm dòng này
+                                .jwtAuthenticationConverter(jwtAuthenticationConverter())
                         )
                 );
 
@@ -53,14 +56,12 @@ public class SecurityConfig {
     @Bean
     public JwtAuthenticationConverter jwtAuthenticationConverter() {
         JwtGrantedAuthoritiesConverter grantedAuthoritiesConverter = new JwtGrantedAuthoritiesConverter();
-        // Đọc quyền từ claim "role" thay vì "scope"
-        grantedAuthoritiesConverter.setAuthoritiesClaimName("role");
-        // Thêm tiền tố ROLE_ (ví dụ: ADMIN -> ROLE_ADMIN) để khớp với @PreAuthorize
+        grantedAuthoritiesConverter.setAuthoritiesClaimName("role"); // hoặc "roles" tùy backend
         grantedAuthoritiesConverter.setAuthorityPrefix("ROLE_");
 
-        JwtAuthenticationConverter jwtAuthenticationConverter = new JwtAuthenticationConverter();
-        jwtAuthenticationConverter.setJwtGrantedAuthoritiesConverter(grantedAuthoritiesConverter);
-        return jwtAuthenticationConverter;
+        JwtAuthenticationConverter converter = new JwtAuthenticationConverter();
+        converter.setJwtGrantedAuthoritiesConverter(grantedAuthoritiesConverter);
+        return converter;
     }
 
     @Bean
@@ -72,5 +73,19 @@ public class SecurityConfig {
         return NimbusJwtDecoder.withSecretKey(key)
                 .macAlgorithm(MacAlgorithm.HS512)
                 .build();
+    }
+
+    @Bean
+    public CorsConfigurationSource corsConfigurationSource() {
+        CorsConfiguration configuration = new CorsConfiguration();
+        configuration.setAllowedOrigins(List.of("http://localhost:5173"));
+        configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
+        configuration.setAllowedHeaders(List.of("*"));
+        configuration.setAllowCredentials(true);
+        configuration.setMaxAge(3600L);
+
+        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+        source.registerCorsConfiguration("/**", configuration);
+        return source;
     }
 }

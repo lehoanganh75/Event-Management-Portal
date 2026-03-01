@@ -24,6 +24,7 @@ public class JwtUtils {
                 .setSubject(info.getUserName())
                 .claim("userProfileId", info.getUserProfileId())
                 .claim("accountId", info.getAccountId())
+                .claim("email", info.getEmail())
                 .claim("role", info.getRoles())
                 .setIssuedAt(new Date())
                 .setExpiration(new Date(System.currentTimeMillis() + expiration))

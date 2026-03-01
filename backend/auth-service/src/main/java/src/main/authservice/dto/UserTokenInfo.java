@@ -15,6 +15,7 @@ import java.util.Set;
 public class UserTokenInfo {
     private String userName;
     private String accountId;
+    private String email;
     private Set<Role> roles;
     private String userProfileId;
 }
