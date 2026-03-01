@@ -40,6 +40,7 @@ public class UserProfileServiceImpl implements UserProfileService {
         userProfile.setFullName(updatedProfile.getFullName());
         userProfile.setDateOfBirth(updatedProfile.getDateOfBirth());
         userProfile.setGender(updatedProfile.getGender());
+        userProfile.setMajorName(updatedProfile.getMajorName());
         return userProfileRepository.save(userProfile);
     }
 
