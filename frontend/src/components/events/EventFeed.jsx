@@ -25,7 +25,7 @@ import {
 } from "lucide-react";
 import Preloader from "./Preloader";
 import LuckyWheelModal from "../luckyWheelModal/LuckyWheelModal";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { getAllEvents } from "../../api/eventApi";
 
 /* ─── LEFT SIDEBAR (desktop only) ─── */
@@ -100,7 +100,6 @@ function LeftSidebar({ onSearchChange, variant = "full" }) {
   );
 }
 
-/* ─── MOBILE SEARCH BAR ─── */
 function MobileSearchBar({ onSearchChange }) {
   const [keyword, setKeyword] = useState("");
   return (
@@ -543,6 +542,7 @@ export function EventFeed() {
   });
   const ITEMS_PER_PAGE = 5;
   const navigate = useNavigate();
+  const location = useLocation();
   const isLecturerView = location.pathname.startsWith("/lecturer");
 
   const handleEventClick = (eventId) => navigate(`/events/${eventId}`);
@@ -557,9 +557,9 @@ export function EventFeed() {
       .finally(() => setIsLoading(false));
   }, []);
 
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [searchKeyword, filters, sortBy]);
+  // useEffect(() => {
+  //   setCurrentPage(1);
+  // }, [searchKeyword, filters, sortBy]);
 
   // useEffect(() => {
   //   const timer = setTimeout(() => setIsLoading(false), 1000);
@@ -643,7 +643,7 @@ export function EventFeed() {
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
-      {isLoading && <Preloader />}
+      {isLoading && !isLecturerView && <Preloader />}
 
       {/* Mobile search bar */}
       {!isLecturerView && <MobileSearchBar onSearchChange={setSearchKeyword} />}
@@ -776,25 +776,27 @@ export function EventFeed() {
       />
 
       {/* Float buttons */}
-      <div className="fixed bottom-5 right-4 sm:bottom-6 sm:right-6 flex flex-col gap-3 z-50">
-        <button
-          onClick={() => setShowChat(true)}
-          className="w-12 h-12 sm:w-14 sm:h-14 bg-linear-to-tr from-purple-600 to-blue-400 rounded-full flex items-center justify-center shadow-lg hover:scale-110 transition-transform"
-          aria-label="AI Chat"
-        >
-          <Sparkles className="w-6 h-6 sm:w-7 sm:h-7 text-white" />
-        </button>
-        <button
-          onClick={() => setShowWheel(true)}
-          className="w-12 h-12 sm:w-14 sm:h-14 bg-orange-400 rounded-full flex items-center justify-center shadow-lg hover:scale-110 transition-transform"
-          aria-label="Lucky Wheel"
-        >
-          <Gift className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
-        </button>
-      </div>
+      {!isLecturerView && (
+        <div className="fixed bottom-5 right-4 sm:bottom-6 sm:right-6 flex flex-col gap-3 z-50">
+          <button
+            onClick={() => setShowChat(true)}
+            className="w-12 h-12 sm:w-14 sm:h-14 bg-linear-to-tr from-purple-600 to-blue-400 rounded-full flex items-center justify-center shadow-lg hover:scale-110 transition-transform"
+            aria-label="AI Chat"
+          >
+            <Sparkles className="w-6 h-6 sm:w-7 sm:h-7 text-white" />
+          </button>
+          <button
+            onClick={() => setShowWheel(true)}
+            className="w-12 h-12 sm:w-14 sm:h-14 bg-orange-400 rounded-full flex items-center justify-center shadow-lg hover:scale-110 transition-transform"
+            aria-label="Lucky Wheel"
+          >
+            <Gift className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
+          </button>
+        </div>
+      )}
 
       {/* Chat Modal */}
-      {showChat && (
+      {showChat && !isLecturerView && (
         <div className="fixed inset-0 z-100 flex items-end sm:items-end justify-end bg-black/30">
           <div
             className="w-full sm:w-88 sm:max-w-sm bg-white sm:rounded-2xl shadow-2xl sm:m-6 overflow-hidden flex flex-col rounded-t-2xl"
@@ -829,7 +831,7 @@ export function EventFeed() {
       )}
 
       {/* Lucky Wheel Modal */}
-      {showWheel && (
+      {showWheel && !isLecturerView && (
         <div className="fixed inset-0 z-100 flex items-center justify-center bg-black/40 p-4">
           <div className="relative w-full max-w-md bg-transparent">
             <button
