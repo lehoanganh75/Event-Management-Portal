@@ -18,126 +18,42 @@ import {
 } from "lucide-react";
 import Header from "../components/common/Header";
 import Footer from "../components/common/Footer";
-
-// Mock data - trong thực tế bạn sẽ fetch từ API
-const mockPosts = [
-  {
-    id: 1,
-    title: "Hội thảo Khoa học: AI và Machine Learning trong Công nghiệp 4.0",
-    description:
-      "Hội thảo về ứng dụng AI và ML trong các ngành công nghiệp hiện đại",
-    imageUrl:
-      "https://images.unsplash.com/photo-1677442136019-21780ecad995?w=800&h=400&fit=crop",
-    eventDate: "15/12/2025",
-    eventTime: "08:00 - 11:30",
-    registeredCount: 450,
-    maxParticipants: 500,
-    status: "upcoming",
-    type: "workshop",
-    organizer: "cntt",
-    location: "hoi-truong-a",
-    hasPoints: true,
-    fee: "free",
-    duration: "2-4h",
-    target: "all",
-    tags: ["AI", "MachineLearning"],
-    fullDescription: `
-      Hội thảo khoa học về AI và Machine Learning trong Công nghiệp 4.0 là sự kiện quan trọng 
-      nhằm cập nhật những xu hướng mới nhất trong lĩnh vực trí tuệ nhân tạo và học máy.
-      
-      Nội dung chính:
-      - Giới thiệu tổng quan về AI và ML
-      - Ứng dụng thực tế trong các ngành công nghiệp
-      - Thảo luận và Q&A với chuyên gia
-      - Workshop thực hành
-    `,
-    speakers: [
-      {
-        name: "TS. Nguyễn Văn A",
-        title: "Giảng viên Khoa CNTT",
-        avatar: "https://i.pravatar.cc/150?img=12",
-      },
-      {
-        name: "ThS. Trần Thị B",
-        title: "Chuyên gia AI",
-        avatar: "https://i.pravatar.cc/150?img=5",
-      },
-    ],
-    agenda: [
-      { time: "08:00 - 08:30", activity: "Đăng ký và check-in" },
-      { time: "08:30 - 09:00", activity: "Khai mạc và giới thiệu" },
-      { time: "09:00 - 10:30", activity: "Phần trình bày chính" },
-      { time: "10:30 - 11:00", activity: "Q&A" },
-      { time: "11:00 - 11:30", activity: "Bế mạc" },
-    ],
-  },
-  {
-    id: 2,
-    title: "Ngày Hội Việc Làm IUH Career Fair 2025",
-    description: "Sự kiện kết nối sinh viên với các doanh nghiệp hàng đầu",
-    imageUrl:
-      "https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=800&h=400&fit=crop",
-    eventDate: "20/12/2025",
-    eventTime: "07:30 - 16:30",
-    registeredCount: 1850,
-    maxParticipants: 2000,
-    status: "ongoing",
-    type: "career",
-    organizer: "ctsv",
-    location: "san-van-dong",
-    hasPoints: true,
-    fee: "free",
-    duration: "full-day",
-    target: "all",
-    tags: ["TìmViệc", "CareerFair"],
-    fullDescription: `
-      Ngày hội việc làm IUH Career Fair 2025 quy tụ hơn 50 doanh nghiệp hàng đầu
-      tại Việt Nam và quốc tế, tạo cơ hội kết nối và tìm kiếm việc làm cho sinh viên.
-    `,
-    speakers: [],
-    agenda: [],
-  },
-  {
-    id: 3,
-    title: "Workshop: Kỹ năng phỏng vấn cho sinh viên",
-    description: "Hướng dẫn cách chuẩn bị và vượt qua phỏng vấn xin việc",
-    imageUrl:
-      "https://images.unsplash.com/photo-1552664730-d307ca884978?w=800&h=400&fit=crop",
-    eventDate: "01/12/2025",
-    eventTime: "14:00 - 17:00",
-    registeredCount: 200,
-    maxParticipants: 200,
-    status: "completed",
-    type: "workshop",
-    organizer: "ctsv",
-    location: "online",
-    hasPoints: true,
-    fee: "free",
-    duration: "2-4h",
-    target: "year-4",
-    tags: ["KỹNăngMềm"],
-    fullDescription: `
-      Workshop trang bị kỹ năng phỏng vấn chuyên nghiệp cho sinh viên sắp tốt nghiệp.
-    `,
-    speakers: [],
-    agenda: [],
-  },
-];
+import { getEventById } from "../api/eventApi";
 
 const EventDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const [event, setEvent] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
   const [isRegistered, setIsRegistered] = useState(false);
 
   useEffect(() => {
-    // Scroll to top khi vào trang
     window.scrollTo(0, 0);
 
-    // Fetch event data - trong thực tế sẽ gọi API
-    const foundEvent = mockPosts.find((e) => e.id === parseInt(id));
-    setEvent(foundEvent);
+    getEventById(id)
+      .then((res) => {
+        if (res.data) {
+          setEvent(res.data);
+        } else {
+          console.error("Không tìm thấy dữ liệu sự kiện");
+        }
+      })
+      .catch((err) => {
+        console.error("Lỗi khi fetch chi tiết sự kiện:", err);
+      })
+      .finally(() => {
+        setIsLoading(false);
+      });
   }, [id]);
+
+  // Loading state
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
 
   if (!event) {
     return (
@@ -151,15 +67,6 @@ const EventDetail = () => {
   const availabilityPercent = (availableSlots / event.maxParticipants) * 100;
   const registrationPercent =
     (event.registeredCount / event.maxParticipants) * 100;
-
-  // Map location names
-  const locationMap = {
-    "hoi-truong-a": "Hội trường A",
-    "hoi-truong-b": "Hội trường B",
-    "san-van-dong": "Sân vận động",
-    online: "Online",
-    "ngoai-truong": "Ngoài trường",
-  };
 
   // Map organizer names
   const organizerMap = {
@@ -181,15 +88,6 @@ const EventDetail = () => {
     networking: "Giao lưu",
   };
 
-  // Map duration
-  const durationMap = {
-    "under-2h": "Dưới 2 giờ",
-    "2-4h": "2-4 giờ",
-    "half-day": "Nửa ngày",
-    "full-day": "Cả ngày",
-    "multi-day": "Nhiều ngày",
-  };
-
   // Map target audience
   const targetMap = {
     all: "Tất cả sinh viên",
@@ -199,9 +97,28 @@ const EventDetail = () => {
     "cntt-only": "Chỉ khoa CNTT",
   };
 
+  const formatDuration = (start, end) => {
+    if (!start || !end) return "Đang cập nhật";
+
+    const startDate = new Date(start);
+    const endDate = new Date(end);
+
+    if (isNaN(startDate.getTime()) || isNaN(endDate.getTime()))
+      return "Đang cập nhật";
+
+    const diffMins = Math.floor((endDate - startDate) / (1000 * 60));
+    if (diffMins <= 0) return "Đang cập nhật";
+
+    const hours = Math.floor(diffMins / 60);
+    const minutes = diffMins % 60;
+    const hDisplay = hours > 0 ? `${hours} giờ ` : "";
+    const mDisplay = minutes > 0 ? `${minutes} phút` : "";
+    return (hDisplay + mDisplay).trim();
+  };
+
   return (
     <div className="min-h-screen bg-gray-50">
-        <Header />
+      <Header />
       {/* Hero Section */}
       <div className="relative h-96 bg-linear-to-b from-gray-900 to-gray-800">
         <img
@@ -229,15 +146,15 @@ const EventDetail = () => {
                   event.status === "upcoming"
                     ? "bg-blue-500"
                     : event.status === "ongoing"
-                    ? "bg-green-500"
-                    : "bg-gray-500"
+                      ? "bg-green-500"
+                      : "bg-gray-500"
                 }`}
               >
                 {event.status === "upcoming"
                   ? "Sắp diễn ra"
                   : event.status === "ongoing"
-                  ? "Đang diễn ra"
-                  : "Đã kết thúc"}
+                    ? "Đang diễn ra"
+                    : "Đã kết thúc"}
               </span>
               {event.hasPoints && (
                 <span className="px-3 py-1 rounded-full bg-purple-500 text-sm font-semibold">
@@ -299,7 +216,7 @@ const EventDetail = () => {
                       Địa điểm
                     </p>
                     <p className="text-lg font-bold text-gray-900">
-                      {locationMap[event.location]}
+                      {event.location}
                     </p>
                   </div>
                 </div>
@@ -311,7 +228,7 @@ const EventDetail = () => {
                       Đơn vị tổ chức
                     </p>
                     <p className="text-lg font-bold text-gray-900">
-                      {organizerMap[event.organizer]}
+                      {organizerMap[event.organizationId]}
                     </p>
                   </div>
                 </div>
@@ -323,7 +240,7 @@ const EventDetail = () => {
                       Thời lượng
                     </p>
                     <p className="text-lg font-bold text-gray-900">
-                      {durationMap[event.duration]}
+                      {formatDuration(event.startTime, event.endTime)}
                     </p>
                   </div>
                 </div>
@@ -335,7 +252,9 @@ const EventDetail = () => {
                       Đối tượng
                     </p>
                     <p className="text-lg font-bold text-gray-900">
-                      {targetMap[event.target]}
+                      {event.target
+                        ? targetMap[event.target]
+                        : "Tất cả sinh viên IUH"}
                     </p>
                   </div>
                 </div>
@@ -474,8 +393,8 @@ const EventDetail = () => {
                         availabilityPercent > 20
                           ? "bg-green-500"
                           : availabilityPercent > 0
-                          ? "bg-orange-500"
-                          : "bg-red-500"
+                            ? "bg-orange-500"
+                            : "bg-red-500"
                       }`}
                       style={{ width: `${registrationPercent}%` }}
                     />
