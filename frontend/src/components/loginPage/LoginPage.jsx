@@ -63,9 +63,7 @@ const LoginPage = () => {
       const API = "http://localhost:8081/api/auth/login";
       const response = await axios.post(API, payload);
 
-      // Kiểm tra dữ liệu trả về theo đúng cấu trúc JSON bạn đã cung cấp
       if (response.data && response.data.accessToken) {
-        // Lưu trữ thông tin an toàn
         localStorage.setItem("accessToken", response.data.accessToken);
         localStorage.setItem("refreshToken", response.data.refreshToken);
         localStorage.setItem("user", JSON.stringify({
@@ -76,13 +74,12 @@ const LoginPage = () => {
         setMessage("Đăng nhập thành công! Đang chuyển hướng...");
         setToastVisible(true);
 
-        // Chuyển hướng sau 1.5s
         setTimeout(() => {
           const roles = response.data.roles || [];
           if (roles.includes("ADMIN")) {
             navigate("/admin/dashboard");
           } else {
-            navigate("/student/dashboard");
+            navigate("/");
           }
         }, 1500);
       }
@@ -90,7 +87,6 @@ const LoginPage = () => {
       let errorMsg = "Tên đăng nhập hoặc mật khẩu không chính xác.";
       
       if (error.response && error.response.data) {
-        // Lấy message cụ thể từ backend nếu có
         errorMsg = error.response.data.message || errorMsg;
       } else if (error.request) {
         errorMsg = "Không thể kết nối đến máy chủ. Vui lòng kiểm tra kết nối mạng.";
