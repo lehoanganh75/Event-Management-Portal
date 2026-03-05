@@ -63,6 +63,12 @@ public class EventController {
         return ResponseEntity.ok(eventService.getAllPlans());
     }
 
+    @GetMapping("/plans/pending")
+    public ResponseEntity<List<Event>> getPendingPlans() {
+        List<Event> pendingPlans = eventService.getPlansByStatus(EventStatus.PendingApproval);
+        return ResponseEntity.ok(pendingPlans);
+    }
+
     // 7. Tạo kế hoạch mới
     @PostMapping("/plans")
     public ResponseEntity<Event> createPlan(@RequestBody Event event) {

@@ -8,33 +8,61 @@ import {
   Info,
   ArrowLeft,
   ArrowRight,
+  Plus,
+  X,
 } from "lucide-react";
 
-export const ManualInputStep = ({ onBack, onNext }) => {
+export const ManualInputStep = ({ onBack, onNext, formData: externalFormData, setFormData: setExternalFormData }) => {
   const [formData, setFormData] = useState({
-    eventType: "",
-    eventTitle: "",
-    startTime: "",
-    endTime: "",
-    location: "",
-    organizer: "Khoa Công nghệ thông tin",
-    recipients: [],
-    participants: "",
-    budget: "",
-    notes: "",
+    eventType: (() => {
+      const map = { Workshop: "Workshop", Seminar: "Seminar", Talkshow: "Tọa đàm", Competition: "Thi đấu", Other: "Khác" };
+      return map[externalFormData?.eventType] || externalFormData?.eventType || "";
+    })(),
+    eventTypeOther: externalFormData?.eventTypeOther || "",
+    eventTitle: externalFormData?.eventTitle || externalFormData?.title || "",
+    eventTopic: externalFormData?.eventTopic || "",
+    eventPurpose: externalFormData?.eventPurpose || externalFormData?.description || "",
+    startTime: externalFormData?.startTime || "",
+    endTime: externalFormData?.endTime || "",
+    registrationDeadline: externalFormData?.registrationDeadline || "",
+    location: externalFormData?.location || "",
+    maxParticipants: externalFormData?.maxParticipants || 0,
+    organizer: externalFormData?.organizer || "Khoa Công nghệ thông tin",
+    organizerUnit: externalFormData?.organizerUnit || "",
+    recipients: externalFormData?.recipients || [],
+    customRecipients: externalFormData?.customRecipients || [],
+    participants: externalFormData?.participants || [],
+    notes: externalFormData?.notes || "",
   });
 
   const [errors, setErrors] = useState({});
+  const [newRecipient, setNewRecipient] = useState("");
+  const [showAddRecipient, setShowAddRecipient] = useState(false);
+
+  const khoaOrganizers = [
+    "Khoa Công nghệ thông tin",
+    "Khoa Kế toán - Kiểm toán",
+    "Khoa Quản trị Kinh doanh",
+  ];
+
+  const isKhoa = khoaOrganizers.includes(formData.organizer);
 
   const validateForm = () => {
     const newErrors = {};
     if (!formData.eventType) newErrors.eventType = true;
+    if (formData.eventType === "Khác" && !formData.eventTypeOther)
+      newErrors.eventTypeOther = true;
     if (!formData.eventTitle) newErrors.eventTitle = true;
+    if (!formData.eventPurpose) newErrors.eventPurpose = true;
     if (!formData.startTime) newErrors.startTime = true;
     if (!formData.endTime) newErrors.endTime = true;
     if (!formData.location) newErrors.location = true;
-    if (formData.recipients.length === 0) newErrors.recipients = true;
-    if (!formData.participants) newErrors.participants = true;
+    if (
+      formData.recipients.length === 0 &&
+      formData.customRecipients.length === 0
+    )
+      newErrors.recipients = true;
+    if (formData.participants.length === 0) newErrors.participants = true;
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -44,6 +72,34 @@ export const ManualInputStep = ({ onBack, onNext }) => {
     if (validateForm()) {
       onNext(formData);
     }
+  };
+
+  const toggleParticipant = (type) => {
+    setFormData((prev) => ({
+      ...prev,
+      participants: prev.participants.includes(type)
+        ? prev.participants.filter((p) => p !== type)
+        : [...prev.participants, type],
+    }));
+  };
+
+  const addCustomRecipient = () => {
+    const trimmed = newRecipient.trim();
+    if (trimmed && !formData.customRecipients.includes(trimmed)) {
+      setFormData((prev) => ({
+        ...prev,
+        customRecipients: [...prev.customRecipients, trimmed],
+      }));
+    }
+    setNewRecipient("");
+    setShowAddRecipient(false);
+  };
+
+  const removeCustomRecipient = (r) => {
+    setFormData((prev) => ({
+      ...prev,
+      customRecipients: prev.customRecipients.filter((x) => x !== r),
+    }));
   };
 
   return (
@@ -56,23 +112,17 @@ export const ManualInputStep = ({ onBack, onNext }) => {
         <p className="text-sm text-slate-500">
           Điền đầy đủ các thông tin bên dưới
         </p>
-      </div>
-
-      {/* Form */}
-      <div className="bg-white shadow-sm rounded-lg border border-slate-200 p-6 space-y-6">
-        {/* Save Draft Banner */}
-        <div className="bg-amber-50 border border-amber-200 p-3 rounded-lg flex items-center justify-between">
-          <div className="flex items-center gap-2 text-sm">
-            <Info className="text-amber-600" size={16} />
-            <span className="text-amber-800">
-              Nhớ lưu bản nháp để không mất dữ liệu
+        {externalFormData?.templateName && externalFormData?.templateId !== "0" && (
+          <div className="mt-3 flex items-center gap-2 px-3 py-2 bg-blue-50 border border-blue-100 rounded-lg w-fit">
+            <FileText className="text-blue-500" size={14} />
+            <span className="text-xs font-semibold text-blue-700">
+              Đang dùng mẫu: {externalFormData.templateName}
             </span>
           </div>
-          <button className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg flex items-center gap-2 text-sm font-medium transition">
-            <Save size={14} />
-            Lưu nháp
-          </button>
-        </div>
+        )}
+      </div>
+
+      <div className="bg-white shadow-sm rounded-lg border border-slate-200 p-6 space-y-6">
 
         {/* 1. Loại sự kiện */}
         <div className="space-y-2">
@@ -81,7 +131,14 @@ export const ManualInputStep = ({ onBack, onNext }) => {
             Loại sự kiện <span className="text-red-500">*</span>
           </label>
           <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-            {["Hội thảo", "Workshop", "Seminar", "Tọa đàm", "Thi đấu", "Khác"].map((type) => (
+            {[
+              "Hội thảo",
+              "Workshop",
+              "Seminar",
+              "Tọa đàm",
+              "Thi đấu",
+              "Khác",
+            ].map((type) => (
               <label
                 key={type}
                 className={`flex items-center gap-2 p-3 border-2 rounded-lg cursor-pointer transition ${
@@ -94,15 +151,42 @@ export const ManualInputStep = ({ onBack, onNext }) => {
                   type="radio"
                   name="eventType"
                   value={type}
+                  checked={formData.eventType === type}
                   className="w-4 h-4 text-blue-600"
                   onChange={(e) =>
-                    setFormData({ ...formData, eventType: e.target.value })
+                    setFormData({
+                      ...formData,
+                      eventType: e.target.value,
+                      eventTypeOther: "",
+                    })
                   }
                 />
-                <span className="text-sm font-medium text-slate-700">{type}</span>
+                <span className="text-sm font-medium text-slate-700">
+                  {type}
+                </span>
               </label>
             ))}
           </div>
+          {formData.eventType === "Khác" && (
+            <div className="mt-2">
+              <input
+                type="text"
+                placeholder="Nhập loại sự kiện..."
+                className={`w-full p-3 border-2 rounded-lg text-sm outline-none focus:border-blue-500 ${
+                  errors.eventTypeOther ? "border-red-300" : "border-slate-200"
+                }`}
+                value={formData.eventTypeOther}
+                onChange={(e) =>
+                  setFormData({ ...formData, eventTypeOther: e.target.value })
+                }
+              />
+              {errors.eventTypeOther && (
+                <p className="text-red-500 text-xs mt-1">
+                  Vui lòng nhập loại sự kiện
+                </p>
+              )}
+            </div>
+          )}
         </div>
 
         {/* 2. Tên sự kiện */}
@@ -124,7 +208,84 @@ export const ManualInputStep = ({ onBack, onNext }) => {
           />
         </div>
 
-        {/* 3. Thời gian */}
+        {/* 3. Chủ đề sự kiện */}
+        <div className="space-y-2">
+          <label className="flex items-center gap-2 text-sm font-semibold text-slate-700">
+            <FileText className="text-indigo-600" size={16} />
+            Chủ đề sự kiện
+          </label>
+          <input
+            type="text"
+            placeholder="Ví dụ: Ứng dụng AI trong giáo dục đại học"
+            className="w-full p-3 border-2 rounded-lg text-sm outline-none focus:border-blue-500 border-slate-200"
+            value={formData.eventTopic}
+            onChange={(e) =>
+              setFormData({ ...formData, eventTopic: e.target.value })
+            }
+          />
+        </div>
+
+        {/* 4. Mục đích tổ chức */}
+        <div className="space-y-2">
+          <label className="flex items-center gap-2 text-sm font-semibold text-slate-700">
+            <FileText className="text-rose-600" size={16} />
+            Mục đích tổ chức <span className="text-red-500">*</span>
+          </label>
+          <textarea
+            rows="3"
+            placeholder="Mô tả mục tiêu và lý do tổ chức sự kiện..."
+            className={`w-full p-3 border-2 rounded-lg text-sm outline-none focus:border-blue-500 resize-none ${
+              errors.eventPurpose ? "border-red-300" : "border-slate-200"
+            }`}
+            value={formData.eventPurpose}
+            onChange={(e) =>
+              setFormData({ ...formData, eventPurpose: e.target.value })
+            }
+          />
+          {errors.eventPurpose && (
+            <p className="text-red-500 text-xs mt-1">
+              Vui lòng nhập mục đích tổ chức
+            </p>
+          )}
+        </div>
+
+        {/* 5. Đối tượng tham gia */}
+        <div className="space-y-2">
+          <label className="flex items-center gap-2 text-sm font-semibold text-slate-700">
+            <Users className="text-blue-600" size={16} />
+            Đối tượng tham gia <span className="text-red-500">*</span>
+          </label>
+          <div className="grid grid-cols-2 gap-2">
+            {["Sinh viên", "Giảng viên", "Cán bộ", "Khách mời"].map((type) => (
+              <label
+                key={type}
+                className={`flex items-center gap-2 p-3 border-2 rounded-lg cursor-pointer transition ${
+                  formData.participants.includes(type)
+                    ? "border-blue-500 bg-blue-50"
+                    : "border-slate-200 hover:border-slate-300"
+                } ${errors.participants && formData.participants.length === 0 ? "border-red-300" : ""}`}
+              >
+                <input
+                  type="checkbox"
+                  value={type}
+                  className="w-4 h-4 text-blue-600 rounded"
+                  checked={formData.participants.includes(type)}
+                  onChange={() => toggleParticipant(type)}
+                />
+                <span className="text-sm font-medium text-slate-700">
+                  {type}
+                </span>
+              </label>
+            ))}
+          </div>
+          {errors.participants && formData.participants.length === 0 && (
+            <p className="text-red-500 text-xs">
+              Vui lòng chọn ít nhất một đối tượng tham gia
+            </p>
+          )}
+        </div>
+
+        {/* 6. Thời gian */}
         <div className="space-y-2">
           <label className="flex items-center gap-2 text-sm font-semibold text-slate-700">
             <Calendar className="text-blue-600" size={16} />
@@ -164,7 +325,58 @@ export const ManualInputStep = ({ onBack, onNext }) => {
           </div>
         </div>
 
-        {/* 4. Địa điểm */}
+        {/* Hạn đăng ký */}
+        <div className="space-y-2 p-4 bg-blue-50/50 rounded-xl border border-blue-100">
+          <label className="flex items-center gap-2 text-sm font-semibold text-blue-700">
+            <Calendar className="text-blue-600" size={16} />
+            Hạn chót đăng ký <span className="text-red-500">*</span>
+          </label>
+          <input
+            type="datetime-local"
+            className={`w-full p-2.5 border-2 rounded-lg outline-none focus:border-blue-500 text-sm bg-white ${
+              errors.registrationDeadline ? "border-red-300" : "border-slate-200"
+            }`}
+            value={formData.registrationDeadline}
+            onChange={(e) =>
+              setFormData({ ...formData, registrationDeadline: e.target.value })
+            }
+          />
+          <p className="text-[10px] text-slate-500 italic">
+            * Sau thời gian này, hệ thống sẽ tự động khóa form đăng ký.
+          </p>
+        </div>
+
+        {/* Số lượng */}
+        <div className="space-y-2">
+          <label className="flex items-center gap-2 text-sm font-semibold text-slate-700">
+            <Users className="text-blue-600" size={16} />
+            Số lượng người tham dự tối đa{" "}
+            <span className="text-red-500">*</span>
+          </label>
+          <div className="relative">
+            <input
+              type="number"
+              min="1"
+              placeholder="Ví dụ: 30"
+              className="w-full p-3 border-2 border-slate-200 rounded-lg text-sm outline-none focus:border-blue-500"
+              value={formData.maxParticipants || ""}
+              onChange={(e) =>
+                setFormData({
+                  ...formData,
+                  maxParticipants: parseInt(e.target.value) || 0,
+                })
+              }
+            />
+            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-400 font-medium">
+              Người
+            </span>
+          </div>
+          <p className="text-[10px] text-slate-400 italic">
+            * Hệ thống sẽ tự động đóng đăng ký khi đạt giới hạn này.
+          </p>
+        </div>
+
+        {/* 7. Địa điểm */}
         <div className="space-y-2">
           <label className="flex items-center gap-2 text-sm font-semibold text-slate-700">
             <MapPin className="text-emerald-600" size={16} />
@@ -183,7 +395,7 @@ export const ManualInputStep = ({ onBack, onNext }) => {
           />
         </div>
 
-        {/* 5. Đơn vị tổ chức */}
+        {/* 8. Đơn vị tổ chức */}
         <div className="space-y-2">
           <label className="flex items-center gap-2 text-sm font-semibold text-slate-700">
             <Users className="text-purple-600" size={16} />
@@ -193,7 +405,11 @@ export const ManualInputStep = ({ onBack, onNext }) => {
             className="w-full p-3 border-2 rounded-lg text-sm outline-none focus:border-blue-500 bg-white border-slate-200"
             value={formData.organizer}
             onChange={(e) =>
-              setFormData({ ...formData, organizer: e.target.value })
+              setFormData({
+                ...formData,
+                organizer: e.target.value,
+                organizerUnit: "",
+              })
             }
           >
             <option>Khoa Công nghệ thông tin</option>
@@ -202,122 +418,131 @@ export const ManualInputStep = ({ onBack, onNext }) => {
             <option>Phòng Đào tạo</option>
             <option>Phòng CTSV</option>
           </select>
+
+          {isKhoa && (
+            <div className="mt-2">
+              <label className="text-xs font-medium text-slate-600 mb-1 block">
+                Bộ môn / Chuyên ngành (nếu có)
+              </label>
+              <input
+                type="text"
+                placeholder="Ví dụ: Bộ môn Kỹ thuật phần mềm"
+                className="w-full p-3 border-2 rounded-lg text-sm outline-none focus:border-purple-500 border-slate-200 bg-purple-50"
+                value={formData.organizerUnit}
+                onChange={(e) =>
+                  setFormData({ ...formData, organizerUnit: e.target.value })
+                }
+              />
+            </div>
+          )}
         </div>
 
-        {/* 6. Nơi nhận */}
+        {/* 9. Nơi nhận */}
         <div className="space-y-2">
           <label className="flex items-center gap-2 text-sm font-semibold text-slate-700">
             <FileText className="text-orange-600" size={16} />
             Nơi nhận <span className="text-red-500">*</span>
           </label>
-          <div className={`space-y-2 p-3 rounded-lg ${errors.recipients ? "bg-red-50 border border-red-200" : ""}`}>
-            {["Trưởng khoa", "Ban Giám hiệu", "Phòng Đào tạo", "Phòng CTSV", "Các bộ môn"].map(
-              (recipient) => (
-                <label
-                  key={recipient}
-                  className="flex items-center gap-2 cursor-pointer"
+          <div
+            className={`space-y-2 p-3 rounded-lg ${errors.recipients ? "bg-red-50 border border-red-200" : "bg-slate-50 border border-slate-200"}`}
+          >
+            {[
+              "Trưởng khoa",
+              "Ban Giám hiệu",
+              "Phòng Đào tạo",
+              "Phòng CTSV",
+              "Các bộ môn",
+            ].map((recipient) => (
+              <label
+                key={recipient}
+                className="flex items-center gap-2 cursor-pointer"
+              >
+                <input
+                  type="checkbox"
+                  className="w-4 h-4 text-blue-600 rounded"
+                  checked={formData.recipients.includes(recipient)}
+                  onChange={(e) => {
+                    if (e.target.checked) {
+                      setFormData({
+                        ...formData,
+                        recipients: [...formData.recipients, recipient],
+                      });
+                    } else {
+                      setFormData({
+                        ...formData,
+                        recipients: formData.recipients.filter(
+                          (r) => r !== recipient,
+                        ),
+                      });
+                    }
+                  }}
+                />
+                <span className="text-sm font-medium text-slate-700">
+                  {recipient}
+                </span>
+              </label>
+            ))}
+
+            {formData.customRecipients.map((r) => (
+              <div key={r} className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  className="w-4 h-4 text-blue-600 rounded"
+                  checked
+                  readOnly
+                />
+                <span className="text-sm font-medium text-slate-700 flex-1">
+                  {r}
+                </span>
+                <button
+                  onClick={() => removeCustomRecipient(r)}
+                  className="text-slate-400 hover:text-red-500 transition"
                 >
-                  <input
-                    type="checkbox"
-                    className="w-4 h-4 text-blue-600 rounded"
-                    checked={formData.recipients.includes(recipient)}
-                    onChange={(e) => {
-                      if (e.target.checked) {
-                        setFormData({
-                          ...formData,
-                          recipients: [...formData.recipients, recipient],
-                        });
-                      } else {
-                        setFormData({
-                          ...formData,
-                          recipients: formData.recipients.filter(
-                            (r) => r !== recipient
-                          ),
-                        });
-                      }
-                    }}
-                  />
-                  <span className="text-sm font-medium text-slate-700">
-                    {recipient}
-                  </span>
-                </label>
-              )
+                  <X size={14} />
+                </button>
+              </div>
+            ))}
+
+            {showAddRecipient ? (
+              <div className="flex gap-2 mt-2">
+                <input
+                  type="text"
+                  placeholder="Nhập nơi nhận mới..."
+                  className="flex-1 p-2 border-2 border-blue-300 rounded-lg text-sm outline-none focus:border-blue-500"
+                  value={newRecipient}
+                  onChange={(e) => setNewRecipient(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && addCustomRecipient()}
+                  autoFocus
+                />
+                <button
+                  onClick={addCustomRecipient}
+                  className="px-3 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition"
+                >
+                  Thêm
+                </button>
+                <button
+                  onClick={() => {
+                    setShowAddRecipient(false);
+                    setNewRecipient("");
+                  }}
+                  className="px-3 py-2 border-2 border-slate-300 rounded-lg text-sm text-slate-600 hover:bg-slate-100 transition"
+                >
+                  Hủy
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={() => setShowAddRecipient(true)}
+                className="flex items-center gap-1.5 text-sm text-blue-600 hover:text-blue-800 font-medium mt-1 transition"
+              >
+                <Plus size={15} />
+                Thêm nơi nhận khác
+              </button>
             )}
           </div>
         </div>
 
-        {/* 7. Đối tượng tham gia */}
-        <div className="space-y-2">
-          <label className="flex items-center gap-2 text-sm font-semibold text-slate-700">
-            <Users className="text-blue-600" size={16} />
-            Đối tượng tham gia <span className="text-red-500">*</span>
-          </label>
-          <div className="grid grid-cols-2 gap-2">
-            {["Sinh viên", "Giảng viên", "Cán bộ", "Khách mời"].map((type) => (
-              <label
-                key={type}
-                className={`flex items-center gap-2 p-3 border-2 rounded-lg cursor-pointer transition ${
-                  formData.participants === type
-                    ? "border-blue-500 bg-blue-50"
-                    : "border-slate-200 hover:border-slate-300"
-                } ${errors.participants && !formData.participants ? "border-red-300" : ""}`}
-              >
-                <input
-                  type="radio"
-                  name="participants"
-                  value={type}
-                  className="w-4 h-4 text-blue-600"
-                  onChange={(e) =>
-                    setFormData({ ...formData, participants: e.target.value })
-                  }
-                />
-                <span className="text-sm font-medium text-slate-700">{type}</span>
-              </label>
-            ))}
-          </div>
-        </div>
-
-        {/* 8. Ngân sách dự kiến */}
-        <div className="space-y-2">
-          <label className="flex items-center gap-2 text-sm font-semibold text-slate-700">
-            <FileText className="text-green-600" size={16} />
-            Ngân sách dự kiến
-          </label>
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-            {[
-              "Dưới 5 triệu",
-              "5-10 triệu",
-              "10-20 triệu",
-              "20-50 triệu",
-              "Trên 50 triệu",
-              "Chưa xác định",
-            ].map((budget) => (
-              <label
-                key={budget}
-                className={`flex items-center gap-2 p-2.5 border-2 rounded-lg cursor-pointer transition ${
-                  formData.budget === budget
-                    ? "border-green-500 bg-green-50"
-                    : "border-slate-200 hover:border-slate-300"
-                }`}
-              >
-                <input
-                  type="radio"
-                  name="budget"
-                  value={budget}
-                  className="w-4 h-4 text-green-600"
-                  onChange={(e) =>
-                    setFormData({ ...formData, budget: e.target.value })
-                  }
-                />
-                <span className="text-xs font-medium text-slate-700">
-                  {budget}
-                </span>
-              </label>
-            ))}
-          </div>
-        </div>
-
-        {/* 9. Ghi chú */}
+        {/* 11. Ghi chú */}
         <div className="space-y-2">
           <label className="flex items-center gap-2 text-sm font-semibold text-slate-700">
             <FileText className="text-slate-600" size={16} />

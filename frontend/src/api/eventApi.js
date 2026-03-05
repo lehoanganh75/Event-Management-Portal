@@ -81,3 +81,35 @@ export const getEventById = (id) =>
     ...res,
     data: res.data ? mapEvent(res.data) : null,
   }));
+
+export const getAllPlans = () =>
+  api.get("/events/plans").then((res) => ({
+    ...res,
+    data: Array.isArray(res.data) ? res.data.map(mapEvent) : [],
+  }));
+
+export const getPlanById = (id) =>
+  api.get(`/events/${id}`).then((res) => ({
+    ...res,
+    data: res.data ? mapEvent(res.data) : null,
+  }));
+
+
+export const createPlan = (planData) =>
+  api.post("/events/plans", planData).then((res) => ({
+    ...res,
+    data: res.data ? mapEvent(res.data) : null,
+  }));
+
+export const updatePlan = (id, planData) =>
+  api.put(`/events/plans/${id}`, planData).then((res) => ({
+    ...res,
+    data: res.data ? mapEvent(res.data) : null,
+  }));
+
+export const deletePlan = (id) => 
+  api.delete(`/events/${id}`);
+
+export const shareEventPlan = (id) => {
+  return `${window.location.origin}/plans/view/${id}`;
+};

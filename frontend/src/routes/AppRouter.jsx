@@ -47,13 +47,11 @@ const AppRouter = () => {
           <Route path=':id' element={<EventDetail />} />
         </Route>
 
-        {/* Posts Routes */}
         <Route path='posts'>
           <Route index element={<ManagePosts />} />
           <Route path='create' element={<CreatePost />} />
         </Route>
 
-        {/* Other Routes */}
         <Route path='notifications' element={<NotificationPage />} />
         <Route path='attendance' element={<AttendancePage />} />
         <Route path='plans' element={<PlansPage />} />
@@ -72,7 +70,6 @@ const AppRouter = () => {
         <Route path="accounts" element={<EventPage />} />
         <Route path="library" element={<EventPage />} />
         <Route path="spinner" element={<SpinnerManagement />} />
-        {/* Thêm các route tương ứng với Sidebar của bạn tại đây */}
       </Route>
 
       <Route path='*' element={<NotFound404 />} />

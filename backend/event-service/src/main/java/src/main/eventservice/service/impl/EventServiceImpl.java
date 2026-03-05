@@ -12,8 +12,10 @@ import org.springframework.data.domain.Pageable;
 
 import java.time.LocalDateTime;
 import java.util.Arrays;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 @Service
 public class EventServiceImpl implements EventService {
@@ -23,8 +25,12 @@ public class EventServiceImpl implements EventService {
     @Override
     public List<Event> getAllEvents() {
         List<Event> events = eventRepository.findAll();
+
         events.forEach(this::enrichEventWithRegistrationCount);
-        return events;
+
+        return events.stream()
+                .sorted(Comparator.comparing(Event::getStartTime).reversed())
+                .collect(Collectors.toList());
     }
     @Override
     public List<Event> getFeaturedEvents() {
@@ -51,6 +57,8 @@ public class EventServiceImpl implements EventService {
         return eventRepository.save(event);
     }
 
+
+
     @Transactional
     @Override
     public Event updateEvent(String id, Event eventDetails) {
@@ -64,6 +72,8 @@ public class EventServiceImpl implements EventService {
 
             existingEvent.setStartTime(eventDetails.getStartTime());
             existingEvent.setEndTime(eventDetails.getEndTime());
+
+            existingEvent.setRegistrationDeadline(eventDetails.getRegistrationDeadline());
 
             existingEvent.setStatus(eventDetails.getStatus());
             existingEvent.setHasLuckyDraw(eventDetails.isHasLuckyDraw());
@@ -79,11 +89,14 @@ public class EventServiceImpl implements EventService {
     }
 
     @Override
-    public void deleteEvent(String id) { // Sửa tham số thành String id
-        eventRepository.deleteById(id);
+    public void deleteEvent(String id) {
+        Event event = eventRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy sự kiện"));
+
+        event.setDeletedAt(LocalDateTime.now());
+        event.setStatus(EventStatus.Cancelled);
+        eventRepository.save(event);
     }
-
-
     // Plans
     @Override
     public List<Event> getAllPlans() {
@@ -95,6 +108,13 @@ public class EventServiceImpl implements EventService {
         return eventRepository.findByStatusInAndDeletedAtIsNull(planStatuses);
     }
 
+    @Override
+    public List<Event> getPlansByStatus(EventStatus status) {
+        List<EventStatus> planStatuses = Arrays.asList(status);
+        List<Event> plans = eventRepository.findByStatusInAndDeletedAtIsNull(planStatuses);
+        plans.forEach(this::enrichEventWithRegistrationCount);
+        return plans;
+    }
     @Transactional
     @Override
     public Event createPlan(Event event) {
@@ -124,6 +144,8 @@ public class EventServiceImpl implements EventService {
         existingEvent.setDescription(planDetails.getDescription());
         existingEvent.setStartTime(planDetails.getStartTime());
         existingEvent.setEndTime(planDetails.getEndTime());
+        existingEvent.setRegistrationDeadline(planDetails.getRegistrationDeadline());
+        existingEvent.setMaxParticipants(planDetails.getMaxParticipants());
         existingEvent.setLocation(planDetails.getLocation());
         existingEvent.setUpdatedAt(LocalDateTime.now());
 

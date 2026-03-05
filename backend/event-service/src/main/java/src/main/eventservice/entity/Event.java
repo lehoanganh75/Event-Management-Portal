@@ -28,6 +28,8 @@ public class Event {
     private LocalDateTime startTime;
     private LocalDateTime endTime;
 
+    private LocalDateTime registrationDeadline;
+
     private String location;
     private String eventMode;
 

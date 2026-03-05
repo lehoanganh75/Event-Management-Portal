@@ -32,6 +32,7 @@ public class EventPostServiceImpl implements EventPostService {
     @Transactional
     @Override
     public EventPost createPost(EventPost post) {
+
         post.setCreatedAt(LocalDateTime.now());
         post.setUpdatedAt(LocalDateTime.now());
         post.setDeleted(false);

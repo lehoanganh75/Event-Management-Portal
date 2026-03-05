@@ -645,15 +645,13 @@ export function EventFeed() {
     <div className="min-h-screen bg-gray-50 flex flex-col">
       {isLoading && !isLecturerView && <Preloader />}
 
-      {/* Mobile search bar */}
       {!isLecturerView && <MobileSearchBar onSearchChange={setSearchKeyword} />}
 
       <div className="w-full px-4 sm:px-6 md:px-8 lg:px-12 flex gap-6 flex-1 py-4">
-        {/* Desktop Sidebar */}
         {!isLecturerView && <LeftSidebar onSearchChange={setSearchKeyword} />}
 
         <main className="flex-1 min-w-0">
-          {/* Header */}
+
           <div className="bg-white rounded-xl border border-gray-200 p-4 sm:p-6 mb-4 flex items-center gap-3">
             <div className="w-10 h-10 sm:w-12 sm:h-12 bg-blue-100 rounded-lg flex items-center justify-center shrink-0">
               <Newspaper className="w-5 h-5 sm:w-6 sm:h-6 text-blue-600" />
@@ -668,7 +666,6 @@ export function EventFeed() {
             </div>
           </div>
 
-          {/* Toolbar */}
           <div className="bg-white rounded-xl border border-gray-200 p-3 sm:p-4 mb-4 flex justify-between items-center gap-3">
             <div className="flex items-center gap-2 sm:gap-4 min-w-0">
               <button
@@ -830,7 +827,6 @@ export function EventFeed() {
         </div>
       )}
 
-      {/* Lucky Wheel Modal */}
       {showWheel && !isLecturerView && (
         <div className="fixed inset-0 z-100 flex items-center justify-center bg-black/40 p-4">
           <div className="relative w-full max-w-md bg-transparent">
