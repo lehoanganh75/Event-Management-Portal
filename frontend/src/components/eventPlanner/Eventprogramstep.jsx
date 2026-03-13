@@ -1,25 +1,19 @@
 import { useState } from "react";
 import {
   ArrowLeft, ArrowRight, Plus, Search, X,
-  Mic, BookOpen, Users, UserPlus, Settings,
+  Mic, Users, UserPlus, Settings,
   Type, Hash, Mail, Link, Calendar, AlignJustify,
-  HelpCircle, UserCheck, Info, Save,
+  HelpCircle, UserCheck, Check,
 } from "lucide-react";
 
-// ─── Mock Data ───────────────────────────────────────────────────────────────
 const MOCK_USERS = [
-  { id: "GV001", name: "TS. Nguyễn Văn An",   email: "nguyenvanan@uni.edu.vn",  dept: "Khoa CNTT",     avatar: "NA" },
-  { id: "GV002", name: "ThS. Trần Thị Bình",  email: "tranthibinh@uni.edu.vn",  dept: "Khoa CNTT",     avatar: "TB" },
-  { id: "GV003", name: "PGS. Lê Minh Cường",  email: "leminhcuong@uni.edu.vn",  dept: "Khoa Kế toán",  avatar: "LC" },
-  { id: "GV004", name: "TS. Phạm Thị Dung",   email: "phamthidung@uni.edu.vn",  dept: "Khoa QTKD",     avatar: "PD" },
-  { id: "GV005", name: "ThS. Hoàng Văn Em",   email: "hoangvanem@uni.edu.vn",   dept: "Phòng Đào tạo", avatar: "HE" },
+  { id: "GV001", name: "TS. Nguyễn Văn An",  email: "nguyenvanan@uni.edu.vn",  dept: "Khoa CNTT",     avatar: "NA" },
+  { id: "GV002", name: "ThS. Trần Thị Bình", email: "tranthibinh@uni.edu.vn",  dept: "Khoa CNTT",     avatar: "TB" },
+  { id: "GV003", name: "PGS. Lê Minh Cường", email: "leminhcuong@uni.edu.vn",  dept: "Khoa Kế toán",  avatar: "LC" },
+  { id: "GV004", name: "TS. Phạm Thị Dung",  email: "phamthidung@uni.edu.vn",  dept: "Khoa QTKD",     avatar: "PD" },
+  { id: "GV005", name: "ThS. Hoàng Văn Em",  email: "hoangvanem@uni.edu.vn",   dept: "Phòng Đào tạo", avatar: "HE" },
 ];
-
-const CURRENT_USER = {
-  id: "ME", name: "Bạn (Tôi)", email: "me@uni.edu.vn",
-  dept: "Khoa CNTT", avatar: "TÔI", isMe: true,
-};
-
+const CURRENT_USER = { id: "ME", name: "Bạn (Tôi)", email: "me@uni.edu.vn", dept: "Khoa CNTT", avatar: "TÔI", isMe: true };
 const FIELD_TYPES = [
   { value: "short_text", label: "Văn bản ngắn", icon: Type },
   { value: "long_text",  label: "Văn bản dài",  icon: AlignJustify },
@@ -30,282 +24,397 @@ const FIELD_TYPES = [
   { value: "other",      label: "Khác",          icon: HelpCircle },
 ];
 
-const avatarColors = [
-  "bg-blue-500", "bg-emerald-500", "bg-purple-500",
-  "bg-rose-500",  "bg-amber-500",  "bg-cyan-500",
+const ROLE_OPTIONS = [
+  { value: "Đồng chủ trì", label: "Đồng chủ trì" },
+  { value: "Chủ trì", label: "Chủ trì" },
+  { value: "Người trình bày", label: "Người trình bày" },
+  { value: "Thành viên BTC", label: "Thành viên BTC" },
+  { value: "Người tham dự", label: "Người tham dự" },
+  { value: "Khác", label: "Khác" },
 ];
 
-// ─── Avatar ───────────────────────────────────────────────────────────────────
-function Avatar({ initials, idx }) {
-  const color = avatarColors[(idx ?? 0) % avatarColors.length];
+const AVATAR_BG = ["#3b82f6","#10b981","#8b5cf6","#f43f5e","#f59e0b","#06b6d4"];
+
+/* ── Primitives ── */
+const fi = "'Inter','Segoe UI',sans-serif";
+
+function Avatar({ initials, idx = 0, size = 36 }) {
   return (
-    <div className={`w-8 h-8 rounded-full ${color} flex items-center justify-center text-white text-xs font-bold flex-shrink-0`}>
+    <div style={{ width: size, height: size, borderRadius: "50%", background: AVATAR_BG[idx % AVATAR_BG.length],
+      display: "flex", alignItems: "center", justifyContent: "center",
+      color: "#fff", fontSize: size > 32 ? 12 : 10, fontWeight: 700, flexShrink: 0, fontFamily: fi }}>
       {initials}
     </div>
   );
 }
 
-// ─── People Search ────────────────────────────────────────────────────────────
-function PeopleSearch({ onSelect }) {
-  const [query, setQuery]     = useState("");
-  const [results, setResults] = useState([]);
-  const [searched, setSearched] = useState(false);
+function Inp({ error, style, ...p }) {
+  const [f, setF] = useState(false);
+  return <input {...p}
+    onFocus={e => { setF(true); p.onFocus?.(e); }} onBlur={e => { setF(false); p.onBlur?.(e); }}
+    style={{ width: "100%", padding: "11px 14px", fontSize: 14, fontFamily: fi, outline: "none",
+      boxSizing: "border-box", color: "#111", transition: "border .15s", borderRadius: 9,
+      background: error ? "#fff5f5" : "#fff",
+      border: `1.5px solid ${error ? "#fca5a5" : f ? "#2563eb" : "#e5e5e5"}`, ...style }} />;
+}
 
-  const handleSearch = () => {
-    if (!query.trim()) return;
-    const q = query.toLowerCase();
-    setResults(MOCK_USERS.filter(
-      (u) => u.name.toLowerCase().includes(q) ||
-             u.email.toLowerCase().includes(q) ||
-             u.id.toLowerCase().includes(q)
-    ));
-    setSearched(true);
+function Sel({ children, style, ...p }) {
+  const [f, setF] = useState(false);
+  return (
+    <div style={{ position: "relative", ...style }}>
+      <select {...p} onFocus={() => setF(true)} onBlur={() => setF(false)}
+        style={{ width: "100%", padding: "11px 36px 11px 14px", fontSize: 14, fontFamily: fi,
+          outline: "none", appearance: "none", cursor: "pointer", color: "#111", borderRadius: 9,
+          background: "#fff", border: `1.5px solid ${f ? "#2563eb" : "#e5e5e5"}`, transition: "border .15s" }}>
+        {children}
+      </select>
+      <svg width="11" height="11" viewBox="0 0 12 12" fill="none"
+        style={{ position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)", pointerEvents: "none" }}>
+        <path d="M2 4l4 4 4-4" stroke="#aaa" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+      </svg>
+    </div>
+  );
+}
+
+/* ── Section Card ── */
+function Card({ title, icon: Icon, accentColor, badge, children }) {
+  const colors = {
+    blue:    { icon: "#2563eb", border: "#dbeafe", header: "#eff6ff", dot: "#2563eb" },
+    emerald: { icon: "#10b981", border: "#d1fae5", header: "#f0fdf8", dot: "#10b981" },
+    purple:  { icon: "#8b5cf6", border: "#ede9fe", header: "#faf5ff", dot: "#8b5cf6" },
+    slate:   { icon: "#64748b", border: "#e2e8f0", header: "#f8fafc", dot: "#64748b" },
   };
+  const c = colors[accentColor] || colors.slate;
+  return (
+    <div style={{ background: "#fff", border: `1.5px solid ${c.border}`, borderRadius: 14, overflow: "hidden" }}>
+      {/* Card header */}
+      <div style={{ padding: "16px 24px", background: c.header, borderBottom: `1px solid ${c.border}`,
+        display: "flex", alignItems: "center", gap: 10 }}>
+        <div style={{ width: 32, height: 32, borderRadius: 9, background: "#fff", border: `1px solid ${c.border}`,
+          display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <Icon size={16} color={c.icon} />
+        </div>
+        <span style={{ fontSize: 15, fontWeight: 700, color: "#111", letterSpacing: "-0.01em" }}>{title}</span>
+        {badge != null && badge > 0 && (
+          <span style={{ fontSize: 11, fontWeight: 700, color: c.icon, background: "#fff",
+            border: `1px solid ${c.border}`, padding: "1px 9px", borderRadius: 99, marginLeft: 2 }}>
+            {badge}
+          </span>
+        )}
+      </div>
+      {/* Card body */}
+      <div style={{ padding: "20px 24px" }}>{children}</div>
+    </div>
+  );
+}
 
-  const select = (u) => { onSelect(u); setQuery(""); setResults([]); setSearched(false); };
+/* ── People Search ── */
+function PeopleSearch({ onSelect, accentColor = "blue" }) {
+  const [q, setQ] = useState("");
+  const [res, setRes] = useState([]);
+  const [done, setDone] = useState(false);
+  const colors = { blue: "#2563eb", emerald: "#10b981", purple: "#8b5cf6" };
+  const ac = colors[accentColor] || colors.blue;
+
+  const search = () => {
+    if (!q.trim()) return;
+    const ql = q.toLowerCase();
+    setRes(MOCK_USERS.filter(u => u.name.toLowerCase().includes(ql) || u.email.toLowerCase().includes(ql) || u.id.toLowerCase().includes(ql)));
+    setDone(true);
+  };
+  const pick = u => { onSelect(u); setQ(""); setRes([]); setDone(false); };
 
   return (
-    <div className="space-y-2">
-      <div className="flex gap-2">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
-          <input
-            type="text"
-            placeholder="Tìm theo tên, email hoặc mã số..."
-            className="w-full pl-9 pr-4 py-2.5 border-2 border-slate-200 rounded-lg text-sm outline-none focus:border-blue-500 transition"
-            value={query}
-            onChange={(e) => { setQuery(e.target.value); setSearched(false); }}
-            onKeyDown={(e) => e.key === "Enter" && handleSearch()}
-          />
+    <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+      <div style={{ display: "flex", gap: 8 }}>
+        <div style={{ position: "relative", flex: 1 }}>
+          <Search size={14} color="#ccc" style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)" }} />
+          <Inp placeholder="Tìm theo tên, email hoặc mã số..."
+            value={q} onChange={e => { setQ(e.target.value); setDone(false); }}
+            onKeyDown={e => e.key === "Enter" && search()}
+            style={{ paddingLeft: 38, fontSize: 13 }} />
         </div>
-        <button
-          onClick={handleSearch}
-          className="px-4 py-2.5 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition flex items-center gap-1.5"
-        >
+        <button onClick={search}
+          style={{ display: "flex", alignItems: "center", gap: 6, padding: "10px 18px", background: ac,
+            color: "#fff", border: "none", borderRadius: 9, fontSize: 13, fontWeight: 600,
+            cursor: "pointer", fontFamily: fi, flexShrink: 0, transition: "opacity .15s" }}
+          onMouseEnter={e => e.currentTarget.style.opacity = "0.85"}
+          onMouseLeave={e => e.currentTarget.style.opacity = "1"}>
           <Search size={13} /> Tìm
         </button>
       </div>
-
-      {searched && (
-        <div className="border-2 border-slate-100 rounded-lg overflow-hidden">
-          {results.length === 0
-            ? <p className="p-3 text-center text-sm text-slate-500">Không tìm thấy kết quả.</p>
-            : results.map((u, i) => (
-              <div
-                key={u.id}
-                onClick={() => select(u)}
-                className="flex items-center gap-3 p-3 hover:bg-blue-50 cursor-pointer transition border-b border-slate-100 last:border-b-0"
-              >
-                <Avatar initials={u.avatar} idx={i} />
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold text-slate-800 truncate">{u.name}</p>
-                  <p className="text-xs text-slate-500">{u.id} · {u.email}</p>
+      {done && (
+        <div style={{ border: "1.5px solid #e5e5e5", borderRadius: 10, overflow: "hidden" }}>
+          {res.length === 0
+            ? <p style={{ padding: 16, textAlign: "center", fontSize: 13, color: "#aaa", margin: 0 }}>Không tìm thấy kết quả.</p>
+            : res.map((u, i) => (
+              <div key={u.id} onClick={() => pick(u)}
+                style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 16px",
+                  cursor: "pointer", borderBottom: i < res.length - 1 ? "1px solid #f0f0f0" : "none",
+                  transition: "background .12s" }}
+                onMouseEnter={e => e.currentTarget.style.background = "#f8fbff"}
+                onMouseLeave={e => e.currentTarget.style.background = "#fff"}>
+                <Avatar initials={u.avatar} idx={i} size={36} />
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <p style={{ fontSize: 14, fontWeight: 600, color: "#111", margin: 0 }}>{u.name}</p>
+                  <p style={{ fontSize: 12, color: "#aaa", margin: 0 }}>{u.id} · {u.email}</p>
                 </div>
-                <span className="text-xs text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full">{u.dept}</span>
+                <span style={{ fontSize: 11, color: "#888", background: "#f5f5f5",
+                  padding: "3px 10px", borderRadius: 99, whiteSpace: "nowrap" }}>{u.dept}</span>
               </div>
-            ))
-          }
+            ))}
         </div>
       )}
     </div>
   );
 }
 
-// ─── Manual Person Form ───────────────────────────────────────────────────────
-function ManualPersonForm({ onAdd, onCancel, roleLabel = "người" }) {
-  const [data, setData] = useState({ name: "", title: "", org: "", email: "" });
-  const [err,  setErr]  = useState(false);
+/* ── Manual Person Form ── */
+function ManualForm({ onAdd, onCancel, roleLabel }) {
+  const [d, setD] = useState({ name: "", title: "", org: "", role: "", customRole: "" });
+  const [err, setErr] = useState({ name: false, role: false });
 
-  const handleAdd = () => {
-    if (!data.name.trim()) { setErr(true); return; }
+  const go = () => {
+    let hasError = false;
+    if (!d.name.trim()) { setErr(prev => ({ ...prev, name: true })); hasError = true; }
+    if (!d.role) { setErr(prev => ({ ...prev, role: true })); hasError = true; }
+    if (hasError) return;
+
+    const finalRole = d.role === "Khác" ? (d.customRole.trim() || "Khác") : d.role;
+
     onAdd({
-      id: `manual_${Date.now()}`,
-      ...data,
+      id: `m_${Date.now()}`,
+      name: d.name.trim(),
+      title: d.title.trim(),
+      org: d.org.trim(),
+      role: finalRole,
       isManual: true,
-      avatar: data.name.trim().split(" ").map(w => w[0]).slice(-2).join("").toUpperCase(),
+      avatar: d.name.trim().split(" ").map(w => w[0]).slice(-2).join("").toUpperCase() || "NG",
     });
-    setData({ name: "", title: "", org: "", email: "" });
   };
 
+  const lbl = t => <label style={{ fontSize: 12, fontWeight: 600, color: "#888", display: "block", marginBottom: 6 }}>{t}</label>;
+
   return (
-    <div className="bg-slate-50 border-2 border-dashed border-slate-300 rounded-lg p-4 space-y-3">
-      <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Thêm {roleLabel} thủ công</p>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+    <div style={{ padding: "18px 20px", background: "#fafafa", border: "1.5px dashed #e0e0e0", borderRadius: 12 }}>
+      <p style={{ fontSize: 12, fontWeight: 700, color: "#aaa", textTransform: "uppercase", letterSpacing: "0.07em", margin: "0 0 16px" }}>
+        Thêm {roleLabel} thủ công
+      </p>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 14 }}>
         <div>
-          <label className="text-xs font-medium text-slate-600 block mb-1">Họ và tên <span className="text-red-500">*</span></label>
-          <input
-            type="text" placeholder="Nguyễn Văn A"
-            className={`w-full p-2.5 border-2 rounded-lg text-sm outline-none focus:border-blue-500 bg-white ${err && !data.name ? "border-red-300" : "border-slate-200"}`}
-            value={data.name}
-            onChange={(e) => { setData({ ...data, name: e.target.value }); setErr(false); }}
+          {lbl("Họ và tên *")}
+          <Inp
+            placeholder="Nguyễn Văn A"
+            error={err.name}
+            value={d.name}
+            onChange={e => { setD({ ...d, name: e.target.value }); setErr(prev => ({ ...prev, name: false })); }}
           />
         </div>
         <div>
-          <label className="text-xs font-medium text-slate-600 block mb-1">Chức danh / Vai trò</label>
-          <input
-            type="text" placeholder="TS., ThS., Trưởng BTC..."
-            className="w-full p-2.5 border-2 border-slate-200 rounded-lg text-sm outline-none focus:border-blue-500 bg-white"
-            value={data.title} onChange={(e) => setData({ ...data, title: e.target.value })}
+          {lbl("Chức danh / Vai trò")}
+          <Inp
+            placeholder="TS., ThS., Trưởng BTC..."
+            value={d.title}
+            onChange={e => setD({ ...d, title: e.target.value })}
           />
         </div>
         <div>
-          <label className="text-xs font-medium text-slate-600 block mb-1">Đơn vị</label>
-          <input
-            type="text" placeholder="Trường / Khoa / Công ty..."
-            className="w-full p-2.5 border-2 border-slate-200 rounded-lg text-sm outline-none focus:border-blue-500 bg-white"
-            value={data.org} onChange={(e) => setData({ ...data, org: e.target.value })}
+          {lbl("Đơn vị")}
+          <Inp
+            placeholder="Trường / Khoa / Công ty..."
+            value={d.org}
+            onChange={e => setD({ ...d, org: e.target.value })}
           />
         </div>
         <div>
-          <label className="text-xs font-medium text-slate-600 block mb-1">Email</label>
-          <input
-            type="email" placeholder="example@email.com"
-            className="w-full p-2.5 border-2 border-slate-200 rounded-lg text-sm outline-none focus:border-blue-500 bg-white"
-            value={data.email} onChange={(e) => setData({ ...data, email: e.target.value })}
-          />
+          {lbl("Vai trò *")}
+          <Sel
+            value={d.role}
+            onChange={e => {
+              setD({ ...d, role: e.target.value, customRole: "" });
+              setErr(prev => ({ ...prev, role: false }));
+            }}
+            error={err.role}
+          >
+            <option value="">Chọn vai trò</option>
+            {ROLE_OPTIONS.map(opt => (
+              <option key={opt.value} value={opt.value}>{opt.label}</option>
+            ))}
+          </Sel>
+          {d.role === "Khác" && (
+            <Inp
+              placeholder="Nhập vai trò cụ thể..."
+              value={d.customRole}
+              onChange={e => setD({ ...d, customRole: e.target.value })}
+              style={{ marginTop: 8 }}
+            />
+          )}
         </div>
       </div>
-      <div className="flex gap-2 pt-1">
-        <button onClick={handleAdd} className="px-4 py-2 bg-emerald-600 text-white rounded-lg text-sm font-medium hover:bg-emerald-700 transition flex items-center gap-1.5">
+      <div style={{ display: "flex", gap: 8 }}>
+        <button onClick={go}
+          style={{ display: "flex", alignItems: "center", gap: 6, padding: "9px 16px", background: "#10b981",
+            color: "#fff", border: "none", borderRadius: 9, fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: fi }}
+          onMouseEnter={e => e.currentTarget.style.background = "#059669"}
+          onMouseLeave={e => e.currentTarget.style.background = "#10b981"}>
           <Plus size={14} /> Thêm
         </button>
-        <button onClick={onCancel} className="px-4 py-2 border-2 border-slate-300 text-slate-600 rounded-lg text-sm font-medium hover:bg-slate-100 transition">
-          Hủy
-        </button>
+        <button onClick={onCancel}
+          style={{ padding: "9px 16px", background: "#fff", color: "#555", border: "1.5px solid #e5e5e5",
+            borderRadius: 9, fontSize: 13, fontWeight: 500, cursor: "pointer", fontFamily: fi }}>Hủy</button>
       </div>
     </div>
   );
 }
 
-// ─── Reusable People Section ──────────────────────────────────────────────────
-function PeopleSection({ title, icon: Icon, iconColor, people, onAdd, onRemove,
-  showAddMeButton = false, meAdded = false, onAddMe,
-  accentColor = "blue", roleLabel = "người" }) {
+/* ── Person Card ── */
+function PersonCard({ person, idx, onRemove, accentBg, accentBorder }) {
+  const [h, setH] = useState(false);
+  return (
+    <div onMouseEnter={() => setH(true)} onMouseLeave={() => setH(false)}
+      style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 14px",
+        border: `1.5px solid ${person.isMe ? "#ddd6fe" : accentBorder}`,
+        borderRadius: 11, background: h ? (person.isMe ? "#f0eeff" : accentBg) : (person.isMe ? "#f5f3ff" : "#fff"),
+        transition: "all .15s" }}>
+      <Avatar initials={person.avatar} idx={idx} size={38} />
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 7, marginBottom: 2, flexWrap: "wrap" }}>
+          <span style={{ fontSize: 14, fontWeight: 600, color: "#111" }}>
+            {person.title ? `${person.title} ` : ""}{person.name}
+          </span>
+          {person.isMe && <span style={{ fontSize: 10, fontWeight: 700, padding: "2px 8px", borderRadius: 99, background: "#ede9fe", color: "#7c3aed" }}>Tôi</span>}
+          {person.isManual && !person.isMe && <span style={{ fontSize: 10, fontWeight: 700, padding: "2px 8px", borderRadius: 99, background: "#fef3c7", color: "#d97706" }}>Thủ công</span>}
+        </div>
+        <p style={{ fontSize: 12, color: "#aaa", margin: 0 }}>{person.email || person.org || person.dept || ""}</p>
+      </div>
+      <button onClick={() => onRemove(person.id)}
+        style={{ border: "none", background: "none", cursor: "pointer", color: "#ccc",
+          padding: 4, borderRadius: 6, transition: "color .12s", display: "flex" }}
+        onMouseEnter={e => e.currentTarget.style.color = "#ef4444"}
+        onMouseLeave={e => e.currentTarget.style.color = "#ccc"}>
+        <X size={15} />
+      </button>
+    </div>
+  );
+}
 
+/* ── People Body (inside card) ── */
+function PeopleBody({ people, onAdd, onRemove, showAddMe, meAdded, onAddMe, accentColor, roleLabel }) {
   const [mode, setMode] = useState(null);
-
-  const accentMap = {
-    blue:    { searchBtn: "border-blue-200 text-blue-600 bg-blue-50 hover:bg-blue-100",       card: "bg-blue-50 border-blue-100" },
-    emerald: { searchBtn: "border-emerald-200 text-emerald-600 bg-emerald-50 hover:bg-emerald-100", card: "bg-emerald-50 border-emerald-100" },
-    purple:  { searchBtn: "border-purple-200 text-purple-600 bg-purple-50 hover:bg-purple-100",    card: "bg-purple-50 border-purple-100" },
+  const acs = {
+    blue:    { color: "#2563eb", bg: "#eff6ff", border: "#bfdbfe", hbg: "#dbeafe" },
+    emerald: { color: "#10b981", bg: "#f0fdf8", border: "#a7f3d0", hbg: "#d1fae5" },
+    purple:  { color: "#8b5cf6", bg: "#faf5ff", border: "#ddd6fe", hbg: "#ede9fe" },
   };
-  const ac = accentMap[accentColor] || accentMap.blue;
+  const ac = acs[accentColor] || acs.blue;
+  const add = p => { if (!people.find(x => x.id === p.id)) { onAdd(p); setMode(null); } };
 
-  const handleAdd = (p) => { if (people.find(x => x.id === p.id)) return; onAdd(p); setMode(null); };
+  const ActionBtn = ({ children, onClick, color, bg, border }) => {
+    const [h, setH] = useState(false);
+    return (
+      <button onClick={onClick} onMouseEnter={() => setH(true)} onMouseLeave={() => setH(false)}
+        style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "9px 16px",
+          border: `1.5px solid ${h ? color : border}`, borderRadius: 9,
+          background: h ? bg : "#fff", color, fontSize: 13, fontWeight: 500,
+          cursor: "pointer", fontFamily: fi, transition: "all .15s" }}>
+        {children}
+      </button>
+    );
+  };
 
   return (
-    <div className="space-y-3">
-      {/* Title row */}
-      <div className="flex items-center gap-2">
-        <Icon size={15} className={iconColor} />
-        <h3 className="text-sm font-bold text-slate-700">{title}</h3>
-        {people.length > 0 && (
-          <span className="text-xs font-semibold text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full">
-            {people.length}
-          </span>
-        )}
-      </div>
-
-      {/* People list */}
+    <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+      {/* People grid */}
       {people.length > 0 && (
-        <div className="space-y-2">
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
           {people.map((p, i) => (
-            <div key={p.id} className={`flex items-center gap-2.5 p-2.5 border rounded-lg ${p.isMe ? "bg-indigo-50 border-indigo-100" : ac.card}`}>
-              <Avatar initials={p.avatar} idx={i} />
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-semibold text-slate-800 truncate">
-                  {p.title ? `${p.title} ` : ""}{p.name}
-                  {p.isMe    && <span className="ml-1.5 text-xs bg-indigo-100 text-indigo-700 px-1.5 py-0.5 rounded-full">Tôi</span>}
-                  {p.isManual && !p.isMe && <span className="ml-1.5 text-xs bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full">Thủ công</span>}
-                </p>
-                <p className="text-xs text-slate-500 truncate">{p.email || p.org || p.dept || ""}</p>
-              </div>
-              <button onClick={() => onRemove(p.id)} className="text-slate-300 hover:text-red-500 transition flex-shrink-0">
-                <X size={14} />
-              </button>
-            </div>
+            <PersonCard key={p.id} person={p} idx={i} onRemove={onRemove}
+              accentBg={ac.bg} accentBorder={ac.border} />
           ))}
         </div>
       )}
 
-      {/* Action buttons */}
+      {/* Empty state */}
+      {people.length === 0 && mode === null && (
+        <div style={{ padding: "20px", textAlign: "center", background: "#fafafa",
+          border: "1.5px dashed #e5e5e5", borderRadius: 10 }}>
+          <p style={{ fontSize: 13, color: "#bbb", margin: 0 }}>Chưa có {roleLabel} nào. Thêm bên dưới.</p>
+        </div>
+      )}
+
+      {/* Buttons */}
       {mode === null && (
-        <div className="flex flex-wrap gap-2">
-          <button onClick={() => setMode("search")} className={`flex items-center gap-1.5 px-3 py-2 border-2 rounded-lg text-xs font-medium transition ${ac.searchBtn}`}>
-            <Search size={13} /> Tìm kiếm
-          </button>
-          <button onClick={() => setMode("manual")} className="flex items-center gap-1.5 px-3 py-2 border-2 border-slate-200 text-slate-600 bg-slate-50 rounded-lg text-xs font-medium hover:bg-slate-100 transition">
-            <Plus size={13} /> Thêm thủ công
-          </button>
-          {showAddMeButton && !meAdded && (
-            <button onClick={onAddMe} className="flex items-center gap-1.5 px-3 py-2 border-2 border-indigo-200 text-indigo-600 bg-indigo-50 rounded-lg text-xs font-medium hover:bg-indigo-100 transition">
-              <UserCheck size={13} /> Thêm tôi vào BTC
-            </button>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
+          <ActionBtn onClick={() => setMode("search")} color={ac.color} bg={ac.bg} border={ac.border}>
+            <Search size={14} /> Tìm kiếm hệ thống
+          </ActionBtn>
+          <ActionBtn onClick={() => setMode("manual")} color="#555" bg="#fafafa" border="#e5e5e5">
+            <Plus size={14} /> Thêm thủ công
+          </ActionBtn>
+          {showAddMe && !meAdded && (
+            <ActionBtn onClick={onAddMe} color="#7c3aed" bg="#f5f3ff" border="#ddd6fe">
+              <UserCheck size={14} /> Thêm tôi vào BTC
+            </ActionBtn>
           )}
         </div>
       )}
 
       {mode === "search" && (
-        <div className="space-y-2">
-          <PeopleSearch onSelect={handleAdd} />
-          <button onClick={() => setMode(null)} className="text-xs text-slate-500 hover:text-slate-700 underline">
-            Đóng tìm kiếm
+        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+          <PeopleSearch onSelect={add} accentColor={accentColor} />
+          <button onClick={() => setMode(null)}
+            style={{ fontSize: 12, color: "#aaa", background: "none", border: "none",
+              cursor: "pointer", textDecoration: "underline", fontFamily: fi, textAlign: "left", padding: 0 }}>
+            ← Đóng tìm kiếm
           </button>
         </div>
       )}
 
       {mode === "manual" && (
-        <ManualPersonForm onAdd={handleAdd} onCancel={() => setMode(null)} roleLabel={roleLabel} />
+        <ManualForm onAdd={add} onCancel={() => setMode(null)} roleLabel={roleLabel} />
       )}
     </div>
   );
 }
 
-// ─── Custom Fields Section ────────────────────────────────────────────────────
-function CustomFieldsSection({ fields, onChange }) {
-  const [showForm, setShowForm] = useState(false);
-  const [newField, setNewField] = useState({ name: "", type: "short_text", description: "" });
+/* ── Custom Fields ── */
+function CustomFields({ fields, onChange }) {
+  const [show, setShow] = useState(false);
+  const [nf, setNf] = useState({ name: "", type: "short_text", description: "" });
   const [err, setErr] = useState(false);
 
-  const addField = () => {
-    if (!newField.name.trim()) { setErr(true); return; }
-    onChange([...fields, { id: `field_${Date.now()}`, ...newField }]);
-    setNewField({ name: "", type: "short_text", description: "" });
-    setErr(false);
-    setShowForm(false);
+  const add = () => {
+    if (!nf.name.trim()) { setErr(true); return; }
+    onChange([...fields, { id: `f_${Date.now()}`, ...nf }]);
+    setNf({ name: "", type: "short_text", description: "" });
+    setErr(false); setShow(false);
   };
-
-  const removeField = (id) => onChange(fields.filter(f => f.id !== id));
+  const lbl = t => <label style={{ fontSize: 12, fontWeight: 600, color: "#888", display: "block", marginBottom: 6 }}>{t}</label>;
 
   return (
-    <div className="space-y-3">
-      <div className="flex items-center gap-2">
-        <Settings size={15} className="text-slate-500" />
-        <h3 className="text-sm font-bold text-slate-700">Thông tin bổ sung</h3>
-        {fields.length > 0 && (
-          <span className="text-xs font-semibold text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full">
-            {fields.length} trường
-          </span>
-        )}
-      </div>
-      <p className="text-xs text-slate-400">Thêm các trường thông tin tùy chỉnh cho sự kiện.</p>
+    <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+      <p style={{ fontSize: 13, color: "#aaa", margin: 0 }}>Thêm các trường thông tin tùy chỉnh cho form đăng ký sự kiện.</p>
 
-      {/* Fields list */}
       {fields.length > 0 && (
-        <div className="space-y-2">
-          {fields.map((f) => {
-            const TypeIcon  = FIELD_TYPES.find(t => t.value === f.type)?.icon  || HelpCircle;
-            const typeLabel = FIELD_TYPES.find(t => t.value === f.type)?.label || f.type;
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+          {fields.map(f => {
+            const TI = FIELD_TYPES.find(t => t.value === f.type)?.icon || HelpCircle;
+            const tl = FIELD_TYPES.find(t => t.value === f.type)?.label || f.type;
             return (
-              <div key={f.id} className="flex items-start gap-3 p-3 bg-slate-50 border border-slate-200 rounded-lg">
-                <div className="w-7 h-7 rounded-md bg-white border border-slate-200 flex items-center justify-center flex-shrink-0 mt-0.5">
-                  <TypeIcon size={13} className="text-slate-500" />
+              <div key={f.id} style={{ display: "flex", alignItems: "flex-start", gap: 12, padding: "12px 14px",
+                background: "#fafafa", border: "1.5px solid #e5e5e5", borderRadius: 10 }}>
+                <div style={{ width: 32, height: 32, borderRadius: 8, background: "#fff", border: "1px solid #e5e5e5",
+                  display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                  <TI size={13} color="#94a3b8" />
                 </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold text-slate-800">{f.name}</p>
-                  <p className="text-xs text-slate-400">{typeLabel}{f.description ? ` · ${f.description}` : ""}</p>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <p style={{ fontSize: 14, fontWeight: 600, color: "#111", margin: "0 0 2px" }}>{f.name}</p>
+                  <p style={{ fontSize: 12, color: "#aaa", margin: 0 }}>{tl}{f.description ? ` · ${f.description}` : ""}</p>
                 </div>
-                <button onClick={() => removeField(f.id)} className="text-slate-300 hover:text-red-500 transition flex-shrink-0 mt-0.5">
+                <button onClick={() => onChange(fields.filter(x => x.id !== f.id))}
+                  style={{ border: "none", background: "none", cursor: "pointer", color: "#ccc", padding: 3, borderRadius: 5, display: "flex" }}
+                  onMouseEnter={e => e.currentTarget.style.color = "#ef4444"}
+                  onMouseLeave={e => e.currentTarget.style.color = "#ccc"}>
                   <X size={14} />
                 </button>
               </div>
@@ -314,52 +423,35 @@ function CustomFieldsSection({ fields, onChange }) {
         </div>
       )}
 
-      {/* Add field */}
-      {showForm ? (
-        <div className="bg-slate-50 border-2 border-dashed border-slate-300 rounded-lg p-4 space-y-3">
-          <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Thêm trường mới</p>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            <div>
-              <label className="text-xs font-medium text-slate-600 block mb-1">Tên trường <span className="text-red-500">*</span></label>
-              <input
-                type="text" placeholder="VD: Số điện thoại liên hệ"
-                className={`w-full p-2.5 border-2 rounded-lg text-sm outline-none focus:border-blue-500 bg-white ${err && !newField.name ? "border-red-300" : "border-slate-200"}`}
-                value={newField.name}
-                onChange={(e) => { setNewField({ ...newField, name: e.target.value }); setErr(false); }}
-              />
-            </div>
-            <div>
-              <label className="text-xs font-medium text-slate-600 block mb-1">Loại trường</label>
-              <select
-                className="w-full p-2.5 border-2 border-slate-200 rounded-lg text-sm outline-none focus:border-blue-500 bg-white"
-                value={newField.type} onChange={(e) => setNewField({ ...newField, type: e.target.value })}
-              >
-                {FIELD_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
-              </select>
-            </div>
-            <div className="md:col-span-2">
-              <label className="text-xs font-medium text-slate-600 block mb-1">Mô tả trường</label>
-              <input
-                type="text" placeholder="Ghi chú hoặc hướng dẫn điền..."
-                className="w-full p-2.5 border-2 border-slate-200 rounded-lg text-sm outline-none focus:border-blue-500 bg-white"
-                value={newField.description} onChange={(e) => setNewField({ ...newField, description: e.target.value })}
-              />
-            </div>
+      {show ? (
+        <div style={{ padding: "18px 20px", background: "#fafafa", border: "1.5px dashed #e0e0e0", borderRadius: 12 }}>
+          <p style={{ fontSize: 12, fontWeight: 700, color: "#aaa", textTransform: "uppercase", letterSpacing: "0.07em", margin: "0 0 16px" }}>Thêm trường mới</p>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 14 }}>
+            <div>{lbl("Tên trường *")}<Inp placeholder="VD: Số điện thoại liên hệ" error={err && !nf.name} value={nf.name} onChange={e => { setNf({ ...nf, name: e.target.value }); setErr(false); }} /></div>
+            <div>{lbl("Loại trường")}<Sel value={nf.type} onChange={e => setNf({ ...nf, type: e.target.value })}>
+              {FIELD_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
+            </Sel></div>
+            <div style={{ gridColumn: "1/-1" }}>{lbl("Mô tả / Hướng dẫn điền")}<Inp placeholder="Ghi chú hoặc hướng dẫn..." value={nf.description} onChange={e => setNf({ ...nf, description: e.target.value })} /></div>
           </div>
-          <div className="flex gap-2">
-            <button onClick={addField} className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition flex items-center gap-1.5">
+          <div style={{ display: "flex", gap: 8 }}>
+            <button onClick={add}
+              style={{ display: "flex", alignItems: "center", gap: 6, padding: "9px 16px", background: "#2563eb",
+                color: "#fff", border: "none", borderRadius: 9, fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: fi }}
+              onMouseEnter={e => e.currentTarget.style.background = "#1d4ed8"}
+              onMouseLeave={e => e.currentTarget.style.background = "#2563eb"}>
               <Plus size={14} /> Thêm trường
             </button>
-            <button onClick={() => { setShowForm(false); setErr(false); }} className="px-4 py-2 border-2 border-slate-300 text-slate-600 rounded-lg text-sm font-medium hover:bg-slate-100 transition">
-              Hủy
-            </button>
+            <button onClick={() => { setShow(false); setErr(false); }}
+              style={{ padding: "9px 16px", background: "#fff", color: "#555", border: "1.5px solid #e5e5e5", borderRadius: 9, fontSize: 13, fontWeight: 500, cursor: "pointer", fontFamily: fi }}>Hủy</button>
           </div>
         </div>
       ) : (
-        <button
-          onClick={() => setShowForm(true)}
-          className="flex items-center gap-1.5 px-4 py-2.5 w-full justify-center border-2 border-dashed border-slate-300 text-slate-500 rounded-lg text-sm font-medium hover:border-blue-400 hover:text-blue-600 hover:bg-blue-50 transition"
-        >
+        <button onClick={() => setShow(true)}
+          style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, padding: "14px",
+            width: "100%", border: "1.5px dashed #e0e0e0", borderRadius: 10, background: "#fff",
+            color: "#aaa", fontSize: 13, fontWeight: 500, cursor: "pointer", fontFamily: fi, transition: "all .15s" }}
+          onMouseEnter={e => { e.currentTarget.style.borderColor = "#2563eb"; e.currentTarget.style.color = "#2563eb"; e.currentTarget.style.background = "#f8fbff"; }}
+          onMouseLeave={e => { e.currentTarget.style.borderColor = "#e0e0e0"; e.currentTarget.style.color = "#aaa"; e.currentTarget.style.background = "#fff"; }}>
           <Plus size={15} /> Thêm trường thông tin
         </button>
       )}
@@ -367,109 +459,90 @@ function CustomFieldsSection({ fields, onChange }) {
   );
 }
 
-// ─── Section Card Wrapper ─────────────────────────────────────────────────────
-function SectionCard({ children }) {
-  return (
-    <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
-      {children}
-    </div>
-  );
-}
-
-// ─── Main Export ──────────────────────────────────────────────────────────────
 export const EventProgramStep = ({ onBack, onNext }) => {
-  const [presenters,  setPresenters]  = useState([]);
-  const [organizers,  setOrganizers]  = useState([]);
-  const [attendees,   setAttendees]   = useState([]);
+  const [presenters,   setPresenters]   = useState([]);
+  const [organizers,   setOrganizers]   = useState([]);
+  const [attendees,    setAttendees]    = useState([]);
   const [customFields, setCustomFields] = useState([]);
-
   const meAdded = organizers.some(o => o.id === "ME");
 
-  const makeAdd    = (list, setter) => (p) => { if (!list.find(x => x.id === p.id)) setter([...list, p]); };
-  const makeRemove = (list, setter) => (id) => setter(list.filter(p => p.id !== id));
-
-  const handleNext = () => {
-    onNext && onNext({ presenters, organizers, attendees, customFields });
-  };
+  const addTo    = (list, setter) => p  => { if (!list.find(x => x.id === p.id)) setter([...list, p]); };
+  const removeFrom = (list, setter) => id => setter(list.filter(p => p.id !== id));
 
   return (
-    <div className="max-w-3xl mx-auto p-6 space-y-5">
+    <div style={{ width: "100%", maxWidth: 1100, margin: "0 auto", padding: "0 40px 60px", fontFamily: fi }}>
 
-      {/* Page Header */}
-      <SectionCard>
-        <h1 className="text-xl font-bold text-slate-800 mb-1">Chương trình sự kiện</h1>
-        <p className="text-sm text-slate-500">Thiết lập nhân sự và thông tin bổ sung cho sự kiện</p>
-      </SectionCard>
+      {/* Header */}
+      <div style={{ marginBottom: 32 }}>
+        <p style={{ fontSize: 12, color: "#bbb", fontWeight: 500, margin: "0 0 6px", letterSpacing: "0.04em" }}>Bước 3 / 3</p>
+        <h2 style={{ fontSize: 24, fontWeight: 700, color: "#111", margin: "0 0 6px", letterSpacing: "-0.02em" }}>Chương trình sự kiện</h2>
+        <p style={{ fontSize: 14, color: "#888", margin: 0 }}>Thiết lập nhân sự và thông tin bổ sung cho sự kiện</p>
+      </div>
 
-      {/* ── 1. Người trình bày ─── */}
-      <SectionCard>
-        <PeopleSection
-          title="Người trình bày"
-          icon={Mic} iconColor="text-blue-500"
-          people={presenters}
-          onAdd={makeAdd(presenters, setPresenters)}
-          onRemove={makeRemove(presenters, setPresenters)}
-          accentColor="blue" roleLabel="người trình bày"
-        />
-      </SectionCard>
+      {/* Top row: 2 cards side-by-side */}
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20, marginBottom: 20 }}>
+        <Card title="Người trình bày" icon={Mic} accentColor="blue" badge={presenters.length}>
+          <PeopleBody people={presenters}
+            onAdd={addTo(presenters, setPresenters)}
+            onRemove={removeFrom(presenters, setPresenters)}
+            accentColor="blue" roleLabel="người trình bày" />
+        </Card>
 
-      {/* ── 2. Ban tổ chức ───────── */}
-      <SectionCard>
-        <PeopleSection
-          title="Ban tổ chức"
-          icon={Users} iconColor="text-emerald-500"
-          people={organizers}
-          onAdd={makeAdd(organizers, setOrganizers)}
-          onRemove={makeRemove(organizers, setOrganizers)}
-          showAddMeButton meAdded={meAdded}
-          onAddMe={() => { if (!meAdded) setOrganizers([...organizers, CURRENT_USER]); }}
-          accentColor="emerald" roleLabel="thành viên BTC"
-        />
-      </SectionCard>
+        <Card title="Ban tổ chức" icon={Users} accentColor="emerald" badge={organizers.length}>
+          <PeopleBody people={organizers}
+            onAdd={addTo(organizers, setOrganizers)}
+            onRemove={removeFrom(organizers, setOrganizers)}
+            showAddMe meAdded={meAdded}
+            onAddMe={() => { if (!meAdded) setOrganizers([...organizers, CURRENT_USER]); }}
+            accentColor="emerald" roleLabel="thành viên BTC" />
+        </Card>
+      </div>
 
-      {/* ── 3. Người tham dự ────── */}
-      <SectionCard>
-        <PeopleSection
-          title="Người tham dự sự kiện"
-          icon={UserPlus} iconColor="text-purple-500"
-          people={attendees}
-          onAdd={makeAdd(attendees, setAttendees)}
-          onRemove={makeRemove(attendees, setAttendees)}
-          accentColor="purple" roleLabel="người tham dự"
-        />
-      </SectionCard>
+      {/* Bottom row: 2 cards side-by-side */}
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20, marginBottom: 32 }}>
+        <Card title="Người tham dự" icon={UserPlus} accentColor="purple" badge={attendees.length}>
+          <PeopleBody people={attendees}
+            onAdd={addTo(attendees, setAttendees)}
+            onRemove={removeFrom(attendees, setAttendees)}
+            accentColor="purple" roleLabel="người tham dự" />
+        </Card>
 
-      {/* ── 4. Thông tin bổ sung ── */}
-      <SectionCard>
-        <CustomFieldsSection fields={customFields} onChange={setCustomFields} />
-      </SectionCard>
+        <Card title="Thông tin bổ sung" icon={Settings} accentColor="slate" badge={customFields.length}>
+          <CustomFields fields={customFields} onChange={setCustomFields} />
+        </Card>
+      </div>
 
-      {/* Navigation */}
-      <div className="flex justify-between items-center pt-2">
-        <button
-          onClick={onBack}
-          className="flex items-center gap-2 px-6 py-2.5 border-2 border-slate-300 rounded-lg font-semibold text-slate-600 hover:bg-slate-50 transition text-sm"
-        >
+      {/* Footer */}
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between",
+        paddingTop: 24, borderTop: "1px solid #f0f0f0" }}>
+        <button onClick={onBack}
+          style={{ display: "flex", alignItems: "center", gap: 7, padding: "11px 22px",
+            border: "1.5px solid #e5e5e5", borderRadius: 10, background: "#fff", color: "#555",
+            fontSize: 14, fontWeight: 500, cursor: "pointer", fontFamily: fi, transition: "all .15s" }}
+          onMouseEnter={e => { e.currentTarget.style.background = "#fafafa"; e.currentTarget.style.borderColor = "#d0d0d0"; }}
+          onMouseLeave={e => { e.currentTarget.style.background = "#fff"; e.currentTarget.style.borderColor = "#e5e5e5"; }}>
           <ArrowLeft size={16} /> Quay lại
         </button>
-        <button
-          onClick={handleNext}
-          className="flex items-center gap-2 px-6 py-2.5 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 transition text-sm"
-        >
+        <button onClick={() => onNext?.({ presenters, organizers, attendees, customFields })}
+          style={{ display: "flex", alignItems: "center", gap: 7, padding: "11px 28px",
+            border: "none", borderRadius: 10, background: "#2563eb", color: "#fff",
+            fontSize: 14, fontWeight: 600, cursor: "pointer", fontFamily: fi, transition: "background .15s",
+            boxShadow: "0 2px 10px rgba(37,99,235,0.25)" }}
+          onMouseEnter={e => e.currentTarget.style.background = "#1d4ed8"}
+          onMouseLeave={e => e.currentTarget.style.background = "#2563eb"}>
           Tiếp tục <ArrowRight size={16} />
         </button>
       </div>
+
+      <style>{`* { box-sizing: border-box; } ::placeholder { color: #ccc; }`}</style>
     </div>
   );
 };
 
 export default function App() {
   return (
-    <div className="min-h-screen bg-slate-100 py-8">
-      <EventProgramStep
-        onBack={() => alert("Quay lại")}
-        onNext={(data) => { console.log(data); alert("Tiếp tục!"); }}
-      />
+    <div style={{ minHeight: "100vh", background: "#f5f6f8", padding: "40px 0", fontFamily: fi }}>
+      <EventProgramStep onBack={() => {}} onNext={d => console.log(d)} />
     </div>
   );
 }

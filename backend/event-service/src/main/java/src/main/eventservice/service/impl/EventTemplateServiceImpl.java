@@ -2,11 +2,14 @@ package src.main.eventservice.service.impl;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import src.main.eventservice.entity.Event;
 import src.main.eventservice.entity.EventTemplate;
 import src.main.eventservice.entity.enums.EventStatus;
+import src.main.eventservice.repository.EventRepository;
 import src.main.eventservice.repository.EventTemplateRepository;
 import src.main.eventservice.service.EventTemplateService;
 
@@ -19,10 +22,16 @@ public class EventTemplateServiceImpl implements EventTemplateService {
     @Autowired
     private EventTemplateRepository templateRepository;
 
+    @Autowired
+    private EventRepository eventRepository;
+
     @Override
     public Event createFromTemplate(String templateId, String accountId) {
         EventTemplate template = templateRepository.findById(templateId)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy bản mẫu với ID: " + templateId));
+
+        template.setUsageCount(template.getUsageCount() + 1);
+        templateRepository.save(template);
 
         Event event = new Event();
 
@@ -45,15 +54,23 @@ public class EventTemplateServiceImpl implements EventTemplateService {
         return event;
     }
 
-
     @Override
     public Page<EventTemplate> getAllTemplates(String orgId, String search, Pageable pageable) {
         String searchKeyword = (search == null) ? "" : search;
 
+        Sort sort = Sort.by(Sort.Direction.DESC, "usageCount")
+                .and(Sort.by(Sort.Direction.DESC, "createdAt"));
+
+        Pageable sortedByUsage = PageRequest.of(
+                pageable.getPageNumber(),
+                pageable.getPageSize(),
+                sort
+        );
+
         return templateRepository.findByOrganizationIdAndTemplateNameContainingIgnoreCase(
                 orgId,
                 searchKeyword,
-                pageable
+                sortedByUsage
         );
     }
     @Override

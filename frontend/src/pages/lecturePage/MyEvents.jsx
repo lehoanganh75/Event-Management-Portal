@@ -28,6 +28,7 @@ import {
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import CreateEventModal from "../../components/events/CreateEventModal";
+import { EventPlanner } from "./EventPlanner";
 
 const STATUS_LABELS = {
   All: "Tất cả trạng thái",
@@ -59,6 +60,8 @@ const MyEvents = () => {
     type: "success",
   });
   const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [showPlanner, setShowPlanner] = useState(false);
+  const [plannerPrefill, setPlannerPrefill] = useState({});
   const navigate = useNavigate();
 
   const showToast = (message, type = "success") => {
@@ -198,6 +201,24 @@ const MyEvents = () => {
       showToast("Lỗi server!", "error");
     }
   };
+
+  const handleSelectPlan = (prefillData) => {
+    setPlannerPrefill(prefillData);
+    setShowPlanner(true);
+  };
+
+  if (showPlanner) {
+    return (
+      <EventPlanner
+        initialStep={2}
+        initialFormData={plannerPrefill}
+        onBack={() => {
+          setShowPlanner(false);
+          setPlannerPrefill({});
+        }}
+      />
+    );
+  }
 
   return (
     <motion.div
@@ -356,7 +377,7 @@ const MyEvents = () => {
                       </td>
                       <td className="px-6 py-5">
                         <div className="w-32">
-                          <div className="flex justify-between text-[10px] font-bold mb-1">
+                          <div className="flex justify-between text-[16px] font-bold mb-1">
                             <span className="text-slate-500">
                               {event.registeredCount || 0}/
                               {event.maxParticipants}
@@ -720,6 +741,7 @@ const MyEvents = () => {
         isOpen={isCreateOpen}
         onClose={() => setIsCreateOpen(false)}
         onCreated={fetchEvents}
+        onSelectPlan={handleSelectPlan}
       />
     </motion.div>
   );

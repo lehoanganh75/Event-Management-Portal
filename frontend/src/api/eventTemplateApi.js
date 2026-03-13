@@ -15,7 +15,7 @@ export const eventTemplateApi = {
     return response.data;
   },
 
-  applyTemplate: async (templateId, accountId) => {
+  applyTemplate: async (templateId, accountId = null) => {
     try {
       const response = await axios.post(
         `${BASE_URL}/${templateId}/apply?accountId=${accountId}`,

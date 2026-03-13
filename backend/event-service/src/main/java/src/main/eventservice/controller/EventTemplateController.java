@@ -11,6 +11,7 @@ import src.main.eventservice.entity.Event;
 import src.main.eventservice.entity.EventTemplate;
 import src.main.eventservice.service.EventTemplateService;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 @RestController
@@ -26,16 +27,38 @@ public class EventTemplateController {
             @RequestParam String organizationId,
             @RequestParam(required = false) String search,
             @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "10") int size) {
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(defaultValue = "usageCount") String sortBy,
+            @RequestParam(defaultValue = "desc") String direction) {
 
-        Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
+        Sort sort = direction.equalsIgnoreCase("desc")
+                ? Sort.by(sortBy).descending()
+                : Sort.by(sortBy).ascending();
+
+        sort = sort.and(Sort.by("createdAt").descending());
+
+        Pageable pageable = PageRequest.of(page, size, sort);
 
         return ResponseEntity.ok(templateService.getAllTemplates(organizationId, search, pageable));
     }
 
     @PostMapping("/{id}/apply")
-    public ResponseEntity<Event> applyTemplate(@PathVariable String id, @RequestParam String accountId) {
+    public ResponseEntity<Event> applyTemplate(
+            @PathVariable String id,
+            @RequestParam(required = false, defaultValue = "anonymous") String accountId) {
         return ResponseEntity.ok(templateService.createFromTemplate(id, accountId));
+    }
+
+
+    @PostMapping("/save")
+    public ResponseEntity<EventTemplate> saveAsNewTemplate(@RequestBody EventTemplate newTemplate) {
+        newTemplate.setId(null);
+        newTemplate.setUsageCount(0);
+        newTemplate.setCreatedAt(LocalDateTime.now());
+        newTemplate.setUpdatedAt(LocalDateTime.now());
+
+        EventTemplate saved = templateService.saveTemplate(newTemplate);
+        return ResponseEntity.ok(saved);
     }
 
     @PostMapping

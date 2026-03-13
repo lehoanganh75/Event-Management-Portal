@@ -1,15 +1,23 @@
 import React, { useState, useEffect, useRef } from "react";
 import {
-  ChevronRight, ChevronLeft, FileEdit, Search, Loader2,
-  CheckCircle2, FileText, Sparkles, Wand2, X, Star, TrendingUp
+  ChevronRight,
+  ChevronLeft,
+  Search,
+  Loader2,
+  Sparkles,
+  Wand2,
+  X,
+  Star,
+  TrendingUp,
+  ArrowRight,
+  Check,
 } from "lucide-react";
 import { eventTemplateApi } from "../../api/eventTemplateApi";
 
-/* ─── AI Suggestion Panel ──────────────────────────────────────── */
 const SmartSuggestionPanel = ({ templates, onSelect, onClose }) => {
   const [description, setDescription] = useState("");
   const [isAnalyzing, setIsAnalyzing] = useState(false);
-  const [suggestions, setSuggestions] = useState([]);
+  const [suggestions, setSuggestions] = useState(null);
   const [error, setError] = useState(null);
   const textareaRef = useRef(null);
 
@@ -19,15 +27,17 @@ const SmartSuggestionPanel = ({ templates, onSelect, onClose }) => {
 
   const analyzeDescription = async () => {
     if (description.trim().length < 10) return;
-
     setIsAnalyzing(true);
-    setSuggestions([]);
+    setSuggestions(null);
     setError(null);
 
     try {
       const templateList = templates
         .filter((t) => t.id !== "0")
-        .map((t) => `- ID: ${t.id} | Tên: ${t.templateName} | Mô tả: ${t.description || t.defaultTitle || ""}`)
+        .map(
+          (t) =>
+            `- ID: ${t.id} | Tên: ${t.templateName} | Mô tả: ${t.description || t.defaultTitle || ""}`,
+        )
         .join("\n");
 
       const prompt = `Bạn là trợ lý gợi ý mẫu kế hoạch sự kiện. Người dùng mô tả sự kiện như sau:
@@ -63,12 +73,15 @@ Hãy gợi ý tối đa 3 mẫu phù hợp nhất. Trả về JSON (không markd
       const clean = text.replace(/```json|```/g, "").trim();
       const parsed = JSON.parse(clean);
 
-      // Map suggestions back to full template objects
       const enriched = parsed.suggestions
         .map((s) => {
           const tpl =
             s.id === "0"
-              ? { id: "0", templateName: "Bản mẫu trống", description: "Bắt đầu kế hoạch mới với thông tin trống." }
+              ? {
+                  id: "0",
+                  templateName: "Bản mẫu trống",
+                  description: "Bắt đầu kế hoạch mới với thông tin trống.",
+                }
               : templates.find((t) => String(t.id) === String(s.id));
           if (!tpl) return null;
           return { ...tpl, score: s.score, reason: s.reason };
@@ -84,114 +97,343 @@ Hãy gợi ý tối đa 3 mẫu phù hợp nhất. Trả về JSON (không markd
     }
   };
 
-  const scoreColor = (score) => {
-    if (score >= 80) return "text-emerald-600 bg-emerald-50";
-    if (score >= 60) return "text-blue-600 bg-blue-50";
-    return "text-amber-600 bg-amber-50";
+  const scoreBadge = (score) => {
+    if (score >= 80) return { bg: "#f0fdf4", color: "#16a34a" };
+    if (score >= 60) return { bg: "#eff6ff", color: "#2563eb" };
+    return { bg: "#fffbeb", color: "#d97706" };
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "rgba(15,23,42,0.55)", backdropFilter: "blur(4px)" }}>
-      <div className="relative w-full max-w-xl bg-white rounded-2xl shadow-2xl overflow-hidden animate-in">
-        {/* Header */}
-        <div className="bg-linear-to-r from-blue-600 to-indigo-600 px-6 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Sparkles className="text-white" size={20} />
-            <span className="text-white font-bold text-base">Gợi ý thông minh</span>
+    <div
+      onClick={onClose}
+      style={{
+        position: "fixed",
+        inset: 0,
+        zIndex: 50,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        padding: 24,
+        background: "rgba(0,0,0,0.25)",
+        backdropFilter: "blur(6px)",
+      }}
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        style={{
+          width: "100%",
+          maxWidth: 480,
+          background: "#fff",
+          borderRadius: 16,
+          boxShadow: "0 20px 60px rgba(0,0,0,0.12)",
+          overflow: "hidden",
+          animation: "panelUp .2s ease",
+        }}
+      >
+        <div
+          style={{
+            padding: "16px 20px",
+            borderBottom: "1px solid #f0f0f0",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <Sparkles size={15} color="#2563eb" />
+            <span style={{ fontSize: 14, fontWeight: 600, color: "#111" }}>
+              Gợi ý thông minh
+            </span>
           </div>
-          <button onClick={onClose} className="text-white/70 hover:text-white transition-colors">
-            <X size={20} />
+          <button
+            onClick={onClose}
+            style={{
+              width: 28,
+              height: 28,
+              border: "none",
+              background: "none",
+              cursor: "pointer",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              color: "#aaa",
+              borderRadius: 6,
+              transition: "all .12s",
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.background = "#f5f5f5";
+              e.currentTarget.style.color = "#555";
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.background = "none";
+              e.currentTarget.style.color = "#aaa";
+            }}
+          >
+            <X size={14} />
           </button>
         </div>
 
-        <div className="p-6">
-          {/* Input area */}
-          <div className="mb-4">
-            <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2 block">
-              Mô tả sự kiện của bạn
-            </label>
-            <textarea
-              ref={textareaRef}
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              placeholder="Mô tả ngắn gọn về sự kiện bạn muốn tổ chức... (VD: Tổ chức workshop về AI cho sinh viên năm 3, 4)"
-              rows={4}
-              className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all placeholder-slate-400"
-            />
-            <div className="flex items-center justify-between mt-1">
-              <span className={`text-[11px] ${description.length < 10 ? "text-slate-400" : "text-emerald-500"}`}>
-                {description.length < 10 ? `Tối thiểu 10 ký tự (còn ${10 - description.length})` : `✓ ${description.length} ký tự`}
-              </span>
-            </div>
+        <div style={{ padding: 20 }}>
+          <p
+            style={{
+              fontSize: 11,
+              fontWeight: 600,
+              color: "#aaa",
+              textTransform: "uppercase",
+              letterSpacing: "0.06em",
+              marginBottom: 8,
+            }}
+          >
+            Mô tả sự kiện
+          </p>
+          <textarea
+            ref={textareaRef}
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            placeholder="Ví dụ: Workshop về AI cho sinh viên năm 3, quy mô 50 người..."
+            rows={3}
+            style={{
+              width: "100%",
+              padding: "10px 14px",
+              background: "#fafafa",
+              border: "1px solid #e5e5e5",
+              borderRadius: 10,
+              fontSize: 13,
+              resize: "none",
+              outline: "none",
+              fontFamily: "inherit",
+              color: "#111",
+              lineHeight: 1.6,
+              boxSizing: "border-box",
+              transition: "border .15s",
+            }}
+            onFocus={(e) => {
+              e.target.style.borderColor = "#2563eb";
+              e.target.style.background = "#fff";
+            }}
+            onBlur={(e) => {
+              e.target.style.borderColor = "#e5e5e5";
+              e.target.style.background = "#fafafa";
+            }}
+          />
+          <div
+            style={{
+              fontSize: 11,
+              color: description.length < 10 ? "#bbb" : "#22c55e",
+              marginTop: 6,
+              marginBottom: 14,
+            }}
+          >
+            {description.length < 10
+              ? `Còn ${10 - description.length} ký tự`
+              : `✓ ${description.length} ký tự`}
           </div>
 
-          {/* Analyze button */}
           <button
             onClick={analyzeDescription}
             disabled={description.trim().length < 10 || isAnalyzing}
-            className="w-full flex items-center justify-center gap-2 py-2.5 bg-linear-to-r from-blue-600 to-indigo-600 text-white rounded-xl font-bold text-sm hover:from-blue-700 hover:to-indigo-700 disabled:from-slate-200 disabled:to-slate-200 disabled:text-slate-400 transition-all shadow-lg shadow-blue-100 disabled:shadow-none"
+            style={{
+              width: "100%",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: 6,
+              padding: "10px",
+              border: "none",
+              borderRadius: 10,
+              cursor:
+                description.trim().length < 10 || isAnalyzing
+                  ? "not-allowed"
+                  : "pointer",
+              fontFamily: "inherit",
+              fontWeight: 600,
+              fontSize: 13,
+              transition: "all .15s",
+              background:
+                description.trim().length >= 10 && !isAnalyzing
+                  ? "#2563eb"
+                  : "#f0f0f0",
+              color:
+                description.trim().length >= 10 && !isAnalyzing
+                  ? "#fff"
+                  : "#bbb",
+            }}
           >
             {isAnalyzing ? (
               <>
-                <Loader2 className="animate-spin" size={16} />
+                <Loader2
+                  size={13}
+                  style={{ animation: "spin 1s linear infinite" }}
+                />{" "}
                 Đang phân tích...
               </>
             ) : (
               <>
-                <Wand2 size={16} />
-                Phân tích mô tả
+                <Wand2 size={13} /> Phân tích
               </>
             )}
           </button>
 
-          {/* Error */}
           {error && (
-            <div className="mt-4 px-4 py-3 bg-red-50 border border-red-100 rounded-xl text-xs text-red-600">{error}</div>
+            <div
+              style={{
+                marginTop: 12,
+                padding: "10px 14px",
+                background: "#fff1f2",
+                border: "1px solid #fecdd3",
+                borderRadius: 8,
+                fontSize: 12,
+                color: "#e11d48",
+              }}
+            >
+              {error}
+            </div>
           )}
 
-          {/* Results */}
           {suggestions?.items?.length > 0 && (
-            <div className="mt-5">
+            <div style={{ marginTop: 18, animation: "panelUp .25s ease" }}>
               {suggestions.summary && (
-                <div className="mb-3 px-4 py-2.5 bg-blue-50 border border-blue-100 rounded-xl">
-                  <p className="text-xs text-blue-700 flex items-start gap-1.5">
-                    <TrendingUp size={13} className="mt-0.5 shrink-0" />
+                <div
+                  style={{
+                    display: "flex",
+                    gap: 8,
+                    alignItems: "flex-start",
+                    padding: "10px 12px",
+                    background: "#eff6ff",
+                    border: "1px solid #dbeafe",
+                    borderRadius: 8,
+                    marginBottom: 12,
+                  }}
+                >
+                  <TrendingUp
+                    size={13}
+                    color="#2563eb"
+                    style={{ marginTop: 2, flexShrink: 0 }}
+                  />
+                  <span
+                    style={{ fontSize: 12, color: "#1d4ed8", lineHeight: 1.5 }}
+                  >
                     {suggestions.summary}
-                  </p>
+                  </span>
                 </div>
               )}
-
-              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">
-                Mẫu được đề xuất
+              <p
+                style={{
+                  fontSize: 11,
+                  fontWeight: 600,
+                  color: "#aaa",
+                  textTransform: "uppercase",
+                  letterSpacing: "0.06em",
+                  marginBottom: 8,
+                }}
+              >
+                Gợi ý
               </p>
-
-              <div className="flex flex-col gap-2">
-                {suggestions.items.map((tpl, i) => (
-                  <button
-                    key={tpl.id}
-                    onClick={() => { onSelect(tpl); onClose(); }}
-                    className="group text-left flex items-start gap-3 px-4 py-3 bg-white border border-slate-200 rounded-xl hover:border-blue-400 hover:bg-blue-50 transition-all"
-                  >
-                    {/* Rank badge */}
-                    <div className={`shrink-0 w-7 h-7 rounded-lg flex items-center justify-center text-xs font-black ${i === 0 ? "bg-amber-100 text-amber-600" : "bg-slate-100 text-slate-500"}`}>
-                      {i === 0 ? <Star size={13} /> : i + 1}
-                    </div>
-
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-0.5">
-                        <span className="font-bold text-[13px] text-slate-800 group-hover:text-blue-700 transition-colors truncate">
-                          {tpl.templateName}
-                        </span>
-                        <span className={`shrink-0 text-[10px] font-black px-1.5 py-0.5 rounded-full ${scoreColor(tpl.score)}`}>
-                          {tpl.score}%
-                        </span>
+              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                {suggestions.items.map((tpl, i) => {
+                  const badge = scoreBadge(tpl.score);
+                  return (
+                    <button
+                      key={tpl.id}
+                      onClick={() => {
+                        onSelect(tpl);
+                        onClose();
+                      }}
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 12,
+                        padding: "12px 14px",
+                        background: "#fff",
+                        border: "1px solid #ebebeb",
+                        borderRadius: 10,
+                        cursor: "pointer",
+                        textAlign: "left",
+                        fontFamily: "inherit",
+                        transition: "all .12s",
+                        width: "100%",
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.borderColor = "#bfdbfe";
+                        e.currentTarget.style.background = "#f8fbff";
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.borderColor = "#ebebeb";
+                        e.currentTarget.style.background = "#fff";
+                      }}
+                    >
+                      <div
+                        style={{
+                          width: 30,
+                          height: 30,
+                          borderRadius: 8,
+                          flexShrink: 0,
+                          background: i === 0 ? "#fef3c7" : "#f5f5f5",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                        }}
+                      >
+                        {i === 0 ? (
+                          <Star size={12} color="#d97706" fill="#d97706" />
+                        ) : (
+                          <span
+                            style={{
+                              fontSize: 11,
+                              fontWeight: 700,
+                              color: "#aaa",
+                            }}
+                          >
+                            {i + 1}
+                          </span>
+                        )}
                       </div>
-                      <p className="text-[11px] text-slate-500 leading-relaxed">{tpl.reason}</p>
-                    </div>
-
-                    <ChevronRight size={14} className="shrink-0 text-slate-300 group-hover:text-blue-400 mt-1 transition-colors" />
-                  </button>
-                ))}
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 8,
+                            marginBottom: 3,
+                          }}
+                        >
+                          <span
+                            style={{
+                              fontSize: 13,
+                              fontWeight: 600,
+                              color: "#111",
+                            }}
+                          >
+                            {tpl.templateName}
+                          </span>
+                          <span
+                            style={{
+                              fontSize: 10,
+                              fontWeight: 700,
+                              padding: "1px 7px",
+                              borderRadius: 99,
+                              background: badge.bg,
+                              color: badge.color,
+                            }}
+                          >
+                            {tpl.score}%
+                          </span>
+                        </div>
+                        <p
+                          style={{
+                            fontSize: 11,
+                            color: "#999",
+                            lineHeight: 1.4,
+                            margin: 0,
+                          }}
+                        >
+                          {tpl.reason}
+                        </p>
+                      </div>
+                      <ChevronRight size={13} color="#ddd" />
+                    </button>
+                  );
+                })}
               </div>
             </div>
           )}
@@ -199,36 +441,185 @@ Hãy gợi ý tối đa 3 mẫu phù hợp nhất. Trả về JSON (không markd
       </div>
 
       <style>{`
-        @keyframes animate-in {
-          from { opacity: 0; transform: scale(0.95) translateY(8px); }
-          to   { opacity: 1; transform: scale(1)    translateY(0); }
-        }
-        .animate-in { animation: animate-in 0.2s ease-out; }
+        @keyframes panelUp { from{opacity:0;transform:translateY(12px)} to{opacity:1;transform:translateY(0)} }
+        @keyframes spin { to{transform:rotate(360deg)} }
       `}</style>
     </div>
   );
 };
 
-/* ─── Main Component ───────────────────────────────────────────── */
-export const TemplateSelectionStep = ({ onTemplateSelect, onNext, organizationId }) => {
+const TemplateCard = ({ template: t, isSelected, isEmpty, onSelect }) => {
+  const [hovered, setHovered] = useState(false);
+
+  return (
+    <div
+      onClick={() => onSelect(t)}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      style={{
+        padding: 18,
+        border: `1px ${isEmpty ? "dashed" : "solid"} ${isSelected ? "#2563eb" : hovered ? "#d0d0d0" : "#ebebeb"}`,
+        borderRadius: 12,
+        cursor: "pointer",
+        background: isSelected ? "#f0f7ff" : "#fff",
+        transition: "all .15s",
+        position: "relative",
+        boxShadow:
+          hovered && !isSelected ? "0 2px 10px rgba(0,0,0,0.06)" : "none",
+        display: "flex",
+        flexDirection: "column",
+        minHeight: "140px",
+      }}
+    >
+      {isSelected && (
+        <div
+          style={{
+            position: "absolute",
+            top: 12,
+            right: 12,
+            width: 18,
+            height: 18,
+            borderRadius: "50%",
+            background: "#2563eb",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+          }}
+        >
+          <Check size={10} color="#fff" strokeWidth={3} />
+        </div>
+      )}
+
+      {t.templateType && (
+        <p
+          style={{
+            fontSize: 10,
+            fontWeight: 600,
+            color: "#bbb",
+            textTransform: "uppercase",
+            letterSpacing: "0.06em",
+            margin: "0 0 10px",
+          }}
+        >
+          {t.templateType}
+        </p>
+      )}
+
+      <p
+        style={{
+          fontSize: 14,
+          fontWeight: 600,
+          color: isSelected ? "#1d4ed8" : "#111",
+          margin: "0 0 6px",
+          letterSpacing: "-0.01em",
+        }}
+      >
+        {t.templateName}
+      </p>
+
+      <p
+        style={{
+          fontSize: 12,
+          color: "#999",
+          margin: "0 0 12px",
+          lineHeight: 1.55,
+          display: "-webkit-box",
+          WebkitLineClamp: 2,
+          WebkitBoxOrient: "vertical",
+          overflow: "hidden",
+          flex: 1,
+        }}
+      >
+        {t.description || t.defaultTitle}
+      </p>
+
+      {!isEmpty && (
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 4,
+            marginTop: "auto",
+          }}
+        >
+          <TrendingUp
+            size={12}
+            color={t.usageCount > 50 ? "#22c55e" : "#bbb"}
+          />
+          <span
+            style={{
+              fontSize: 11,
+              fontWeight: 600,
+              color: t.usageCount > 50 ? "#16a34a" : "#aaa",
+            }}
+          >
+            {t.usageCount || 0} lượt dùng
+          </span>
+        </div>
+      )}
+    </div>
+  );
+};
+
+export const TemplateSelectionStep = ({
+  onTemplateSelect,
+  onNext,
+  organizationId,
+}) => {
+  const eventTypeLabels = {
+    WORKSHOP: "Workshop",
+    SEMINAR: "Seminar",
+    TALKSHOW: "Talkshow",
+    COMPETITION: "Cuộc thi",
+    CONFERENCE: "Hội nghị",
+    WEBINAR: "Webinar",
+    CONCERT: "Buổi biểu diễn",
+    OTHER: "Khác",
+  };
+
   const [selectedTemplateId, setSelectedTemplateId] = useState(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [showSmartPanel, setShowSmartPanel] = useState(false);
-  const [searchMode, setSearchMode] = useState("manual"); // "manual" | "smart"
-  const [pageData, setPageData] = useState({ content: [], totalPages: 0, number: 0, totalElements: 0 });
+  const [activeType, setActiveType] = useState("TẤT CẢ");
+  const [pageData, setPageData] = useState({
+    content: [],
+    totalPages: 0,
+    number: 0,
+    totalElements: 0,
+  });
   const [loading, setLoading] = useState(true);
+
+  const eventTypes = [
+    "TẤT CẢ",
+    "WORKSHOP",
+    "SEMINAR",
+    "TALKSHOW",
+    "COMPETITION",
+    "CONFERENCE",
+    "WEBINAR",
+    "CONCERT",
+    "OTHER",
+  ];
 
   const fetchTemplates = async (pageNumber) => {
     try {
       setLoading(true);
-      const response = await eventTemplateApi.getAllTemplates(organizationId, searchTerm, pageNumber, 6);
+      const response = await eventTemplateApi.getAllTemplates(
+        organizationId,
+        searchTerm,
+        pageNumber,
+        6,
+      );
       const emptyTemplate = {
         id: "0",
         templateName: "Bản mẫu trống",
         defaultTitle: "",
-        description: "Bắt đầu kế hoạch mới với thông tin trống.",
+        description: "Bắt đầu kế hoạch mới với thông tin hoàn toàn trống.",
       };
-      const processedContent = pageNumber === 0 ? [emptyTemplate, ...response.content] : response.content;
+      const processedContent =
+        pageNumber === 0
+          ? [emptyTemplate, ...response.content]
+          : response.content;
       setPageData({ ...response, content: processedContent });
     } catch (error) {
       console.error("Lỗi khi tải bản mẫu:", error);
@@ -246,171 +637,363 @@ export const TemplateSelectionStep = ({ onTemplateSelect, onNext, organizationId
     onTemplateSelect(template);
   };
 
-  const handleSmartSelect = (template) => {
-    handleSelect(template);
-    // Scroll to / highlight the card if visible
+  const getDisplayTemplates = () => {
+    let list = [...pageData.content];
+    if (activeType !== "TẤT CẢ") {
+      list = list.filter(
+        (t) => t.id === "0" || t.templateType === activeType
+      );
+    }
+    return list;
   };
 
   if (loading && pageData.content.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center p-20 gap-3">
-        <Loader2 className="text-blue-600 animate-spin" size={32} />
-        <p className="text-slate-500 text-sm">Đang tải bản mẫu...</p>
+      <div
+        style={{
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          justifyContent: "center",
+          padding: "80px 0",
+          gap: 12,
+        }}
+      >
+        <Loader2
+          size={26}
+          color="#2563eb"
+          style={{ animation: "spin 1s linear infinite" }}
+        />
+        <p
+          style={{
+            fontSize: 13,
+            color: "#aaa",
+            fontStyle: "italic",
+            margin: 0,
+          }}
+        >
+          Đang tải bản mẫu...
+        </p>
+        <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
       </div>
     );
   }
 
+  const displayed = getDisplayTemplates();
+
   return (
-    <div className="w-full px-8">
-      {/* Smart panel overlay */}
+    <div
+      style={{
+        width: "100%",
+        maxWidth: 900,
+        margin: "0 auto",
+        padding: "0 24px",
+        fontFamily: "'Inter','Segoe UI',sans-serif",
+      }}
+    >
       {showSmartPanel && (
         <SmartSuggestionPanel
           templates={pageData.content}
-          onSelect={handleSmartSelect}
+          onSelect={handleSelect}
           onClose={() => setShowSmartPanel(false)}
         />
       )}
 
-      {/* Header */}
-      <div className="mb-5 text-center">
-        <h2 className="text-lg font-black text-slate-800 flex items-center justify-center gap-2">
-          <FileEdit className="text-blue-600" size={18} />
-          Chọn mẫu kế hoạch
+      <div style={{ marginBottom: 32 }}>
+        <p
+          style={{
+            fontSize: 12,
+            color: "#bbb",
+            fontWeight: 500,
+            marginBottom: 6,
+            letterSpacing: "0.04em",
+            margin: "0 0 6px",
+          }}
+        >
+          Bước 1 / 3
+        </p>
+        <h2
+          style={{
+            fontSize: 22,
+            fontWeight: 600,
+            color: "#111",
+            margin: "0 0 6px",
+            letterSpacing: "-0.02em",
+          }}
+        >
+          Chọn bản mẫu
         </h2>
-        <p className="text-slate-500 text-sm mt-1">Chọn một mẫu phù hợp để bắt đầu tạo kế hoạch sự kiện</p>
+        <p style={{ fontSize: 14, color: "#888", margin: 0 }}>
+          Chọn một mẫu để bắt đầu tạo kế hoạch sự kiện
+        </p>
       </div>
 
-      {/* Search mode toggle + input */}
-      <div className="mb-5 max-w-xl mx-auto">
-        {/* Toggle tabs */}
-        <div className="flex items-center bg-slate-100 rounded-xl p-1 mb-3">
-          <button
-            onClick={() => setSearchMode("manual")}
-            className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-bold transition-all ${
-              searchMode === "manual"
-                ? "bg-white text-slate-800 shadow-sm"
-                : "text-slate-500 hover:text-slate-700"
-            }`}
-          >
-            <Search size={13} />
-            Tìm thủ công
-          </button>
-          <button
-            onClick={() => { setSearchMode("smart"); setShowSmartPanel(true); }}
-            className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-bold transition-all ${
-              searchMode === "smart"
-                ? "bg-linear-to-r from-blue-600 to-indigo-600 text-white shadow-sm"
-                : "text-slate-500 hover:text-slate-700"
-            }`}
-          >
-            <Sparkles size={13} />
-            Gợi ý thông minh
-          </button>
+      <div
+        style={{
+          display: "flex",
+          flexWrap: "wrap",
+          gap: 8,
+          marginBottom: 20,
+          alignItems: "center",
+        }}
+      >
+        <div style={{ position: "relative", flex: "1 1 180px" }}>
+          <Search
+            size={14}
+            color="#ccc"
+            style={{
+              position: "absolute",
+              left: 12,
+              top: "50%",
+              transform: "translateY(-50%)",
+              pointerEvents: "none",
+            }}
+          />
+          <input
+            type="text"
+            placeholder="Tìm kiếm..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            style={{
+              width: "100%",
+              paddingLeft: 36,
+              paddingRight: 12,
+              paddingTop: 9,
+              paddingBottom: 9,
+              border: "1px solid #e5e5e5",
+              borderRadius: 8,
+              fontSize: 13,
+              outline: "none",
+              background: "#fff",
+              color: "#111",
+              fontFamily: "inherit",
+              boxSizing: "border-box",
+              transition: "border .15s",
+            }}
+            onFocus={(e) => (e.target.style.borderColor = "#2563eb")}
+            onBlur={(e) => (e.target.style.borderColor = "#e5e5e5")}
+          />
         </div>
 
-        {/* Manual search input */}
-        {searchMode === "manual" && (
-          <div className="relative">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-            <input
-              type="text"
-              placeholder="Tìm kiếm mẫu..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
-            />
+        <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
+          {eventTypes.map((type) => (
+            <button
+              key={type}
+              onClick={() => setActiveType(type)}
+              style={{
+                padding: "8px 12px",
+                borderRadius: 8,
+                border: "1px solid",
+                fontSize: 12,
+                fontWeight: 500,
+                cursor: "pointer",
+                fontFamily: "inherit",
+                transition: "all .12s",
+                borderColor: activeType === type ? "#2563eb" : "#e5e5e5",
+                background: activeType === type ? "#eff6ff" : "#fff",
+                color: activeType === type ? "#2563eb" : "#666",
+              }}
+            >
+              {eventTypeLabels[type] || type}
+            </button>
+          ))}
+        </div>
+
+        <button
+          onClick={() => setShowSmartPanel(true)}
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 6,
+            padding: "9px 14px",
+            background: "#111",
+            border: "none",
+            borderRadius: 8,
+            color: "#fff",
+            fontSize: 12,
+            fontWeight: 500,
+            cursor: "pointer",
+            fontFamily: "inherit",
+            flexShrink: 0,
+            transition: "opacity .15s",
+          }}
+          onMouseEnter={(e) => (e.currentTarget.style.opacity = "0.75")}
+          onMouseLeave={(e) => (e.currentTarget.style.opacity = "1")}
+        >
+          <Sparkles size={13} /> AI gợi ý
+        </button>
+      </div>
+
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(3, 1fr)",
+          gap: 10,
+          opacity: loading ? 0.5 : 1,
+          transition: "opacity .2s",
+        }}
+      >
+        {displayed.map((t) => (
+          <TemplateCard
+            key={t.id}
+            template={t}
+            isSelected={selectedTemplateId === t.id}
+            isEmpty={t.id === "0"}
+            onSelect={handleSelect}
+          />
+        ))}
+
+        {displayed.length === 0 && (
+          <div
+            style={{
+              gridColumn: "1/-1",
+              textAlign: "center",
+              padding: "48px 0",
+            }}
+          >
+            <p
+              style={{
+                fontSize: 14,
+                fontWeight: 500,
+                color: "#999",
+                margin: "0 0 4px",
+              }}
+            >
+              Không tìm thấy mẫu
+            </p>
+            <p style={{ fontSize: 12, color: "#bbb", margin: 0 }}>
+              Thử thay đổi từ khóa tìm kiếm
+            </p>
           </div>
         )}
-
-        {/* Smart mode hint */}
-        {searchMode === "smart" && (
-          <button
-            onClick={() => setShowSmartPanel(true)}
-            className="w-full flex items-center gap-3 px-4 py-2.5 bg-linear-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-xl text-sm text-blue-600 hover:from-blue-100 hover:to-indigo-100 transition-all"
-          >
-            <Wand2 size={15} />
-            <span className="font-medium">Mô tả sự kiện để AI gợi ý mẫu phù hợp...</span>
-            <ChevronRight size={14} className="ml-auto" />
-          </button>
-        )}
       </div>
 
-      {/* Template Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 min-h-70">
-        {pageData.content.map((t) => {
-          const isSelected = selectedTemplateId === t.id;
-          const isEmpty = t.id === "0";
-          return (
-            <div
-              key={t.id}
-              onClick={() => handleSelect(t)}
-              className={`relative flex flex-col p-4 rounded-xl border-2 cursor-pointer transition-all duration-200 ${
-                isSelected
-                  ? "border-blue-500 bg-blue-50 shadow-lg shadow-blue-100"
-                  : "border-slate-200 bg-white hover:border-blue-300 hover:shadow-md hover:bg-slate-50"
-              } ${isEmpty ? "border-dashed" : ""}`}
-            >
-              {isSelected && (
-                <div className="absolute top-3 right-3">
-                  <CheckCircle2 className="text-blue-500" size={20} />
-                </div>
-              )}
-              <div className={`w-8 h-8 rounded-lg flex items-center justify-center mb-2 ${isSelected ? "bg-blue-100" : "bg-slate-100"}`}>
-                <FileText className={isSelected ? "text-blue-600" : "text-slate-400"} size={14} />
-              </div>
-              <span className={`font-semibold text-[13px] mb-1 ${isSelected ? "text-blue-700" : "text-slate-800"}`}>
-                {t.templateName}
-              </span>
-              <span className="text-[11px] text-slate-500 leading-relaxed line-clamp-2">
-                {t.description || t.defaultTitle}
-              </span>
-              {t.templateType && t.id !== "0" && (
-                <span className="mt-3 self-start px-2 py-0.5 bg-blue-100 text-blue-600 text-[10px] font-black rounded-full uppercase tracking-wide">
-                  {t.templateType}
-                </span>
-              )}
-            </div>
-          );
-        })}
-      </div>
-
-      {/* Pagination */}
-      <div className="flex items-center justify-between mt-8 px-1">
-        <span className="text-[11px] text-slate-500">
-          Tổng: <strong>{pageData.totalElements}</strong> mẫu
+      <div
+        style={{
+          display: "flex",
+          flexWrap: "wrap",
+          alignItems: "center",
+          justifyContent: "space-between",
+          marginTop: 28,
+          paddingTop: 20,
+          borderTop: "1px solid #f0f0f0",
+          gap: 12,
+        }}
+      >
+        <span style={{ fontSize: 12, color: "#bbb" }}>
+          {pageData.totalElements} bản mẫu
         </span>
-        <div className="flex items-center gap-2">
+
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 2,
+            background: "#fafafa",
+            padding: 4,
+            borderRadius: 10,
+            border: "1px solid #ebebeb",
+          }}
+        >
           <button
             disabled={pageData.number === 0 || loading}
             onClick={() => fetchTemplates(pageData.number - 1)}
-            className="p-1.5 rounded-lg border border-slate-200 hover:bg-slate-50 disabled:opacity-30 disabled:cursor-not-allowed"
+            style={{
+              width: 30,
+              height: 30,
+              border: "none",
+              background: "none",
+              cursor:
+                pageData.number === 0 || loading ? "not-allowed" : "pointer",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              color: pageData.number === 0 ? "#ddd" : "#555",
+              borderRadius: 6,
+            }}
+            onMouseEnter={(e) => {
+              if (pageData.number > 0 && !loading)
+                e.currentTarget.style.background = "#fff";
+            }}
+            onMouseLeave={(e) => (e.currentTarget.style.background = "none")}
           >
-            <ChevronLeft size={16} />
+            <ChevronLeft size={15} />
           </button>
-          <span className="text-xs font-bold text-slate-700">
-            Trang {pageData.number + 1} / {pageData.totalPages || 1}
+          <span
+            style={{
+              fontSize: 12,
+              fontWeight: 600,
+              color: "#555",
+              padding: "0 12px",
+            }}
+          >
+            {pageData.number + 1} / {pageData.totalPages || 1}
           </span>
           <button
             disabled={pageData.number + 1 >= pageData.totalPages || loading}
             onClick={() => fetchTemplates(pageData.number + 1)}
-            className="p-1.5 rounded-lg border border-slate-200 hover:bg-slate-50 disabled:opacity-30 disabled:cursor-not-allowed"
+            style={{
+              width: 30,
+              height: 30,
+              border: "none",
+              background: "none",
+              cursor:
+                pageData.number + 1 >= pageData.totalPages || loading
+                  ? "not-allowed"
+                  : "pointer",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              color:
+                pageData.number + 1 >= pageData.totalPages ? "#ddd" : "#555",
+              borderRadius: 6,
+            }}
+            onMouseEnter={(e) => {
+              if (pageData.number + 1 < pageData.totalPages && !loading)
+                e.currentTarget.style.background = "#fff";
+            }}
+            onMouseLeave={(e) => (e.currentTarget.style.background = "none")}
           >
-            <ChevronRight size={16} />
+            <ChevronRight size={15} />
           </button>
         </div>
-      </div>
 
-      {/* Next Button */}
-      <div className="mt-6 flex justify-center">
         <button
           disabled={selectedTemplateId === null}
           onClick={onNext}
-          className="flex items-center gap-2 px-10 py-3 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 disabled:bg-slate-100 disabled:text-slate-400 transition-all shadow-lg shadow-blue-100 disabled:shadow-none"
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 6,
+            padding: "10px 20px",
+            border: "none",
+            borderRadius: 8,
+            fontFamily: "inherit",
+            fontWeight: 500,
+            fontSize: 13,
+            cursor: selectedTemplateId ? "pointer" : "not-allowed",
+            transition: "all .15s",
+            background: selectedTemplateId ? "#2563eb" : "#f0f0f0",
+            color: selectedTemplateId ? "#fff" : "#bbb",
+          }}
+          onMouseEnter={(e) => {
+            if (selectedTemplateId)
+              e.currentTarget.style.background = "#1d4ed8";
+          }}
+          onMouseLeave={(e) => {
+            if (selectedTemplateId)
+              e.currentTarget.style.background = "#2563eb";
+          }}
         >
-          Tiếp theo
-          <ChevronRight size={18} />
+          Tiếp theo <ArrowRight size={14} />
         </button>
       </div>
+
+      <style>{`
+        * { box-sizing: border-box; }
+        ::placeholder { color: #ccc; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+      `}</style>
     </div>
   );
 };

@@ -1,8 +1,8 @@
 import React, { useState } from "react";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, BookOpen, PlusCircle, ChevronRight } from "lucide-react";
 import { TemplateSelectionStep } from "../../components/eventPlanner/TemplateSelectionStep";
 import { ManualInputStep } from "../../components/eventPlanner/ManualInputStep";
-import { EventProgramStep } from "../../components/eventPlanner/EventProgramStep";
+import { EventProgramStep } from "../../components/eventPlanner/Eventprogramstep";
 import { PreviewStep } from "../../components/eventPlanner/PreviewStep";
 import { createPlan } from "../../api/eventApi";
 
@@ -15,10 +15,9 @@ const INITIAL_FORM_DATA = {
   eventMode: "OFFLINE",
   maxParticipants: 0,
   organizationId: "org-it",
-  status: "DRAFT",
+  status: "Draft",
   templateId: null,
   templateName: "",
-
   eventType: "",
   eventTypeOther: "",
   eventTitle: "",
@@ -30,30 +29,49 @@ const INITIAL_FORM_DATA = {
   customRecipients: [],
   participants: [],
   notes: "",
-
   presenters: [],
   organizers: [],
   attendees: [],
-  customFields: [],
+  customFields: [], // array of {name, type, description, required?}
 };
 
-export const EventPlanner = ({ onBack }) => {
-  const [step, setStep] = useState(1);
+export const EventPlanner = ({
+  onBack,
+  initialStep = 1,
+  initialFormData = {},
+}) => {
+  const [step, setStep] = useState(initialStep);
   const [selectedTemplate, setSelectedTemplate] = useState(null);
-  const [formData, setFormData] = useState(INITIAL_FORM_DATA);
+  const [formData, setFormData] = useState({
+    ...INITIAL_FORM_DATA,
+    ...initialFormData,
+  });
 
   const resetForm = () => {
     setFormData(INITIAL_FORM_DATA);
     setSelectedTemplate(null);
   };
 
-  const handleGlobalBack = () => {
-    if (step === 1) onBack();
-    else setStep(step - 1);
-  };
-
   const updateFormData = (newData) => {
     setFormData((prev) => ({ ...prev, ...newData }));
+  };
+
+  const TOTAL_STEPS = 4;
+  const STEP_LABELS = {
+    1: "Thiết lập bản mẫu",
+    2: "Soạn thảo nội dung",
+    3: "Chương trình sự kiện",
+    4: "Hoàn tất kế hoạch",
+  };
+
+  const handleGlobalBack = () => {
+    if (step === 1) {
+      onBack();
+    } else if (step === 2 && initialStep === 2) {
+      onBack();
+    } else {
+      setStep(step - 1);
+    }
   };
 
   const handleTemplateSelect = (template) => {
@@ -74,67 +92,179 @@ export const EventPlanner = ({ onBack }) => {
       updateFormData({
         title: template.defaultTitle || "",
         eventTitle: template.defaultTitle || "",
-        description: template.defaultDescription || "",
+        description: template.description || template.defaultDescription || "",
         eventPurpose: template.defaultDescription || "",
         location: template.defaultLocation || "",
         eventMode: template.defaultEventMode || "OFFLINE",
-        maxParticipants: template.defaultMaxParticipants || 0,
+        maxParticipants: template.defaultMaxParticipants || 1,
         templateId: template.id,
         templateName: template.templateName,
-        eventType: template.templateType === "Khác" ? "Khác" : (template.templateType || ""),
-        eventTypeOther: template.templateType === "Khác" ? (template.customTemplateType || "") : "",
+        eventType:
+          template.templateType === "Khác"
+            ? "Khác"
+            : template.templateType || "",
+        eventTypeOther:
+          template.templateType === "Khác"
+            ? template.customTemplateType || ""
+            : "",
       });
     }
   };
 
-  const TOTAL_STEPS = 4;
+const handleSave = async () => {
+    const errors = [];
+    const trimmedTitle = (formData.eventTitle || formData.title || "").trim();
 
-  const STEP_LABELS = {
-    1: "Thiết lập bản mẫu",
-    2: "Soạn thảo nội dung",
-    3: "Chương trình sự kiện",
-    4: "Hoàn tất kế hoạch",
-  };
+    if (!trimmedTitle) errors.push("Tiêu đề sự kiện là bắt buộc");
+    if (!formData.startTime) errors.push("Thời gian bắt đầu là bắt buộc");
+    if (!formData.endTime) errors.push("Thời gian kết thúc là bắt buộc");
 
+    if (formData.endTime && formData.startTime) {
+        if (new Date(formData.endTime) <= new Date(formData.startTime)) {
+            errors.push("Thời gian kết thúc phải sau thời gian bắt đầu");
+        }
+    }
+
+    if (errors.length > 0) {
+        alert("Vui lòng sửa lỗi:\n• " + errors.join("\n• "));
+        return;
+    }
+
+    try {
+        const toISO = (dt) => {
+            if (!dt) return null;
+            const date = new Date(dt);
+            return isNaN(date.getTime()) ? null : date.toISOString();
+        };
+
+        const now = new Date().toISOString();
+
+        const eventType = formData.eventType || formData.type || "WORKSHOP";
+
+        const payload = {
+            organizationId: formData.organizationId || "org-it",
+            title: trimmedTitle,
+            description: (formData.eventPurpose || formData.description || "").trim(),
+            
+            eventTopic: (formData.eventTopic || "").trim(),
+            location: (formData.location || "Chưa xác định").trim(),
+            eventMode: (formData.eventMode || "OFFLINE").toUpperCase(),
+            
+            type: eventType,
+            
+            startTime: toISO(formData.startTime),
+            endTime: toISO(formData.endTime),
+            registrationDeadline: toISO(formData.registrationDeadline),
+            
+            maxParticipants: Number(formData.maxParticipants) || 50,
+            
+            status: "Draft",
+            
+            hasLuckyDraw: false,
+            finalized: false,
+            archived: false,
+            
+            createdAt: now,
+            updatedAt: now,
+            deletedAt: null,
+
+            participants: Array.isArray(formData.participants)
+                ? formData.participants
+                : [],
+            organizerUnit: (formData.organizerUnit || "").trim(),
+            recipients: Array.isArray(formData.recipients)
+                ? formData.recipients
+                : [],
+            customRecipients: Array.isArray(formData.customRecipients)
+                ? formData.customRecipients
+                : [],
+            presenters: Array.isArray(formData.presenters)
+                ? formData.presenters
+                : [],
+            organizingCommittee: Array.isArray(formData.organizers)
+                ? formData.organizers
+                : [],
+            attendees: Array.isArray(formData.attendees) 
+                ? formData.attendees 
+                : [],
+            
+            notes: (formData.notes || "").trim(),
+            additionalInfo: (formData.notes || "").trim(),
+            customFieldsJson: formData.customFields?.length > 0
+                ? JSON.stringify(formData.customFields)
+                : null,
+
+            templateId: formData.templateId || null,
+            registeredCount: 0
+        };
+
+        console.log("📤 Payload đầy đủ gửi đi:", {
+            ...payload,
+            type: payload.type,
+            status: payload.status,
+            createdAt: payload.createdAt,
+            updatedAt: payload.updatedAt
+        });
+
+        await createPlan(payload);
+        alert("✅ Lưu kế hoạch thành công!");
+        onBack();
+    } catch (err) {
+        console.error("🔴 Server trả về lỗi:", err.response?.data);
+        
+        if (err.response?.data) {
+            console.error("Chi tiết lỗi:", JSON.stringify(err.response.data, null, 2));
+        }
+        
+        const data = err.response?.data;
+        let errorMsg = "Kiểm tra lại định dạng dữ liệu";
+
+        if (data && typeof data === "object" && !data.timestamp) {
+            errorMsg = Object.entries(data)
+                .map(([field, msg]) => `${field}: ${msg}`)
+                .join("\n• ");
+        } else {
+            errorMsg = data?.message || data?.error || errorMsg;
+        }
+        alert(`❌ Lỗi khi lưu:\n\n${errorMsg}`);
+    }
+};
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col">
-      {step < 5 && (
-        <div className="bg-white border-b px-6 py-4 flex items-center justify-between sticky top-0 z-20 shadow-sm">
-          <button
-            onClick={handleGlobalBack}
-            className="flex items-center gap-2 text-slate-500 hover:text-slate-900 font-bold text-xs uppercase tracking-wider w-24"
-          >
-            <ArrowLeft size={16} /> Quay lại
-          </button>
+      <div className="bg-white border-b px-6 py-4 flex items-center justify-between sticky top-0 z-20 shadow-sm">
+        <button
+          onClick={handleGlobalBack}
+          className="flex items-center gap-2 text-slate-500 hover:text-slate-900 font-bold text-xs uppercase tracking-wider w-24"
+        >
+          <ArrowLeft size={16} /> {step === 1 ? "Thoát" : "Quay lại"}
+        </button>
 
-          <div className="flex flex-col items-center">
-            <div className="text-center mb-2">
-              <span className="text-[10px] font-black text-blue-600 uppercase tracking-[0.2em] block">
-                Bước {step} / {TOTAL_STEPS}
-              </span>
-              <h2 className="text-base font-black text-slate-800 tracking-tight">
-                {STEP_LABELS[step]}
-              </h2>
-            </div>
-            <div className="flex items-center gap-1.5">
-              {Array.from({ length: TOTAL_STEPS }, (_, i) => i + 1).map((s) => (
-                <div
-                  key={s}
-                  className={`h-1 rounded-full transition-all duration-500 ${
-                    s === step
-                      ? "w-6 bg-blue-600"
-                      : s < step
-                        ? "w-3 bg-blue-300"
-                        : "w-3 bg-slate-200"
-                  }`}
-                />
-              ))}
-            </div>
+        <div className="flex flex-col items-center">
+          <div className="text-center mb-2">
+            <span className="text-[10px] font-black text-blue-600 uppercase tracking-[0.2em] block">
+              Bước {step} / {TOTAL_STEPS}
+            </span>
+            <h2 className="text-base font-black text-slate-800 tracking-tight">
+              {STEP_LABELS[step]}
+            </h2>
           </div>
-
-          <div className="w-24" />
+          <div className="flex items-center gap-1.5">
+            {Array.from({ length: TOTAL_STEPS }, (_, i) => i + 1).map((s) => (
+              <div
+                key={s}
+                className={`h-1 rounded-full transition-all duration-500 ${
+                  s === step
+                    ? "w-6 bg-blue-600"
+                    : s < step
+                      ? "w-3 bg-blue-300"
+                      : "w-3 bg-slate-200"
+                }`}
+              />
+            ))}
+          </div>
         </div>
-      )}
+        <div className="w-24" />
+      </div>
 
       <div className={`flex-1 ${step === 4 ? "p-0" : "p-8"}`}>
         {step === 1 && (
@@ -149,7 +279,7 @@ export const EventPlanner = ({ onBack }) => {
           <ManualInputStep
             formData={formData}
             setFormData={updateFormData}
-            onBack={() => setStep(1)}
+            onBack={() => handleGlobalBack()}
             onNext={(data) => {
               updateFormData(data);
               setStep(3);
@@ -171,7 +301,7 @@ export const EventPlanner = ({ onBack }) => {
 
         {step === 4 && (
           <PreviewStep
-            data={formData}
+            data={formData || {}}
             onEdit={() => setStep(3)}
             onGoToStep2={() => {
               resetForm();
@@ -181,51 +311,8 @@ export const EventPlanner = ({ onBack }) => {
               resetForm();
               setStep(1);
             }}
-            onSave={async () => {
-              try {
-                const formatDateTime = (dt) => {
-                  if (!dt) return null;
-                  return dt.includes(":") ? dt : null;
-                };
-
-                const eventTypeMap = {
-                  "Hội thảo": "Seminar",
-                  "Workshop": "Workshop",
-                  "Seminar": "Seminar",
-                  "Tọa đàm": "Talkshow",
-                  "Thi đấu": "Competition",
-                  "Khác": "Other",
-                };
-
-                const cleanPayload = {
-                  organizationId: formData.organizationId || "org-it",
-                  title: formData.eventTitle || formData.title || "Untitled",
-                  description: formData.eventPurpose || formData.description || "",
-                  location: formData.location || "",
-                  startTime: formatDateTime(formData.startTime),
-                  endTime: formatDateTime(formData.endTime),
-                  eventMode: formData.eventMode || "OFFLINE",
-                  registrationDeadline: formatDateTime(formData.registrationDeadline),
-                  maxParticipants: Number(formData.maxParticipants) || 0,
-                  eventType: eventTypeMap[formData.eventType] || formData.eventType || null,
-                  customEventType: formData.eventType === "Khác" ? formData.eventTypeOther : null,
-                  status: "Draft",
-                  hasLuckyDraw: false,
-                  finalized: false,
-                  archived: false,
-                };
-
-                await createPlan(cleanPayload);
-                alert("✅ Kế hoạch đã được lưu thành công!");
-                onBack();
-              } catch (err) {
-                const detail = err?.response?.data;
-                console.error("🔴 Chi tiết lỗi từ Server:", detail);
-                alert(
-                  `❌ Lỗi 400: Có thể do định dạng ngày hoặc giá trị Enum chưa khớp.\n\nChi tiết: ${detail?.message || "Bad Request"}`,
-                );
-              }
-            }}
+            onSave={handleSave}
+            templateFields={[]}
           />
         )}
       </div>

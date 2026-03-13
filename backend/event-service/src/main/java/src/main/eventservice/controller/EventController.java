@@ -1,14 +1,19 @@
 package src.main.eventservice.controller;
 
+import jakarta.validation.Valid;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.*;
 import src.main.eventservice.entity.enums.EventStatus;
 import src.main.eventservice.service.EventService;
 import src.main.eventservice.entity.Event;
 
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/events")
@@ -17,7 +22,7 @@ public class EventController {
 
     @Autowired
     private EventService eventService;
-
+    private static final Logger log = LoggerFactory.getLogger(EventController.class);
     // 1. Lấy tất cả sự kiện
     @GetMapping
     public List<Event> getAllEvents() {
@@ -39,7 +44,7 @@ public class EventController {
 
     // 3. Tạo mới
     @PostMapping
-    public Event createEvent(@RequestBody Event event) {
+    public Event createEvent(@Valid @RequestBody Event event) {
         return eventService.saveEvent(event);
     }
 
@@ -52,7 +57,7 @@ public class EventController {
 
     //5. Update theo id
     @PutMapping("/{id}")
-    public ResponseEntity<Event> update(@PathVariable String id, @RequestBody Event event) {
+    public ResponseEntity<Event> update(@Valid @PathVariable String id, @RequestBody Event event) {
         Event updatedEvent = eventService.updateEvent(id, event);
         return ResponseEntity.ok(updatedEvent);
     }
@@ -63,16 +68,30 @@ public class EventController {
         return ResponseEntity.ok(eventService.getAllPlans());
     }
 
-    @GetMapping("/plans/pending")
-    public ResponseEntity<List<Event>> getPendingPlans() {
-        List<Event> pendingPlans = eventService.getPlansByStatus(EventStatus.PendingApproval);
-        return ResponseEntity.ok(pendingPlans);
+    @GetMapping("/plans/{statusName}")
+    public ResponseEntity<List<Event>> getPlansByStatusName(@PathVariable String statusName) {
+        try {
+            EventStatus status = EventStatus.valueOf(statusName);
+            return ResponseEntity.ok(eventService.getPlansByStatus(status));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().build();
+        }
     }
-
-    // 7. Tạo kế hoạch mới
     @PostMapping("/plans")
-    public ResponseEntity<Event> createPlan(@RequestBody Event event) {
-        return ResponseEntity.status(HttpStatus.CREATED).body(eventService.saveEvent(event));
+    public ResponseEntity<?> createEventPlan(@RequestBody Event event) {
+        try {
+            log.info("Received event: {}", event);
+            Event createdEvent = eventService.createPlan(event);
+            return new ResponseEntity<>(createdEvent, HttpStatus.CREATED);
+        } catch (Exception e) {
+            log.error("Error creating event: ", e);
+            return ResponseEntity
+                    .badRequest()
+                    .body(Map.of(
+                            "error", e.getMessage(),
+                            "cause", e.getCause() != null ? e.getCause().getMessage() : "Unknown"
+                    ));
+        }
     }
 
     // 8. Phê duyệt kế hoạch

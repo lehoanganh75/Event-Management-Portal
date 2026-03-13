@@ -1,26 +1,32 @@
 package src.main.eventservice.service.impl;
 
 import jakarta.transaction.Transactional;
+import jakarta.validation.ConstraintViolationException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
+import src.main.eventservice.entity.EventTemplate;
 import src.main.eventservice.entity.enums.EventStatus;
+import src.main.eventservice.repository.EventTemplateRepository;
 import src.main.eventservice.service.EventService;
 import src.main.eventservice.entity.Event;
 import src.main.eventservice.repository.EventRepository;
 import org.springframework.data.domain.Pageable;
 
 import java.time.LocalDateTime;
-import java.util.Arrays;
-import java.util.Comparator;
-import java.util.List;
-import java.util.Optional;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Service
 public class EventServiceImpl implements EventService {
     @Autowired
     private EventRepository eventRepository;
+
+    @Autowired
+    private EventTemplateRepository eventTemplateRepository;
 
     @Override
     public List<Event> getAllEvents() {
@@ -42,7 +48,6 @@ public class EventServiceImpl implements EventService {
         return events;
     }
 
-    // Hàm bổ trợ để tái sử dụng logic đếm
     private void enrichEventWithRegistrationCount(Event event) {
         long count = eventRepository.countRegistrationsByEventId(event.getId());
         event.setRegisteredCount((int) count);
@@ -65,6 +70,7 @@ public class EventServiceImpl implements EventService {
         return eventRepository.findById(id).map(existingEvent -> {
             existingEvent.setTitle(eventDetails.getTitle());
             existingEvent.setDescription(eventDetails.getDescription());
+            existingEvent.setEventTopic(eventDetails.getEventTopic());
             existingEvent.setCoverImage(eventDetails.getCoverImage());
             existingEvent.setLocation(eventDetails.getLocation());
             existingEvent.setEventMode(eventDetails.getEventMode());
@@ -72,7 +78,6 @@ public class EventServiceImpl implements EventService {
 
             existingEvent.setStartTime(eventDetails.getStartTime());
             existingEvent.setEndTime(eventDetails.getEndTime());
-
             existingEvent.setRegistrationDeadline(eventDetails.getRegistrationDeadline());
 
             existingEvent.setStatus(eventDetails.getStatus());
@@ -81,6 +86,17 @@ public class EventServiceImpl implements EventService {
             existingEvent.setArchived(eventDetails.isArchived());
 
             existingEvent.setApprovedByAccountId(eventDetails.getApprovedByAccountId());
+
+            existingEvent.setParticipants(eventDetails.getParticipants());
+            existingEvent.setOrganizerUnit(eventDetails.getOrganizerUnit());
+            existingEvent.setRecipients(eventDetails.getRecipients());
+            existingEvent.setCustomRecipients(eventDetails.getCustomRecipients());
+            existingEvent.setPresenters(eventDetails.getPresenters());
+            existingEvent.setOrganizingCommittee(eventDetails.getOrganizingCommittee());
+            existingEvent.setAttendees(eventDetails.getAttendees());
+            existingEvent.setNotes(eventDetails.getNotes());
+            existingEvent.setAdditionalInfo(eventDetails.getAdditionalInfo());
+            existingEvent.setCustomFieldsJson(eventDetails.getCustomFieldsJson());
 
             existingEvent.setUpdatedAt(LocalDateTime.now());
 
@@ -115,6 +131,7 @@ public class EventServiceImpl implements EventService {
         plans.forEach(this::enrichEventWithRegistrationCount);
         return plans;
     }
+
     @Transactional
     @Override
     public Event createPlan(Event event) {
@@ -122,14 +139,22 @@ public class EventServiceImpl implements EventService {
         event.setUpdatedAt(LocalDateTime.now());
         event.setArchived(false);
         event.setFinalized(false);
-
         if (event.getStatus() == null) {
             event.setStatus(EventStatus.Draft);
         }
+        if (event.getTitle() == null || event.getTitle().trim().isEmpty()) {
+            throw new IllegalArgumentException("Tiêu đề kế hoạch không được để trống");
+        }
 
+        if (event.getTemplateId() != null && !event.getTemplateId().trim().isEmpty()) {
+            EventTemplate originalTemplate = eventTemplateRepository.findById(event.getTemplateId())
+                    .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy template với ID: " + event.getTemplateId()));
+
+            originalTemplate.setUsageCount(originalTemplate.getUsageCount() + 1);
+            eventTemplateRepository.save(originalTemplate);
+        }
         return eventRepository.save(event);
     }
-
     @Transactional
     @Override
     public Event updatePlan(String id, Event planDetails) {

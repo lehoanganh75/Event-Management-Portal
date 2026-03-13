@@ -2,7 +2,7 @@ package src.main.eventservice.entity;
 
 import jakarta.persistence.*;
 import lombok.*;
-import src.main.eventservice.entity.enums.EventTemplateType;
+import src.main.eventservice.entity.enums.EventType;
 
 import java.time.LocalDateTime;
 
@@ -23,7 +23,7 @@ public class EventTemplate {
     private String templateName;
 
     @Enumerated(EnumType.STRING)
-    private EventTemplateType templateType;
+    private EventType templateType;
     private String customTemplateType;
 
     private String description;
@@ -36,10 +36,23 @@ public class EventTemplate {
     private String defaultEventMode;
     private int defaultMaxParticipants;
 
+    @Builder.Default
+    private int usageCount = 0;
+
     @Column(columnDefinition = "TEXT")
     private String configData;
-//    private String createdBy;
 
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
+
+    @PrePersist
+    protected void onCreate() {
+        createdAt = LocalDateTime.now();
+        updatedAt = LocalDateTime.now();
+    }
+
+    @PreUpdate
+    protected void onUpdate() {
+        updatedAt = LocalDateTime.now();
+    }
 }
