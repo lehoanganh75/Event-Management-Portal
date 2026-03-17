@@ -19,4 +19,5 @@ public interface EventRepository extends JpaRepository<Event, String> {
 
     @Query("SELECT e FROM Event e WHERE e.status IN :statuses AND e.deletedAt IS NULL")
     List<Event> findByStatusInAndDeletedAtIsNull(@Param("statuses") List<EventStatus> statuses);
+
 }

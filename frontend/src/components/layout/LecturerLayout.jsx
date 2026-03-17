@@ -18,7 +18,7 @@ import Header from "../common/Header";
 
 const LecturerLayout = () => {
   const location = useLocation();
-  const [isCollapsed, setIsCollapsed] = useState(true);
+  const [isCollapsed, setIsCollapsed] = useState(false);
 
   const sidebars = [
     { name: "Bảng tin sự kiện", path: "/lecturer/events/feed", icon: LayoutDashboard },
@@ -40,7 +40,6 @@ const LecturerLayout = () => {
             isCollapsed ? "w-20" : "w-64"
           }`}
         >
-          {/* Header Sidebar: Nút điều khiển dịch sang phải */}
           <div className={`p-4 flex items-center ${isCollapsed ? "justify-center" : "justify-end"}`}>
             <button 
               onClick={() => setIsCollapsed(!isCollapsed)}

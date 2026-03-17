@@ -29,6 +29,8 @@ public interface EventService {
     // Plans
     List<Event> getAllPlans();
 
+    List<Event> getPlansByStatus(EventStatus status);
+
     @Transactional
     Event createPlan(Event event);
 

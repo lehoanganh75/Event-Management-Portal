@@ -1,94 +1,318 @@
 import React, { useState } from "react";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, BookOpen, PlusCircle, ChevronRight } from "lucide-react";
 import { TemplateSelectionStep } from "../../components/eventPlanner/TemplateSelectionStep";
 import { ManualInputStep } from "../../components/eventPlanner/ManualInputStep";
+import { EventProgramStep } from "../../components/eventPlanner/Eventprogramstep";
 import { PreviewStep } from "../../components/eventPlanner/PreviewStep";
+import { createPlan } from "../../api/eventApi";
 
-export const EventPlanner = ({ onBack }) => {
-  const [step, setStep] = useState(1);
+const INITIAL_FORM_DATA = {
+  title: "",
+  description: "",
+  location: "",
+  startTime: "",
+  endTime: "",
+  eventMode: "OFFLINE",
+  maxParticipants: 0,
+  organizationId: "org-it",
+  status: "Draft",
+  templateId: null,
+  templateName: "",
+  eventType: "",
+  eventTypeOther: "",
+  eventTitle: "",
+  eventTopic: "",
+  eventPurpose: "",
+  organizer: "",
+  organizerUnit: "",
+  recipients: [],
+  customRecipients: [],
+  participants: [],
+  notes: "",
+  presenters: [],
+  organizers: [],
+  attendees: [],
+  customFields: [], // array of {name, type, description, required?}
+};
 
+export const EventPlanner = ({
+  onBack,
+  initialStep = 1,
+  initialFormData = {},
+}) => {
+  const [step, setStep] = useState(initialStep);
   const [selectedTemplate, setSelectedTemplate] = useState(null);
+  const [formData, setFormData] = useState({
+    ...INITIAL_FORM_DATA,
+    ...initialFormData,
+  });
+
+  const resetForm = () => {
+    setFormData(INITIAL_FORM_DATA);
+    setSelectedTemplate(null);
+  };
+
+  const updateFormData = (newData) => {
+    setFormData((prev) => ({ ...prev, ...newData }));
+  };
+
+  const TOTAL_STEPS = 4;
+  const STEP_LABELS = {
+    1: "Thiết lập bản mẫu",
+    2: "Soạn thảo nội dung",
+    3: "Chương trình sự kiện",
+    4: "Hoàn tất kế hoạch",
+  };
 
   const handleGlobalBack = () => {
     if (step === 1) {
+      onBack();
+    } else if (step === 2 && initialStep === 2) {
       onBack();
     } else {
       setStep(step - 1);
     }
   };
 
+  const handleTemplateSelect = (template) => {
+    setSelectedTemplate(template);
+    if (template.id === "0") {
+      updateFormData({
+        title: "",
+        eventTitle: "",
+        description: "",
+        eventPurpose: "",
+        location: "",
+        eventMode: "OFFLINE",
+        maxParticipants: 0,
+        templateId: "0",
+        templateName: "",
+      });
+    } else {
+      updateFormData({
+        title: template.defaultTitle || "",
+        eventTitle: template.defaultTitle || "",
+        description: template.description || template.defaultDescription || "",
+        eventPurpose: template.defaultDescription || "",
+        location: template.defaultLocation || "",
+        eventMode: template.defaultEventMode || "OFFLINE",
+        maxParticipants: template.defaultMaxParticipants || 1,
+        templateId: template.id,
+        templateName: template.templateName,
+        eventType:
+          template.templateType === "Khác"
+            ? "Khác"
+            : template.templateType || "",
+        eventTypeOther:
+          template.templateType === "Khác"
+            ? template.customTemplateType || ""
+            : "",
+      });
+    }
+  };
+
+const handleSave = async () => {
+    const errors = [];
+    const trimmedTitle = (formData.eventTitle || formData.title || "").trim();
+
+    if (!trimmedTitle) errors.push("Tiêu đề sự kiện là bắt buộc");
+    if (!formData.startTime) errors.push("Thời gian bắt đầu là bắt buộc");
+    if (!formData.endTime) errors.push("Thời gian kết thúc là bắt buộc");
+
+    if (formData.endTime && formData.startTime) {
+        if (new Date(formData.endTime) <= new Date(formData.startTime)) {
+            errors.push("Thời gian kết thúc phải sau thời gian bắt đầu");
+        }
+    }
+
+    if (errors.length > 0) {
+        alert("Vui lòng sửa lỗi:\n• " + errors.join("\n• "));
+        return;
+    }
+
+    try {
+        const toISO = (dt) => {
+            if (!dt) return null;
+            const date = new Date(dt);
+            return isNaN(date.getTime()) ? null : date.toISOString();
+        };
+
+        const now = new Date().toISOString();
+
+        const eventType = formData.eventType || formData.type || "WORKSHOP";
+
+        const payload = {
+            organizationId: formData.organizationId || "org-it",
+            title: trimmedTitle,
+            description: (formData.eventPurpose || formData.description || "").trim(),
+            
+            eventTopic: (formData.eventTopic || "").trim(),
+            location: (formData.location || "Chưa xác định").trim(),
+            eventMode: (formData.eventMode || "OFFLINE").toUpperCase(),
+            
+            type: eventType,
+            
+            startTime: toISO(formData.startTime),
+            endTime: toISO(formData.endTime),
+            registrationDeadline: toISO(formData.registrationDeadline),
+            
+            maxParticipants: Number(formData.maxParticipants) || 50,
+            
+            status: "Draft",
+            
+            hasLuckyDraw: false,
+            finalized: false,
+            archived: false,
+            
+            createdAt: now,
+            updatedAt: now,
+            deletedAt: null,
+
+            participants: Array.isArray(formData.participants)
+                ? formData.participants
+                : [],
+            organizerUnit: (formData.organizerUnit || "").trim(),
+            recipients: Array.isArray(formData.recipients)
+                ? formData.recipients
+                : [],
+            customRecipients: Array.isArray(formData.customRecipients)
+                ? formData.customRecipients
+                : [],
+            presenters: Array.isArray(formData.presenters)
+                ? formData.presenters
+                : [],
+            organizingCommittee: Array.isArray(formData.organizers)
+                ? formData.organizers
+                : [],
+            attendees: Array.isArray(formData.attendees) 
+                ? formData.attendees 
+                : [],
+            
+            notes: (formData.notes || "").trim(),
+            additionalInfo: (formData.notes || "").trim(),
+            customFieldsJson: formData.customFields?.length > 0
+                ? JSON.stringify(formData.customFields)
+                : null,
+
+            templateId: formData.templateId || null,
+            registeredCount: 0
+        };
+
+        console.log("📤 Payload đầy đủ gửi đi:", {
+            ...payload,
+            type: payload.type,
+            status: payload.status,
+            createdAt: payload.createdAt,
+            updatedAt: payload.updatedAt
+        });
+
+        await createPlan(payload);
+        alert("✅ Lưu kế hoạch thành công!");
+        onBack();
+    } catch (err) {
+        console.error("🔴 Server trả về lỗi:", err.response?.data);
+        
+        if (err.response?.data) {
+            console.error("Chi tiết lỗi:", JSON.stringify(err.response.data, null, 2));
+        }
+        
+        const data = err.response?.data;
+        let errorMsg = "Kiểm tra lại định dạng dữ liệu";
+
+        if (data && typeof data === "object" && !data.timestamp) {
+            errorMsg = Object.entries(data)
+                .map(([field, msg]) => `${field}: ${msg}`)
+                .join("\n• ");
+        } else {
+            errorMsg = data?.message || data?.error || errorMsg;
+        }
+        alert(`❌ Lỗi khi lưu:\n\n${errorMsg}`);
+    }
+};
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col">
-      {step < 3 && (
-        <div className="bg-white border-b px-6 py-4 flex items-center justify-between sticky top-0 z-20 shadow-sm">
-          <button
-            onClick={handleGlobalBack}
-            className="flex items-center gap-2 text-slate-500 hover:text-slate-900 font-bold text-xs uppercase tracking-wider transition-colors"
-          >
-            <ArrowLeft size={16} /> Quay lại
-          </button>
+      <div className="bg-white border-b px-6 py-4 flex items-center justify-between sticky top-0 z-20 shadow-sm">
+        <button
+          onClick={handleGlobalBack}
+          className="flex items-center gap-2 text-slate-500 hover:text-slate-900 font-bold text-xs uppercase tracking-wider w-24"
+        >
+          <ArrowLeft size={16} /> {step === 1 ? "Thoát" : "Quay lại"}
+        </button>
 
-          <div className="flex flex-col items-center space-y-4 mb-8">
-            <div className="text-center">
-              <span className="text-[11px] font-bold text-blue-600 uppercase tracking-[0.2em] block mb-1">
-                Bước {step} / 3
-              </span>
-              <h2 className="text-lg font-black text-slate-800 tracking-tight">
-                {step === 1
-                  ? "Thiết lập bản mẫu"
-                  : step === 2
-                    ? "Điền thông tin chi tiết"
-                    : "Hoàn tất kế hoạch"}
-              </h2>
-            </div>
-            <div className="flex items-center gap-2">
-              {[1, 2, 3].map((s) => (
-                <div
-                  key={s}
-                  className={`h-1.5 rounded-full transition-all duration-300 ${
-                    s === step
-                      ? "w-8 bg-blue-600"
-                      : s < step
-                        ? "w-4 bg-blue-300"
-                        : "w-4 bg-slate-200"
-                  }`}
-                />
-              ))}
-            </div>
+        <div className="flex flex-col items-center">
+          <div className="text-center mb-2">
+            <span className="text-[10px] font-black text-blue-600 uppercase tracking-[0.2em] block">
+              Bước {step} / {TOTAL_STEPS}
+            </span>
+            <h2 className="text-base font-black text-slate-800 tracking-tight">
+              {STEP_LABELS[step]}
+            </h2>
           </div>
-
-          <div className="w-24"></div>
+          <div className="flex items-center gap-1.5">
+            {Array.from({ length: TOTAL_STEPS }, (_, i) => i + 1).map((s) => (
+              <div
+                key={s}
+                className={`h-1 rounded-full transition-all duration-500 ${
+                  s === step
+                    ? "w-6 bg-blue-600"
+                    : s < step
+                      ? "w-3 bg-blue-300"
+                      : "w-3 bg-slate-200"
+                }`}
+              />
+            ))}
+          </div>
         </div>
-      )}
+        <div className="w-24" />
+      </div>
 
-      <div className={`flex-1 ${step === 3 ? "p-4" : "p-8"}`}>
-        {/* BƯỚC 1: CHỌN BẢN MẪU */}
+      <div className={`flex-1 ${step === 4 ? "p-0" : "p-8"}`}>
         {step === 1 && (
           <TemplateSelectionStep
-            onTemplateSelect={(template) => {
-              setSelectedTemplate(template);
-              console.log("Template selected:", template);
-            }}
+            organizationId={formData.organizationId}
+            onTemplateSelect={handleTemplateSelect}
             onNext={() => setStep(2)}
           />
         )}
 
-        {/* BƯỚC 2: NHẬP THỦ CÔNG (FORM CHI TIẾT) */}
         {step === 2 && (
           <ManualInputStep
-            onBack={() => setStep(1)}
-            onNext={() => setStep(3)}
-            selectedTemplate={selectedTemplate}
+            formData={formData}
+            setFormData={updateFormData}
+            onBack={() => handleGlobalBack()}
+            onNext={(data) => {
+              updateFormData(data);
+              setStep(3);
+            }}
           />
         )}
 
-        {/* BƯỚC 3: XEM TRƯỚC (PREVIEW) */}
         {step === 3 && (
-          <PreviewStep
-            onEdit={() => setStep(2)}
-            onSave={() => {
-              alert("Kế hoạch đã được lưu vào hệ thống!");
+          <EventProgramStep
+            formData={formData}
+            setFormData={updateFormData}
+            onBack={() => setStep(2)}
+            onNext={(programData) => {
+              updateFormData(programData);
+              setStep(4);
             }}
+          />
+        )}
+
+        {step === 4 && (
+          <PreviewStep
+            data={formData || {}}
+            onEdit={() => setStep(3)}
+            onGoToStep2={() => {
+              resetForm();
+              setStep(2);
+            }}
+            onReset={() => {
+              resetForm();
+              setStep(1);
+            }}
+            onSave={handleSave}
+            templateFields={[]}
           />
         )}
       </div>
