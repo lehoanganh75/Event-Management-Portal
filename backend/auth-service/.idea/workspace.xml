@@ -1,0 +1,205 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="AutoImportSettings">
+    <option name="autoReloadType" value="SELECTIVE" />
+  </component>
+  <component name="ChangeListManager">
+    <list default="true" id="3f9504dc-2c0c-4c8a-bfcd-6352a6bbb800" name="Changes" comment="">
+      <change afterPath="$PROJECT_DIR$/../.idea/copilot.data.migration.ask.xml" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/../.idea/copilot.data.migration.ask2agent.xml" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/../.idea/copilot.data.migration.edit.xml" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/../.idea/inspectionProfiles/Project_Default.xml" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/../IdentityService/src/main/java/src/main/identityservice/config/SecurityConfig.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/../IdentityService/src/main/java/src/main/identityservice/controller/AuthController.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/../IdentityService/src/main/java/src/main/identityservice/controller/OrganizationController.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/../IdentityService/src/main/java/src/main/identityservice/dto/AuthResponse.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/../IdentityService/src/main/java/src/main/identityservice/dto/LoginRequest.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/../IdentityService/src/main/java/src/main/identityservice/dto/UserPrincipal.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/../IdentityService/src/main/java/src/main/identityservice/entity/ApprovalStatus.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/../IdentityService/src/main/java/src/main/identityservice/entity/Gender.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/../IdentityService/src/main/java/src/main/identityservice/entity/MembershipStatus.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/../IdentityService/src/main/java/src/main/identityservice/entity/Organization.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/../IdentityService/src/main/java/src/main/identityservice/entity/OrganizationMember.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/../IdentityService/src/main/java/src/main/identityservice/entity/OrganizationType.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/../IdentityService/src/main/java/src/main/identityservice/entity/PasswordResetToken.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/../IdentityService/src/main/java/src/main/identityservice/entity/RegistrationVerificationToken.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/../IdentityService/src/main/java/src/main/identityservice/exception/AccountNotActivatedException.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/../IdentityService/src/main/java/src/main/identityservice/exception/EmailAlreadyExistsException.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/../IdentityService/src/main/java/src/main/identityservice/exception/EmailNotExistsException.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/../IdentityService/src/main/java/src/main/identityservice/exception/GlobalExceptionHandler.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/../IdentityService/src/main/java/src/main/identityservice/exception/InvalidCredentialsException.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/../IdentityService/src/main/java/src/main/identityservice/exception/RefreshTokenExpiredException.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/../IdentityService/src/main/java/src/main/identityservice/exception/RefreshTokenNotFoundException.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/../IdentityService/src/main/java/src/main/identityservice/exception/RefreshTokenRevokedException.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/../IdentityService/src/main/java/src/main/identityservice/exception/TokenExpiredException.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/../IdentityService/src/main/java/src/main/identityservice/exception/TokenInvalidException.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/../IdentityService/src/main/java/src/main/identityservice/exception/TokenUsedException.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/../IdentityService/src/main/java/src/main/identityservice/exception/UsernameAlreadyExistsException.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/../IdentityService/src/main/java/src/main/identityservice/repository/OrganizationMemberRepository.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/../IdentityService/src/main/java/src/main/identityservice/repository/OrganizationRepository.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/../IdentityService/src/main/java/src/main/identityservice/repository/PasswordResetTokenRepository.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/../IdentityService/src/main/java/src/main/identityservice/repository/UserRepository.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/../IdentityService/src/main/java/src/main/identityservice/repository/VerificationTokenRepository.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/../IdentityService/src/main/java/src/main/identityservice/service/AuthService.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/../IdentityService/src/main/java/src/main/identityservice/service/OrganizationService.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/../IdentityService/src/main/java/src/main/identityservice/service/UserService.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/../IdentityService/src/main/java/src/main/identityservice/service/impl/AuthServiceImpl.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/../IdentityService/src/main/java/src/main/identityservice/service/impl/OrganizationServiceImpl.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/../IdentityService/src/main/java/src/main/identityservice/service/impl/UserServiceImpl.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/../IdentityService/src/main/java/src/main/identityservice/util/JwtUtils.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/../IdentityService/src/main/resources/templates/email/reset-password-email.html" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/../IdentityService/src/main/resources/templates/email/verification-email.html" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/../lucky-draw-service/src/main/java/src/main/luckydrawservice/controller/DrawEntryController.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/../lucky-draw-service/src/main/java/src/main/luckydrawservice/controller/DrawResultController.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/../lucky-draw-service/src/main/java/src/main/luckydrawservice/controller/PrizeController.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/../lucky-draw-service/src/main/java/src/main/luckydrawservice/dto/DrawResultResponse.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/../lucky-draw-service/src/main/java/src/main/luckydrawservice/dto/LuckyDrawCreateRequest.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/../lucky-draw-service/src/main/java/src/main/luckydrawservice/dto/PrizeCreateRequest.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/../lucky-draw-service/src/main/java/src/main/luckydrawservice/dto/PrizeResponse.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/../lucky-draw-service/src/main/java/src/main/luckydrawservice/service/DrawEntryService.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/../lucky-draw-service/src/main/java/src/main/luckydrawservice/service/DrawResultService.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/../lucky-draw-service/src/main/java/src/main/luckydrawservice/service/PrizeService.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/../lucky-draw-service/src/main/java/src/main/luckydrawservice/service/impl/DrawEntryServiceImpl.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/../lucky-draw-service/src/main/java/src/main/luckydrawservice/service/impl/DrawResultServiceImpl.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/../lucky-draw-service/src/main/java/src/main/luckydrawservice/service/impl/PrizeServiceImpl.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/../../frontend/src/components/custom/FloatingInput.jsx" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/../../frontend/src/components/forgotPassword/ForgotPassword.jsx" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/../../frontend/src/components/forgotPassword/ResetPassword.jsx" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/../../frontend/src/components/notification/ErrorNotification.jsx" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/../../frontend/src/components/notification/Notification.jsx" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/../../frontend/src/components/user/UserProfile.jsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/.gitignore" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/compiler.xml" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/encodings.xml" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/jarRepositories.xml" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/misc.xml" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/vcs.xml" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/pom.xml" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/src/main/authservice/config/SecurityConfig.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/src/main/authservice/controller/AuthController.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/src/main/authservice/dto/AuthResponse.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/src/main/authservice/dto/RegisterRequest.java" beforeDir="false" afterPath="$PROJECT_DIR$/../IdentityService/src/main/java/src/main/identityservice/dto/RegisterRequest.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/src/main/authservice/entity/Account.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/src/main/authservice/entity/Role.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/src/main/authservice/repository/AccountRepository.java" beforeDir="false" afterPath="$PROJECT_DIR$/../IdentityService/src/main/java/src/main/identityservice/repository/AccountRepository.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/src/main/authservice/repository/RefreshTokenRepository.java" beforeDir="false" afterPath="$PROJECT_DIR$/../IdentityService/src/main/java/src/main/identityservice/repository/RefreshTokenRepository.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/src/main/authservice/service/AuthService.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/src/main/authservice/service/impl/AuthServiceImpl.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/src/main/authservice/util/JwtUtils.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/resources/application.properties" beforeDir="false" afterPath="$PROJECT_DIR$/../IdentityService/src/main/resources/application.properties" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../lucky-draw-service/pom.xml" beforeDir="false" afterPath="$PROJECT_DIR$/../lucky-draw-service/pom.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../lucky-draw-service/src/main/java/src/main/luckydrawservice/controller/LuckyDrawController.java" beforeDir="false" afterPath="$PROJECT_DIR$/../lucky-draw-service/src/main/java/src/main/luckydrawservice/controller/LuckyDrawController.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../lucky-draw-service/src/main/java/src/main/luckydrawservice/entity/DrawEntry.java" beforeDir="false" afterPath="$PROJECT_DIR$/../lucky-draw-service/src/main/java/src/main/luckydrawservice/entity/DrawEntry.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../lucky-draw-service/src/main/java/src/main/luckydrawservice/entity/DrawResult.java" beforeDir="false" afterPath="$PROJECT_DIR$/../lucky-draw-service/src/main/java/src/main/luckydrawservice/entity/DrawResult.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../lucky-draw-service/src/main/java/src/main/luckydrawservice/entity/LuckyDraw.java" beforeDir="false" afterPath="$PROJECT_DIR$/../lucky-draw-service/src/main/java/src/main/luckydrawservice/entity/LuckyDraw.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../lucky-draw-service/src/main/java/src/main/luckydrawservice/entity/Prize.java" beforeDir="false" afterPath="$PROJECT_DIR$/../lucky-draw-service/src/main/java/src/main/luckydrawservice/entity/Prize.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../lucky-draw-service/src/main/java/src/main/luckydrawservice/repository/DrawEntryRepository.java" beforeDir="false" afterPath="$PROJECT_DIR$/../lucky-draw-service/src/main/java/src/main/luckydrawservice/repository/DrawEntryRepository.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../lucky-draw-service/src/main/java/src/main/luckydrawservice/repository/DrawResultRepository.java" beforeDir="false" afterPath="$PROJECT_DIR$/../lucky-draw-service/src/main/java/src/main/luckydrawservice/repository/DrawResultRepository.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../lucky-draw-service/src/main/java/src/main/luckydrawservice/repository/PrizeRepository.java" beforeDir="false" afterPath="$PROJECT_DIR$/../lucky-draw-service/src/main/java/src/main/luckydrawservice/repository/PrizeRepository.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../lucky-draw-service/src/main/java/src/main/luckydrawservice/service/LuckyDrawService.java" beforeDir="false" afterPath="$PROJECT_DIR$/../lucky-draw-service/src/main/java/src/main/luckydrawservice/service/LuckyDrawService.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../lucky-draw-service/src/main/java/src/main/luckydrawservice/service/impl/LuckyDrawServiceImpl.java" beforeDir="false" afterPath="$PROJECT_DIR$/../lucky-draw-service/src/main/java/src/main/luckydrawservice/service/impl/LuckyDrawServiceImpl.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../lucky-draw-service/src/main/resources/application.properties" beforeDir="false" afterPath="$PROJECT_DIR$/../lucky-draw-service/src/main/resources/application.properties" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../user-service/.gitattributes" beforeDir="false" afterPath="$PROJECT_DIR$/../IdentityService/.gitattributes" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../user-service/.gitignore" beforeDir="false" afterPath="$PROJECT_DIR$/../IdentityService/.gitignore" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../user-service/.mvn/wrapper/maven-wrapper.properties" beforeDir="false" afterPath="$PROJECT_DIR$/../IdentityService/.mvn/wrapper/maven-wrapper.properties" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../user-service/mvnw" beforeDir="false" afterPath="$PROJECT_DIR$/../IdentityService/mvnw" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../user-service/mvnw.cmd" beforeDir="false" afterPath="$PROJECT_DIR$/../IdentityService/mvnw.cmd" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../user-service/pom.xml" beforeDir="false" afterPath="$PROJECT_DIR$/../IdentityService/pom.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../user-service/scripts/scripts.sql" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../user-service/src/main/java/src/main/userservice/UserServiceApplication.java" beforeDir="false" afterPath="$PROJECT_DIR$/../IdentityService/src/main/java/src/main/identityservice/IdentityServiceApplication.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../user-service/src/main/java/src/main/userservice/config/SecurityConfig.java" beforeDir="false" afterPath="$PROJECT_DIR$/../lucky-draw-service/src/main/java/src/main/luckydrawservice/config/SecurityConfig.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../user-service/src/main/java/src/main/userservice/controller/OrganizationController.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../user-service/src/main/java/src/main/userservice/controller/UserProfileController.java" beforeDir="false" afterPath="$PROJECT_DIR$/../IdentityService/src/main/java/src/main/identityservice/controller/UserController.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../user-service/src/main/java/src/main/userservice/dto/UserCreatedEvent.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../user-service/src/main/java/src/main/userservice/entity/ApprovalStatus.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../user-service/src/main/java/src/main/userservice/entity/Organization.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../user-service/src/main/java/src/main/userservice/entity/OrganizationType.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../user-service/src/main/java/src/main/userservice/entity/UserProfile.java" beforeDir="false" afterPath="$PROJECT_DIR$/../IdentityService/src/main/java/src/main/identityservice/entity/User.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../user-service/src/main/java/src/main/userservice/listener/UserEventListener.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../user-service/src/main/java/src/main/userservice/repository/OrganizationRepository.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../user-service/src/main/java/src/main/userservice/repository/UserProfileRepository.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../user-service/src/main/java/src/main/userservice/service/OrganizationService.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../user-service/src/main/java/src/main/userservice/service/UserProfileService.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../user-service/src/main/java/src/main/userservice/service/impl/OrganizationServiceImpl.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../user-service/src/main/java/src/main/userservice/service/impl/UserProfileServiceImpl.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../user-service/src/main/resources/application.properties" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../user-service/src/test/java/src/main/userservice/UserServiceApplicationTests.java" beforeDir="false" afterPath="$PROJECT_DIR$/../IdentityService/src/test/java/src/main/identityservice/IdentityServiceApplicationTests.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../frontend/package-lock.json" beforeDir="false" afterPath="$PROJECT_DIR$/../../frontend/package-lock.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../frontend/package.json" beforeDir="false" afterPath="$PROJECT_DIR$/../../frontend/package.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../frontend/src/components/common/Header.jsx" beforeDir="false" afterPath="$PROJECT_DIR$/../../frontend/src/components/common/Header.jsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../frontend/src/components/header/HeaderAdmin.jsx" beforeDir="false" afterPath="$PROJECT_DIR$/../../frontend/src/components/header/HeaderAdmin.jsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../frontend/src/components/loginPage/LoginPage.jsx" beforeDir="false" afterPath="$PROJECT_DIR$/../../frontend/src/components/loginPage/LoginPage.jsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../frontend/src/components/registerPage/RegisterPage.jsx" beforeDir="false" afterPath="$PROJECT_DIR$/../../frontend/src/components/registerPage/RegisterPage.jsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../frontend/src/index.css" beforeDir="false" afterPath="$PROJECT_DIR$/../../frontend/src/index.css" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../frontend/src/routes/AppRouter.jsx" beforeDir="false" afterPath="$PROJECT_DIR$/../../frontend/src/routes/AppRouter.jsx" afterDir="false" />
+    </list>
+    <option name="SHOW_DIALOG" value="false" />
+    <option name="HIGHLIGHT_CONFLICTS" value="true" />
+    <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
+    <option name="LAST_RESOLUTION" value="IGNORE" />
+  </component>
+  <component name="Git.Settings">
+    <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$/../.." />
+  </component>
+  <component name="ProjectColorInfo">{
+  &quot;customColor&quot;: &quot;&quot;,
+  &quot;associatedIndex&quot;: 8
+}</component>
+  <component name="ProjectId" id="3A1CG4XWjpdmk34WTjEwj85g5XX" />
+  <component name="ProjectViewState">
+    <option name="hideEmptyMiddlePackages" value="true" />
+    <option name="showLibraryContents" value="true" />
+  </component>
+  <component name="PropertiesComponent"><![CDATA[{
+  "keyToString": {
+    "ModuleVcsDetector.initialDetectionPerformed": "true",
+    "RunOnceActivity.ShowReadmeOnStart": "true",
+    "RunOnceActivity.git.unshallow": "true",
+    "git-widget-placeholder": "Merging anh22706331",
+    "kotlin-language-version-configured": "true",
+    "last_opened_file_path": "D:/Downloads/Project_Code/Project_Code/backend/auth-service",
+    "node.js.detected.package.eslint": "true",
+    "node.js.detected.package.tslint": "true",
+    "node.js.selected.package.eslint": "(autodetect)",
+    "node.js.selected.package.tslint": "(autodetect)",
+    "nodejs_package_manager_path": "npm",
+    "project.structure.last.edited": "Project",
+    "project.structure.proportion": "0.0",
+    "project.structure.side.proportion": "0.2",
+    "vue.rearranger.settings.migration": "true"
+  }
+}]]></component>
+  <component name="SharedIndexes">
+    <attachedChunks>
+      <set>
+        <option value="bundled-jdk-9823dce3aa75-bf35d07a577b-intellij.indexing.shared.core-IU-252.26830.84" />
+        <option value="bundled-js-predefined-d6986cc7102b-3aa1da707db6-JavaScript-IU-252.26830.84" />
+      </set>
+    </attachedChunks>
+  </component>
+  <component name="SpellCheckerSettings" RuntimeDictionaries="0" Folders="0" CustomDictionaries="0" DefaultDictionary="application-level" UseSingleDictionary="true" transferred="true" />
+  <component name="TaskManager">
+    <task active="true" id="Default" summary="Default task">
+      <changelist id="3f9504dc-2c0c-4c8a-bfcd-6352a6bbb800" name="Changes" comment="" />
+      <created>1771750593113</created>
+      <option name="number" value="Default" />
+      <option name="presentableId" value="Default" />
+      <updated>1771750593113</updated>
+      <workItem from="1771750598226" duration="632000" />
+      <workItem from="1773814679761" duration="190000" />
+      <workItem from="1773814958309" duration="84000" />
+    </task>
+    <servers />
+  </component>
+  <component name="TypeScriptGeneratedFilesManager">
+    <option name="version" value="3" />
+  </component>
+  <component name="github-copilot-workspace">
+    <instructionFileLocations>
+      <option value=".github/instructions" />
+    </instructionFileLocations>
+    <promptFileLocations>
+      <option value=".github/prompts" />
+    </promptFileLocations>
+  </component>
+</project>

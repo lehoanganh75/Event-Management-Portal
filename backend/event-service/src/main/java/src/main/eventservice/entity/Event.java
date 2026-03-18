@@ -34,6 +34,7 @@ public class Event {
 
     private String description;
 
+    @Column(name = "event_topic", length = 1000)
     private String eventTopic;
 
     private String coverImage;

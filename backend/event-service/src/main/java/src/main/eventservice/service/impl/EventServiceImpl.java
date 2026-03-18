@@ -36,9 +36,11 @@ public class EventServiceImpl implements EventService {
         events.forEach(this::enrichEventWithRegistrationCount);
 
         return events.stream()
-                .sorted(Comparator.comparing(Event::getStartTime).reversed())
+                .sorted(Comparator.comparing(Event::getStartTime,
+                        Comparator.nullsLast(Comparator.naturalOrder())).reversed())
                 .collect(Collectors.toList());
     }
+
     @Override
     public List<Event> getFeaturedEvents() {
         Pageable topTwo = PageRequest.of(0, 2);

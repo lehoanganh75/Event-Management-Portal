@@ -363,7 +363,7 @@ export const ManualInputStep = ({
     if (
       formData.registrationDeadline &&
       formData.startTime &&
-      new Date(formData.registrationDeadline) >= new Date(formData.startTime)
+      new Date(formData.registrationDeadline) > new Date(formData.startTime)
     ) {
       e.registrationDeadline = "Hạn đăng ký phải trước thời gian bắt đầu";
     }
