@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Plus,
@@ -16,7 +16,6 @@ import {
   Filter,
   ArrowsUpFromLine,
   X,
-  Save,
   CheckCircle2,
   AlertCircle,
   Users,
@@ -26,9 +25,9 @@ import {
   Info,
   AlertTriangle,
 } from "lucide-react";
-import { useNavigate } from "react-router-dom";
 import CreateEventModal from "../../components/events/CreateEventModal";
-import { EventPlanner } from "./EventPlanner";
+import { EventCreator } from "../../components/events/EventCreator";
+import { getAllEvents } from "../../api/eventApi";
 
 const STATUS_LABELS = {
   All: "Tất cả trạng thái",
@@ -45,10 +44,10 @@ const MyEvents = () => {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("All");
+  const [creatorKey, setCreatorKey] = useState(0);
   const [sortConfig, setSortConfig] = useState("newest");
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 5;
-
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [modalMode, setModalMode] = useState("view");
   const [selectedEvent, setSelectedEvent] = useState(null);
@@ -60,9 +59,10 @@ const MyEvents = () => {
     type: "success",
   });
   const [isCreateOpen, setIsCreateOpen] = useState(false);
-  const [showPlanner, setShowPlanner] = useState(false);
-  const [plannerPrefill, setPlannerPrefill] = useState({});
-  const navigate = useNavigate();
+  const [fromPlan, setFromPlan] = useState(false);
+  const [selectedPlanId, setSelectedPlanId] = useState(null);
+  const prefillRef = useRef({});
+  const [showEventCreator, setShowEventCreator] = useState(false);
 
   const showToast = (message, type = "success") => {
     setToast({ show: true, message, type });
@@ -72,11 +72,11 @@ const MyEvents = () => {
   const fetchEvents = async () => {
     try {
       setLoading(true);
-      const response = await fetch("http://localhost:8080/api/events");
-      const data = await response.json();
-      setEvents(data);
+      const response = await getAllEvents();
+      setEvents(response.data || []);
     } catch (error) {
       console.error(error);
+      setEvents([]);
     } finally {
       setLoading(false);
     }
@@ -95,7 +95,6 @@ const MyEvents = () => {
         statusFilter === "All" || event.status === statusFilter;
       return matchesSearch && matchesStatus;
     });
-
     result.sort((a, b) => {
       if (sortConfig === "newest")
         return new Date(b.startTime) - new Date(a.startTime);
@@ -162,7 +161,9 @@ const MyEvents = () => {
     try {
       const response = await fetch(
         `http://localhost:8080/api/events/${eventToDelete.id}`,
-        { method: "DELETE" },
+        {
+          method: "DELETE",
+        },
       );
       if (response.ok) {
         setEvents(events.filter((e) => e.id !== eventToDelete.id));
@@ -202,19 +203,48 @@ const MyEvents = () => {
     }
   };
 
-  const handleSelectPlan = (prefillData) => {
-    setPlannerPrefill(prefillData);
-    setShowPlanner(true);
+  const handleSelectPlan = ({ fromPlan: fp, initialFormData }) => {
+    prefillRef.current = initialFormData || {};
+    setCreatorKey((k) => k + 1);
+    setFromPlan(fp);
+    setSelectedPlanId(initialFormData?._selectedPlanId || null);
+    setShowEventCreator(true);
   };
 
-  if (showPlanner) {
+  const handleCreateNew = ({ fromPlan: fp, initialFormData }) => {
+    prefillRef.current = initialFormData || {};
+    setCreatorKey((k) => k + 1);
+    setFromPlan(fp);
+    setShowEventCreator(true);
+  };
+
+  const updatePlanStatus = async (planId) => {
+    try {
+      await fetch(`http://localhost:8080/api/event-plans/${planId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: "Cancelled" }),
+      });
+    } catch (error) {
+      console.error("Lỗi update plan status:", error);
+    }
+  };
+
+  if (showEventCreator) {
     return (
-      <EventPlanner
-        initialStep={2}
-        initialFormData={plannerPrefill}
-        onBack={() => {
-          setShowPlanner(false);
-          setPlannerPrefill({});
+      <EventCreator
+        key={creatorKey}
+        initialFormData={prefillRef.current}
+        fromPlan={fromPlan}
+        onBack={async () => {
+          if (selectedPlanId) {
+            await updatePlanStatus(selectedPlanId);
+          }
+          setShowEventCreator(false);
+          setFromPlan(false);
+          setSelectedPlanId(null);
+          prefillRef.current = {};
+          fetchEvents();
         }}
       />
     );
@@ -389,7 +419,12 @@ const MyEvents = () => {
                         <span
                           className={`px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-wider ${getStatusStyle(event.status)}`}
                         >
-                          {STATUS_LABELS[event.status]}
+                          {STATUS_LABELS[event.status] ||
+                            STATUS_LABELS[
+                              event.status?.charAt(0).toUpperCase() +
+                                event.status?.slice(1).toLowerCase()
+                            ] ||
+                            event.status}
                         </span>
                       </td>
                       <td className="px-6 py-5 text-center">
@@ -439,7 +474,11 @@ const MyEvents = () => {
                 <button
                   key={i}
                   onClick={() => setCurrentPage(i + 1)}
-                  className={`w-10 h-10 rounded-xl text-xs font-black transition-all ${currentPage === i + 1 ? "bg-blue-600 text-white shadow-lg shadow-blue-200" : "bg-white border border-slate-200 text-slate-400"}`}
+                  className={`w-10 h-10 rounded-xl text-xs font-black transition-all ${
+                    currentPage === i + 1
+                      ? "bg-blue-600 text-white shadow-lg shadow-blue-200"
+                      : "bg-white border border-slate-200 text-slate-400"
+                  }`}
                 >
                   {i + 1}
                 </button>
@@ -546,9 +585,10 @@ const MyEvents = () => {
                   <X size={20} />
                 </button>
               </div>
+
               <form
                 onSubmit={handleUpdate}
-                className="p-8 space-y-8 max-h-[80vh] overflow-y-auto custom-scrollbar"
+                className="p-8 space-y-8 max-h-[80vh] overflow-y-auto"
               >
                 <div className="space-y-4">
                   <h3 className="text-xs font-black text-blue-600 uppercase tracking-[0.2em] flex items-center gap-2">
@@ -608,6 +648,7 @@ const MyEvents = () => {
                     </div>
                   </div>
                 </div>
+
                 <div className="space-y-4">
                   <h3 className="text-xs font-black text-rose-600 uppercase tracking-[0.2em] flex items-center gap-2">
                     <Clock size={14} /> Thời gian & Quy mô
@@ -696,6 +737,7 @@ const MyEvents = () => {
                     </div>
                   </div>
                 </div>
+
                 <div className="space-y-4">
                   <h3 className="text-xs font-black text-amber-600 uppercase tracking-[0.2em] flex items-center gap-2">
                     <ShieldCheck size={14} /> Mô tả chi tiết
@@ -715,6 +757,7 @@ const MyEvents = () => {
                     />
                   </div>
                 </div>
+
                 <div className="pt-4 flex justify-end gap-3">
                   <button
                     type="button"
@@ -737,11 +780,13 @@ const MyEvents = () => {
           </div>
         )}
       </AnimatePresence>
+
       <CreateEventModal
         isOpen={isCreateOpen}
         onClose={() => setIsCreateOpen(false)}
         onCreated={fetchEvents}
         onSelectPlan={handleSelectPlan}
+        onCreateNew={handleCreateNew}
       />
     </motion.div>
   );

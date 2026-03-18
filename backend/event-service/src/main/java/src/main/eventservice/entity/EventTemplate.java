@@ -5,6 +5,8 @@ import lombok.*;
 import src.main.eventservice.entity.enums.EventType;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 
 @Entity
 @Table(name = "event_templates")
@@ -26,6 +28,15 @@ public class EventTemplate {
     private EventType templateType;
     private String customTemplateType;
 
+    @ElementCollection
+    @CollectionTable(
+            name = "event_template_themes",
+            joinColumns = @JoinColumn(name = "template_id")
+    )
+    @Column(name = "theme")
+    @Builder.Default
+    private List<String> themes = new ArrayList<>();
+
     private String description;
 
     private String defaultTitle;
@@ -35,6 +46,9 @@ public class EventTemplate {
     private String defaultLocation;
     private String defaultEventMode;
     private int defaultMaxParticipants;
+
+    private String faculty;
+    private String major;
 
     @Builder.Default
     private int usageCount = 0;

@@ -7,16 +7,18 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 import src.main.eventservice.entity.Event;
 import src.main.eventservice.entity.EventTemplate;
 import src.main.eventservice.service.EventTemplateService;
 
+import java.net.URI;
 import java.time.LocalDateTime;
 import java.util.List;
 
 @RestController
 @RequestMapping("/api/templates")
-@CrossOrigin(origins = "http://localhost:5173")
+@CrossOrigin(origins = "*")
 public class EventTemplateController {
 
     @Autowired
@@ -35,18 +37,31 @@ public class EventTemplateController {
                 ? Sort.by(sortBy).descending()
                 : Sort.by(sortBy).ascending();
 
-        sort = sort.and(Sort.by("createdAt").descending());
-
         Pageable pageable = PageRequest.of(page, size, sort);
 
         return ResponseEntity.ok(templateService.getAllTemplates(organizationId, search, pageable));
+    }
+
+    @GetMapping("/{id}")
+    public ResponseEntity<EventTemplate> getTemplate(@PathVariable String id) {
+        EventTemplate template = templateService.getTemplateById(id);
+        return ResponseEntity.ok(template);
     }
 
     @PostMapping("/{id}/apply")
     public ResponseEntity<Event> applyTemplate(
             @PathVariable String id,
             @RequestParam(required = false, defaultValue = "anonymous") String accountId) {
-        return ResponseEntity.ok(templateService.createFromTemplate(id, accountId));
+
+        Event event = templateService.createFromTemplate(id, accountId);
+
+        URI location = ServletUriComponentsBuilder
+                .fromCurrentContextPath()
+                .path("/api/events/{id}")
+                .buildAndExpand(event.getId())
+                .toUri();
+
+        return ResponseEntity.created(location).body(event);
     }
 
 
@@ -54,8 +69,6 @@ public class EventTemplateController {
     public ResponseEntity<EventTemplate> saveAsNewTemplate(@RequestBody EventTemplate newTemplate) {
         newTemplate.setId(null);
         newTemplate.setUsageCount(0);
-        newTemplate.setCreatedAt(LocalDateTime.now());
-        newTemplate.setUpdatedAt(LocalDateTime.now());
 
         EventTemplate saved = templateService.saveTemplate(newTemplate);
         return ResponseEntity.ok(saved);
@@ -63,12 +76,31 @@ public class EventTemplateController {
 
     @PostMapping
     public ResponseEntity<EventTemplate> createTemplate(@RequestBody EventTemplate template) {
-        return ResponseEntity.ok(templateService.saveTemplate(template));
+        if (template.getTemplateName() == null || template.getTemplateName().isEmpty()) {
+            throw new RuntimeException("Template name không được để trống");
+        }
+
+        template.setId(null);
+        template.setUsageCount(0);
+
+        EventTemplate saved = templateService.saveTemplate(template);
+
+        URI location = ServletUriComponentsBuilder
+                .fromCurrentRequest()
+                .path("/{id}")
+                .buildAndExpand(saved.getId())
+                .toUri();
+
+        return ResponseEntity.created(location).body(saved);
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<EventTemplate> updateTemplate(@PathVariable String id, @RequestBody EventTemplate details) {
-        return ResponseEntity.ok(templateService.updateTemplate(id, details));
+    public ResponseEntity<EventTemplate> updateTemplate(
+            @PathVariable String id,
+            @RequestBody EventTemplate details) {
+
+        EventTemplate updated = templateService.updateTemplate(id, details);
+        return ResponseEntity.ok(updated);
     }
 
     @DeleteMapping("/{id}")

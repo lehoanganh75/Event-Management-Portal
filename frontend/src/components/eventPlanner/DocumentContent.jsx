@@ -26,8 +26,8 @@ export const DocumentContent = ({ isModal = false, data = {} }) => {
     endTime = "",
     registrationDeadline = "",
     location = "",
-    organizer = "Khoa Công nghệ thông tin",
-    organizerUnit = "",
+    faculty = "Khoa Công nghệ thông tin",
+    major = "",
     recipients = [],
     customRecipients = [],
     participants = [],
@@ -41,9 +41,9 @@ export const DocumentContent = ({ isModal = false, data = {} }) => {
   } = data;
 
   const allRecipients = [...recipients, ...customRecipients];
-  const displayOrganizer = organizerUnit
-    ? `${organizer} – ${organizerUnit}`
-    : organizer;
+  const displayOrganizer = major
+    ? `${faculty} – ${major}`
+    : faculty;
   const today = new Date();
 
   return (
@@ -61,8 +61,8 @@ export const DocumentContent = ({ isModal = false, data = {} }) => {
             <tr>
               <td className="w-1/2 text-center uppercase font-bold text-[12px] align-top pr-4">
                 <p>TRƯỜNG ĐẠI HỌC CÔNG NGHIỆP TP. HCM</p>
-                <p>KHOA CÔNG NGHỆ THÔNG TIN</p>
-                <p className="font-semibold">KỸ THUẬT PHẦN MỀM</p>
+                <p>{faculty || "KHOA CÔNG NGHỆ THÔNG TIN"}</p>
+                <p className="font-semibold">{major || ""}</p>
                 <div className="w-32 h-[1.5px] bg-black mx-auto mt-2" />
               </td>
 
@@ -210,7 +210,7 @@ export const DocumentContent = ({ isModal = false, data = {} }) => {
         <div className="space-y-[2px] ml-4">
           {allRecipients.length > 0 &&
             allRecipients.map((r, i) => <p key={i}>- {r.trim()}.</p>)}
-          {organizer && <p>- {organizer}.</p>}
+          {faculty && <p>- {faculty}.</p>}
         </div>
       </div>
 

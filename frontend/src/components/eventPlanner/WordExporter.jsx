@@ -11,6 +11,10 @@ const eventTypeVi = {
   OTHER: "Khác",
 };
 
+const formatPerson = (p) =>
+  [p.title, p.name].filter(Boolean).join(" ") +
+  (p.org || p.dept ? ` - ${p.org || p.dept}` : "");
+
 const esc = (s) =>
   String(s || "")
     .replace(/&/g, "&amp;")
@@ -57,8 +61,8 @@ const buildDocumentXml = (data) => {
     endTime = "",
     registrationDeadline = "",
     location = "",
-    organizer = "Khoa Công nghệ thông tin",
-    organizerUnit = "",
+    faculty = "Khoa Công nghệ thông tin",
+    major = "",
     recipients = [],
     customRecipients = [],
     participants = [],
@@ -72,14 +76,13 @@ const buildDocumentXml = (data) => {
   } = data;
 
   const allRecipients = [...recipients, ...customRecipients];
-  const displayOrganizer = organizerUnit
-    ? `${organizer} – ${organizerUnit}`
-    : organizer;
+  const displayOrganizer = major
+    ? `${faculty} – ${major}`
+    : faculty;
   const today = new Date();
 
   let body = "";
 
-  // Header bảng 2 cột
   body += `
     <w:p>
       <w:pPr><w:spacing w:after="120"/></w:pPr>
@@ -116,14 +119,14 @@ const buildDocumentXml = (data) => {
             <w:pPr><w:jc w:val="center"/></w:pPr>
             <w:r>
               <w:rPr><w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman"/><w:sz w:val="22"/></w:rPr>
-              <w:t>KHOA CÔNG NGHỆ THÔNG TIN</w:t>
+              <w:t>${esc(faculty || "KHOA CÔNG NGHỆ THÔNG TIN")}</w:t>
             </w:r>
           </w:p>
           <w:p>
             <w:pPr><w:jc w:val="center"/></w:pPr>
             <w:r>
               <w:rPr><w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman"/><w:b/><w:sz w:val="22"/></w:rPr>
-              <w:t>KỸ THUẬT PHẦN MỀM</w:t>
+              <w:t>${esc(major || "")}</w:t>
             </w:r>
           </w:p>
           <w:p>
@@ -283,8 +286,8 @@ const buildDocumentXml = (data) => {
       spaceAfter: 20,
     });
   });
-  if (allRecipients.length === 0 && organizer) {
-    body += wPara(wRun(`- ${organizer}.`, { size: 22 }), { indent: 720 });
+  if (allRecipients.length === 0 && faculty) {
+    body += wPara(wRun(`- ${faculty}.`, { size: 22 }), { indent: 720 });
   }
 
   body += wPara(

@@ -14,7 +14,15 @@ export const eventTemplateApi = {
     });
     return response.data;
   },
-
+  getTemplateById: async (templateId) => {
+    try {
+      const response = await axios.get(`${BASE_URL}/${templateId}`);
+      return response.data;
+    } catch (error) {
+      console.error("Lỗi khi lấy chi tiết bản mẫu:", error);
+      throw error;
+    }
+  },
   applyTemplate: async (templateId, accountId = null) => {
     try {
       const response = await axios.post(

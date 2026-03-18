@@ -6,6 +6,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import src.main.eventservice.entity.EventTemplate;
@@ -199,5 +200,10 @@ public class EventServiceImpl implements EventService {
 
             return eventRepository.save(event);
         }).orElseThrow(() -> new RuntimeException("Không tìm thấy sự kiện/kế hoạch với ID: " + id));
+    }
+
+    @Override
+    public Page<Event> getAllEvents(PageRequest pageable) {
+        return null;
     }
 }

@@ -6,7 +6,6 @@ import jakarta.persistence.*;
 import lombok.*;
 import src.main.eventservice.entity.enums.EventStatus;
 import src.main.eventservice.entity.enums.EventType;
-import jakarta.validation.constraints.*;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -19,6 +18,7 @@ import java.util.List;
 @NoArgsConstructor
 @AllArgsConstructor
 public class Event {
+
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
     private String id;
@@ -32,15 +32,17 @@ public class Event {
 
     private String title;
 
-    @Column(columnDefinition = "TEXT")
     private String description;
 
-    @Column(columnDefinition = "TEXT")
     private String eventTopic;
+
     private String coverImage;
 
+
     private LocalDateTime startTime;
+
     private LocalDateTime endTime;
+
     private LocalDateTime registrationDeadline;
 
     private String location;
@@ -58,6 +60,8 @@ public class Event {
     private boolean finalized;
     private boolean archived;
 
+    private String faculty;
+    private String major;
     @OneToMany(mappedBy = "event", cascade = CascadeType.ALL, orphanRemoval = true)
     @JsonIgnore
     private List<EventPost> posts;
@@ -98,19 +102,19 @@ public class Event {
     @JsonIgnore
     private List<EventSession> session;
 
+
     private LocalDateTime createdAt;
+
     private LocalDateTime updatedAt;
+
     private LocalDateTime deletedAt;
 
     @Transient
     private int registeredCount;
 
-    @Column(columnDefinition = "TEXT")
     private String notes;
 
-    @Column(columnDefinition = "TEXT")
     private String additionalInfo;
 
-    @Column(columnDefinition = "TEXT")
     private String customFieldsJson;
 }

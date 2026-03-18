@@ -15,7 +15,7 @@ import src.main.eventservice.service.EventPostService;
 @RestController
 @RequestMapping("/api/posts")
 @RequiredArgsConstructor
-@CrossOrigin(origins = "http://localhost:5173")
+@CrossOrigin(origins = "*")
 public class EventPostController {
 
     private final EventPostService eventPostService;

@@ -17,7 +17,7 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/api/events")
-@CrossOrigin(origins = "http://localhost:5173")
+@CrossOrigin(origins = "*")
 public class EventController {
 
     @Autowired
@@ -44,10 +44,10 @@ public class EventController {
 
     // 3. Tạo mới
     @PostMapping
-    public Event createEvent(@Valid @RequestBody Event event) {
-        return eventService.saveEvent(event);
+    public ResponseEntity<Event> createEvent(@Valid @RequestBody Event event) {
+        Event created = eventService.saveEvent(event);
+        return ResponseEntity.status(HttpStatus.CREATED).body(created);
     }
-
     // 4. Xóa theo id
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteEvent(@PathVariable String id) {
@@ -57,7 +57,7 @@ public class EventController {
 
     //5. Update theo id
     @PutMapping("/{id}")
-    public ResponseEntity<Event> update(@Valid @PathVariable String id, @RequestBody Event event) {
+    public ResponseEntity<Event> update(@PathVariable String id, @Valid @RequestBody Event event) {
         Event updatedEvent = eventService.updateEvent(id, event);
         return ResponseEntity.ok(updatedEvent);
     }
@@ -71,9 +71,12 @@ public class EventController {
     @GetMapping("/plans/{statusName}")
     public ResponseEntity<List<Event>> getPlansByStatusName(@PathVariable String statusName) {
         try {
-            EventStatus status = EventStatus.valueOf(statusName);
+            String formattedStatus = statusName.substring(0, 1).toUpperCase()
+                    + statusName.substring(1).toLowerCase();
+
+            EventStatus status = EventStatus.valueOf(formattedStatus);
             return ResponseEntity.ok(eventService.getPlansByStatus(status));
-        } catch (IllegalArgumentException e) {
+        } catch (IllegalArgumentException | IndexOutOfBoundsException e) {
             return ResponseEntity.badRequest().build();
         }
     }
@@ -97,6 +100,10 @@ public class EventController {
     // 8. Phê duyệt kế hoạch
     @PatchMapping("/{id}/approve")
     public ResponseEntity<Event> approvePlan(@PathVariable String id, @RequestParam String approverId) {
+        if (approverId == null || approverId.isEmpty()) {
+            return ResponseEntity.badRequest().build();
+        }
+
         Event approvedEvent = eventService.updateEventStatus(id, EventStatus.Published, approverId);
         return ResponseEntity.ok(approvedEvent);
     }

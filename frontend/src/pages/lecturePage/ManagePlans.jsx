@@ -600,9 +600,9 @@ const ManagePlans = () => {
                       <InfoRow
                         label="Đơn vị tổ chức"
                         value={
-                          ORGANIZATION_DISPLAY_NAMES[
-                            selectedPlan.organizationId
-                          ] || "Chưa xác định"
+                          selectedPlan.major
+                            ? `${selectedPlan.faculty} – ${selectedPlan.major}`
+                            : selectedPlan.faculty || "Chưa xác định"
                         }
                         icon={Building2}
                         color="amber"
@@ -697,8 +697,8 @@ const ManagePlans = () => {
                         />
                       </div>
                       <InfoRow
-                        label="Đơn vị phụ trách"
-                        value={selectedPlan.organizerUnit || "Không có"}
+                        label="Chuyên ngành"
+                        value={selectedPlan.major || "Không có"}
                         icon={Building2}
                         color="amber"
                       />

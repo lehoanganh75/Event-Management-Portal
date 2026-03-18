@@ -5,20 +5,10 @@ const api = axios.create({
 });
 
 const mapStatus = (status) => {
-  switch (status) {
-    case "Published":
-      return "upcoming";
-    case "Ongoing":
-      return "ongoing";
-    case "Completed":
-      return "completed";
-    case "PendingApproval":
-      return "pending";
-    case "Draft":
-      return "draft";
-    default:
-      return "upcoming";
-  }
+  if (!status) return "Draft";
+  const s = status.charAt(0).toUpperCase() + status.slice(1).toLowerCase();
+  if (s === "Pendingapproval") return "PendingApproval";
+  return s;
 };
 
 const mapPlan = (p) => {
@@ -54,9 +44,23 @@ const mapPlan = (p) => {
     fee: p.fee || "free",
     tags: p.tags || [],
     organizationId: p.organizationId,
+    faculty: p.faculty || "",
+    major: p.major || "",
     createdAt: p.createdAt ? new Date(p.createdAt + "Z") : null,
     updatedAt: p.updatedAt ? new Date(p.updatedAt + "Z") : null,
     deletedAt: p.deletedAt ? new Date(p.deletedAt + "Z") : null,
+    // --- Các field bị thiếu trước đây ---
+    eventTopic: p.eventTopic || "",
+    templateId: p.templateId || null,
+    notes: p.notes || "",
+    additionalInfo: p.additionalInfo || "",
+    organizerUnit: p.organizerUnit || "",
+    participants: Array.isArray(p.participants) ? p.participants : [],
+    recipients: Array.isArray(p.recipients) ? p.recipients : [],
+    customRecipients: Array.isArray(p.customRecipients) ? p.customRecipients : [],
+    presenters: Array.isArray(p.presenters) ? p.presenters : [],
+    organizingCommittee: Array.isArray(p.organizingCommittee) ? p.organizingCommittee : [],
+    attendees: Array.isArray(p.attendees) ? p.attendees : [],
   };
 };
 
@@ -68,9 +72,7 @@ const mapEvent = (e) => {
     id: e.id,
     title: e.title || "",
     description: e.description || "",
-    imageUrl:
-      e.coverImage ||
-      "https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=800&h=400&fit=crop",
+    imageUrl: e.coverImage,
     eventDate: start ? start.toLocaleDateString("vi-VN") : "",
     eventTime:
       start && end
@@ -87,14 +89,20 @@ const mapEvent = (e) => {
     fee: "free",
     tags: [],
     organizationId: e.organizationId,
+    faculty: e.faculty || "",
+    major: e.major || "",
   };
 };
 
 export const getAllEvents = () =>
-  api.get("/events").then((res) => ({
-    ...res,
-    data: Array.isArray(res.data) ? res.data.map(mapEvent) : [],
-  }));
+  api.get("/events").then((res) => {
+    const rawData = res.data;
+    const events = Array.isArray(rawData) ? rawData : rawData?.content || [];
+    return {
+      ...res,
+      data: events.map(mapEvent),
+    };
+  });
 
 export const getFeaturedEvents = () =>
   api.get("/events/featured").then((res) => ({
