@@ -60,7 +60,7 @@ const LoginPage = () => {
     };
 
     try {
-      const API = "http://localhost:8081/api/auth/login";
+      const API = "http://localhost:8082/api/auth/login";
       const response = await axios.post(API, payload);
 
       if (response.data && response.data.accessToken) {
