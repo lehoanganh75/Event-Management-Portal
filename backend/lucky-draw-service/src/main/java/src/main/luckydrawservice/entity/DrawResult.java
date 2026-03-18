@@ -10,7 +10,6 @@ import java.time.LocalDateTime;
 @Getter
 @Setter
 public class DrawResult {
-
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
     private String id;
