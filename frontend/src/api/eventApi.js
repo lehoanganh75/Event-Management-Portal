@@ -1,7 +1,7 @@
 import axios from "axios";
 
 const api = axios.create({
-  baseURL: "http://localhost:8080/api",
+  baseURL: "http://localhost:8081/api",
 });
 
 const mapStatus = (status) => {
@@ -21,8 +21,7 @@ const mapPlan = (p) => {
     description: p.description || "",
     coverImage: p.coverImage || "",
     imageUrl:
-      p.coverImage ||
-      "https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=800&h=400&fit=crop",
+      p.coverImage,
     eventDate: start ? start.toLocaleDateString("vi-VN") : "",
     eventTime:
       start && end
