@@ -164,7 +164,7 @@ const RegisterPage = () => {
     console.log("Dữ liệu gửi lên server:", payload);
 
     try {
-      const API = "http://localhost:8081/api/auth/register";
+      const API = "http://localhost:8082/api/auth/register";
       const response = await axios.post(API, payload);
 
       if (response.data?.status === "success") {
@@ -334,7 +334,7 @@ const RegisterPage = () => {
                   Giới tính
                 </label>
                 <div className="flex items-center space-x-8">
-                  {["male", "female", "other"].map((gender) => (
+                  {["MALE", "FEMALE", "OTHER"].map((gender) => (
                     <label key={gender} className="flex items-center space-x-3 cursor-pointer">
                       <input
                         type="radio"
@@ -345,9 +345,9 @@ const RegisterPage = () => {
                         className="w-4 h-4 accent-blue-600"
                       />
                       <span className="text-base text-slate-700 font-medium capitalize">
-                        {gender === "male"
+                        {gender === "MALE"
                           ? "Nam"
-                          : gender === "female"
+                          : gender === "FEMALE"
                           ? "Nữ"
                           : "Khác"}
                       </span>
