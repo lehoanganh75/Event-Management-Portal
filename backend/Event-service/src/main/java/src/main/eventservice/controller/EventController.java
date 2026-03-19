@@ -107,6 +107,12 @@ public class EventController {
         return ResponseEntity.ok(eventService.getPlansByAccountId(accountId));
     }
 
+    @GetMapping("/status")
+    public ResponseEntity<List<PlanResponseDto>> getByStatus(
+            @RequestParam EventStatus status) {
+        return ResponseEntity.ok(eventService.getEventsByStatus(status));
+    }
+
 //    @GetMapping("/plans/{statusName}")
 //    public ResponseEntity<List<Event>> getPlansByStatusName(@PathVariable String statusName) {
 //        try {

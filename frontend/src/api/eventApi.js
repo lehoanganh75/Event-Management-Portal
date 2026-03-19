@@ -1,9 +1,8 @@
 import axios from "axios";
 
 const api = axios.create({
-  baseURL: "http://localhost:8081/api",
+  baseURL: import.meta.env.VITE_EVENT_API_URL || "http://localhost:8081/api" 
 });
-
 const mapStatus = (status) => {
   if (!status) return "Draft";
   const s = status.charAt(0).toUpperCase() + status.slice(1).toLowerCase();
@@ -115,6 +114,12 @@ export const getAllEvents = () =>
     };
   });
 
+export const getEventsByStatus = (status) =>
+  api.get("/events/status", { params: { status } }).then((res) => ({
+    ...res,
+    data: Array.isArray(res.data) ? res.data.map(mapEvent) : [],
+  }));
+
 export const getFeaturedEvents = () =>
   api.get("/events/featured").then((res) => ({
     ...res,
@@ -196,3 +201,24 @@ export const createEvent = (eventData) =>
     ...res,
     data: res.data ? mapEvent(res.data) : null,
   }));
+
+export const checkRegistration = (eventId, userProfileId) =>
+  api.get("/registrations/check", { params: { eventId, userProfileId } });
+
+export const registerEvent = (eventId, userProfileId) =>
+  api.post(`/events/${eventId}/register`, null, { params: { userProfileId } });
+
+export const cancelRegistration = (eventId, userProfileId) =>
+  api.patch("/registrations/cancel", null, { params: { eventId, userProfileId } });
+
+export const getEventRegistrations = (eventId) =>
+  api.get(`/registrations/event/${eventId}`);
+
+export const getUserRegistrations = (userProfileId) =>
+  api.get(`/registrations/user/${userProfileId}`);
+
+export const getRegistrationQR = (registrationId) =>
+  api.get(`/registrations/${registrationId}/qr`);
+
+export const checkInQR = (qrToken) =>
+  api.post("/check-in", { qrToken });

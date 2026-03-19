@@ -26,7 +26,7 @@ import {
 import Preloader from "./Preloader";
 import LuckyWheelModal from "../luckyWheelModal/LuckyWheelModal";
 import { useNavigate, useLocation } from "react-router-dom";
-import { getAllEvents } from "../../api/eventApi";
+import { getEventsByStatus } from "../../api/eventApi";
 
 function LeftSidebar({ onSearchChange, variant = "full" }) {
   const [keyword, setKeyword] = useState("");
@@ -440,16 +440,16 @@ function EventCard({ item, onClick }) {
 
             <span
               className={`text-xs px-2 py-0.5 rounded-full font-medium ${
-                item.status === "upcoming"
+                item.status === "upcoming" || item.status === "Published"
                   ? "bg-blue-100 text-blue-700"
-                  : item.status === "ongoing"
+                  : item.status === "ongoing" || item.status === "Ongoing"
                     ? "bg-green-100 text-green-700"
                     : "bg-gray-100 text-gray-600"
               }`}
             >
-              {item.status === "upcoming"
+              {item.status === "upcoming" || item.status === "Published"
                 ? "Sắp diễn ra"
-                : item.status === "ongoing"
+                : item.status === "ongoing" || item.status === "Ongoing"
                   ? "Đang diễn ra"
                   : "Đã kết thúc"}
             </span>
@@ -547,8 +547,21 @@ export function EventFeed() {
   const handleEventClick = (eventId) => navigate(`/events/${eventId}`);
 
   useEffect(() => {
-    getAllEvents()
-      .then((res) => setPosts(res.data))
+    setIsLoading(true);
+    Promise.all([
+      getEventsByStatus("Published").catch(() => ({ data: [] })),
+      getEventsByStatus("Ongoing").catch(() => ({ data: [] })),
+      getEventsByStatus("Completed").catch(() => ({ data: [] }))
+    ])
+      .then(([pubRes, ongRes, comRes]) => {
+        const combined = [
+          ...(pubRes.data || []),
+          ...(ongRes.data || []),
+          ...(comRes.data || [])
+        ];
+        const uniqueEvents = Array.from(new Map(combined.map(item => [item.id, item])).values());
+        setPosts(uniqueEvents);
+      })
       .catch((err) => {
         console.error("Lỗi tải sự kiện:", err);
         setPosts([]);
@@ -566,15 +579,6 @@ export function EventFeed() {
     return () => clearTimeout(timer);
   }, []);
 
-  // useEffect(() => {
-  //   setCurrentPage(1);
-  // }, [searchKeyword, filters, sortBy]);
-
-  // useEffect(() => {
-  //   const timer = setTimeout(() => setIsLoading(false), 1000);
-  //   return () => clearTimeout(timer);
-  // }, []);
-
   const activeFilterCount = Object.values(filters).filter(
     (v) => v !== "all" && v !== "",
   ).length;
@@ -585,7 +589,10 @@ export function EventFeed() {
         .toLowerCase()
         .includes(searchKeyword.toLowerCase());
       const matchesStatus =
-        filters.status === "all" || post.status === filters.status;
+        filters.status === "all" || 
+        (filters.status === "upcoming" && post.status === "Published") ||
+        (filters.status === "ongoing" && post.status === "Ongoing") ||
+        (filters.status === "completed" && post.status === "Completed");
       const matchesType = filters.type === "all" || post.type === filters.type;
       const matchesOrganizer =
         filters.organizer === "all" || post.organizer === filters.organizer;

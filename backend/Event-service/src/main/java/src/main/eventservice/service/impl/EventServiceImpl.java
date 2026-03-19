@@ -326,4 +326,43 @@ public class EventServiceImpl implements EventService {
                 })
                 .collect(Collectors.toList());
     }
+
+    @Override
+    public List<PlanResponseDto> getEventsByStatus(EventStatus status) {
+        List<EventStatus> eventStatuses = Arrays.asList(status);
+
+        List<Event> events = eventRepository
+                .findByStatusInAndDeletedAtIsNull(eventStatuses);
+
+        events.forEach(this::enrichEventWithRegistrationCount);
+
+        return events.stream()
+                .sorted(Comparator.comparing(Event::getStartTime,
+                        Comparator.nullsLast(Comparator.naturalOrder())).reversed())
+                .map(event -> {
+                    UserDto creator = null;
+                    UserDto approver = null;
+
+                    try {
+                        if (event.getCreatedByAccountId() != null) {
+                            creator = userServiceClient.getUserById(event.getCreatedByAccountId());
+                        }
+                    } catch (Exception e) {
+                        log.warn("Không lấy được creator: {}", e.getMessage());
+                    }
+
+                    try {
+                        if (event.getApprovedByAccountId() != null) {
+                            approver = userServiceClient.getUserById(event.getApprovedByAccountId());
+                        }
+                    } catch (Exception e) {
+                        log.warn("Không lấy được approver: {}", e.getMessage());
+                    }
+
+                    return PlanResponseDto.from(event, creator, approver);
+                })
+                .collect(Collectors.toList());
+    }
+
+
 }

@@ -1,6 +1,6 @@
 import axios from "axios";
 
-const BASE_URL = "http://localhost:8081/api/templates";
+const BASE_URL = `${import.meta.env.VITE_EVENT_API_URL || "http://localhost:8081/api"}/templates`;
 
 export const eventTemplateApi = {
   getAllTemplates: async (orgId, search = "", page = 0, size = 10) => {
