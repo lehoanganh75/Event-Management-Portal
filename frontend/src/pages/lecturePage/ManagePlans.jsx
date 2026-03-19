@@ -34,7 +34,7 @@ import {
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { EventPlanner } from "./EventPlanner";
-import { getAllPlans, deletePlan, updatePlan } from "../../api/eventApi";
+import { getMyPlans, deletePlan, updatePlan } from "../../api/eventApi";
 
 const STATUS_LABELS = {
   DRAFT: "Bản nháp",
@@ -173,8 +173,38 @@ const ManagePlans = () => {
   const fetchPlans = async () => {
     try {
       setLoading(true);
-      const response = await getAllPlans();
-      setPlans(response.data);
+      let accountId = null;
+      
+      const userData = localStorage.getItem("user");
+      if (userData) {
+        try {
+          const user = JSON.parse(userData);
+          accountId = user.id || user.accountId || user.account?.id || user.userId;
+        } catch (error) {
+          console.error("Lỗi parse user data:", error);
+        }
+      }
+
+      if (!accountId) {
+        const accessToken = localStorage.getItem("accessToken");
+        if (accessToken) {
+          try {
+            const base64Url = accessToken.split('.')[1];
+            const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+            const payload = JSON.parse(atob(base64));
+            accountId = payload.accountId || payload.sub || payload.userId || payload.id;
+          } catch (e) {
+            console.error("Lỗi decode token:", e);
+          }
+        }
+      }
+
+      if (accountId) {
+        const response = await getMyPlans(accountId);
+        setPlans(response.data);
+      } else {
+        showToast("Không tìm thấy thông tin tài khoản", "error");
+      }
     } catch {
       showToast("Không thể tải danh sách kế hoạch", "error");
     } finally {
@@ -204,6 +234,21 @@ const ManagePlans = () => {
 
   const handleUpdate = async (e) => {
     e.preventDefault();
+    
+    if (selectedPlan.startTime && selectedPlan.endTime) {
+      if (new Date(selectedPlan.endTime) <= new Date(selectedPlan.startTime)) {
+        showToast("Thời gian kết thúc phải sau thời gian bắt đầu!", "error");
+        return;
+      }
+    }
+
+    if (selectedPlan.registrationDeadline && selectedPlan.startTime) {
+      if (new Date(selectedPlan.registrationDeadline) >= new Date(selectedPlan.startTime)) {
+        showToast("Hạn đăng ký phải trước thời gian bắt đầu!", "error");
+        return;
+      }
+    }
+
     try {
       const response = await updatePlan(selectedPlan.id, selectedPlan);
       if (response.ok || response.status === 200) {
@@ -373,8 +418,22 @@ const ManagePlans = () => {
                     <td className="px-6 py-4 text-sm font-medium text-slate-500">
                       {formatID(p.id)}
                     </td>
-                    <td className="px-6 py-4 text-sm font-semibold text-slate-800">
-                      {p.title}
+                    <td className="px-6 py-4">
+                      <span className="text-sm font-semibold text-slate-800 block mb-1">
+                        {p.title}
+                      </span>
+                      <div className="flex flex-wrap items-center gap-2">
+                        {p.eventTopic && (
+                          <span className="inline-flex items-center text-[10px] font-medium bg-blue-50 text-blue-600 px-2 py-0.5 rounded border border-blue-100 truncate max-w-[200px]">
+                            {p.eventTopic}
+                          </span>
+                        )}
+                        {p.hasLuckyDraw && (
+                          <span className="inline-flex items-center gap-1 text-[10px] font-medium bg-amber-50 text-amber-600 px-2 py-0.5 rounded border border-amber-100" title="Có tổ chức vòng quay may mắn">
+                            <Award size={10} /> Vòng quay
+                          </span>
+                        )}
+                      </div>
                     </td>
                     <td className="px-6 py-4 text-sm text-slate-500">
                       {p.eventDate || formatDate(p.startTime, "short")}
@@ -564,6 +623,8 @@ const ManagePlans = () => {
 
               <div className="flex-1 overflow-y-auto p-8 custom-scrollbar">
                 <form onSubmit={handleUpdate} className="space-y-8">
+                  {modalMode === "view" ? (
+                    <>
                   <Section
                     title="Thông tin cơ bản"
                     icon={FileText}
@@ -627,6 +688,12 @@ const ManagePlans = () => {
                         }
                         icon={ShieldCheck}
                         color="slate"
+                      />
+                      <InfoRow
+                        label="Vòng quay may mắn"
+                        value={selectedPlan.hasLuckyDraw ? "Có" : "Không"}
+                        icon={Award}
+                        color="amber"
                       />
                       <InfoRow
                         label="Ảnh bìa"
@@ -772,13 +839,13 @@ const ManagePlans = () => {
                       />
                       <InfoRow
                         label="Người tạo"
-                        value={selectedPlan.createdByAccountId || "Không có"}
+                        value={selectedPlan.createdByName || "Không có"}
                         icon={UserPlus}
                         color="slate"
                       />
                       <InfoRow
                         label="Người duyệt"
-                        value={selectedPlan.approvedByAccountId || "Không có"}
+                        value={selectedPlan.approvedByName || "Đang xử lý"}
                         icon={ShieldCheck}
                         color="emerald"
                       />
@@ -822,7 +889,6 @@ const ManagePlans = () => {
                     </div>
                   </Section>
 
-                  {modalMode === "view" && (
                     <div className="bg-slate-50 rounded-2xl p-4 border border-slate-200">
                       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 text-xs">
                         <div className="flex items-center gap-2">
@@ -856,14 +922,10 @@ const ManagePlans = () => {
                         )}
                       </div>
                     </div>
-                  )}
+                    </>
+                  ) : (
 
-                  {modalMode === "edit" && (
-                    <div className="space-y-6 border-t border-slate-200 pt-6">
-                      <h3 className="text-sm font-black text-amber-600 uppercase tracking-widest">
-                        Chỉnh sửa thông tin
-                      </h3>
-
+                    <div className="space-y-6">
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
                           <label className="block text-xs font-bold text-slate-500 mb-2">
@@ -1009,6 +1071,36 @@ const ManagePlans = () => {
                             className="w-full px-4 py-2.5 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-amber-500/20 outline-none"
                           />
                         </div>
+
+                    <div>
+                      <label className="block text-xs font-bold text-slate-500 mb-2">
+                        Người tạo
+                      </label>
+                      <input
+                        type="text"
+                        disabled
+                        value={selectedPlan.createdByName || "Không có"}
+                        className="w-full px-4 py-2.5 border border-slate-200 rounded-xl text-sm bg-slate-50 text-slate-500 cursor-not-allowed outline-none"
+                      />
+                    </div>
+
+                    <div className="col-span-2 flex items-center gap-3 py-2 mt-2">
+                      <input
+                        type="checkbox"
+                        id="edit-lucky-draw"
+                        checked={selectedPlan.hasLuckyDraw || false}
+                        onChange={(e) =>
+                          setSelectedPlan({
+                            ...selectedPlan,
+                            hasLuckyDraw: e.target.checked,
+                          })
+                        }
+                        className="w-4 h-4 accent-amber-500 cursor-pointer"
+                      />
+                      <label htmlFor="edit-lucky-draw" className="text-xs font-bold text-slate-500 cursor-pointer">
+                        Có tổ chức vòng quay may mắn
+                      </label>
+                    </div>
 
                         <div className="col-span-2">
                           <label className="block text-xs font-bold text-slate-500 mb-2">

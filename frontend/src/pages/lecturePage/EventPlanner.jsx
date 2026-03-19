@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react"; // Thêm useEffect
 import { toast } from "react-toastify";
 import { ArrowLeft, BookOpen, PlusCircle, ChevronRight } from "lucide-react";
 import { TemplateSelectionStep } from "../../components/eventPlanner/TemplateSelectionStep";
@@ -33,7 +33,8 @@ const INITIAL_FORM_DATA = {
   presenters: [],
   organizers: [],
   attendees: [],
-  customFields: [], // array of {name, type, description, required?}
+  customFields: [], 
+  hasLuckyDraw: false,
 };
 
 export const EventPlanner = ({
@@ -44,10 +45,48 @@ export const EventPlanner = ({
   const [step, setStep] = useState(initialStep);
   const [selectedTemplate, setSelectedTemplate] = useState(null);
   const [isSaving, setIsSaving] = useState(false);
+  const [currentAccountId, setCurrentAccountId] = useState(null); 
   const [formData, setFormData] = useState({
     ...INITIAL_FORM_DATA,
     ...initialFormData,
   });
+
+  useEffect(() => {
+    const getAccountId = () => {
+      const userData = localStorage.getItem("user");
+      if (userData) {
+        try {
+          const user = JSON.parse(userData);
+          const accountId = user.id || user.accountId || user.account?.id || user.userId;
+          if (accountId) {
+            setCurrentAccountId(accountId);
+            console.log("📋 Account ID từ user data:", accountId);
+            return;
+          }
+        } catch (error) {
+          console.error("Lỗi parse user data:", error);
+        }
+      }
+
+      const accessToken = localStorage.getItem("accessToken");
+      if (accessToken) {
+        try {
+          const base64Url = accessToken.split('.')[1];
+          const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+          const payload = JSON.parse(atob(base64));
+          const accountId = payload.accountId || payload.sub || payload.userId || payload.id;
+          if (accountId) {
+            setCurrentAccountId(accountId);
+            console.log("📋 Account ID từ token:", accountId);
+          }
+        } catch (e) {
+          console.error("Lỗi decode token:", e);
+        }
+      }
+    };
+
+    getAccountId();
+  }, []);
 
   const resetForm = () => {
     setFormData(INITIAL_FORM_DATA);
@@ -139,6 +178,11 @@ export const EventPlanner = ({
   };
 
   const handleSave = async () => {
+    if (!currentAccountId) {
+      toast.error("Không tìm thấy thông tin tài khoản. Vui lòng đăng nhập lại!");
+      return;
+    }
+
     const errors = [];
     const trimmedTitle = (formData.eventTitle || formData.title || "").trim();
 
@@ -192,7 +236,7 @@ export const EventPlanner = ({
 
         status: "Draft",
 
-        hasLuckyDraw: false,
+        hasLuckyDraw: formData.hasLuckyDraw || false,
         finalized: false,
         archived: false,
 
@@ -233,6 +277,9 @@ export const EventPlanner = ({
           formData.customFields?.length > 0
             ? JSON.stringify(formData.customFields)
             : null,
+
+        // THÊM createdByAccountId VÀO PAYLOAD
+        createdByAccountId: currentAccountId,
       };
 
       console.log("📤 Payload gửi đi:", payload);
@@ -265,6 +312,7 @@ export const EventPlanner = ({
       setIsSaving(false);
     }
   };
+  
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col">
       <div className="bg-white border-b px-6 py-4 flex items-center justify-between sticky top-0 z-20 shadow-sm">

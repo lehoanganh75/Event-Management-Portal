@@ -20,8 +20,7 @@ const mapPlan = (p) => {
     title: p.title || "",
     description: p.description || "",
     coverImage: p.coverImage || "",
-    imageUrl:
-      p.coverImage,
+    imageUrl: p.coverImage,
     eventDate: start ? start.toLocaleDateString("vi-VN") : "",
     eventTime:
       start && end
@@ -48,7 +47,6 @@ const mapPlan = (p) => {
     createdAt: p.createdAt ? new Date(p.createdAt + "Z") : null,
     updatedAt: p.updatedAt ? new Date(p.updatedAt + "Z") : null,
     deletedAt: p.deletedAt ? new Date(p.deletedAt + "Z") : null,
-    // --- Các field bị thiếu trước đây ---
     eventTopic: p.eventTopic || "",
     templateId: p.templateId || null,
     notes: p.notes || "",
@@ -60,6 +58,8 @@ const mapPlan = (p) => {
     presenters: Array.isArray(p.presenters) ? p.presenters : [],
     organizingCommittee: Array.isArray(p.organizingCommittee) ? p.organizingCommittee : [],
     attendees: Array.isArray(p.attendees) ? p.attendees : [],
+    createdByName: p.createdByName || null,
+    approvedByName: p.approvedByName || null,
   };
 };
 
@@ -71,7 +71,8 @@ const mapEvent = (e) => {
     id: e.id,
     title: e.title || "",
     description: e.description || "",
-    imageUrl: e.coverImage,
+    fullDescription: e.fullDescription || e.description || "",
+    imageUrl: e.coverImage || e.imageUrl || "",
     eventDate: start ? start.toLocaleDateString("vi-VN") : "",
     eventTime:
       start && end
@@ -84,12 +85,19 @@ const mapEvent = (e) => {
     status: mapStatus(e.status),
     location: e.location || "",
     eventMode: e.eventMode || "Offline",
-    hasPoints: false,
-    fee: "free",
-    tags: [],
+    hasPoints: e.hasPoints || false,
+    fee: e.fee || "free",
+    tags: e.tags || [],
     organizationId: e.organizationId,
     faculty: e.faculty || "",
     major: e.major || "",
+    type: e.type || "seminar",
+    target: e.target || "all",
+    eventTopic: e.eventTopic || "",
+    organizerUnit: e.organizerUnit || "",
+    // Thêm các field cho agenda và speakers nếu có
+    agenda: e.agenda || [],
+    speakers: e.speakers || [],
   };
 };
 
@@ -123,6 +131,12 @@ export const getEventById = (id) =>
   api.get(`/events/${id}`).then((res) => ({
     ...res,
     data: res.data ? mapEvent(res.data) : null,
+  }));
+
+export const getMyPlans = (accountId) =>
+  api.get("/events/plans/my", { params: { accountId } }).then((res) => ({
+    ...res,
+    data: Array.isArray(res.data) ? res.data.map(mapPlan) : [],
   }));
 
 export const getAllPlans = () =>

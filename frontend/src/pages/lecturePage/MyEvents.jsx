@@ -40,6 +40,18 @@ const STATUS_LABELS = {
   Cancelled: "Đã hủy",
 };
 
+const toDatetimeLocal = (value) => {
+  if (!value) return "";
+  try {
+    const d = new Date(value);
+    if (isNaN(d.getTime())) return "";
+    const pad = (n) => String(n).padStart(2, "0");
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  } catch {
+    return "";
+  }
+};
+
 const MyEvents = () => {
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -845,11 +857,7 @@ const MyEvents = () => {
                       <input
                         type="datetime-local"
                         disabled={modalMode === "view"}
-                        value={
-                          selectedEvent?.startTime
-                            ? selectedEvent.startTime.slice(0, 16)
-                            : ""
-                        }
+                        value={toDatetimeLocal(selectedEvent?.startTime)}
                         onChange={(e) =>
                           setSelectedEvent({
                             ...selectedEvent,
@@ -866,11 +874,7 @@ const MyEvents = () => {
                       <input
                         type="datetime-local"
                         disabled={modalMode === "view"}
-                        value={
-                          selectedEvent?.endTime
-                            ? selectedEvent.endTime.slice(0, 16)
-                            : ""
-                        }
+                        value={toDatetimeLocal(selectedEvent?.endTime)}
                         onChange={(e) =>
                           setSelectedEvent({
                             ...selectedEvent,
@@ -887,11 +891,7 @@ const MyEvents = () => {
                       <input
                         type="datetime-local"
                         disabled={modalMode === "view"}
-                        value={
-                          selectedEvent?.registrationDeadline
-                            ? selectedEvent.registrationDeadline.slice(0, 16)
-                            : ""
-                        }
+                        value={toDatetimeLocal(selectedEvent?.registrationDeadline)}
                         onChange={(e) =>
                           setSelectedEvent({
                             ...selectedEvent,

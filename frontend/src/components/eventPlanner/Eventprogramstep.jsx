@@ -1432,7 +1432,9 @@ function EventSummary({ formData }) {
             ĐƠN VỊ TỔ CHỨC
           </p>
           <p style={{ fontSize: 14, color: "#111", fontWeight: 500, margin: 0 }}>
-            {formData?.organizer || "Chưa chọn"}
+            {formData?.faculty 
+              ? (formData?.major ? `${formData.faculty} – ${formData.major}` : formData.faculty)
+              : "Chưa chọn"}
           </p>
         </div>
       </div>

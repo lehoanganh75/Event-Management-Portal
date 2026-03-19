@@ -348,6 +348,7 @@ export const ManualInputStep = ({
       setFormData((prev) => ({
         ...prev,
         themes: [...prev.themes, trimmed],
+        eventTopic: [...(prev.themes || []), trimmed].join(", "),
       }));
     }
     setNewTheme("");
@@ -355,10 +356,14 @@ export const ManualInputStep = ({
   };
 
   const removeTheme = (theme) => {
-    setFormData((prev) => ({
-      ...prev,
-      themes: prev.themes.filter((t) => t !== theme),
-    }));
+    setFormData((prev) => {
+      const newThemes = prev.themes.filter((t) => t !== theme);
+      return {
+        ...prev,
+        themes: newThemes,
+        eventTopic: newThemes.join(", "),
+      };
+    });
   };
 
   const validateForm = () => {

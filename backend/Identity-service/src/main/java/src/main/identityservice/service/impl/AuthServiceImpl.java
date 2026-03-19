@@ -46,6 +46,9 @@ public class AuthServiceImpl implements AuthService {
     @Value("${zerobounce.api.key}")
     private String zeroBounceApiKey;
 
+    @Value("${server.port}")
+    private String PORT;
+
     @Override
     @Transactional
     public Map<String, String> register(RegisterRequest request) {
@@ -73,7 +76,7 @@ public class AuthServiceImpl implements AuthService {
         verificationTokenRepository.save(vToken);
 
         // Gửi email async (không chặn request)
-        String verificationUrl = "http://localhost:8081/api/auth/verify?token=" + token;
+        String verificationUrl = "http://localhost:" + PORT + "/api/auth/verify?token=" + token;
         sendVerificationEmailAsync(request.getEmail(), verificationUrl, request.getFullName());
 
         Map<String, String> response = new HashMap<>();

@@ -8,6 +8,9 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.*;
+import src.main.eventservice.client.UserServiceClient;
+import src.main.eventservice.dto.PlanResponseDto;
+import src.main.eventservice.dto.UserDto;
 import src.main.eventservice.entity.enums.EventStatus;
 import src.main.eventservice.service.EventService;
 import src.main.eventservice.entity.Event;
@@ -22,6 +25,9 @@ public class EventController {
 
     @Autowired
     private EventService eventService;
+    @Autowired
+    private UserServiceClient userServiceClient;
+
     private static final Logger log = LoggerFactory.getLogger(EventController.class);
     // 1. Lấy tất cả sự kiện
     @GetMapping
@@ -36,10 +42,32 @@ public class EventController {
     }
     // 2. Lấy chi tiết theo ID
     @GetMapping("/{id}")
-    public ResponseEntity<Event> getEventById(@PathVariable String id) {
-        return eventService.getEventById(id)
-                .map(ResponseEntity::ok)
-                .orElse(ResponseEntity.notFound().build());
+    public ResponseEntity<PlanResponseDto> getEventById(@PathVariable String id) {
+        Event event = eventService.getEventById(id)
+                .orElse(null);
+
+        if (event == null) return ResponseEntity.notFound().build();
+
+        UserDto creator = null;
+        UserDto approver = null;
+
+        try {
+            if (event.getCreatedByAccountId() != null) {
+                creator = userServiceClient.getUserById(event.getCreatedByAccountId());
+            }
+        } catch (Exception e) {
+            log.warn("Không lấy được creator: {}", e.getMessage());
+        }
+
+        try {
+            if (event.getApprovedByAccountId() != null) {
+                approver = userServiceClient.getUserById(event.getApprovedByAccountId());
+            }
+        } catch (Exception e) {
+            log.warn("Không lấy được approver: {}", e.getMessage());
+        }
+
+        return ResponseEntity.ok(PlanResponseDto.from(event, creator, approver));
     }
 
     // 3. Tạo mới
@@ -64,8 +92,13 @@ public class EventController {
 
     // 6. Lấy danh sách kế hoạch
     @GetMapping("/plans")
-    public ResponseEntity<List<Event>> getAllPlans() {
-        return ResponseEntity.ok(eventService.getAllPlans());
+    public ResponseEntity<List<PlanResponseDto>> getAllPlans() {
+        return ResponseEntity.ok(eventService.getAllPlansEnriched());
+    }
+
+    @GetMapping("/plans/my")
+    public ResponseEntity<List<PlanResponseDto>> getMyPlans(@RequestParam String accountId) {
+        return ResponseEntity.ok(eventService.getPlansByAccountId(accountId));
     }
 
     @GetMapping("/plans/{statusName}")
