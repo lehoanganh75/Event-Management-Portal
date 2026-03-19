@@ -1,6 +1,9 @@
 package src.main.eventservice.service;
 
 import jakarta.transaction.Transactional;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import src.main.eventservice.dto.PlanResponseDto;
 import src.main.eventservice.entity.Event;
 import src.main.eventservice.entity.enums.EventStatus;
 
@@ -42,4 +45,11 @@ public interface EventService {
 
     @Transactional
     Event updateEventStatus(String id, EventStatus status, String approverId);
+
+    Page<Event> getAllEvents(PageRequest pageable);
+
+    List<PlanResponseDto> getAllPlansEnriched();
+
+    List<PlanResponseDto> getPlansByAccountId(String accountId);
+
 }

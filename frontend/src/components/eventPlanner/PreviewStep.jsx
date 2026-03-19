@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { toast } from "react-toastify";
 import {
   Save,
   FileText,
@@ -12,7 +13,7 @@ import {
 
 import { DocumentContent } from "./DocumentContent";
 import { exportToWord } from "./WordExporter";
-import { eventTemplateApi } from "../../api/eventTemplateApi"; // import object api
+import { eventTemplateApi } from "../../api/eventTemplateApi";
 
 export const PreviewStep = ({
   onEdit,
@@ -20,6 +21,8 @@ export const PreviewStep = ({
   onReset,
   onGoToStep2,
   data = {},
+  isSubmitting = false,
+  mode = "plan",
 }) => {
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [showTemplateModal, setShowTemplateModal] = useState(false);
@@ -31,8 +34,9 @@ export const PreviewStep = ({
     setExporting(true);
     try {
       await exportToWord(data);
+      toast.success("Xuất file Word thành công!");
     } catch (e) {
-      alert("Xuất file thất bại: " + e.message);
+      toast.error("Xuất file thất bại: " + e.message);
     } finally {
       setExporting(false);
     }
@@ -44,8 +48,9 @@ export const PreviewStep = ({
   };
 
   const handleSaveTemplate = async () => {
+    console.log("templateId:", data.templateId);
     if (!templateName.trim()) {
-      alert("Vui lòng nhập tên bản mẫu!");
+      toast.warning("Vui lòng nhập tên bản mẫu!");
       return;
     }
 
@@ -54,14 +59,17 @@ export const PreviewStep = ({
     try {
       const templatePayload = {
         templateName: templateName.trim(),
+        description: (data.eventPurpose || data.description || "").trim(),
         organizationId: data.organizationId || "org-it",
-        defaultTitle: data.eventTitle || data.title || "",
-        defaultDescription: data.eventPurpose || data.description || "",
+        defaultTitle: (data.eventTitle || data.title || "").trim(),
         defaultLocation: data.location || "",
         defaultEventMode: data.eventMode || "OFFLINE",
         defaultMaxParticipants: Number(data.maxParticipants) || 50,
         templateType: data.eventType || "OTHER",
         defaultCoverImage: data.coverImage || "",
+        themes: data.themes || [],
+        faculty: data.faculty || "",
+        major: data.major || "",
         configData: JSON.stringify({
           programItems: data.programItems || [],
           participants: data.participants || [],
@@ -75,20 +83,24 @@ export const PreviewStep = ({
       const newTemplate =
         await eventTemplateApi.createTemplate(templatePayload);
 
-      if (data.templateId) {
-        await eventTemplateApi.applyTemplate(data.templateId, "anonymous");
+      if (data?.templateId) {
+        try {
+          await eventTemplateApi.applyTemplate(data.templateId, "anonymous");
+        } catch (e) {
+          console.warn("Không tăng usage template:", e);
+        }
       }
 
-      alert(
+      toast.success(
         data.templateId
-          ? `Đã tạo bản mẫu mới "${templateName}" và tăng lượt dùng của bản cũ +1!`
-          : `Đã tạo bản mẫu mới "${templateName}" thành công!`,
+          ? `Đã tạo bản mẫu mới "${templateName}" thành công!`
+          : `Đã lưu bản mẫu "${templateName}" thành công!`
       );
 
       setShowTemplateModal(false);
       setTemplateName("");
     } catch (err) {
-      alert("Lưu bản mẫu thất bại: " + (err.message || "Lỗi không xác định"));
+      toast.error("Lưu bản mẫu thất bại: " + (err.message || "Lỗi không xác định"));
       console.error(err);
     } finally {
       setSavingTemplate(false);
@@ -123,9 +135,20 @@ export const PreviewStep = ({
 
             <button
               onClick={() => onSave && onSave(data)}
-              className="w-full bg-emerald-600 text-white py-3 rounded-xl font-bold text-sm flex items-center justify-center gap-2 hover:bg-emerald-700 transition-all shadow-md shadow-emerald-100"
+              disabled={isSubmitting}
+              className="w-full bg-emerald-600 text-white py-3 rounded-xl font-bold text-sm flex items-center justify-center gap-2 hover:bg-emerald-700 transition-all shadow-md shadow-emerald-100 disabled:opacity-60"
             >
-              <Save size={18} /> Lưu kế hoạch
+              {isSubmitting ? (
+                <>
+                  <RefreshCw size={18} className="animate-spin" />
+                  Đang xử lý...
+                </>
+              ) : (
+                <>
+                  <Save size={18} />
+                  {mode === "event" ? "Gửi phê duyệt" : "Lưu kế hoạch"}
+                </>
+              )}
             </button>
 
             <button
@@ -212,9 +235,20 @@ export const PreviewStep = ({
                 setIsFullscreen(false);
                 onSave && onSave(data);
               }}
-              className="px-10 py-3 bg-emerald-500 text-white rounded-xl font-black flex items-center gap-2 hover:bg-emerald-600 active:scale-95 transition-all"
+              disabled={isSubmitting}
+              className="px-10 py-3 bg-emerald-500 text-white rounded-xl font-black flex items-center gap-2 hover:bg-emerald-600 active:scale-95 transition-all disabled:opacity-60"
             >
-              <Save size={20} /> XÁC NHẬN LƯU
+              {isSubmitting ? (
+                <>
+                  <RefreshCw size={20} className="animate-spin" />
+                  Đang xử lý...
+                </>
+              ) : (
+                <>
+                  <Save size={20} />
+                  {mode === "event" ? "XÁC NHẬN GỬI" : "XÁC NHẬN LƯU"}
+                </>
+              )}
             </button>
           </div>
         </div>

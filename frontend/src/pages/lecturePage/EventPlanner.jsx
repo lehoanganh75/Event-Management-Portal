@@ -1,4 +1,5 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react"; // Thêm useEffect
+import { toast } from "react-toastify";
 import { ArrowLeft, BookOpen, PlusCircle, ChevronRight } from "lucide-react";
 import { TemplateSelectionStep } from "../../components/eventPlanner/TemplateSelectionStep";
 import { ManualInputStep } from "../../components/eventPlanner/ManualInputStep";
@@ -23,8 +24,8 @@ const INITIAL_FORM_DATA = {
   eventTitle: "",
   eventTopic: "",
   eventPurpose: "",
-  organizer: "",
-  organizerUnit: "",
+  faculty: "",
+  major: "",
   recipients: [],
   customRecipients: [],
   participants: [],
@@ -32,7 +33,8 @@ const INITIAL_FORM_DATA = {
   presenters: [],
   organizers: [],
   attendees: [],
-  customFields: [], // array of {name, type, description, required?}
+  customFields: [], 
+  hasLuckyDraw: false,
 };
 
 export const EventPlanner = ({
@@ -42,10 +44,49 @@ export const EventPlanner = ({
 }) => {
   const [step, setStep] = useState(initialStep);
   const [selectedTemplate, setSelectedTemplate] = useState(null);
+  const [isSaving, setIsSaving] = useState(false);
+  const [currentAccountId, setCurrentAccountId] = useState(null); 
   const [formData, setFormData] = useState({
     ...INITIAL_FORM_DATA,
     ...initialFormData,
   });
+
+  useEffect(() => {
+    const getAccountId = () => {
+      const userData = localStorage.getItem("user");
+      if (userData) {
+        try {
+          const user = JSON.parse(userData);
+          const accountId = user.id || user.accountId || user.account?.id || user.userId;
+          if (accountId) {
+            setCurrentAccountId(accountId);
+            console.log("📋 Account ID từ user data:", accountId);
+            return;
+          }
+        } catch (error) {
+          console.error("Lỗi parse user data:", error);
+        }
+      }
+
+      const accessToken = localStorage.getItem("accessToken");
+      if (accessToken) {
+        try {
+          const base64Url = accessToken.split('.')[1];
+          const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+          const payload = JSON.parse(atob(base64));
+          const accountId = payload.accountId || payload.sub || payload.userId || payload.id;
+          if (accountId) {
+            setCurrentAccountId(accountId);
+            console.log("📋 Account ID từ token:", accountId);
+          }
+        } catch (e) {
+          console.error("Lỗi decode token:", e);
+        }
+      }
+    };
+
+    getAccountId();
+  }, []);
 
   const resetForm = () => {
     setFormData(INITIAL_FORM_DATA);
@@ -85,10 +126,28 @@ export const EventPlanner = ({
         location: "",
         eventMode: "OFFLINE",
         maxParticipants: 0,
-        templateId: "0",
+        templateId: null,
         templateName: "",
+        eventType: "",
+        eventTypeOther: "",
+        programItems: [],
+        participants: [],
+        presenters: [],
+        organizers: [],
+        themes: [],
+        faculty: "",
+        major: "",
       });
     } else {
+      let configData = {};
+      try {
+        if (template.configData) {
+          configData = JSON.parse(template.configData);
+        }
+      } catch (e) {
+        console.error("Lỗi parse configData từ bản mẫu:", e);
+      }
+
       updateFormData({
         title: template.defaultTitle || "",
         eventTitle: template.defaultTitle || "",
@@ -107,11 +166,23 @@ export const EventPlanner = ({
           template.templateType === "Khác"
             ? template.customTemplateType || ""
             : "",
+        programItems: configData.programItems || [],
+        participants: configData.participants || [],
+        presenters: configData.presenters || [],
+        organizers: configData.organizers || [],
+        themes: template.themes || [],
+        faculty: template.faculty || "",
+        major: template.major || "",
       });
     }
   };
 
-const handleSave = async () => {
+  const handleSave = async () => {
+    if (!currentAccountId) {
+      toast.error("Không tìm thấy thông tin tài khoản. Vui lòng đăng nhập lại!");
+      return;
+    }
+
     const errors = [];
     const trimmedTitle = (formData.eventTitle || formData.title || "").trim();
 
@@ -120,115 +191,128 @@ const handleSave = async () => {
     if (!formData.endTime) errors.push("Thời gian kết thúc là bắt buộc");
 
     if (formData.endTime && formData.startTime) {
-        if (new Date(formData.endTime) <= new Date(formData.startTime)) {
-            errors.push("Thời gian kết thúc phải sau thời gian bắt đầu");
-        }
+      if (new Date(formData.endTime) <= new Date(formData.startTime)) {
+        errors.push("Thời gian kết thúc phải sau thời gian bắt đầu");
+      }
     }
 
     if (errors.length > 0) {
-        alert("Vui lòng sửa lỗi:\n• " + errors.join("\n• "));
-        return;
+      toast.warning("Vui lòng sửa lỗi:\n• " + errors.join("\n• "));
+      return;
     }
 
+    setIsSaving(true);
     try {
-        const toISO = (dt) => {
-            if (!dt) return null;
-            const date = new Date(dt);
-            return isNaN(date.getTime()) ? null : date.toISOString();
-        };
+      const toISO = (dt) => {
+        if (!dt) return null;
+        const date = new Date(dt);
+        return isNaN(date.getTime()) ? null : date.toISOString();
+      };
 
-        const now = new Date().toISOString();
+      const now = new Date().toISOString();
 
-        const eventType = formData.eventType || formData.type || "WORKSHOP";
+      const eventType = formData.eventType || formData.type || "WORKSHOP";
 
-        const payload = {
-            organizationId: formData.organizationId || "org-it",
-            title: trimmedTitle,
-            description: (formData.eventPurpose || formData.description || "").trim(),
-            
-            eventTopic: (formData.eventTopic || "").trim(),
-            location: (formData.location || "Chưa xác định").trim(),
-            eventMode: (formData.eventMode || "OFFLINE").toUpperCase(),
-            
-            type: eventType,
-            
-            startTime: toISO(formData.startTime),
-            endTime: toISO(formData.endTime),
-            registrationDeadline: toISO(formData.registrationDeadline),
-            
-            maxParticipants: Number(formData.maxParticipants) || 50,
-            
-            status: "Draft",
-            
-            hasLuckyDraw: false,
-            finalized: false,
-            archived: false,
-            
-            createdAt: now,
-            updatedAt: now,
-            deletedAt: null,
+      const payload = {
+        organizationId: formData.organizationId || "org-it",
+        title: trimmedTitle,
+        description: (
+          formData.eventPurpose ||
+          formData.description ||
+          ""
+        ).trim(),
 
-            participants: Array.isArray(formData.participants)
-                ? formData.participants
-                : [],
-            organizerUnit: (formData.organizerUnit || "").trim(),
-            recipients: Array.isArray(formData.recipients)
-                ? formData.recipients
-                : [],
-            customRecipients: Array.isArray(formData.customRecipients)
-                ? formData.customRecipients
-                : [],
-            presenters: Array.isArray(formData.presenters)
-                ? formData.presenters
-                : [],
-            organizingCommittee: Array.isArray(formData.organizers)
-                ? formData.organizers
-                : [],
-            attendees: Array.isArray(formData.attendees) 
-                ? formData.attendees 
-                : [],
-            
-            notes: (formData.notes || "").trim(),
-            additionalInfo: (formData.notes || "").trim(),
-            customFieldsJson: formData.customFields?.length > 0
-                ? JSON.stringify(formData.customFields)
-                : null,
+        eventTopic: (formData.eventTopic || "").trim(),
+        location: (formData.location || "Chưa xác định").trim(),
+        eventMode: (formData.eventMode || "OFFLINE").toUpperCase(),
 
-            templateId: formData.templateId || null,
-            registeredCount: 0
-        };
+        type: eventType,
 
-        console.log("📤 Payload đầy đủ gửi đi:", {
-            ...payload,
-            type: payload.type,
-            status: payload.status,
-            createdAt: payload.createdAt,
-            updatedAt: payload.updatedAt
-        });
+        startTime: toISO(formData.startTime),
+        endTime: toISO(formData.endTime),
+        registrationDeadline: toISO(formData.registrationDeadline),
 
-        await createPlan(payload);
-        alert("✅ Lưu kế hoạch thành công!");
-        onBack();
+        maxParticipants: Number(formData.maxParticipants) || 50,
+
+        status: "Draft",
+
+        hasLuckyDraw: formData.hasLuckyDraw || false,
+        finalized: false,
+        archived: false,
+
+        participants: Array.isArray(formData.participants)
+          ? formData.participants
+          : [],
+        faculty: formData.faculty || "",
+        major: formData.major || "",
+        recipients: Array.isArray(formData.recipients)
+          ? formData.recipients
+          : [],
+        customRecipients: Array.isArray(formData.customRecipients)
+          ? formData.customRecipients
+          : [],
+        presenters: Array.isArray(formData.presenters)
+          ? formData.presenters.map((p) => (typeof p === "string" ? p : p.name))
+          : [],
+        organizingCommittee: Array.isArray(formData.organizers)
+          ? formData.organizers.map((p) => (typeof p === "string" ? p : p.name))
+          : [],
+        attendees: Array.isArray(formData.attendees)
+          ? formData.attendees.map((p) => (typeof p === "string" ? p : p.name))
+          : [],
+
+        notes: (formData.notes || "").trim(),
+        templateId:
+          formData.templateId === "0" || !formData.templateId
+            ? null
+            : formData.templateId,
+
+        programItems: (formData.programItems || []).map((item) => ({
+          title: item.title,
+          notes:
+            `${item.presenter || ""} ${item.presenterTitle ? `(${item.presenterTitle})` : ""}`.trim(),
+        })),
+
+        customFieldsJson:
+          formData.customFields?.length > 0
+            ? JSON.stringify(formData.customFields)
+            : null,
+
+        // THÊM createdByAccountId VÀO PAYLOAD
+        createdByAccountId: currentAccountId,
+      };
+
+      console.log("📤 Payload gửi đi:", payload);
+
+      await createPlan(payload);
+      toast.success("✅ Lưu kế hoạch thành công!");
+      onBack();
     } catch (err) {
-        console.error("🔴 Server trả về lỗi:", err.response?.data);
-        
-        if (err.response?.data) {
-            console.error("Chi tiết lỗi:", JSON.stringify(err.response.data, null, 2));
-        }
-        
-        const data = err.response?.data;
-        let errorMsg = "Kiểm tra lại định dạng dữ liệu";
+      console.error("🔴 Server trả về lỗi:", err.response?.data);
 
-        if (data && typeof data === "object" && !data.timestamp) {
-            errorMsg = Object.entries(data)
-                .map(([field, msg]) => `${field}: ${msg}`)
-                .join("\n• ");
-        } else {
-            errorMsg = data?.message || data?.error || errorMsg;
-        }
-        alert(`❌ Lỗi khi lưu:\n\n${errorMsg}`);
+      if (err.response?.data) {
+        console.error(
+          "Chi tiết lỗi:",
+          JSON.stringify(err.response.data, null, 2),
+        );
+      }
+
+      const data = err.response?.data;
+      let errorMsg = "Kiểm tra lại định dạng dữ liệu";
+
+      if (data && typeof data === "object" && !data.timestamp) {
+        errorMsg = Object.entries(data)
+          .map(([field, msg]) => `${field}: ${msg}`)
+          .join("\n• ");
+      } else {
+        errorMsg = data?.message || data?.error || errorMsg;
+      }
+      toast.error(`❌ Lỗi khi lưu:\n\n${errorMsg}`);
+    } finally {
+      setIsSaving(false);
     }
-};
+  };
+  
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col">
       <div className="bg-white border-b px-6 py-4 flex items-center justify-between sticky top-0 z-20 shadow-sm">
@@ -296,9 +380,9 @@ const handleSave = async () => {
               updateFormData(programData);
               setStep(4);
             }}
+            mode="plan"
           />
         )}
-
         {step === 4 && (
           <PreviewStep
             data={formData || {}}
@@ -312,6 +396,8 @@ const handleSave = async () => {
               setStep(1);
             }}
             onSave={handleSave}
+            isSubmitting={isSaving}
+            mode="plan"
             templateFields={[]}
           />
         )}

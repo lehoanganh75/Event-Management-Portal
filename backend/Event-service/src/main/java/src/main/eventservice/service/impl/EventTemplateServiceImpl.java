@@ -1,10 +1,7 @@
 package src.main.eventservice.service.impl;
 
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Pageable;
-import org.springframework.data.domain.Sort;
+import org.springframework.data.domain.*;
 import org.springframework.stereotype.Service;
 import src.main.eventservice.entity.Event;
 import src.main.eventservice.entity.EventTemplate;
@@ -14,6 +11,7 @@ import src.main.eventservice.repository.EventTemplateRepository;
 import src.main.eventservice.service.EventTemplateService;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 
 @Service
@@ -27,6 +25,10 @@ public class EventTemplateServiceImpl implements EventTemplateService {
 
     @Override
     public Event createFromTemplate(String templateId, String accountId) {
+        if (templateId == null || templateId.isEmpty()) {
+            throw new RuntimeException("Template ID không hợp lệ");
+        }
+
         EventTemplate template = templateRepository.findById(templateId)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy bản mẫu với ID: " + templateId));
 
@@ -35,12 +37,15 @@ public class EventTemplateServiceImpl implements EventTemplateService {
 
         Event event = new Event();
 
-        event.setTitle(template.getDefaultTitle());
+        event.setTitle(template.getDefaultTitle() != null ? template.getDefaultTitle() : "Untitled Event");
         event.setDescription(template.getDefaultDescription());
         event.setCoverImage(template.getDefaultCoverImage());
         event.setLocation(template.getDefaultLocation());
         event.setEventMode(template.getDefaultEventMode());
-        event.setMaxParticipants(template.getDefaultMaxParticipants());
+        event.setMaxParticipants(template.getDefaultMaxParticipants() > 0 ? template.getDefaultMaxParticipants() : 100);
+
+        event.setFaculty(template.getFaculty());
+        event.setMajor(template.getMajor());
 
         event.setOrganizationId(template.getOrganizationId());
         event.setCreatedByAccountId(accountId);
@@ -51,17 +56,17 @@ public class EventTemplateServiceImpl implements EventTemplateService {
         event.setCreatedAt(LocalDateTime.now());
         event.setUpdatedAt(LocalDateTime.now());
 
-        return event;
+        return eventRepository.save(event);
     }
 
     @Override
     public Page<EventTemplate> getAllTemplates(String orgId, String search, Pageable pageable) {
-        String searchKeyword = (search == null) ? "" : search;
+        String searchKeyword = search == null ? "" : search;
 
         Sort sort = Sort.by(Sort.Direction.DESC, "usageCount")
                 .and(Sort.by(Sort.Direction.DESC, "createdAt"));
 
-        Pageable sortedByUsage = PageRequest.of(
+        Pageable sorted = PageRequest.of(
                 pageable.getPageNumber(),
                 pageable.getPageSize(),
                 sort
@@ -70,12 +75,16 @@ public class EventTemplateServiceImpl implements EventTemplateService {
         return templateRepository.findByOrganizationIdAndTemplateNameContainingIgnoreCase(
                 orgId,
                 searchKeyword,
-                sortedByUsage
+                sorted
         );
     }
+
     @Override
     public EventTemplate saveTemplate(EventTemplate template) {
-        template.setCreatedAt(LocalDateTime.now());
+        if (template.getThemes() == null) {
+            template.setThemes(new ArrayList<>());
+        }
+
         template.setUpdatedAt(LocalDateTime.now());
         return templateRepository.save(template);
     }
@@ -93,12 +102,22 @@ public class EventTemplateServiceImpl implements EventTemplateService {
         template.setTemplateName(details.getTemplateName());
         template.setTemplateType(details.getTemplateType());
         template.setCustomTemplateType(details.getCustomTemplateType());
+        template.setDescription(details.getDescription());
         template.setDefaultTitle(details.getDefaultTitle());
         template.setDefaultDescription(details.getDefaultDescription());
+        template.setDefaultCoverImage(details.getDefaultCoverImage());
         template.setDefaultLocation(details.getDefaultLocation());
         template.setDefaultEventMode(details.getDefaultEventMode());
         template.setDefaultMaxParticipants(details.getDefaultMaxParticipants());
-//        template.setCreatedBy(details.getCreatedBy());
+
+        template.setFaculty(details.getFaculty());
+        template.setMajor(details.getMajor());
+
+        template.getThemes().clear();
+        if (details.getThemes() != null) {
+            template.getThemes().addAll(details.getThemes());
+        }
+
         template.setUpdatedAt(LocalDateTime.now());
 
         return templateRepository.save(template);
@@ -107,5 +126,11 @@ public class EventTemplateServiceImpl implements EventTemplateService {
     @Override
     public void deleteTemplate(String id) {
         templateRepository.deleteById(id);
+    }
+
+    @Override
+    public EventTemplate getTemplateById(String id) {
+        return templateRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy bản mẫu với ID: " + id));
     }
 }

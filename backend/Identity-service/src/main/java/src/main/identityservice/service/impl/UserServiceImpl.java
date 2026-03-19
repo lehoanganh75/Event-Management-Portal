@@ -2,14 +2,22 @@ package src.main.identityservice.service.impl;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import src.main.identityservice.entity.Account;
+import src.main.identityservice.entity.Role;
 import src.main.identityservice.entity.User;
+import src.main.identityservice.repository.AccountRepository;
 import src.main.identityservice.repository.UserRepository;
 import src.main.identityservice.service.UserService;
+
+import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
 public class UserServiceImpl implements UserService {
     private final UserRepository userRepository;
+    private final AccountRepository accountRepository;
 
     @Override
     public User getProfileByUserId(String userId) {
@@ -26,6 +34,21 @@ public class UserServiceImpl implements UserService {
         userProfile.setGender(updatedProfile.getGender());
         userProfile.setMajorName(updatedProfile.getMajorName());
         return userRepository.save(userProfile);
+    }
+
+    @Override
+    public List<String> getRolesByAccountId(String accountId) {
+        Account account = accountRepository.findById(accountId)
+                .orElseThrow(() -> new RuntimeException("Account not found with id: " + accountId));
+
+        Set<Role> roles = account.getRoles();
+        if (roles == null || roles.isEmpty()) {
+            return List.of();
+        }
+
+        return roles.stream()
+                .map(Role::name)
+                .collect(Collectors.toList());
     }
 
     @Override

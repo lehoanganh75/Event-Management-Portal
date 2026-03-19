@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Plus,
@@ -16,7 +16,6 @@ import {
   Filter,
   ArrowsUpFromLine,
   X,
-  Save,
   CheckCircle2,
   AlertCircle,
   Users,
@@ -26,9 +25,10 @@ import {
   Info,
   AlertTriangle,
 } from "lucide-react";
-import { useNavigate } from "react-router-dom";
 import CreateEventModal from "../../components/events/CreateEventModal";
-import { EventPlanner } from "./EventPlanner";
+import { EventCreator } from "../../components/events/EventCreator";
+import { getAllEvents } from "../../api/eventApi";
+import { exportEventsToExcel } from "../../utils/exportExcel";
 
 const STATUS_LABELS = {
   All: "Tất cả trạng thái",
@@ -40,15 +40,27 @@ const STATUS_LABELS = {
   Cancelled: "Đã hủy",
 };
 
+const toDatetimeLocal = (value) => {
+  if (!value) return "";
+  try {
+    const d = new Date(value);
+    if (isNaN(d.getTime())) return "";
+    const pad = (n) => String(n).padStart(2, "0");
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  } catch {
+    return "";
+  }
+};
+
 const MyEvents = () => {
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("All");
+  const [creatorKey, setCreatorKey] = useState(0);
   const [sortConfig, setSortConfig] = useState("newest");
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 5;
-
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [modalMode, setModalMode] = useState("view");
   const [selectedEvent, setSelectedEvent] = useState(null);
@@ -60,9 +72,12 @@ const MyEvents = () => {
     type: "success",
   });
   const [isCreateOpen, setIsCreateOpen] = useState(false);
-  const [showPlanner, setShowPlanner] = useState(false);
-  const [plannerPrefill, setPlannerPrefill] = useState({});
-  const navigate = useNavigate();
+  const [fromPlan, setFromPlan] = useState(false);
+  const [selectedPlanId, setSelectedPlanId] = useState(null);
+  const prefillRef = useRef({});
+  const [showEventCreator, setShowEventCreator] = useState(false);
+  const [selectedEventIds, setSelectedEventIds] = useState(new Set());
+  const [selectAll, setSelectAll] = useState(false);
 
   const showToast = (message, type = "success") => {
     setToast({ show: true, message, type });
@@ -72,11 +87,11 @@ const MyEvents = () => {
   const fetchEvents = async () => {
     try {
       setLoading(true);
-      const response = await fetch("http://localhost:8080/api/events");
-      const data = await response.json();
-      setEvents(data);
+      const response = await getAllEvents();
+      setEvents(response.data || []);
     } catch (error) {
       console.error(error);
+      setEvents([]);
     } finally {
       setLoading(false);
     }
@@ -95,7 +110,6 @@ const MyEvents = () => {
         statusFilter === "All" || event.status === statusFilter;
       return matchesSearch && matchesStatus;
     });
-
     result.sort((a, b) => {
       if (sortConfig === "newest")
         return new Date(b.startTime) - new Date(a.startTime);
@@ -116,7 +130,59 @@ const MyEvents = () => {
 
   useEffect(() => {
     setCurrentPage(1);
+    setSelectedEventIds(new Set());
+    setSelectAll(false);
   }, [searchTerm, statusFilter]);
+
+  const handleSelectAll = (e) => {
+    const checked = e.target.checked;
+    setSelectAll(checked);
+    
+    if (checked) {
+      const allIds = currentItems.map(event => event.id);
+      setSelectedEventIds(new Set(allIds));
+    } else {
+      setSelectedEventIds(new Set());
+    }
+  };
+
+  const goToPage = (page) => {
+    setCurrentPage(page);
+    setSelectedEventIds(new Set());
+    setSelectAll(false);
+  };
+
+  const handleExportAll = () => {
+    if (processedEvents.length === 0) {
+      showToast("Không có dữ liệu để xuất!", "error");
+      return;
+    }
+
+    try {
+      exportEventsToExcel(processedEvents, "Danh_sach_su_kien");
+      showToast(`Xuất thành công ${processedEvents.length} sự kiện!`, "success");
+    } catch (error) {
+      console.error("Excel Export Error:", error);
+      showToast("Có lỗi khi xuất file!", "error");
+    }
+  };
+
+  const handleExportSelected = () => {
+    if (selectedEventIds.size === 0) {
+      showToast("Vui lòng chọn ít nhất một sự kiện!", "error");
+      return;
+    }
+
+    const selectedEvents = events.filter(event => selectedEventIds.has(event.id));
+    
+    try {
+      exportEventsToExcel(selectedEvents, "Danh_sach_su_kien_da_chon");
+      showToast(`Xuất thành công ${selectedEvents.length} sự kiện đã chọn!`, "success");
+    } catch (error) {
+      console.error("Excel Export Error:", error);
+      showToast("Có lỗi khi xuất file!", "error");
+    }
+  };
 
   const getStatusStyle = (status) => {
     switch (status) {
@@ -162,7 +228,9 @@ const MyEvents = () => {
     try {
       const response = await fetch(
         `http://localhost:8080/api/events/${eventToDelete.id}`,
-        { method: "DELETE" },
+        {
+          method: "DELETE",
+        },
       );
       if (response.ok) {
         setEvents(events.filter((e) => e.id !== eventToDelete.id));
@@ -202,19 +270,48 @@ const MyEvents = () => {
     }
   };
 
-  const handleSelectPlan = (prefillData) => {
-    setPlannerPrefill(prefillData);
-    setShowPlanner(true);
+  const handleSelectPlan = ({ fromPlan: fp, initialFormData }) => {
+    prefillRef.current = initialFormData || {};
+    setCreatorKey((k) => k + 1);
+    setFromPlan(fp);
+    setSelectedPlanId(initialFormData?._selectedPlanId || null);
+    setShowEventCreator(true);
   };
 
-  if (showPlanner) {
+  const handleCreateNew = ({ fromPlan: fp, initialFormData }) => {
+    prefillRef.current = initialFormData || {};
+    setCreatorKey((k) => k + 1);
+    setFromPlan(fp);
+    setShowEventCreator(true);
+  };
+
+  const updatePlanStatus = async (planId) => {
+    try {
+      await fetch(`http://localhost:8080/api/event-plans/${planId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: "Cancelled" }),
+      });
+    } catch (error) {
+      console.error("Lỗi update plan status:", error);
+    }
+  };
+
+  if (showEventCreator) {
     return (
-      <EventPlanner
-        initialStep={2}
-        initialFormData={plannerPrefill}
-        onBack={() => {
-          setShowPlanner(false);
-          setPlannerPrefill({});
+      <EventCreator
+        key={creatorKey}
+        initialFormData={prefillRef.current}
+        fromPlan={fromPlan}
+        onBack={async () => {
+          if (selectedPlanId) {
+            await updatePlanStatus(selectedPlanId);
+          }
+          setShowEventCreator(false);
+          setFromPlan(false);
+          setSelectedPlanId(null);
+          prefillRef.current = {};
+          fetchEvents();
         }}
       />
     );
@@ -268,17 +365,57 @@ const MyEvents = () => {
           </p>
         </div>
         <div className="flex gap-3">
-          <button className="flex items-center gap-2 bg-white text-slate-700 px-5 py-2.5 rounded-xl font-bold border border-slate-200 transition-all">
-            <Download size={18} /> Xuất dữ liệu
+          <button
+            onClick={handleExportAll}
+            className="flex items-center gap-2 bg-white text-slate-700 px-5 py-2.5 rounded-xl font-bold border border-slate-200 transition-all hover:bg-slate-50"
+          >
+            <Download size={18} /> Xuất tất cả ({processedEvents.length})
           </button>
+          
+          <button
+            onClick={handleExportSelected}
+            disabled={selectedEventIds.size === 0}
+            className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold transition-all ${
+              selectedEventIds.size > 0
+                ? "bg-blue-600 text-white shadow-lg shadow-blue-200 hover:bg-blue-700"
+                : "bg-slate-100 text-slate-400 cursor-not-allowed"
+            }`}
+          >
+            <Download size={18} /> Xuất đã chọn ({selectedEventIds.size})
+          </button>
+          
           <button
             onClick={() => setIsCreateOpen(true)}
-            className="flex items-center gap-2 bg-blue-600 text-white px-5 py-2.5 rounded-xl font-bold shadow-lg shadow-blue-200"
+            className="flex items-center gap-2 bg-emerald-600 text-white px-5 py-2.5 rounded-xl font-bold shadow-lg shadow-emerald-200"
           >
             <Plus size={20} /> Tạo mới
           </button>
         </div>
       </div>
+
+      {selectedEventIds.size > 0 && (
+        <motion.div 
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="bg-blue-50 border border-blue-200 rounded-2xl px-4 py-3 flex items-center justify-between"
+        >
+          <div className="flex items-center gap-3">
+            <CheckCircle2 className="text-blue-600" size={20} />
+            <span className="text-sm font-bold text-blue-800">
+              Đã chọn <span className="text-blue-600 text-lg mx-1">{selectedEventIds.size}</span> sự kiện
+            </span>
+          </div>
+          <button
+            onClick={() => {
+              setSelectedEventIds(new Set());
+              setSelectAll(false);
+            }}
+            className="text-blue-600 hover:text-blue-800 font-bold text-sm flex items-center gap-1"
+          >
+            <X size={16} /> Bỏ chọn tất cả
+          </button>
+        </motion.div>
+      )}
 
       <div className="bg-white rounded-4xl shadow-sm border border-slate-100 overflow-hidden">
         <div className="p-6 border-b border-slate-50 flex flex-col lg:flex-row gap-4">
@@ -337,6 +474,14 @@ const MyEvents = () => {
             <table className="w-full text-left min-w-250">
               <thead className="bg-slate-50/50 text-[10px] font-black text-slate-400 uppercase tracking-widest">
                 <tr>
+                  <th className="px-6 py-4 w-12">
+                    <input
+                      type="checkbox"
+                      checked={selectAll}
+                      onChange={handleSelectAll}
+                      className="w-4 h-4 rounded border-slate-300 accent-blue-600 cursor-pointer"
+                    />
+                  </th>
                   <th className="px-6 py-4">Sự kiện</th>
                   <th className="px-6 py-4">Địa điểm & Thời gian</th>
                   <th className="px-6 py-4">Đăng ký</th>
@@ -355,6 +500,23 @@ const MyEvents = () => {
                       exit={{ opacity: 0 }}
                       className="hover:bg-slate-50/50 transition-colors"
                     >
+                      <td className="px-6 py-5">
+                        <input
+                          type="checkbox"
+                          checked={selectedEventIds.has(event.id)}
+                          onChange={(e) => {
+                            const newSet = new Set(selectedEventIds);
+                            if (e.target.checked) {
+                              newSet.add(event.id);
+                            } else {
+                              newSet.delete(event.id);
+                            }
+                            setSelectedEventIds(newSet);
+                            setSelectAll(newSet.size === currentItems.length && currentItems.length > 0);
+                          }}
+                          className="w-4 h-4 rounded border-slate-300 accent-blue-600 cursor-pointer"
+                        />
+                      </td>
                       <td className="px-6 py-5">
                         <span className="font-bold text-slate-700 block">
                           {event.title}
@@ -389,7 +551,12 @@ const MyEvents = () => {
                         <span
                           className={`px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-wider ${getStatusStyle(event.status)}`}
                         >
-                          {STATUS_LABELS[event.status]}
+                          {STATUS_LABELS[event.status] ||
+                            STATUS_LABELS[
+                              event.status?.charAt(0).toUpperCase() +
+                                event.status?.slice(1).toLowerCase()
+                            ] ||
+                            event.status}
                         </span>
                       </td>
                       <td className="px-6 py-5 text-center">
@@ -429,7 +596,7 @@ const MyEvents = () => {
             </p>
             <div className="flex gap-2">
               <button
-                onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                onClick={() => goToPage(Math.max(1, currentPage - 1))}
                 disabled={currentPage === 1}
                 className="p-2 border border-slate-200 rounded-xl hover:bg-white disabled:opacity-30"
               >
@@ -438,16 +605,18 @@ const MyEvents = () => {
               {[...Array(totalPages)].map((_, i) => (
                 <button
                   key={i}
-                  onClick={() => setCurrentPage(i + 1)}
-                  className={`w-10 h-10 rounded-xl text-xs font-black transition-all ${currentPage === i + 1 ? "bg-blue-600 text-white shadow-lg shadow-blue-200" : "bg-white border border-slate-200 text-slate-400"}`}
+                  onClick={() => goToPage(i + 1)}
+                  className={`w-10 h-10 rounded-xl text-xs font-black transition-all ${
+                    currentPage === i + 1
+                      ? "bg-blue-600 text-white shadow-lg shadow-blue-200"
+                      : "bg-white border border-slate-200 text-slate-400"
+                  }`}
                 >
                   {i + 1}
                 </button>
               ))}
               <button
-                onClick={() =>
-                  setCurrentPage((p) => Math.min(totalPages, p + 1))
-                }
+                onClick={() => goToPage(Math.min(totalPages, currentPage + 1))}
                 disabled={currentPage === totalPages}
                 className="p-2 border border-slate-200 rounded-xl hover:bg-white disabled:opacity-30"
               >
@@ -546,6 +715,7 @@ const MyEvents = () => {
                   <X size={20} />
                 </button>
               </div>
+
               <form
                 onSubmit={handleUpdate}
                 className="p-8 space-y-8 max-h-[80vh] overflow-y-auto custom-scrollbar"
@@ -554,7 +724,7 @@ const MyEvents = () => {
                   <h3 className="text-xs font-black text-blue-600 uppercase tracking-[0.2em] flex items-center gap-2">
                     <Globe size={14} /> Thông tin chung
                   </h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-slate-50/50 p-5 rounded-3xl border border-slate-100">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-slate-50/50 p-6 rounded-3xl border border-slate-100">
                     <div className="space-y-1 col-span-2">
                       <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">
                         Tên sự kiện
@@ -568,32 +738,35 @@ const MyEvents = () => {
                             title: e.target.value,
                           })
                         }
-                        className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-sm font-bold text-slate-700 outline-none focus:ring-2 focus:ring-blue-500"
+                        className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-sm font-bold text-slate-700 outline-none focus:ring-2 focus:ring-blue-500 transition-all"
                       />
                     </div>
+
                     <div className="space-y-1">
                       <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">
-                        Địa điểm / Link
+                        Chủ đề sự kiện (Topic)
                       </label>
                       <input
                         disabled={modalMode === "view"}
-                        value={selectedEvent?.location || ""}
+                        placeholder="Ví dụ: Công nghệ AI mới"
+                        value={selectedEvent?.eventTopic || ""}
                         onChange={(e) =>
                           setSelectedEvent({
                             ...selectedEvent,
-                            location: e.target.value,
+                            eventTopic: e.target.value,
                           })
                         }
-                        className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-sm font-bold text-slate-700 outline-none"
+                        className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-sm font-bold text-slate-700 outline-none focus:ring-2 focus:ring-blue-500"
                       />
                     </div>
+
                     <div className="space-y-1">
                       <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">
                         Chế độ
                       </label>
                       <select
                         disabled={modalMode === "view"}
-                        value={selectedEvent?.eventMode || "Offline"}
+                        value={selectedEvent?.eventMode || "OFFLINE"}
                         onChange={(e) =>
                           setSelectedEvent({
                             ...selectedEvent,
@@ -602,17 +775,81 @@ const MyEvents = () => {
                         }
                         className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-sm font-bold text-slate-700 outline-none cursor-pointer"
                       >
-                        <option value="Offline">Offline</option>
-                        <option value="Online">Online</option>
+                        <option value="OFFLINE">Offline (Trực tiếp)</option>
+                        <option value="ONLINE">Online (Trực tuyến)</option>
                       </select>
+                    </div>
+
+                    <div className="space-y-1 col-span-2">
+                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">
+                        Địa điểm / Link cuộc họp
+                      </label>
+                      <div className="relative">
+                        <MapPin
+                          className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
+                          size={16}
+                        />
+                        <input
+                          disabled={modalMode === "view"}
+                          value={selectedEvent?.location || ""}
+                          onChange={(e) =>
+                            setSelectedEvent({
+                              ...selectedEvent,
+                              location: e.target.value,
+                            })
+                          }
+                          className="w-full pl-10 pr-4 py-3 bg-white border border-slate-200 rounded-xl text-sm font-bold text-slate-700 outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                      </div>
                     </div>
                   </div>
                 </div>
+
+                <div className="space-y-4">
+                  <h3 className="text-xs font-black text-purple-600 uppercase tracking-[0.2em] flex items-center gap-2">
+                    <ShieldCheck size={14} /> Đơn vị phụ trách
+                  </h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-slate-50/50 p-6 rounded-3xl border border-slate-100">
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">
+                        Khoa
+                      </label>
+                      <input
+                        disabled={modalMode === "view"}
+                        value={selectedEvent?.faculty || ""}
+                        onChange={(e) =>
+                          setSelectedEvent({
+                            ...selectedEvent,
+                            faculty: e.target.value,
+                          })
+                        }
+                        className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-sm font-bold text-slate-700 outline-none"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">
+                        Chuyên ngành
+                      </label>
+                      <input
+                        disabled={modalMode === "view"}
+                        value={selectedEvent?.major || ""}
+                        onChange={(e) =>
+                          setSelectedEvent({
+                            ...selectedEvent,
+                            major: e.target.value,
+                          })
+                        }
+                        className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-sm font-bold text-slate-700 outline-none"
+                      />
+                    </div>
+                  </div>
+                </div>
+
                 <div className="space-y-4">
                   <h3 className="text-xs font-black text-rose-600 uppercase tracking-[0.2em] flex items-center gap-2">
                     <Clock size={14} /> Thời gian & Quy mô
                   </h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-slate-50/50 p-5 rounded-3xl border border-slate-100">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 bg-slate-50/50 p-6 rounded-3xl border border-slate-100">
                     <div className="space-y-1">
                       <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">
                         Bắt đầu
@@ -620,14 +857,14 @@ const MyEvents = () => {
                       <input
                         type="datetime-local"
                         disabled={modalMode === "view"}
-                        value={selectedEvent?.startTime || ""}
+                        value={toDatetimeLocal(selectedEvent?.startTime)}
                         onChange={(e) =>
                           setSelectedEvent({
                             ...selectedEvent,
                             startTime: e.target.value,
                           })
                         }
-                        className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-sm font-bold text-slate-700 outline-none"
+                        className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-sm font-bold text-slate-700 outline-none focus:ring-2 focus:ring-rose-500"
                       />
                     </div>
                     <div className="space-y-1">
@@ -637,19 +874,37 @@ const MyEvents = () => {
                       <input
                         type="datetime-local"
                         disabled={modalMode === "view"}
-                        value={selectedEvent?.endTime || ""}
+                        value={toDatetimeLocal(selectedEvent?.endTime)}
                         onChange={(e) =>
                           setSelectedEvent({
                             ...selectedEvent,
                             endTime: e.target.value,
                           })
                         }
-                        className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-sm font-bold text-slate-700 outline-none"
+                        className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-sm font-bold text-slate-700 outline-none focus:ring-2 focus:ring-rose-500"
                       />
                     </div>
                     <div className="space-y-1">
+                      <label className="text-[10px] font-black text-rose-600 uppercase tracking-widest ml-1">
+                        Hạn đăng ký
+                      </label>
+                      <input
+                        type="datetime-local"
+                        disabled={modalMode === "view"}
+                        value={toDatetimeLocal(selectedEvent?.registrationDeadline)}
+                        onChange={(e) =>
+                          setSelectedEvent({
+                            ...selectedEvent,
+                            registrationDeadline: e.target.value,
+                          })
+                        }
+                        className="w-full px-4 py-3 bg-white border border-rose-200 rounded-xl text-sm font-bold text-rose-700 outline-none focus:ring-2 focus:ring-rose-500"
+                      />
+                    </div>
+
+                    <div className="space-y-1">
                       <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">
-                        Số sinh viên tối đa
+                        Giới hạn tham gia
                       </label>
                       <div className="relative">
                         <Users
@@ -670,9 +925,10 @@ const MyEvents = () => {
                         />
                       </div>
                     </div>
+
                     <div className="space-y-1">
                       <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">
-                        Trạng thái
+                        Trạng thái hiện tại
                       </label>
                       <select
                         disabled={modalMode === "view"}
@@ -683,7 +939,7 @@ const MyEvents = () => {
                             status: e.target.value,
                           })
                         }
-                        className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-sm font-bold text-slate-700 outline-none cursor-pointer"
+                        className={`w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-sm font-black outline-none cursor-pointer ${getStatusStyle(selectedEvent?.status).split(" ")[1]}`}
                       >
                         {Object.entries(STATUS_LABELS)
                           .filter(([k]) => k !== "All")
@@ -694,28 +950,74 @@ const MyEvents = () => {
                           ))}
                       </select>
                     </div>
+
+                    <div className="flex items-end pb-3 ml-4">
+                      <label className="flex items-center gap-2 cursor-pointer select-none">
+                        <input
+                          type="checkbox"
+                          disabled={modalMode === "view"}
+                          checked={selectedEvent?.hasLuckyDraw || false}
+                          onChange={(e) =>
+                            setSelectedEvent({
+                              ...selectedEvent,
+                              hasLuckyDraw: e.target.checked,
+                            })
+                          }
+                          className="w-5 h-5 accent-blue-600"
+                        />
+                        <span className="text-sm font-bold text-slate-600">
+                          Bốc thăm may mắn
+                        </span>
+                      </label>
+                    </div>
                   </div>
                 </div>
+
                 <div className="space-y-4">
                   <h3 className="text-xs font-black text-amber-600 uppercase tracking-[0.2em] flex items-center gap-2">
-                    <ShieldCheck size={14} /> Mô tả chi tiết
+                    <Info size={14} /> Nội dung & Ghi chú
                   </h3>
-                  <div className="bg-slate-50/50 p-5 rounded-3xl border border-slate-100">
-                    <textarea
-                      rows={4}
-                      disabled={modalMode === "view"}
-                      value={selectedEvent?.description || ""}
-                      onChange={(e) =>
-                        setSelectedEvent({
-                          ...selectedEvent,
-                          description: e.target.value,
-                        })
-                      }
-                      className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-sm font-bold text-slate-700 outline-none resize-none"
-                    />
+                  <div className="space-y-6 bg-slate-50/50 p-6 rounded-3xl border border-slate-100">
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">
+                        Mô tả sự kiện
+                      </label>
+                      <textarea
+                        rows={4}
+                        disabled={modalMode === "view"}
+                        value={selectedEvent?.description || ""}
+                        onChange={(e) =>
+                          setSelectedEvent({
+                            ...selectedEvent,
+                            description: e.target.value,
+                          })
+                        }
+                        className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-sm font-medium text-slate-700 outline-none resize-none focus:ring-2 focus:ring-amber-500"
+                        placeholder="Nhập mô tả chi tiết sự kiện..."
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">
+                        Ghi chú quản lý
+                      </label>
+                      <textarea
+                        rows={2}
+                        disabled={modalMode === "view"}
+                        value={selectedEvent?.notes || ""}
+                        onChange={(e) =>
+                          setSelectedEvent({
+                            ...selectedEvent,
+                            notes: e.target.value,
+                          })
+                        }
+                        className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-sm font-medium text-slate-700 outline-none resize-none"
+                        placeholder="Các lưu ý nội bộ..."
+                      />
+                    </div>
                   </div>
                 </div>
-                <div className="pt-4 flex justify-end gap-3">
+
+                <div className="pt-4 flex justify-end gap-3 sticky bottom-0 bg-white py-4 border-t border-slate-50">
                   <button
                     type="button"
                     onClick={closeModal}
@@ -728,7 +1030,7 @@ const MyEvents = () => {
                       type="submit"
                       className="flex items-center gap-2 bg-blue-600 text-white px-10 py-3 rounded-2xl font-bold shadow-xl shadow-blue-200 hover:bg-blue-700 transition-all text-sm uppercase tracking-wider"
                     >
-                      Cập nhật
+                      Cập nhật thông tin
                     </button>
                   )}
                 </div>
@@ -737,11 +1039,13 @@ const MyEvents = () => {
           </div>
         )}
       </AnimatePresence>
+
       <CreateEventModal
         isOpen={isCreateOpen}
         onClose={() => setIsCreateOpen(false)}
         onCreated={fetchEvents}
         onSelectPlan={handleSelectPlan}
+        onCreateNew={handleCreateNew}
       />
     </motion.div>
   );

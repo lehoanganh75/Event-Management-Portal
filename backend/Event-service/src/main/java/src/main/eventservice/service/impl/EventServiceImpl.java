@@ -1,13 +1,15 @@
 package src.main.eventservice.service.impl;
 
 import jakarta.transaction.Transactional;
-import jakarta.validation.ConstraintViolationException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
+import src.main.eventservice.client.UserServiceClient;
+import src.main.eventservice.dto.PlanResponseDto;
+import src.main.eventservice.dto.UserDto;
 import src.main.eventservice.entity.EventTemplate;
 import src.main.eventservice.entity.enums.EventStatus;
 import src.main.eventservice.repository.EventTemplateRepository;
@@ -26,6 +28,12 @@ public class EventServiceImpl implements EventService {
     private EventRepository eventRepository;
 
     @Autowired
+    private UserServiceClient userServiceClient;
+
+    private static final Logger log = LoggerFactory.getLogger(EventServiceImpl.class);
+
+
+    @Autowired
     private EventTemplateRepository eventTemplateRepository;
 
     @Override
@@ -35,9 +43,11 @@ public class EventServiceImpl implements EventService {
         events.forEach(this::enrichEventWithRegistrationCount);
 
         return events.stream()
-                .sorted(Comparator.comparing(Event::getStartTime).reversed())
+                .sorted(Comparator.comparing(Event::getStartTime,
+                        Comparator.nullsLast(Comparator.naturalOrder())).reversed())
                 .collect(Collectors.toList());
     }
+
     @Override
     public List<Event> getFeaturedEvents() {
         Pageable topTwo = PageRequest.of(0, 2);
@@ -199,5 +209,65 @@ public class EventServiceImpl implements EventService {
 
             return eventRepository.save(event);
         }).orElseThrow(() -> new RuntimeException("Không tìm thấy sự kiện/kế hoạch với ID: " + id));
+    }
+
+    @Override
+    public Page<Event> getAllEvents(PageRequest pageable) {
+        return null;
+    }
+
+    @Override
+    public List<PlanResponseDto> getAllPlansEnriched() {
+        List<EventStatus> planStatuses = Arrays.asList(
+                EventStatus.Draft,
+                EventStatus.PendingApproval,
+                EventStatus.Cancelled
+        );
+        List<Event> plans = eventRepository.findByStatusInAndDeletedAtIsNull(planStatuses);
+
+        return plans.stream().map(event -> {
+            UserDto creator = null;
+            UserDto approver = null;
+
+            try {
+                if (event.getCreatedByAccountId() != null) {
+                    creator = userServiceClient.getUserById(event.getCreatedByAccountId());
+                }
+            } catch (Exception e) {
+                log.warn("Không lấy được creator cho event {}: {}", event.getId(), e.getMessage());
+            }
+
+            try {
+                if (event.getApprovedByAccountId() != null) {
+                    approver = userServiceClient.getUserById(event.getApprovedByAccountId());
+                }
+            } catch (Exception e) {
+                log.warn("Không lấy được approver cho event {}: {}", event.getId(), e.getMessage());
+            }
+
+            return PlanResponseDto.from(event, creator, approver);
+        }).collect(Collectors.toList());
+    }
+    @Override
+    public List<PlanResponseDto> getPlansByAccountId(String accountId) {
+        List<EventStatus> planStatuses = Arrays.asList(
+                EventStatus.Draft,
+                EventStatus.PendingApproval,
+                EventStatus.Cancelled
+        );
+        List<Event> plans = eventRepository
+                .findByStatusInAndDeletedAtIsNullAndCreatedByAccountId(planStatuses, accountId);
+
+        return plans.stream().map(event -> {
+            UserDto creator = null;
+            try {
+                if (event.getCreatedByAccountId() != null) {
+                    creator = userServiceClient.getUserById(event.getCreatedByAccountId());
+                }
+            } catch (Exception e) {
+                log.warn("Không lấy được creator cho event {}: {}", event.getId(), e.getMessage());
+            }
+            return PlanResponseDto.from(event, creator, null);
+        }).collect(Collectors.toList());
     }
 }

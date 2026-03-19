@@ -28,7 +28,6 @@ import LuckyWheelModal from "../luckyWheelModal/LuckyWheelModal";
 import { useNavigate, useLocation } from "react-router-dom";
 import { getAllEvents } from "../../api/eventApi";
 
-/* ─── LEFT SIDEBAR (desktop only) ─── */
 function LeftSidebar({ onSearchChange, variant = "full" }) {
   const [keyword, setKeyword] = useState("");
 
@@ -557,6 +556,16 @@ export function EventFeed() {
       .finally(() => setIsLoading(false));
   }, []);
 
+  // Thêm useEffect để dispatch event khi component mount
+  useEffect(() => {
+    // Dispatch event để thông báo EventFeed đã sẵn sàng
+    const timer = setTimeout(() => {
+      window.dispatchEvent(new CustomEvent('eventFeedReady'));
+    }, 500);
+    
+    return () => clearTimeout(timer);
+  }, []);
+
   // useEffect(() => {
   //   setCurrentPage(1);
   // }, [searchKeyword, filters, sortBy]);
@@ -642,7 +651,7 @@ export function EventFeed() {
   );
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col">
+    <div id="su-kien" className="min-h-screen bg-gray-50 flex flex-col">
       {isLoading && !isLecturerView && <Preloader />}
 
       {!isLecturerView && <MobileSearchBar onSearchChange={setSearchKeyword} />}

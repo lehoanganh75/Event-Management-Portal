@@ -1,54 +1,382 @@
 import { useNavigate, useLocation } from "react-router-dom";
-import { LogIn, Search, Mail, User, GraduationCap, Globe, LogOut, Settings, ShieldCheck, ChevronDown } from "lucide-react";
+import { LogIn, Mail, User, Globe, LogOut, Settings, ShieldCheck, ChevronDown } from "lucide-react";
 import logo_iuh from "../../assets/images/logo_iuh.png";
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
+import axios from "axios";
 
 const roleMap = {
-  SUPER_ADMIN: "Quản Trị Viên",
-  ADMIN: "Quản trị hệ thống",
-  EVENT_MANAGER: "Giảng viên quản lý",
-  LECTURER: "Giảng viên",
+  SUPER_ADMIN: "Quản Trị Viên Cao Cấp",
+  ADMIN: "Quản Trị Viên",
   ORGANIZER: "Ban Tổ Chức",
-  STUDENT: "Sinh viên",
-  GUEST: "Khách mời",
+  MEMBER: "Thành Viên",
+  EVENT_PARTICIPANT: "Người Tham Gia Sự Kiện",
+  GUEST: "Khách",
 };
+
+const api = axios.create({
+  baseURL: "http://localhost:8082/api",
+});
+
+api.interceptors.request.use(
+  (config) => {
+    const token = localStorage.getItem("accessToken");
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+    return config;
+  },
+  (error) => Promise.reject(error)
+);
 
 const Header = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const [activeSection, setActiveSection] = useState(null);
   const [currentUser, setCurrentUser] = useState(null);
+  const [userRoles, setUserRoles] = useState([]);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [loading, setLoading] = useState(true);
   const menuRef = useRef(null);
+  const isScrollingRef = useRef(false);
+  const timeoutRef = useRef(null);
+  const lastClickedRef = useRef(null);
+  const lockActiveRef = useRef(false);
+  const lockTimerRef = useRef(null);
 
-  useEffect(() => {
-    const userData = localStorage.getItem("user");
-    if (userData) {
-      setCurrentUser(JSON.parse(userData));
+  const checkActiveSection = useCallback(() => {
+    if (lockActiveRef.current) return;
+
+    if (location.pathname !== "/") {
+      setActiveSection(null);
+      return;
     }
 
-    // Đóng menu khi click ra ngoài
+    if (isScrollingRef.current) return;
+
+    const sections = ["gioi-thieu", "su-kien"];
+    let foundSection = null;
+    let maxVisiblePercent = 0;
+    
+    for (const section of sections) {
+      const element = document.getElementById(section);
+      if (element) {
+        const rect = element.getBoundingClientRect();
+        const viewportHeight = window.innerHeight;
+        
+        const visibleTop = Math.max(0, rect.top);
+        const visibleBottom = Math.min(viewportHeight, rect.bottom);
+        const visibleHeight = Math.max(0, visibleBottom - visibleTop);
+        const visiblePercent = (visibleHeight / rect.height) * 100;
+        
+        if (visiblePercent > maxVisiblePercent) {
+          maxVisiblePercent = visiblePercent;
+          foundSection = section;
+        }
+      }
+    }
+    
+    if (foundSection && maxVisiblePercent > 20) {
+      setActiveSection(foundSection);
+    } else {
+      setActiveSection(null);
+    }
+  }, [location.pathname]);
+
+  useEffect(() => {
+    if (location.pathname !== "/") {
+      setActiveSection(null);
+      return;
+    }
+
+    const handleScroll = () => {
+      if (timeoutRef.current) {
+        cancelAnimationFrame(timeoutRef.current);
+      }
+      timeoutRef.current = requestAnimationFrame(checkActiveSection);
+    };
+
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    setTimeout(checkActiveSection, 100);
+    
+    return () => {
+      window.removeEventListener("scroll", handleScroll);
+      if (timeoutRef.current) {
+        cancelAnimationFrame(timeoutRef.current);
+      }
+    };
+  }, [location.pathname, checkActiveSection]);
+
+  useEffect(() => {
+    if (location.pathname !== "/") {
+      setActiveSection(null);
+      lastClickedRef.current = null;
+      lockActiveRef.current = false;
+      if (lockTimerRef.current) {
+        clearTimeout(lockTimerRef.current);
+      }
+    }
+  }, [location.pathname]);
+
+  const fetchUserData = async () => {
+    const accessToken = localStorage.getItem("accessToken");
+    
+    if (!accessToken) {
+      setLoading(false);
+      return;
+    }
+
+    try {
+      console.log("🔄 Đang lấy thông tin user...");
+      
+      try {
+        const response = await api.get("/profiles/me-with-roles");
+        console.log("✅ User data:", response.data);
+        
+        if (response.data) {
+          const userData = response.data.user || response.data;
+          setCurrentUser({
+            id: userData.id,
+            username: userData.account?.username || userData.username,
+            fullName: userData.fullName,
+            avatarUrl: userData.avatarUrl,
+          });
+          
+          const roles = response.data.roles || [];
+          setUserRoles(roles);
+          console.log("🎯 User roles:", roles);
+        }
+      } catch (error) {
+        console.log("⚠️ Không có endpoint gộp, gọi riêng lẻ...");
+        
+        const profileRes = await api.get("/profiles/me");
+        console.log("✅ User profile:", profileRes.data);
+        
+        const userData = profileRes.data;
+        setCurrentUser({
+          id: userData.id,
+          username: userData.account?.username,
+          fullName: userData.fullName,
+          avatarUrl: userData.avatarUrl,
+        });
+        
+        try {
+          const rolesRes = await api.get("/profiles/me/roles");
+          console.log("✅ User roles:", rolesRes.data);
+          setUserRoles(rolesRes.data || []);
+        } catch (rolesError) {
+          console.log("⚠️ Không lấy được roles, dùng roles từ account nếu có");
+          if (userData.account?.roles) {
+            setUserRoles(userData.account.roles);
+          }
+        }
+      }
+    } catch (error) {
+      console.error("❌ Lỗi fetch user data:", error);
+      
+      if (error.response?.status === 401) {
+        console.log("Token hết hạn, đăng xuất...");
+        handleLogout();
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchUserData();
+
     const handleClickOutside = (event) => {
       if (menuRef.current && !menuRef.current.contains(event.target)) {
         setIsMenuOpen(false);
       }
     };
+    
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, [location]);
+  }, [location.pathname]);
 
   const isLecturerPage = location.pathname.startsWith("/lecturer");
+  const isAdminPage = location.pathname.startsWith("/admin");
   const isLoginPage = location.pathname === "/login" || location.pathname === "/register";
+  const isHomePage = location.pathname === "/";
 
-  const handleLogout = () => {
-    localStorage.clear();
-    setCurrentUser(null);
-    navigate("/login");
+  const handleLogout = async () => {
+    try {
+      const refreshToken = localStorage.getItem("refreshToken");
+      if (refreshToken) {
+        await api.post("/auth/logout", null, {
+          params: { refreshToken }
+        });
+      }
+    } catch (error) {
+      console.error("Lỗi logout:", error);
+    } finally {
+      localStorage.clear();
+      setCurrentUser(null);
+      setUserRoles([]);
+      navigate("/login");
+    }
   };
+
+  const hasManagementAccess = () => {
+    return userRoles.some(r => ["ADMIN", "SUPER_ADMIN"].includes(r));
+  };
+
+  const hasOrganizerAccess = () => {
+    return userRoles.some(r => ["ORGANIZER"].includes(r));
+  };
+
+  const hasLecturerAccess = () => {
+    return userRoles.some(r => ["ADMIN", "SUPER_ADMIN", "ORGANIZER", "MEMBER"].includes(r));
+  };
+
+  const getManagementPath = () => {
+    if (userRoles.includes("SUPER_ADMIN")) {
+      return "/admin";
+    }
+    else if (userRoles.includes("ADMIN") || userRoles.includes("ORGANIZER")) {
+      return "/lecturer/events/feed";
+    }
+    else if (userRoles.includes("MEMBER")) {
+      return "/lecturer/events/feed";
+    }
+    return null;
+  };
+
+  const getManagementButtonText = () => {
+    if (userRoles.includes("SUPER_ADMIN")) {
+      return "Quản trị hệ thống";
+    } else if (userRoles.includes("ADMIN") || userRoles.includes("ORGANIZER") || userRoles.includes("MEMBER")) {
+      return "Quản lý";
+    }
+    return null;
+  };
+
+  const getManagementButtonClass = () => {
+    const baseClass = "px-4 py-2 rounded-lg text-sm font-bold transition-all duration-200";
+    
+    const isInManagementPage = isLecturerPage || isAdminPage;
+    
+    if (userRoles.includes("SUPER_ADMIN")) {
+      return `${baseClass} ${
+        isInManagementPage
+          ? "text-purple-600 bg-purple-50" 
+          : "text-slate-600 hover:text-purple-600 hover:bg-purple-50"
+      }`;
+    } else {
+      return `${baseClass} ${
+        isInManagementPage
+          ? "text-orange-600 bg-orange-50" 
+          : "text-slate-600 hover:text-orange-600 hover:bg-orange-50"
+      }`;
+    }
+  };
+
+  const getPrimaryRole = () => {
+    if (userRoles.length === 0) return "Thành viên";
+    
+    const rolePriority = ["SUPER_ADMIN", "ADMIN", "ORGANIZER", "MEMBER", "EVENT_PARTICIPANT", "GUEST"];
+    
+    for (const priorityRole of rolePriority) {
+      if (userRoles.includes(priorityRole)) {
+        return roleMap[priorityRole] || "Thành viên";
+      }
+    }
+    
+    return roleMap[userRoles[0]] || "Thành viên";
+  };
+
+  const getMenuItemClass = (itemId) => {
+    const baseClass = "px-4 py-2 rounded-lg text-sm font-bold transition-all duration-200";
+    
+    if (isHomePage) {
+      return `${baseClass} ${
+        activeSection === itemId 
+          ? "text-orange-600 bg-orange-50" 
+          : "text-slate-600 hover:text-orange-600 hover:bg-orange-50"
+      }`;
+    }
+    return `${baseClass} text-slate-600 hover:text-orange-600 hover:bg-orange-50`;
+  };
+
+  const getAttendanceClass = () => {
+    const baseClass = "px-4 py-2 rounded-lg text-sm font-bold transition-all duration-200";
+    return `${baseClass} ${
+      location.pathname === "/attendance"
+        ? "text-orange-600 bg-orange-50"
+        : "text-slate-600 hover:text-orange-600 hover:bg-orange-50"
+    }`;
+  };
+
+  const handleMenuItemClick = (itemId) => {
+    if (lockTimerRef.current) {
+      clearTimeout(lockTimerRef.current);
+    }
+    
+    lastClickedRef.current = itemId;
+    
+    lockActiveRef.current = true;
+    
+    isScrollingRef.current = true;
+    
+    setActiveSection(itemId);
+    
+    const scrollToSection = () => {
+      const el = document.getElementById(itemId);
+      if (el) {
+        window.scrollTo({ top: el.offsetTop - 100, behavior: "smooth" });
+        
+        setTimeout(() => {
+          isScrollingRef.current = false;
+        }, 500);
+      } else {
+        isScrollingRef.current = false;
+      }
+    };
+
+    if (location.pathname !== "/") {
+      navigate("/");
+      setTimeout(scrollToSection, 300);
+    } else {
+      scrollToSection();
+    }
+    
+    lockTimerRef.current = setTimeout(() => {
+      lockActiveRef.current = false;
+      checkActiveSection();
+    }, 1500);
+  };
+
+  useEffect(() => {
+    const handleEventFeedReady = () => {
+      setTimeout(checkActiveSection, 100);
+    };
+
+    window.addEventListener('eventFeedReady', handleEventFeedReady);
+    
+    return () => {
+      window.removeEventListener('eventFeedReady', handleEventFeedReady);
+    };
+  }, [checkActiveSection]);
+
+  if (loading) {
+    return (
+      <header className="w-full font-sans sticky top-0 z-50 bg-white/80 backdrop-blur-md border-b border-slate-100 shadow-sm">
+        <div className="bg-linear-to-r from-[#1a479a] to-[#2563eb] text-white py-1.5 px-4 md:px-10">
+          <div className="flex justify-between items-center">
+            <div>Hệ thống Quản lý Sự kiện IUH</div>
+            <div className="flex items-center gap-2">
+              <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+              <span>Đang tải...</span>
+            </div>
+          </div>
+        </div>
+      </header>
+    );
+  }
 
   return (
     <header className="w-full font-sans sticky top-0 z-50 bg-white/80 backdrop-blur-md border-b border-slate-100 shadow-sm">
-      {/* TOP BAR - Tinh giản và hiện đại */}
       <div className="bg-linear-to-r from-[#1a479a] to-[#2563eb] text-white py-1.5 px-4 md:px-10 flex justify-between items-center text-[11px] font-medium tracking-wide">
         <div className="hidden md:flex items-center gap-2 opacity-90">
           <span className="w-1.5 h-1.5 bg-green-400 rounded-full animate-pulse"></span>
@@ -67,10 +395,8 @@ const Header = () => {
         </div>
       </div>
 
-      {/* MAIN NAV */}
       {!isLoginPage && (
-        <div className="max-w-7xl mx-auto px-4 md:px-6 py-3 flex justify-between items-center">
-          {/* Logo với hiệu ứng hover nhẹ */}
+        <div className="w-full mx-auto px-4 md:px-6 py-3 flex justify-between items-center">
           <div 
             className="cursor-pointer transition-all duration-300 hover:opacity-80 active:scale-95" 
             onClick={() => navigate("/")}
@@ -78,100 +404,132 @@ const Header = () => {
             <img src={logo_iuh} alt="IUH Logo" className="h-10 md:h-12 object-contain" />
           </div>
 
-          {/* Navigation Links - Chỉ hiện khi không phải trang quản lý */}
-          {!isLecturerPage && (
+          {!isLecturerPage && !isAdminPage && (
             <nav className="hidden lg:flex items-center gap-1">
-              {[
-                { id: "gioi-thieu", label: "Giới thiệu" },
-                { id: "su-kien", label: "Sự kiện" },
-              ].map((item) => (
-                <button
-                  key={item.id}
-                  onClick={() => {
-                    if (location.pathname !== "/") navigate("/");
-                    setTimeout(() => {
-                      const el = document.getElementById(item.id);
-                      if (el) window.scrollTo({ top: el.offsetTop - 100, behavior: "smooth" });
-                    }, 100);
-                  }}
-                  className={`px-4 py-2 rounded-lg text-sm font-bold transition-all duration-200 ${
-                    activeSection === item.id 
-                    ? "text-blue-700 bg-blue-50" 
-                    : "text-slate-600 hover:text-blue-600 hover:bg-slate-50"
-                  }`}
-                >
-                  {item.label}
-                </button>
-              ))}
-              <a href="/attendance" className="px-4 py-2 rounded-lg text-sm font-bold text-slate-600 hover:text-blue-600 hover:bg-slate-50 transition-all">
+              <button
+                onClick={() => handleMenuItemClick("gioi-thieu")}
+                className={getMenuItemClass("gioi-thieu")}
+              >
+                Giới thiệu
+              </button>
+              
+              <button
+                onClick={() => handleMenuItemClick("su-kien")}
+                className={getMenuItemClass("su-kien")}
+              >
+                Sự kiện
+              </button>
+              
+              <a 
+                href="/attendance" 
+                className={getAttendanceClass()}
+              >
                 Điểm danh
               </a>
-              {currentUser?.roles?.some(r => ["ADMIN", "LECTURER"].includes(r)) && (
-                 <a href="/lecturer/dashboard" className="ml-2 px-4 py-2 bg-orange-50 text-orange-600 rounded-lg text-sm font-bold hover:bg-orange-100 transition-all border border-orange-100">
-                    Bảng điều khiển
-                 </a>
+              
+              {hasLecturerAccess() && getManagementPath() && (
+                <a 
+                  href={getManagementPath()} 
+                  className={getManagementButtonClass()}
+                >
+                  {getManagementButtonText()}
+                </a>
               )}
             </nav>
           )}
 
-          {/* AUTH SECTION */}
           <div className="flex items-center gap-4 border-l border-slate-100 pl-6">
             {currentUser ? (
               <div className="relative" ref={menuRef}>
-                {/* User Trigger */}
                 <div 
                   onClick={() => setIsMenuOpen(!isMenuOpen)}
                   className="flex items-center gap-3 p-1 pr-3 rounded-full hover:bg-slate-100 cursor-pointer transition-all border border-transparent hover:border-slate-200"
                 >
                   <div className="relative">
-                    <img
-                      src="https://cdn-icons-png.flaticon.com/512/3135/3135715.png"
-                      alt="Avatar"
-                      className="w-9 h-9 rounded-full border-2 border-white shadow-sm"
-                    />
+                    {currentUser.avatarUrl ? (
+                      <img
+                        src={currentUser.avatarUrl}
+                        alt="Avatar"
+                        className="w-9 h-9 rounded-full border-2 border-white shadow-sm object-cover"
+                      />
+                    ) : (
+                      <div className="w-9 h-9 bg-orange-100 text-orange-600 rounded-full flex items-center justify-center font-bold text-sm border-2 border-white shadow-sm">
+                        {currentUser.username?.charAt(0).toUpperCase() || "U"}
+                      </div>
+                    )}
                     <span className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-green-500 border-2 border-white rounded-full"></span>
                   </div>
                   <div className="hidden sm:block text-left">
-                    <p className="text-xs font-bold text-slate-800 leading-none">{currentUser.username}</p>
+                    <p className="text-xs font-bold text-slate-800 leading-none">
+                      {currentUser.fullName || currentUser.username}
+                    </p>
                     <p className="text-[10px] text-slate-500 font-medium mt-0.5 uppercase tracking-tighter">
-                       {roleMap[currentUser.roles[0]] || "Thành viên"}
+                      {getPrimaryRole()}
                     </p>
                   </div>
                   <ChevronDown size={14} className={`text-slate-400 transition-transform duration-300 ${isMenuOpen ? 'rotate-180' : ''}`} />
                 </div>
 
-                {/* Dropdown Menu - Luxury Style */}
                 {isMenuOpen && (
                   <div className="absolute right-0 mt-3 w-64 bg-white rounded-2xl shadow-2xl border border-slate-100 overflow-hidden animate-in fade-in zoom-in-95 duration-200">
-                    {/* User Info Header */}
                     <div className="p-4 bg-linear-to-br from-slate-50 to-white border-b border-slate-100">
-                      <p className="text-xs font-semibold text-slate-400 uppercase tracking-widest mb-2">Tài khoản của bạn</p>
+                      <p className="text-xs font-semibold text-slate-400 uppercase tracking-widest mb-2">
+                        Tài khoản của bạn
+                      </p>
                       <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 bg-blue-100 text-blue-600 rounded-xl flex items-center justify-center font-bold">
-                          {currentUser.username.charAt(0).toUpperCase()}
+                        <div className="w-10 h-10 bg-orange-100 text-orange-600 rounded-xl flex items-center justify-center font-bold">
+                          {currentUser.username?.charAt(0).toUpperCase() || "U"}
                         </div>
                         <div>
-                          <p className="text-sm font-black text-slate-800">{currentUser.username}</p>
-                          <p className="text-[11px] text-blue-600 font-bold flex items-center gap-1">
-                            <ShieldCheck size={12} /> {roleMap[currentUser.roles[0]]}
+                          <p className="text-sm font-black text-slate-800">
+                            {currentUser.fullName || currentUser.username}
+                          </p>
+                          <p className="text-[11px] text-orange-600 font-bold flex items-center gap-1">
+                            <ShieldCheck size={12} /> 
+                            {getPrimaryRole()}
                           </p>
                         </div>
                       </div>
                     </div>
 
-                    {/* Menu Links */}
                     <div className="p-2">
+                      {hasLecturerAccess() && getManagementPath() && (
+                        <>
+                          <button 
+                            onClick={() => {
+                              navigate(getManagementPath());
+                              setIsMenuOpen(false);
+                            }}
+                            className="w-full flex items-center gap-3 px-3 py-2.5 text-sm font-semibold text-slate-600 hover:bg-orange-50 hover:text-orange-700 rounded-xl transition-colors"
+                          >
+                            <ShieldCheck size={16} className="text-slate-400" /> 
+                            {getManagementButtonText()}
+                          </button>
+                          <div className="border-t border-slate-100 my-2"></div>
+                        </>
+                      )}
+                      
                       <button 
-                      onClick={() => navigate("/userprofile")}
-                      className="w-full flex items-center gap-3 px-3 py-2.5 text-sm font-semibold text-slate-600 hover:bg-blue-50 hover:text-blue-700 rounded-xl transition-colors">
+                        onClick={() => {
+                          navigate("/userprofile");
+                          setIsMenuOpen(false);
+                        }}
+                        className="w-full flex items-center gap-3 px-3 py-2.5 text-sm font-semibold text-slate-600 hover:bg-orange-50 hover:text-orange-700 rounded-xl transition-colors"
+                      >
                         <User size={16} className="text-slate-400" /> Hồ sơ cá nhân
                       </button>
-                      <button className="w-full flex items-center gap-3 px-3 py-2.5 text-sm font-semibold text-slate-600 hover:bg-blue-50 hover:text-blue-700 rounded-xl transition-colors">
+                      
+                      <button 
+                        onClick={() => {
+                          navigate("/settings");
+                          setIsMenuOpen(false);
+                        }}
+                        className="w-full flex items-center gap-3 px-3 py-2.5 text-sm font-semibold text-slate-600 hover:bg-orange-50 hover:text-orange-700 rounded-xl transition-colors"
+                      >
                         <Settings size={16} className="text-slate-400" /> Cài đặt tài khoản
                       </button>
                     </div>
 
-                    {/* Logout Footer */}
                     <div className="p-2 bg-slate-50 border-t border-slate-100">
                       <button 
                         onClick={handleLogout}

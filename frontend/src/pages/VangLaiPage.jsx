@@ -1,7 +1,7 @@
 import { useLocation, useNavigate } from "react-router-dom";
 import { EventFeed } from "../components/events/EventFeed";
 import Layout from "../components/layout/Layout";
-import { Award, TrendingUp, Users } from "lucide-react";
+import { Award, TrendingUp, Users, X, Calendar, MapPin, Clock, UserCheck } from "lucide-react";
 import React, { useState, useEffect } from "react";
 import { getFeaturedEvents } from "../api/eventApi";
 
@@ -11,32 +11,51 @@ const VangLaiPage = () => {
   const [featuredEvents, setFeaturedEvents] = useState([]);
   const [totalParticipants, setTotalParticipants] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [selectedEvent, setSelectedEvent] = useState(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
   useEffect(() => {
-    const loadFeaturedData = async () => {
+    const loadData = async () => {
       try {
         setLoading(true);
-        const response = await getFeaturedEvents();
-        setFeaturedEvents(response.data);
+        setError(null);
+
+        console.log("Đang gọi API getFeaturedEvents...");
+        const res = await getFeaturedEvents();
+        console.log("Dữ liệu từ API:", res.data);
+
+        if (res.data && Array.isArray(res.data)) {
+          setFeaturedEvents(res.data);
+
+          const sum = res.data.reduce((acc, ev) => {
+            return acc + (ev.registeredCount || 0);
+          }, 0);
+          setTotalParticipants(sum);
+        } else {
+          console.error("Dữ liệu không đúng định dạng:", res.data);
+          setError("Dữ liệu không hợp lệ");
+        }
       } catch (error) {
         console.error("Lỗi khi load sự kiện đang diễn ra:", error);
+        setError(error.message || "Không thể kết nối đến server");
+
+        if (error.code === "ERR_NETWORK") {
+          console.error("Lỗi kết nối mạng - Kiểm tra backend đã chạy chưa");
+        } else if (error.response) {
+          console.error(
+            "Response error:",
+            error.response.status,
+            error.response.data,
+          );
+        } else if (error.request) {
+          console.error("No response received:", error.request);
+        }
       } finally {
         setLoading(false);
       }
     };
 
-    loadFeaturedData();
-  }, []);
-
-  useEffect(() => {
-    const loadData = async () => {
-      const res = await getFeaturedEvents();
-      console.log("Dữ liệu từ API:", res.data);
-      setFeaturedEvents(res.data);
-
-      const sum = res.data.reduce((acc, ev) => acc + ev.registeredCount, 0);
-      setTotalParticipants(sum);
-    };
     loadData();
   }, []);
 
@@ -65,6 +84,10 @@ const VangLaiPage = () => {
         window.scrollTo({ top: y, behavior: "smooth" });
       }
     }
+  };
+
+  const handleEventClick = (event) => {
+    navigate(`/events/${event.id}`);
   };
 
   return (
@@ -157,35 +180,56 @@ const VangLaiPage = () => {
                 <div className="space-y-5">
                   {loading ? (
                     <div className="text-white/50 text-center py-4">
-                      Đang tải...
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white mx-auto"></div>
+                      <p className="mt-2">Đang tải...</p>
+                    </div>
+                  ) : error ? (
+                    <div className="text-white/70 text-center py-4 bg-red-500/20 rounded-lg">
+                      <p className="mb-2">⚠️ {error}</p>
+                      <button
+                        onClick={() => window.location.reload()}
+                        className="text-sm underline hover:text-white"
+                      >
+                        Thử lại
+                      </button>
                     </div>
                   ) : featuredEvents.length > 0 ? (
                     featuredEvents.map((event) => (
                       <div
                         key={event.id}
-                        className="bg-white rounded-3xl p-4 flex gap-4 text-gray-800 shadow-2xl transform hover:scale-105 transition-all cursor-pointer"
+                        onClick={() => handleEventClick(event)}
+                        className="bg-white rounded-3xl p-4 flex gap-4 text-gray-800 shadow-2xl transform hover:scale-105 transition-all cursor-pointer hover:shadow-2xl hover:border-2 hover:border-blue-400 group"
                       >
                         <img
                           src={event.imageUrl}
                           alt={event.title}
-                          className="w-20 h-20 rounded-2xl object-cover shadow-md"
+                          className="w-20 h-20 rounded-2xl object-cover shadow-md group-hover:shadow-lg transition-all"
+                          onError={(e) => {
+                            e.target.onerror = null;
+                            e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(event.title)}&background=1a479a&color=fff&size=80&length=2&font-size=0.40&bold=true`;
+                          }}
                         />
-                        <div className="flex flex-col justify-center">
+                        <div className="flex flex-col justify-center flex-1">
                           <div className="text-[10px] font-black text-blue-600 uppercase mb-1">
-                            {event.eventDate} •{" "}
-                            {event.eventTime.split(" - ")[0]}{" "}
+                            {event.eventDate || "Sắp diễn ra"} •{" "}
+                            {event.eventTime
+                              ? event.eventTime.split(" - ")[0]
+                              : "All day"}
                           </div>
-                          <div className="font-bold text-base leading-tight">
+                          <div className="font-bold text-base leading-tight line-clamp-2">
                             {event.title}
                           </div>
-                          <div className="text-[11px] text-gray-500 mt-1">
-                            📍 {event.location}
+                          <div className="text-[11px] text-gray-500 mt-1 flex items-center gap-1">
+                            <MapPin size={12} /> {event.location || "Đang cập nhật"}
+                          </div>
+                          <div className="mt-2 text-xs text-blue-600 font-semibold opacity-0 group-hover:opacity-100 transition-opacity">
+                            Xem chi tiết →
                           </div>
                         </div>
                       </div>
                     ))
                   ) : (
-                    <div className="text-white/50 text-sm italic">
+                    <div className="text-white/50 text-sm italic text-center py-4">
                       Hiện không có sự kiện nào.
                     </div>
                   )}
@@ -209,7 +253,6 @@ const VangLaiPage = () => {
           </div>
         </div>
 
-        {/* --- CONTENT SECTION --- */}
         <div className="w-full py-12 px-3 md:px-6">
           <div id="su-kien" className="p-3 md:p-6 min-h-screen">
             <EventFeed />

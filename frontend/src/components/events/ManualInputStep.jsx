@@ -44,18 +44,12 @@ const Field = ({ label, icon, required, error, hint, children }) => (
 );
 
 const Input = ({ error, style, ...props }) => {
-  const [f, setF] = useState(false);
+  const [focused, setFocused] = useState(false);
   return (
     <input
       {...props}
-      onFocus={(e) => {
-        setF(true);
-        props.onFocus?.(e);
-      }}
-      onBlur={(e) => {
-        setF(false);
-        props.onBlur?.(e);
-      }}
+      onFocus={() => setFocused(true)}
+      onBlur={() => setFocused(false)}
       style={{
         width: "100%",
         padding: "9px 12px",
@@ -67,7 +61,7 @@ const Input = ({ error, style, ...props }) => {
         transition: "border .15s",
         borderRadius: 8,
         background: error ? "#fff5f5" : "#fff",
-        border: `1px solid ${error ? "#fca5a5" : f ? "#2563eb" : "#e5e5e5"}`,
+        border: `1px solid ${error ? "#fca5a5" : focused ? "#2563eb" : "#e5e5e5"}`,
         ...style,
       }}
     />
@@ -75,19 +69,13 @@ const Input = ({ error, style, ...props }) => {
 };
 
 const Textarea = ({ error, rows = 3, ...props }) => {
-  const [f, setF] = useState(false);
+  const [focused, setFocused] = useState(false);
   return (
     <textarea
       rows={rows}
       {...props}
-      onFocus={(e) => {
-        setF(true);
-        props.onFocus?.(e);
-      }}
-      onBlur={(e) => {
-        setF(false);
-        props.onBlur?.(e);
-      }}
+      onFocus={() => setFocused(true)}
+      onBlur={() => setFocused(false)}
       style={{
         width: "100%",
         padding: "9px 12px",
@@ -101,20 +89,20 @@ const Textarea = ({ error, rows = 3, ...props }) => {
         transition: "border .15s",
         borderRadius: 8,
         background: error ? "#fff5f5" : "#fff",
-        border: `1px solid ${error ? "#fca5a5" : f ? "#2563eb" : "#e5e5e5"}`,
+        border: `1px solid ${error ? "#fca5a5" : focused ? "#2563eb" : "#e5e5e5"}`,
       }}
     />
   );
 };
 
 const Select = ({ children, ...props }) => {
-  const [f, setF] = useState(false);
+  const [focused, setFocused] = useState(false);
   return (
     <div style={{ position: "relative" }}>
       <select
         {...props}
-        onFocus={() => setF(true)}
-        onBlur={() => setF(false)}
+        onFocus={() => setFocused(true)}
+        onBlur={() => setFocused(false)}
         style={{
           width: "100%",
           padding: "9px 36px 9px 12px",
@@ -126,7 +114,7 @@ const Select = ({ children, ...props }) => {
           color: "#111",
           borderRadius: 8,
           background: "#fff",
-          border: `1px solid ${f ? "#2563eb" : "#e5e5e5"}`,
+          border: `1px solid ${focused ? "#2563eb" : "#e5e5e5"}`,
           transition: "border .15s",
         }}
       >
@@ -287,7 +275,7 @@ export const ManualInputStep = ({
     OTHER: "Khác",
   };
 
-  const [eventTypes] = useState([
+  const eventTypes = [
     "WORKSHOP",
     "SEMINAR",
     "TALKSHOW",
@@ -296,9 +284,9 @@ export const ManualInputStep = ({
     "WEBINAR",
     "CONCERT",
     "OTHER",
-  ]);
+  ];
 
-  const [formData, setFormData] = useState(() => ({
+  const [formData, setFormData] = useState({
     eventType: externalFormData?.eventType || "",
     eventTypeOther: externalFormData?.eventTypeOther || "",
     eventTitle: externalFormData?.eventTitle || externalFormData?.title || "",
@@ -322,7 +310,7 @@ export const ManualInputStep = ({
     organizers: externalFormData?.organizers || [],
     templateId: externalFormData?.templateId || null,
     hasLuckyDraw: externalFormData?.hasLuckyDraw || false,
-  }));
+  });
 
   const [errors, setErrors] = useState({});
   const [hasAttemptedSubmit, setHasAttemptedSubmit] = useState(false);
@@ -339,8 +327,6 @@ export const ManualInputStep = ({
     "Khoa Kế toán - Kiểm toán",
     "Khoa Quản trị Kinh doanh",
   ];
-
-  const isKhoa = khoaOrganizers.includes(formData.faculty);
 
   const addTheme = () => {
     const trimmed = newTheme.trim();
@@ -369,8 +355,10 @@ export const ManualInputStep = ({
   const validateForm = () => {
     const e = {};
     if (!formData.eventType) e.eventType = "Vui lòng chọn loại sự kiện";
-    if (!formData.eventTitle) e.eventTitle = "Vui lòng nhập tên sự kiện";
-    if (!formData.eventPurpose) e.eventPurpose = "Vui lòng nhập mục đích tổ chức";
+    if (formData.eventType === "OTHER" && !formData.eventTypeOther.trim())
+      e.eventType = "Vui lòng nhập loại sự kiện khác";
+    if (!formData.eventTitle.trim()) e.eventTitle = "Vui lòng nhập tên sự kiện";
+    if (!formData.eventPurpose.trim()) e.eventPurpose = "Vui lòng nhập mục đích tổ chức";
     if (!formData.faculty) e.faculty = "Vui lòng chọn khoa";
     if (!formData.startTime) e.startTime = "Vui lòng chọn thời gian bắt đầu";
     if (!formData.endTime) e.endTime = "Vui lòng chọn thời gian kết thúc";
@@ -380,11 +368,11 @@ export const ManualInputStep = ({
     if (
       formData.registrationDeadline &&
       formData.startTime &&
-      new Date(formData.registrationDeadline) >= new Date(formData.startTime)
+      new Date(formData.registrationDeadline) > new Date(formData.startTime)
     ) {
       e.registrationDeadline = "Hạn đăng ký phải trước thời gian bắt đầu";
     }
-    if (!formData.location) e.location = "Vui lòng nhập địa điểm";
+    if (!formData.location.trim()) e.location = "Vui lòng nhập địa điểm";
     if (formData.recipients.length === 0 && formData.customRecipients.length === 0)
       e.recipients = "Vui lòng chọn ít nhất một nơi nhận";
     if (formData.participants.length === 0)
@@ -502,26 +490,6 @@ export const ManualInputStep = ({
         <p style={{ fontSize: 14, color: "#888", margin: 0 }}>
           Điền đầy đủ các thông tin bên dưới
         </p>
-        {externalFormData?.templateName &&
-          externalFormData?.templateId !== "0" && (
-            <div
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: 6,
-                marginTop: 12,
-                padding: "5px 12px",
-                background: "#eff6ff",
-                border: "1px solid #dbeafe",
-                borderRadius: 8,
-              }}
-            >
-              <FileText size={12} color="#2563eb" />
-              <span style={{ fontSize: 12, fontWeight: 500, color: "#1d4ed8" }}>
-                Mẫu: {externalFormData.templateName}
-              </span>
-            </div>
-          )}
       </div>
 
       <div
@@ -541,16 +509,11 @@ export const ManualInputStep = ({
             icon={<FileText size={14} color="#2563eb" />}
             required
             error={errors.eventType}
-            hint={
-              externalFormData?.planId && !formData.eventType
-                ? "Kế hoạch chưa có loại sự kiện, vui lòng chọn bên dưới"
-                : undefined
-            }
           >
             <div
               style={{
                 display: "grid",
-                gridTemplateColumns: `repeat(${Math.min(eventTypes.length, 6)}, 1fr)`,
+                gridTemplateColumns: `repeat(auto-fit, minmax(120px, 1fr))`,
                 gap: 8,
               }}
             >
@@ -573,7 +536,7 @@ export const ManualInputStep = ({
             {formData.eventType === "OTHER" && (
               <Input
                 placeholder="Nhập loại sự kiện..."
-                error={!!errors.eventTypeOther}
+                error={!!errors.eventType}
                 value={formData.eventTypeOther}
                 onChange={(e) =>
                   setFormData({ ...formData, eventTypeOther: e.target.value })
@@ -601,6 +564,7 @@ export const ManualInputStep = ({
                 }
               />
             </Field>
+
             <Field
               label="Chủ đề sự kiện"
               icon={<FileText size={14} color="#6366f1" />}
@@ -614,7 +578,7 @@ export const ManualInputStep = ({
                 }}
               >
                 <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-                  {(formData.themes || []).map((theme) => (
+                  {formData.themes.map((theme) => (
                     <div
                       key={theme}
                       style={{
@@ -710,7 +674,7 @@ export const ManualInputStep = ({
                       border: "none",
                       cursor: "pointer",
                       fontWeight: 500,
-                      marginTop: (formData.themes || []).length > 0 ? 8 : 0,
+                      marginTop: formData.themes.length > 0 ? 8 : 0,
                       padding: 0,
                     }}
                   >
@@ -753,13 +717,7 @@ export const ManualInputStep = ({
               required
               error={errors.participants}
             >
-              <div
-                style={{
-                  display: "flex",
-                  flexWrap: "wrap",
-                  gap: 8,
-                }}
-              >
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
                 {["Sinh viên", "Giảng viên", "Cán bộ", "Khách mời"].map(
                   (type) => (
                     <Pill
@@ -769,18 +727,13 @@ export const ManualInputStep = ({
                       error={!!errors.participants}
                       onChange={() => toggleParticipant(type)}
                     />
-                  ),
+                  )
                 )}
 
                 {formData.participants
                   .filter(
                     (p) =>
-                      ![
-                        "Sinh viên",
-                        "Giảng viên",
-                        "Cán bộ",
-                        "Khách mời",
-                      ].includes(p),
+                      !["Sinh viên", "Giảng viên", "Cán bộ", "Khách mời"].includes(p)
                   )
                   .map((customP) => (
                     <div
@@ -1016,7 +969,7 @@ export const ManualInputStep = ({
             style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}
           >
             <Field
-              label="Khoa *"
+              label="Khoa"
               icon={<Users size={14} color="#a855f7" />}
               error={errors.faculty}
             >
@@ -1026,6 +979,7 @@ export const ManualInputStep = ({
                   setFormData({ ...formData, faculty: e.target.value })
                 }
               >
+                <option value="">Chọn khoa</option>
                 {khoaOrganizers.map((k) => (
                   <option key={k} value={k}>
                     {k}
@@ -1193,6 +1147,7 @@ export const ManualInputStep = ({
               )}
             </div>
           </Field>
+
           <Field
             label="Tính năng bốc thăm may mắn"
             icon={<Award size={14} color="#eab308" />}
@@ -1327,3 +1282,5 @@ export const ManualInputStep = ({
     </div>
   );
 };
+
+export default ManualInputStep;

@@ -15,9 +15,12 @@ import MyEvents from '../pages/lecturePage/MyEvents';
 import ProfileUser from '../pages/lecturePage/ProfileUser'; 
 import PlansPage from '../pages/lecturePage/ManagePlans';
 import CreateEvent from '../components/events/CreateEvent';
+import QuestionReviewPage from '../../src/components/events/Questionreviewpage';
+import PollManagerPage from '../../src/components/events/Pollmanagerpage';
+
 
 import ManagePosts from '../pages/lecturePage/ManagePosts'; 
-import CreatePost from '../components/events/CreatePost'; // Thêm import
+import CreatePost from '../components/events/CreatePost';
 import NotificationPage from '../pages/lecturePage/Notifications';
 import AdminLayout from '../pages/adminPage/AdminPage';
 import Dashboard from '../components/admin/Dashboard';
@@ -47,6 +50,8 @@ const AppRouter = () => {
           <Route path='my-events' element={<MyEvents />} />
           <Route path='create' element={<CreateEvent />} />
           <Route path=':id' element={<EventDetail />} />
+          <Route path='questions' element={<QuestionReviewPage />} />
+          <Route path='polls' element={<PollManagerPage />} />
         </Route>
 
         <Route path='posts'>

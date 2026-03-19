@@ -19,4 +19,6 @@ public interface EventTemplateService {
     void deleteTemplate(String id);
 
     Page<EventTemplate> getAllTemplates(String orgId, String search, Pageable pageable);
+
+    EventTemplate getTemplateById(String id);
 }

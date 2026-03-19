@@ -1,5 +1,6 @@
 package src.main.identityservice.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
@@ -19,6 +20,7 @@ public class User {
     @GeneratedValue(strategy = GenerationType.UUID)
     private String id;
 
+    @JsonIgnore
     @MapsId
     @OneToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "id")
