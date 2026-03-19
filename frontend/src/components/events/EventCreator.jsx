@@ -17,9 +17,36 @@ export const EventCreator = ({ onBack, initialFormData = {}, fromPlan = false })
   const handleSubmit = async (finalData) => {
     setIsSubmitting(true);
     try {
+      let accountId = null;
+      
+      const userData = localStorage.getItem("user");
+      if (userData) {
+        try {
+          const user = JSON.parse(userData);
+          accountId = user.id || user.accountId || user.account?.id || user.userId;
+        } catch (error) {
+          console.error("Lỗi parse user data:", error);
+        }
+      }
+
+      if (!accountId) {
+        const accessToken = localStorage.getItem("accessToken");
+        if (accessToken) {
+          try {
+            const base64Url = accessToken.split('.')[1];
+            const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+            const payload = JSON.parse(atob(base64));
+            accountId = payload.accountId || payload.sub || payload.userId || payload.id;
+          } catch (e) {
+            console.error("Lỗi decode token:", e);
+          }
+        }
+      }
+
       const payload = {
         ...(finalData || formData),
         status: "PendingApproval",
+        createdByAccountId: accountId,
       };
       await createEvent(payload);
       toast.success("✅ Gửi phê duyệt thành công!");
@@ -44,7 +71,6 @@ export const EventCreator = ({ onBack, initialFormData = {}, fromPlan = false })
       </div>
 
       <div className="p-6 md:p-8 max-w-5xl mx-auto">
-        {/* Step 2: Nhập thông tin thủ công */}
         {step === 2 && (
           <ManualInputStep
             formData={formData}
@@ -57,7 +83,6 @@ export const EventCreator = ({ onBack, initialFormData = {}, fromPlan = false })
           />
         )}
 
-        {/* Step 2.5: Từ kế hoạch → xem lại & submit thẳng */}
         {step === 2.5 && (
           <PlanReviewStep
             formData={formData}
@@ -65,8 +90,6 @@ export const EventCreator = ({ onBack, initialFormData = {}, fromPlan = false })
             onBack={onBack}
           />
         )}
-
-        {/* Step 3: Chương trình sự kiện → submit thẳng, không qua PreviewStep */}
         {step === 3 && (
           <EventProgramStep
             formData={formData}

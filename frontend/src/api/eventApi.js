@@ -60,6 +60,7 @@ const mapPlan = (p) => {
     attendees: Array.isArray(p.attendees) ? p.attendees : [],
     createdByName: p.createdByName || null,
     approvedByName: p.approvedByName || null,
+    approvedByAccountId: p.approvedByAccountId || null,
   };
 };
 
@@ -98,6 +99,9 @@ const mapEvent = (e) => {
     // Thêm các field cho agenda và speakers nếu có
     agenda: e.agenda || [],
     speakers: e.speakers || [],
+    createdByName: e.createdByName || null,
+    approvedByName: e.approvedByName || null,
+    approvedByAccountId: e.approvedByAccountId || null,
   };
 };
 
@@ -133,6 +137,12 @@ export const getEventById = (id) =>
     data: res.data ? mapEvent(res.data) : null,
   }));
 
+export const getMyEvents = (accountId) =>
+  api.get("/events/my", { params: { accountId } }).then((res) => ({
+    ...res,
+    data: Array.isArray(res.data) ? res.data.map(mapEvent) : [],
+  }));
+
 export const getMyPlans = (accountId) =>
   api.get("/events/plans/my", { params: { accountId } }).then((res) => ({
     ...res,
@@ -165,11 +175,21 @@ export const updatePlan = (id, planData) =>
 
 export const deletePlan = (id) => api.delete(`/events/${id}`);
 
-export const getPlansByStatus = (status) =>
-  api.get(`/events/plans/${status}`).then((res) => ({
+export const getPlansByStatus = (status, accountId) =>
+  api.get(`/events/plans/${status}`, { 
+    params: accountId ? { accountId } : {} 
+  }).then((res) => ({
     ...res,
     data: Array.isArray(res.data) ? res.data.map(mapPlan) : [],
   }));
+
+export const deleteEvent = (id) => api.delete(`/events/${id}`);
+
+export const updateEvent = (id, eventData) => api.put(`/events/${id}`, eventData);
+
+export const cancelPlan = (id, accountId) => api.patch(`/events/${id}/reject`, null, { params: { accountId } });
+
+export const approvePlan = (id, approverId, accountId) => api.patch(`/events/${id}/approve`, null, { params: { approverId, accountId } });
 
 export const createEvent = (eventData) =>
   api.post("/events", eventData).then((res) => ({

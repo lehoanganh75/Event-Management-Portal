@@ -74,7 +74,33 @@ const SelectPlanStep = ({ onSelectPlan, onBack }) => {
   const [searchTerm, setSearchTerm] = useState("");
 
   useEffect(() => {
-    getPlansByStatus("Draft")
+    let accountId = null;
+    
+    const userData = localStorage.getItem("user");
+    if (userData) {
+      try {
+        const user = JSON.parse(userData);
+        accountId = user.id || user.accountId || user.account?.id || user.userId;
+      } catch (error) {
+        console.error("Lỗi parse user data:", error);
+      }
+    }
+
+    if (!accountId) {
+      const accessToken = localStorage.getItem("accessToken");
+      if (accessToken) {
+        try {
+          const base64Url = accessToken.split('.')[1];
+          const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+          const payload = JSON.parse(atob(base64));
+          accountId = payload.accountId || payload.sub || payload.userId || payload.id;
+        } catch (e) {
+          console.error("Lỗi decode token:", e);
+        }
+      }
+    }
+
+    getPlansByStatus("Draft", accountId)
       .then((res) => setPlans(Array.isArray(res.data) ? res.data : []))
       .catch(() => setPlans([]))
       .finally(() => setLoading(false));

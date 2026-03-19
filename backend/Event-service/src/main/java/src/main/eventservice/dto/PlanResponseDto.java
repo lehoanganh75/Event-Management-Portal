@@ -40,6 +40,8 @@ public class PlanResponseDto {
     private String createdByAvatar;
     private String approvedByName;
 
+    private String approvedByAccountId;
+
     public static PlanResponseDto from(Event event, UserDto creator, UserDto approver) {
         PlanResponseDto dto = new PlanResponseDto();
         dto.setId(event.getId());
@@ -69,7 +71,11 @@ public class PlanResponseDto {
         dto.setOrganizingCommittee(event.getOrganizingCommittee());
         dto.setCreatedAt(event.getCreatedAt() != null ? event.getCreatedAt().toString() : null);
         dto.setUpdatedAt(event.getUpdatedAt() != null ? event.getUpdatedAt().toString() : null);
+        dto.setApprovedByAccountId(event.getApprovedByAccountId());
 
+        if (approver != null) {
+            dto.setApprovedByName(approver.getFullName());
+        }
         if (creator != null) {
             dto.setCreatedByName(creator.getFullName());
             dto.setCreatedByAvatar(creator.getAvatarUrl());
