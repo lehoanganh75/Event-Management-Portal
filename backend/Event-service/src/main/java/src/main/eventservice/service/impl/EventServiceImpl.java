@@ -142,6 +142,15 @@ public class EventServiceImpl implements EventService {
         return plans;
     }
 
+    @Override
+    public List<Event> getPlansByStatusById(EventStatus status, String accountId) {
+        List<EventStatus> planStatuses = Arrays.asList(status);
+        List<Event> plans = eventRepository
+                .findByStatusInAndDeletedAtIsNullAndCreatedByAccountId(planStatuses, accountId);
+        plans.forEach(this::enrichEventWithRegistrationCount);
+        return plans;
+    }
+
     @Transactional
     @Override
     public Event createPlan(Event event) {
@@ -198,13 +207,17 @@ public class EventServiceImpl implements EventService {
 
     @Transactional
     @Override
-    public Event updateEventStatus(String id, EventStatus status, String approverId) {
+    public Event updateEventStatus(String id, EventStatus status, String approverId, String accountId) {
         return eventRepository.findById(id).map(event -> {
             event.setStatus(status);
             event.setUpdatedAt(LocalDateTime.now());
 
             if (status == EventStatus.Published && approverId != null) {
                 event.setApprovedByAccountId(approverId);
+            }
+
+            if (status == EventStatus.Cancelled) {
+                event.setApprovedByAccountId(null);
             }
 
             return eventRepository.save(event);
@@ -269,5 +282,48 @@ public class EventServiceImpl implements EventService {
             }
             return PlanResponseDto.from(event, creator, null);
         }).collect(Collectors.toList());
+    }
+
+    @Override
+    public List<PlanResponseDto> getEventsByAccountId(String accountId) {
+        List<EventStatus> eventStatuses = Arrays.asList(
+                EventStatus.PendingApproval,
+                EventStatus.Published,
+                EventStatus.Ongoing,
+                EventStatus.Completed,
+                EventStatus.Cancelled
+        );
+
+        List<Event> events = eventRepository
+                .findByStatusInAndDeletedAtIsNullAndCreatedByAccountId(eventStatuses, accountId);
+
+        events.forEach(this::enrichEventWithRegistrationCount);
+
+        return events.stream()
+                .sorted(Comparator.comparing(Event::getStartTime,
+                        Comparator.nullsLast(Comparator.naturalOrder())).reversed())
+                .map(event -> {
+                    UserDto creator = null;
+                    UserDto approver = null;
+
+                    try {
+                        if (event.getCreatedByAccountId() != null) {
+                            creator = userServiceClient.getUserById(event.getCreatedByAccountId());
+                        }
+                    } catch (Exception e) {
+                        log.warn("Không lấy được creator: {}", e.getMessage());
+                    }
+
+                    try {
+                        if (event.getApprovedByAccountId() != null) {
+                            approver = userServiceClient.getUserById(event.getApprovedByAccountId());
+                        }
+                    } catch (Exception e) {
+                        log.warn("Không lấy được approver: {}", e.getMessage());
+                    }
+
+                    return PlanResponseDto.from(event, creator, approver);
+                })
+                .collect(Collectors.toList());
     }
 }

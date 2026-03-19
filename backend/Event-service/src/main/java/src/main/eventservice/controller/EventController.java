@@ -15,6 +15,7 @@ import src.main.eventservice.entity.enums.EventStatus;
 import src.main.eventservice.service.EventService;
 import src.main.eventservice.entity.Event;
 
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 
@@ -70,6 +71,11 @@ public class EventController {
         return ResponseEntity.ok(PlanResponseDto.from(event, creator, approver));
     }
 
+    @GetMapping("/my")
+    public ResponseEntity<List<PlanResponseDto>> getMyEvents(@RequestParam String accountId) {
+        return ResponseEntity.ok(eventService.getEventsByAccountId(accountId));
+    }
+
     // 3. Tạo mới
     @PostMapping
     public ResponseEntity<Event> createEvent(@Valid @RequestBody Event event) {
@@ -101,15 +107,30 @@ public class EventController {
         return ResponseEntity.ok(eventService.getPlansByAccountId(accountId));
     }
 
+//    @GetMapping("/plans/{statusName}")
+//    public ResponseEntity<List<Event>> getPlansByStatusName(@PathVariable String statusName) {
+//        try {
+//            String formattedStatus = statusName.substring(0, 1).toUpperCase()
+//                    + statusName.substring(1).toLowerCase();
+//
+//            EventStatus status = EventStatus.valueOf(formattedStatus);
+//            return ResponseEntity.ok(eventService.getPlansByStatus(status));
+//        } catch (IllegalArgumentException | IndexOutOfBoundsException e) {
+//            return ResponseEntity.badRequest().build();
+//        }
+//    }
     @GetMapping("/plans/{statusName}")
-    public ResponseEntity<List<Event>> getPlansByStatusName(@PathVariable String statusName) {
+    public ResponseEntity<List<Event>> getPlansByStatusName(
+            @PathVariable String statusName,
+            @RequestParam String accountId) {
         try {
-            String formattedStatus = statusName.substring(0, 1).toUpperCase()
-                    + statusName.substring(1).toLowerCase();
+            EventStatus status = Arrays.stream(EventStatus.values())
+                    .filter(e -> e.name().equalsIgnoreCase(statusName))
+                    .findFirst()
+                    .orElseThrow(() -> new IllegalArgumentException("Invalid status"));
 
-            EventStatus status = EventStatus.valueOf(formattedStatus);
-            return ResponseEntity.ok(eventService.getPlansByStatus(status));
-        } catch (IllegalArgumentException | IndexOutOfBoundsException e) {
+            return ResponseEntity.ok(eventService.getPlansByStatusById(status, accountId));
+        } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().build();
         }
     }
@@ -130,21 +151,28 @@ public class EventController {
         }
     }
 
-    // 8. Phê duyệt kế hoạch
+    // Phê duyệt
     @PatchMapping("/{id}/approve")
-    public ResponseEntity<Event> approvePlan(@PathVariable String id, @RequestParam String approverId) {
+    public ResponseEntity<Event> approvePlan(
+            @PathVariable String id,
+            @RequestParam String approverId,
+            @RequestParam String accountId) {
+
         if (approverId == null || approverId.isEmpty()) {
             return ResponseEntity.badRequest().build();
         }
 
-        Event approvedEvent = eventService.updateEventStatus(id, EventStatus.Published, approverId);
+        Event approvedEvent = eventService.updateEventStatus(id, EventStatus.Published, approverId, accountId);
         return ResponseEntity.ok(approvedEvent);
     }
 
-    // 9. Từ chối kế hoạch
+    // Từ chối
     @PatchMapping("/{id}/reject")
-    public ResponseEntity<Event> rejectPlan(@PathVariable String id) {
-        Event rejectedEvent = eventService.updateEventStatus(id, EventStatus.Cancelled, null);
+    public ResponseEntity<Event> rejectPlan(
+            @PathVariable String id,
+            @RequestParam String accountId) {
+
+        Event rejectedEvent = eventService.updateEventStatus(id, EventStatus.Cancelled, null, accountId);
         return ResponseEntity.ok(rejectedEvent);
     }
 }

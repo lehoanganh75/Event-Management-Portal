@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Outlet, Link, useLocation } from "react-router-dom";
+import { Outlet, Link, useLocation, useNavigate } from "react-router-dom";
 import {
   LayoutDashboard,
   Calendar,
@@ -22,11 +22,20 @@ import Header from "../common/Header";
 
 const LecturerLayout = () => {
   const location = useLocation();
+  const navigate = useNavigate();
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [openMenus, setOpenMenus] = useState({ "/lecturer/events/my-events": true });
+  const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
 
   const toggleMenu = (path) => {
     setOpenMenus((prev) => ({ ...prev, [path]: !prev[path] }));
+  };
+
+  const handleLogout = () => {
+    setIsLogoutModalOpen(false);
+    localStorage.removeItem("user");
+    localStorage.removeItem("accessToken");
+    navigate("/");
   };
 
   const sidebars = [
@@ -212,6 +221,7 @@ const LecturerLayout = () => {
 
           <div className={`p-10 mt-auto border-t border-slate-50 flex flex-col gap-2 ${isCollapsed ? "items-center" : ""}`}>
             <button
+              onClick={() => setIsLogoutModalOpen(true)}
               className={`flex items-center gap-3 text-slate-500 font-bold hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-all ${
                 isCollapsed ? "h-12 w-12 justify-center" : "px-4 py-3 text-xs w-full"
               }`}
@@ -243,6 +253,50 @@ const LecturerLayout = () => {
           </main>
         </div>
       </div>
+
+      <AnimatePresence>
+        {isLogoutModalOpen && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setIsLogoutModalOpen(false)}
+              className="absolute inset-0 bg-slate-900/40 backdrop-blur-md"
+            />
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.9, opacity: 0, y: 20 }}
+              className="relative bg-white w-full max-w-sm rounded-3xl shadow-2xl p-8 text-center"
+            >
+              <div className="w-16 h-16 bg-rose-50 text-rose-500 rounded-full flex items-center justify-center mx-auto mb-6">
+                <LogOut size={32} />
+              </div>
+              <h2 className="text-xl font-black text-slate-800 mb-2 tracking-tight">
+                Xác nhận đăng xuất?
+              </h2>
+              <p className="text-slate-500 text-sm leading-relaxed mb-8">
+                Bạn có chắc chắn muốn đăng xuất khỏi hệ thống không?
+              </p>
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setIsLogoutModalOpen(false)}
+                  className="flex-1 py-3 rounded-2xl font-bold text-slate-500 hover:bg-slate-100 transition-all"
+                >
+                  Hủy bỏ
+                </button>
+                <button
+                  onClick={handleLogout}
+                  className="flex-1 py-3 rounded-2xl font-bold bg-rose-500 text-white shadow-lg shadow-rose-100 hover:bg-rose-600 transition-all text-sm uppercase"
+                >
+                  Đăng xuất
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };

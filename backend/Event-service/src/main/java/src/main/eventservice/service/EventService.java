@@ -34,6 +34,8 @@ public interface EventService {
 
     List<Event> getPlansByStatus(EventStatus status);
 
+    List<Event> getPlansByStatusById(EventStatus status, String accountId);
+
     @Transactional
     Event createPlan(Event event);
 
@@ -44,7 +46,7 @@ public interface EventService {
     void deletePlan(String id);
 
     @Transactional
-    Event updateEventStatus(String id, EventStatus status, String approverId);
+    Event updateEventStatus(String id, EventStatus status, String approverId, String accountId);
 
     Page<Event> getAllEvents(PageRequest pageable);
 
@@ -52,4 +54,5 @@ public interface EventService {
 
     List<PlanResponseDto> getPlansByAccountId(String accountId);
 
+    List<PlanResponseDto> getEventsByAccountId(String accountId);
 }

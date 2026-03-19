@@ -227,6 +227,32 @@ export const PlanReviewStep = ({
   const handleSubmit = async () => {
     setIsSubmitting(true);
     try {
+      let accountId = null;
+      
+      const userData = localStorage.getItem("user");
+      if (userData) {
+        try {
+          const user = JSON.parse(userData);
+          accountId = user.id || user.accountId || user.account?.id || user.userId;
+        } catch (error) {
+          console.error("Lỗi parse user data:", error);
+        }
+      }
+
+      if (!accountId) {
+        const accessToken = localStorage.getItem("accessToken");
+        if (accessToken) {
+          try {
+            const base64Url = accessToken.split('.')[1];
+            const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+            const payload = JSON.parse(atob(base64));
+            accountId = payload.accountId || payload.sub || payload.userId || payload.id;
+          } catch (e) {
+            console.error("Lỗi decode token:", e);
+          }
+        }
+      }
+
       const payload = {
         organizationId: data.organizationId || "org-it",
         planId: data.planId || data.id || "",
@@ -256,6 +282,7 @@ export const PlanReviewStep = ({
         notes: (data.notes || "").trim(),
         templateId: data.templateId || null,
         coverImage: data.coverImage || "",
+        createdByAccountId: accountId,
       };
 
       console.log("📤 Submit event payload:", payload);

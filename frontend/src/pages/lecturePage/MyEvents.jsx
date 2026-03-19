@@ -24,20 +24,42 @@ import {
   ShieldCheck,
   Info,
   AlertTriangle,
+  Hash,
+  Award,
+  MessageSquare,
+  Building2,
+  UserPlus,
+  FileText,
+  Mail,
+  BookOpen,
+  Image as ImageIcon
 } from "lucide-react";
 import CreateEventModal from "../../components/events/CreateEventModal";
 import { EventCreator } from "../../components/events/EventCreator";
-import { getAllEvents } from "../../api/eventApi";
+import { getMyEvents, getMyPlans, deleteEvent, updateEvent, cancelPlan } from "../../api/eventApi";
 import { exportEventsToExcel } from "../../utils/exportExcel";
 
 const STATUS_LABELS = {
   All: "Tất cả trạng thái",
-  Draft: "Bản nháp",
   PendingApproval: "Chờ duyệt",
   Published: "Đã đăng",
   Ongoing: "Đang diễn ra",
   Completed: "Đã kết thúc",
   Cancelled: "Đã hủy",
+};
+
+const EVENT_TYPE_LABELS = {
+  WORKSHOP: "Workshop",
+  CONFERENCE: "Hội nghị",
+  SEMINAR: "Seminar",
+  TALKSHOW: "Talkshow",
+  COMPETITION: "Cuộc thi",
+  WEBINAR: "Webinar",
+  CONCERT: "Buổi biểu diễn",
+  MEETING: "Họp",
+  TRAINING: "Đào tạo",
+  TEAM_BUILDING: "Team building",
+  OTHER: "Khác",
 };
 
 const toDatetimeLocal = (value) => {
@@ -51,6 +73,68 @@ const toDatetimeLocal = (value) => {
     return "";
   }
 };
+
+const formatDate = (dateStr, format = "full") => {
+  if (!dateStr) return "Chưa cập nhật";
+  try {
+    const d = new Date(dateStr);
+    if (isNaN(d.getTime())) return "Chưa cập nhật";
+
+    const day = d.getDate().toString().padStart(2, "0");
+    const month = (d.getMonth() + 1).toString().padStart(2, "0");
+    const year = d.getFullYear();
+    const hour = d.getHours().toString().padStart(2, "0");
+    const min = d.getMinutes().toString().padStart(2, "0");
+
+    if (format === "short") return `${day}/${month}/${year}`;
+    if (format === "time") return `${hour}:${min}`;
+    return `${hour}:${min} - ${day}/${month}/${year}`;
+  } catch {
+    return "Chưa cập nhật";
+  }
+};
+
+const getArrayDisplay = (arr) => {
+  if (!arr || arr.length === 0) return "Không có";
+  return arr.join(", ");
+};
+
+const Section = ({ title, icon: Icon, color = "blue", children }) => (
+  <div className="space-y-4">
+    <div className="flex items-center gap-2">
+      <div className={`p-1.5 bg-${color}-100 rounded-lg`}>
+        <Icon size={16} className={`text-${color}-600`} />
+      </div>
+      <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest">
+        {title}
+      </h3>
+      <div className="flex-1 h-px bg-slate-200 ml-2" />
+    </div>
+    <div className="bg-slate-50/80 rounded-2xl p-5 border border-slate-100">
+      {children}
+    </div>
+  </div>
+);
+
+const InfoRow = ({ label, value, icon: Icon, color = "slate" }) => (
+  <div className="flex items-start gap-3 py-2 border-b border-slate-100 last:border-0">
+    <div className={`p-1.5 bg-${color}-50 rounded-lg mt-0.5`}>
+      <Icon size={14} className={`text-${color}-600`} />
+    </div>
+    <div className="flex-1">
+      <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">
+        {label}
+      </p>
+      <div className="text-sm font-semibold text-slate-800">{value || "—"}</div>
+    </div>
+  </div>
+);
+
+const Badge = ({ children, color = "slate" }) => (
+  <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-black uppercase bg-${color}-100 text-${color}-700`}>
+    {children}
+  </span>
+);
 
 const MyEvents = () => {
   const [events, setEvents] = useState([]);
@@ -87,8 +171,49 @@ const MyEvents = () => {
   const fetchEvents = async () => {
     try {
       setLoading(true);
-      const response = await getAllEvents();
-      setEvents(response.data || []);
+      
+      let accountId = null;
+      
+      const userData = localStorage.getItem("user");
+      if (userData) {
+        try {
+          const user = JSON.parse(userData);
+          accountId = user.id || user.accountId || user.account?.id || user.userId;
+        } catch (error) {
+          console.error("Lỗi parse user data:", error);
+        }
+      }
+
+      if (!accountId) {
+        const accessToken = localStorage.getItem("accessToken");
+        if (accessToken) {
+          try {
+            const base64Url = accessToken.split('.')[1];
+            const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+            const payload = JSON.parse(atob(base64));
+            accountId = payload.accountId || payload.sub || payload.userId || payload.id;
+          } catch (e) {
+            console.error("Lỗi decode token:", e);
+          }
+        }
+      }
+
+      if (accountId) {
+        // Gọi đồng thời cả API Events (Đã duyệt) và Plans (Chờ duyệt/Từ chối)
+        const [eventsResponse, plansResponse] = await Promise.all([
+          getMyEvents(accountId).catch(() => ({ data: [] })),
+          getMyPlans(accountId).catch(() => ({ data: [] }))
+        ]);
+
+        // Gộp mảng và loại bỏ các item trùng lặp ID (nếu có)
+        const combinedEvents = [...(eventsResponse.data || []), ...(plansResponse.data || [])];
+        const uniqueEvents = Array.from(new Map(combinedEvents.map(item => [item.id, item])).values());
+        
+        setEvents(uniqueEvents);
+      } else {
+        showToast("Không tìm thấy thông tin tài khoản", "error");
+        setEvents([]);
+      }
     } catch (error) {
       console.error(error);
       setEvents([]);
@@ -103,6 +228,9 @@ const MyEvents = () => {
 
   const processedEvents = useMemo(() => {
     let result = events.filter((event) => {
+      // Bỏ qua các sự kiện đang ở trạng thái nháp (Draft)
+      if (event.status === "Draft" || event.status === "DRAFT") return false;
+
       const matchesSearch =
         event.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
         event.location?.toLowerCase().includes(searchTerm.toLowerCase());
@@ -185,22 +313,22 @@ const MyEvents = () => {
   };
 
   const getStatusStyle = (status) => {
-    switch (status) {
-      case "Published":
-        return "bg-blue-50 text-blue-600 border border-blue-100";
-      case "Ongoing":
-        return "bg-emerald-50 text-emerald-600 border border-emerald-100";
-      case "Draft":
-        return "bg-slate-100 text-slate-500";
-      case "PendingApproval":
-        return "bg-amber-50 text-amber-600 border border-amber-100";
-      case "Completed":
-        return "bg-purple-50 text-purple-600 border border-purple-100";
-      case "Cancelled":
-        return "bg-rose-50 text-rose-600 border border-rose-100";
-      default:
-        return "bg-slate-50 text-slate-500";
-    }
+    const statusUpper = status?.toUpperCase?.() || "";
+    if (statusUpper === "PUBLISHED") return "bg-blue-50 text-blue-600 border border-blue-100";
+    if (statusUpper === "ONGOING") return "bg-emerald-50 text-emerald-600 border border-emerald-100";
+    if (statusUpper === "PENDINGAPPROVAL" || statusUpper === "PENDING_APPROVAL") return "bg-amber-50 text-amber-600 border border-amber-100";
+    if (statusUpper === "COMPLETED") return "bg-purple-50 text-purple-600 border border-purple-100";
+    if (statusUpper === "CANCELLED") return "bg-rose-50 text-rose-600 border border-rose-100";
+    return "bg-slate-50 text-slate-500 border border-slate-200";
+  };
+
+  const getStatusColorName = (status) => {
+    const statusUpper = status?.toUpperCase?.() || "";
+    if (statusUpper === "PUBLISHED") return "blue";
+    if (statusUpper === "ONGOING" || statusUpper === "COMPLETED") return "emerald";
+    if (statusUpper === "PENDINGAPPROVAL" || statusUpper === "PENDING_APPROVAL") return "amber";
+    if (statusUpper === "CANCELLED" || statusUpper === "REJECTED") return "rose";
+    return "slate";
   };
 
   const openModal = (event, mode) => {
@@ -226,20 +354,11 @@ const MyEvents = () => {
 
   const handleConfirmDelete = async () => {
     try {
-      const response = await fetch(
-        `http://localhost:8080/api/events/${eventToDelete.id}`,
-        {
-          method: "DELETE",
-        },
-      );
-      if (response.ok) {
-        setEvents(events.filter((e) => e.id !== eventToDelete.id));
-        showToast("Xóa thành công!", "success");
-      } else {
-        showToast("Xóa thất bại!", "error");
-      }
+      await deleteEvent(eventToDelete.id);
+      setEvents(events.filter((e) => e.id !== eventToDelete.id));
+      showToast("Xóa thành công!", "success");
     } catch {
-      showToast("Lỗi kết nối!", "error");
+      showToast("Xóa thất bại!", "error");
     } finally {
       closeDeleteModal();
     }
@@ -248,23 +367,12 @@ const MyEvents = () => {
   const handleUpdate = async (e) => {
     e.preventDefault();
     try {
-      const response = await fetch(
-        `http://localhost:8080/api/events/${selectedEvent.id}`,
-        {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(selectedEvent),
-        },
+      await updateEvent(selectedEvent.id, selectedEvent);
+      setEvents(
+        events.map((ev) => (ev.id === selectedEvent.id ? selectedEvent : ev)),
       );
-      if (response.ok) {
-        setEvents(
-          events.map((ev) => (ev.id === selectedEvent.id ? selectedEvent : ev)),
-        );
-        closeModal();
-        showToast("Cập nhật thành công!", "success");
-      } else {
-        showToast("Cập nhật thất bại!", "error");
-      }
+      closeModal();
+      showToast("Cập nhật thành công!", "success");
     } catch {
       showToast("Lỗi server!", "error");
     }
@@ -287,11 +395,16 @@ const MyEvents = () => {
 
   const updatePlanStatus = async (planId) => {
     try {
-      await fetch(`http://localhost:8080/api/event-plans/${planId}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status: "Cancelled" }),
-      });
+      await cancelPlan(planId);
+      let accountId = "user-id";
+      const userStr = localStorage.getItem("user");
+      if (userStr) {
+        try {
+          const user = JSON.parse(userStr);
+          accountId = user.id || user.accountId || accountId;
+        } catch (e) {}
+      }
+      await cancelPlan(planId, accountId);
     } catch (error) {
       console.error("Lỗi update plan status:", error);
     }
@@ -470,6 +583,15 @@ const MyEvents = () => {
                 size={40}
               />
             </div>
+          ) : currentItems.length === 0 ? (
+            <div className="text-center py-20 text-slate-400">
+              <CalendarIcon size={48} className="mx-auto mb-4 opacity-30" />
+              <p className="text-base font-medium">
+                {searchTerm || statusFilter !== "All"
+                  ? "Không tìm thấy sự kiện phù hợp"
+                  : "Chưa có sự kiện nào"}
+              </p>
+            </div>
           ) : (
             <table className="w-full text-left min-w-250">
               <thead className="bg-slate-50/50 text-[10px] font-black text-slate-400 uppercase tracking-widest">
@@ -485,6 +607,7 @@ const MyEvents = () => {
                   <th className="px-6 py-4">Sự kiện</th>
                   <th className="px-6 py-4">Địa điểm & Thời gian</th>
                   <th className="px-6 py-4">Đăng ký</th>
+                  <th className="px-6 py-4">Người duyệt</th>
                   <th className="px-6 py-4 text-center">Trạng thái</th>
                   <th className="px-6 py-4 text-center">Thao tác</th>
                 </tr>
@@ -545,6 +668,25 @@ const MyEvents = () => {
                               {event.maxParticipants}
                             </span>
                           </div>
+                        </div>
+                      </td>
+                      <td className="px-6 py-5">
+                        <div className="flex items-center gap-2">
+                          {event.approvedByName ? (
+                            <>
+                              <span className="text-xs font-bold text-slate-700 line-clamp-1">
+                                {event.approvedByName}
+                              </span>
+                            </>
+                        ) : event.approvedByAccountId ? (
+                          <>
+                            <span className="text-xs font-bold text-slate-700 line-clamp-1">
+                              Admin
+                            </span>
+                          </>
+                          ) : (
+                            <span className="text-xs font-medium text-slate-400 italic">Chưa duyệt</span>
+                          )}
                         </div>
                       </td>
                       <td className="px-6 py-5 text-center">
@@ -689,9 +831,9 @@ const MyEvents = () => {
               initial={{ scale: 0.9, opacity: 0, y: 20 }}
               animate={{ scale: 1, opacity: 1, y: 0 }}
               exit={{ scale: 0.9, opacity: 0, y: 20 }}
-              className="relative bg-white w-full max-w-3xl rounded-4xl shadow-2xl overflow-hidden"
+              className="relative bg-white w-full max-w-5xl rounded-3xl shadow-2xl overflow-hidden max-h-[90vh] flex flex-col"
             >
-              <div className="p-6 border-b flex justify-between items-center bg-slate-50/50">
+              <div className="px-8 py-5 border-b border-slate-100 flex items-center justify-between bg-gradient-to-r from-slate-50 to-white flex-shrink-0">
                 <div className="flex items-center gap-3">
                   <div
                     className={`p-2 rounded-xl ${modalMode === "view" ? "bg-blue-100 text-blue-600" : "bg-amber-100 text-amber-600"}`}
@@ -702,11 +844,16 @@ const MyEvents = () => {
                       <Edit2 size={20} />
                     )}
                   </div>
-                  <h2 className="text-xl font-black text-slate-800 uppercase tracking-tight">
-                    {modalMode === "view"
-                      ? "Thông tin chi tiết"
-                      : "Cấu hình sự kiện"}
-                  </h2>
+                  <div>
+                    <h2 className="text-xl font-black text-slate-800 uppercase tracking-tight">
+                      {modalMode === "view"
+                        ? "Thông tin chi tiết sự kiện"
+                        : "Chỉnh sửa sự kiện"}
+                    </h2>
+                    <p className="text-xs text-slate-400 font-medium">
+                      {selectedEvent?.id ? `#${selectedEvent.id.substring(0, 8).toUpperCase()}` : ""}
+                    </p>
+                  </div>
                 </div>
                 <button
                   onClick={closeModal}
@@ -716,325 +863,278 @@ const MyEvents = () => {
                 </button>
               </div>
 
-              <form
-                onSubmit={handleUpdate}
-                className="p-8 space-y-8 max-h-[80vh] overflow-y-auto custom-scrollbar"
-              >
-                <div className="space-y-4">
-                  <h3 className="text-xs font-black text-blue-600 uppercase tracking-[0.2em] flex items-center gap-2">
-                    <Globe size={14} /> Thông tin chung
-                  </h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-slate-50/50 p-6 rounded-3xl border border-slate-100">
-                    <div className="space-y-1 col-span-2">
-                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">
-                        Tên sự kiện
-                      </label>
-                      <input
-                        disabled={modalMode === "view"}
-                        value={selectedEvent?.title || ""}
-                        onChange={(e) =>
-                          setSelectedEvent({
-                            ...selectedEvent,
-                            title: e.target.value,
-                          })
-                        }
-                        className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-sm font-bold text-slate-700 outline-none focus:ring-2 focus:ring-blue-500 transition-all"
-                      />
-                    </div>
+              <div className="flex-1 overflow-y-auto p-8 custom-scrollbar">
+                <form onSubmit={handleUpdate} className="space-y-8">
+                  {modalMode === "view" ? (
+                    <>
+                      <Section title="Thông tin cơ bản" icon={FileText} color="blue">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                          <InfoRow label="ID" value={selectedEvent?.id ? `#${selectedEvent.id.substring(0, 8).toUpperCase()}` : ""} icon={Hash} color="slate" />
+                          <InfoRow label="Tên sự kiện" value={selectedEvent?.title} icon={FileText} color="blue" />
+                          <InfoRow label="Loại sự kiện" value={EVENT_TYPE_LABELS[selectedEvent?.type] || selectedEvent?.type || "Không xác định"} icon={Tag} color="purple" />
+                          <InfoRow label="Chủ đề" value={selectedEvent?.eventTopic || "Không có"} icon={BookOpen} color="emerald" />
+                          <InfoRow label="Đơn vị tổ chức" value={selectedEvent?.major ? `${selectedEvent?.faculty} – ${selectedEvent?.major}` : selectedEvent?.faculty || selectedEvent?.organizerUnit || "Chưa xác định"} icon={Building2} color="amber" />
+                          <InfoRow label="Hình thức" value={selectedEvent?.eventMode === "ONLINE" ? "Trực tuyến" : selectedEvent?.eventMode === "OFFLINE" ? "Trực tiếp" : selectedEvent?.eventMode} icon={Globe} color="cyan" />
+                          <InfoRow label="Trạng thái" value={<Badge color={getStatusColorName(selectedEvent?.status)}>{STATUS_LABELS[selectedEvent?.status] || selectedEvent?.status}</Badge>} icon={ShieldCheck} color="slate" />
+                          <InfoRow label="Vòng quay may mắn" value={selectedEvent?.hasLuckyDraw ? "Có" : "Không"} icon={Award} color="amber" />
+                          {selectedEvent?.coverImage && <InfoRow label="Ảnh bìa" value={<a href={selectedEvent.coverImage} target="_blank" rel="noreferrer" className="text-blue-500 hover:underline">Xem ảnh đính kèm</a>} icon={ImageIcon} color="pink" />}
+                        </div>
+                      </Section>
 
-                    <div className="space-y-1">
-                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">
-                        Chủ đề sự kiện (Topic)
-                      </label>
-                      <input
-                        disabled={modalMode === "view"}
-                        placeholder="Ví dụ: Công nghệ AI mới"
-                        value={selectedEvent?.eventTopic || ""}
-                        onChange={(e) =>
-                          setSelectedEvent({
-                            ...selectedEvent,
-                            eventTopic: e.target.value,
-                          })
-                        }
-                        className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-sm font-bold text-slate-700 outline-none focus:ring-2 focus:ring-blue-500"
-                      />
-                    </div>
+                      <Section title="Thời gian & Địa điểm" icon={Clock} color="rose">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                          <InfoRow label="Thời gian bắt đầu" value={formatDate(selectedEvent?.startTime)} icon={CalendarIcon} color="rose" />
+                          <InfoRow label="Thời gian kết thúc" value={formatDate(selectedEvent?.endTime)} icon={CalendarIcon} color="rose" />
+                          <InfoRow label="Hạn đăng ký" value={formatDate(selectedEvent?.registrationDeadline)} icon={Clock} color="amber" />
+                          <InfoRow label="Địa điểm" value={selectedEvent?.location} icon={MapPin} color="green" />
+                        </div>
+                      </Section>
 
-                    <div className="space-y-1">
-                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">
-                        Chế độ
-                      </label>
-                      <select
-                        disabled={modalMode === "view"}
-                        value={selectedEvent?.eventMode || "OFFLINE"}
-                        onChange={(e) =>
-                          setSelectedEvent({
-                            ...selectedEvent,
-                            eventMode: e.target.value,
-                          })
-                        }
-                        className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-sm font-bold text-slate-700 outline-none cursor-pointer"
-                      >
-                        <option value="OFFLINE">Offline (Trực tiếp)</option>
-                        <option value="ONLINE">Online (Trực tuyến)</option>
-                      </select>
-                    </div>
+                      <Section title="Quy mô & Đối tượng" icon={Users} color="violet">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                          <InfoRow label="Số lượng tối đa" value={`${selectedEvent?.maxParticipants || 0} người`} icon={Users} color="violet" />
+                          <InfoRow label="Đã đăng ký" value={`${selectedEvent?.registeredCount || 0} người`} icon={UserPlus} color="indigo" />
+                          <div className="col-span-2">
+                            <InfoRow label="Đối tượng tham gia" value={getArrayDisplay(selectedEvent?.participants)} icon={Users} color="purple" />
+                          </div>
+                        </div>
+                      </Section>
 
-                    <div className="space-y-1 col-span-2">
-                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">
-                        Địa điểm / Link cuộc họp
-                      </label>
-                      <div className="relative">
-                        <MapPin
-                          className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
-                          size={16}
-                        />
-                        <input
-                          disabled={modalMode === "view"}
-                          value={selectedEvent?.location || ""}
-                          onChange={(e) =>
-                            setSelectedEvent({
-                              ...selectedEvent,
-                              location: e.target.value,
-                            })
-                          }
-                          className="w-full pl-10 pr-4 py-3 bg-white border border-slate-200 rounded-xl text-sm font-bold text-slate-700 outline-none focus:ring-2 focus:ring-blue-500"
-                        />
+                      {(selectedEvent?.recipients?.length > 0 || selectedEvent?.customRecipients?.length > 0) && (
+                        <Section title="Nơi nhận thông báo" icon={Mail} color="amber">
+                          <div className="space-y-4">
+                            {selectedEvent?.recipients?.length > 0 && (
+                              <div>
+                                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Nơi nhận chính</p>
+                                <div className="flex flex-wrap gap-2">
+                                  {selectedEvent.recipients.map((r, i) => <Badge key={i} color="blue">{r}</Badge>)}
+                                </div>
+                              </div>
+                            )}
+                            {selectedEvent?.customRecipients?.length > 0 && (
+                              <div>
+                                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Nơi nhận khác</p>
+                                <div className="flex flex-wrap gap-2">
+                                  {selectedEvent.customRecipients.map((r, i) => <Badge key={i} color="purple">{r}</Badge>)}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        </Section>
+                      )}
+
+                      <Section title="Thành phần tham gia" icon={Users} color="indigo">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                          <InfoRow label="Người trình bày" value={getArrayDisplay(selectedEvent?.presenters)} icon={UserPlus} color="cyan" />
+                          <InfoRow label="Ban tổ chức" value={getArrayDisplay(selectedEvent?.organizingCommittee)} icon={Award} color="amber" />
+                          <InfoRow label="Người tham dự" value={getArrayDisplay(selectedEvent?.attendees)} icon={Users} color="green" />
+                          <InfoRow label="Người tạo" value={selectedEvent?.createdByName || "Không có"} icon={UserPlus} color="slate" />
+                          <InfoRow label="Người duyệt" value={selectedEvent?.approvedByName || "Chưa có"} icon={ShieldCheck} color="emerald" />
+                        </div>
+                      </Section>
+
+                      <Section title="Mô tả chi tiết" icon={FileText} color="slate">
+                        <div className="bg-white rounded-xl p-4 border border-slate-200">
+                          <p className="text-sm text-slate-700 whitespace-pre-line leading-relaxed">
+                            {selectedEvent?.description || "Không có mô tả"}
+                          </p>
+                        </div>
+                      </Section>
+
+                      <Section title="Thông tin bổ sung" icon={MessageSquare} color="amber">
+                        <div className="grid grid-cols-1 gap-4">
+                          <InfoRow label="Ghi chú quản lý" value={selectedEvent?.notes || "Không có"} icon={FileText} color="amber" />
+                          <InfoRow label="Thông tin thêm" value={selectedEvent?.additionalInfo || "Không có"} icon={Info} color="slate" />
+                        </div>
+                      </Section>
+
+                      <div className="bg-slate-50 rounded-2xl p-4 border border-slate-200">
+                        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 text-xs">
+                          <div className="flex items-center gap-2">
+                            <CalendarIcon size={14} className="text-slate-400" />
+                            <span className="font-medium text-slate-500">
+                              Ngày tạo: <span className="font-bold text-slate-700">{formatDate(selectedEvent?.createdAt)}</span>
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Clock size={14} className="text-slate-400" />
+                            <span className="font-medium text-slate-500">
+                              Cập nhật lần cuối: <span className="font-bold text-slate-700">{formatDate(selectedEvent?.updatedAt)}</span>
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    </>
+                  ) : (
+                    <div className="space-y-6">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-xs font-bold text-slate-500 mb-2">Tên sự kiện</label>
+                          <input
+                            type="text"
+                            value={selectedEvent?.title || ""}
+                            onChange={(e) => setSelectedEvent({ ...selectedEvent, title: e.target.value })}
+                            className="w-full px-4 py-2.5 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500/20 outline-none"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-xs font-bold text-slate-500 mb-2">Loại sự kiện</label>
+                          <select
+                            value={selectedEvent?.type || ""}
+                            onChange={(e) => setSelectedEvent({ ...selectedEvent, type: e.target.value })}
+                            className="w-full px-4 py-2.5 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500/20 outline-none"
+                          >
+                            <option value="">Chọn loại</option>
+                            {Object.entries(EVENT_TYPE_LABELS).map(([k, v]) => (
+                              <option key={k} value={k}>{v}</option>
+                            ))}
+                          </select>
+                        </div>
+
+                        <div>
+                          <label className="block text-xs font-bold text-slate-500 mb-2">Chủ đề</label>
+                          <input
+                            type="text"
+                            value={selectedEvent?.eventTopic || ""}
+                            onChange={(e) => setSelectedEvent({ ...selectedEvent, eventTopic: e.target.value })}
+                            className="w-full px-4 py-2.5 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500/20 outline-none"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-xs font-bold text-slate-500 mb-2">Hình thức</label>
+                          <select
+                            value={selectedEvent?.eventMode || "OFFLINE"}
+                            onChange={(e) => setSelectedEvent({ ...selectedEvent, eventMode: e.target.value })}
+                            className="w-full px-4 py-2.5 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500/20 outline-none"
+                          >
+                            <option value="OFFLINE">Offline (Trực tiếp)</option>
+                            <option value="ONLINE">Online (Trực tuyến)</option>
+                          </select>
+                        </div>
+
+                        <div>
+                          <label className="block text-xs font-bold text-slate-500 mb-2">Địa điểm / Link</label>
+                          <input
+                            type="text"
+                            value={selectedEvent?.location || ""}
+                            onChange={(e) => setSelectedEvent({ ...selectedEvent, location: e.target.value })}
+                            className="w-full px-4 py-2.5 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500/20 outline-none"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-xs font-bold text-slate-500 mb-2">Trạng thái</label>
+                          <select
+                            value={selectedEvent?.status || ""}
+                            onChange={(e) => setSelectedEvent({ ...selectedEvent, status: e.target.value })}
+                            className="w-full px-4 py-2.5 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500/20 outline-none"
+                          >
+                            {Object.entries(STATUS_LABELS).filter(([k]) => k !== "All").map(([k, v]) => (
+                              <option key={k} value={k}>{v}</option>
+                            ))}
+                          </select>
+                        </div>
+
+                        <div>
+                          <label className="block text-xs font-bold text-slate-500 mb-2">Thời gian bắt đầu</label>
+                          <input
+                            type="datetime-local"
+                            value={toDatetimeLocal(selectedEvent?.startTime)}
+                            onChange={(e) => setSelectedEvent({ ...selectedEvent, startTime: e.target.value })}
+                            className="w-full px-4 py-2.5 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500/20 outline-none"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-xs font-bold text-slate-500 mb-2">Thời gian kết thúc</label>
+                          <input
+                            type="datetime-local"
+                            value={toDatetimeLocal(selectedEvent?.endTime)}
+                            onChange={(e) => setSelectedEvent({ ...selectedEvent, endTime: e.target.value })}
+                            className="w-full px-4 py-2.5 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500/20 outline-none"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-xs font-bold text-slate-500 mb-2">Hạn đăng ký</label>
+                          <input
+                            type="datetime-local"
+                            value={toDatetimeLocal(selectedEvent?.registrationDeadline)}
+                            onChange={(e) => setSelectedEvent({ ...selectedEvent, registrationDeadline: e.target.value })}
+                            className="w-full px-4 py-2.5 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500/20 outline-none"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-xs font-bold text-slate-500 mb-2">Số lượng tối đa</label>
+                          <input
+                            type="number"
+                            min="1"
+                            value={selectedEvent?.maxParticipants || 0}
+                            onChange={(e) => setSelectedEvent({ ...selectedEvent, maxParticipants: parseInt(e.target.value) })}
+                            className="w-full px-4 py-2.5 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500/20 outline-none"
+                          />
+                        </div>
+
+                        <div className="col-span-2 flex items-center gap-3 py-2 mt-2">
+                          <input
+                            type="checkbox"
+                            id="edit-lucky-draw"
+                            checked={selectedEvent?.hasLuckyDraw || false}
+                            onChange={(e) => setSelectedEvent({ ...selectedEvent, hasLuckyDraw: e.target.checked })}
+                            className="w-4 h-4 accent-blue-500 cursor-pointer"
+                          />
+                          <label htmlFor="edit-lucky-draw" className="text-xs font-bold text-slate-500 cursor-pointer">
+                            Có tổ chức vòng quay may mắn
+                          </label>
+                        </div>
+
+                        <div className="col-span-2">
+                          <label className="block text-xs font-bold text-slate-500 mb-2">Mô tả</label>
+                          <textarea
+                            rows={4}
+                            value={selectedEvent?.description || ""}
+                            onChange={(e) => setSelectedEvent({ ...selectedEvent, description: e.target.value })}
+                            className="w-full px-4 py-2.5 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500/20 outline-none resize-none"
+                            placeholder="Nhập mô tả chi tiết..."
+                          />
+                        </div>
+
+                        <div className="col-span-2">
+                          <label className="block text-xs font-bold text-slate-500 mb-2">Ghi chú quản lý</label>
+                          <textarea
+                            rows={2}
+                            value={selectedEvent?.notes || ""}
+                            onChange={(e) => setSelectedEvent({ ...selectedEvent, notes: e.target.value })}
+                            className="w-full px-4 py-2.5 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500/20 outline-none resize-none"
+                            placeholder="Các lưu ý nội bộ..."
+                          />
+                        </div>
                       </div>
                     </div>
-                  </div>
-                </div>
-
-                <div className="space-y-4">
-                  <h3 className="text-xs font-black text-purple-600 uppercase tracking-[0.2em] flex items-center gap-2">
-                    <ShieldCheck size={14} /> Đơn vị phụ trách
-                  </h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-slate-50/50 p-6 rounded-3xl border border-slate-100">
-                    <div className="space-y-1">
-                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">
-                        Khoa
-                      </label>
-                      <input
-                        disabled={modalMode === "view"}
-                        value={selectedEvent?.faculty || ""}
-                        onChange={(e) =>
-                          setSelectedEvent({
-                            ...selectedEvent,
-                            faculty: e.target.value,
-                          })
-                        }
-                        className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-sm font-bold text-slate-700 outline-none"
-                      />
-                    </div>
-                    <div className="space-y-1">
-                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">
-                        Chuyên ngành
-                      </label>
-                      <input
-                        disabled={modalMode === "view"}
-                        value={selectedEvent?.major || ""}
-                        onChange={(e) =>
-                          setSelectedEvent({
-                            ...selectedEvent,
-                            major: e.target.value,
-                          })
-                        }
-                        className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-sm font-bold text-slate-700 outline-none"
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                <div className="space-y-4">
-                  <h3 className="text-xs font-black text-rose-600 uppercase tracking-[0.2em] flex items-center gap-2">
-                    <Clock size={14} /> Thời gian & Quy mô
-                  </h3>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 bg-slate-50/50 p-6 rounded-3xl border border-slate-100">
-                    <div className="space-y-1">
-                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">
-                        Bắt đầu
-                      </label>
-                      <input
-                        type="datetime-local"
-                        disabled={modalMode === "view"}
-                        value={toDatetimeLocal(selectedEvent?.startTime)}
-                        onChange={(e) =>
-                          setSelectedEvent({
-                            ...selectedEvent,
-                            startTime: e.target.value,
-                          })
-                        }
-                        className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-sm font-bold text-slate-700 outline-none focus:ring-2 focus:ring-rose-500"
-                      />
-                    </div>
-                    <div className="space-y-1">
-                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">
-                        Kết thúc
-                      </label>
-                      <input
-                        type="datetime-local"
-                        disabled={modalMode === "view"}
-                        value={toDatetimeLocal(selectedEvent?.endTime)}
-                        onChange={(e) =>
-                          setSelectedEvent({
-                            ...selectedEvent,
-                            endTime: e.target.value,
-                          })
-                        }
-                        className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-sm font-bold text-slate-700 outline-none focus:ring-2 focus:ring-rose-500"
-                      />
-                    </div>
-                    <div className="space-y-1">
-                      <label className="text-[10px] font-black text-rose-600 uppercase tracking-widest ml-1">
-                        Hạn đăng ký
-                      </label>
-                      <input
-                        type="datetime-local"
-                        disabled={modalMode === "view"}
-                        value={toDatetimeLocal(selectedEvent?.registrationDeadline)}
-                        onChange={(e) =>
-                          setSelectedEvent({
-                            ...selectedEvent,
-                            registrationDeadline: e.target.value,
-                          })
-                        }
-                        className="w-full px-4 py-3 bg-white border border-rose-200 rounded-xl text-sm font-bold text-rose-700 outline-none focus:ring-2 focus:ring-rose-500"
-                      />
-                    </div>
-
-                    <div className="space-y-1">
-                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">
-                        Giới hạn tham gia
-                      </label>
-                      <div className="relative">
-                        <Users
-                          className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-300"
-                          size={16}
-                        />
-                        <input
-                          type="number"
-                          disabled={modalMode === "view"}
-                          value={selectedEvent?.maxParticipants || 0}
-                          onChange={(e) =>
-                            setSelectedEvent({
-                              ...selectedEvent,
-                              maxParticipants: parseInt(e.target.value),
-                            })
-                          }
-                          className="w-full pl-10 pr-4 py-3 bg-white border border-slate-200 rounded-xl text-sm font-bold text-slate-700 outline-none"
-                        />
-                      </div>
-                    </div>
-
-                    <div className="space-y-1">
-                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">
-                        Trạng thái hiện tại
-                      </label>
-                      <select
-                        disabled={modalMode === "view"}
-                        value={selectedEvent?.status || ""}
-                        onChange={(e) =>
-                          setSelectedEvent({
-                            ...selectedEvent,
-                            status: e.target.value,
-                          })
-                        }
-                        className={`w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-sm font-black outline-none cursor-pointer ${getStatusStyle(selectedEvent?.status).split(" ")[1]}`}
-                      >
-                        {Object.entries(STATUS_LABELS)
-                          .filter(([k]) => k !== "All")
-                          .map(([k, v]) => (
-                            <option key={k} value={k}>
-                              {v}
-                            </option>
-                          ))}
-                      </select>
-                    </div>
-
-                    <div className="flex items-end pb-3 ml-4">
-                      <label className="flex items-center gap-2 cursor-pointer select-none">
-                        <input
-                          type="checkbox"
-                          disabled={modalMode === "view"}
-                          checked={selectedEvent?.hasLuckyDraw || false}
-                          onChange={(e) =>
-                            setSelectedEvent({
-                              ...selectedEvent,
-                              hasLuckyDraw: e.target.checked,
-                            })
-                          }
-                          className="w-5 h-5 accent-blue-600"
-                        />
-                        <span className="text-sm font-bold text-slate-600">
-                          Bốc thăm may mắn
-                        </span>
-                      </label>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="space-y-4">
-                  <h3 className="text-xs font-black text-amber-600 uppercase tracking-[0.2em] flex items-center gap-2">
-                    <Info size={14} /> Nội dung & Ghi chú
-                  </h3>
-                  <div className="space-y-6 bg-slate-50/50 p-6 rounded-3xl border border-slate-100">
-                    <div className="space-y-1">
-                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">
-                        Mô tả sự kiện
-                      </label>
-                      <textarea
-                        rows={4}
-                        disabled={modalMode === "view"}
-                        value={selectedEvent?.description || ""}
-                        onChange={(e) =>
-                          setSelectedEvent({
-                            ...selectedEvent,
-                            description: e.target.value,
-                          })
-                        }
-                        className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-sm font-medium text-slate-700 outline-none resize-none focus:ring-2 focus:ring-amber-500"
-                        placeholder="Nhập mô tả chi tiết sự kiện..."
-                      />
-                    </div>
-                    <div className="space-y-1">
-                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">
-                        Ghi chú quản lý
-                      </label>
-                      <textarea
-                        rows={2}
-                        disabled={modalMode === "view"}
-                        value={selectedEvent?.notes || ""}
-                        onChange={(e) =>
-                          setSelectedEvent({
-                            ...selectedEvent,
-                            notes: e.target.value,
-                          })
-                        }
-                        className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-sm font-medium text-slate-700 outline-none resize-none"
-                        placeholder="Các lưu ý nội bộ..."
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                <div className="pt-4 flex justify-end gap-3 sticky bottom-0 bg-white py-4 border-t border-slate-50">
-                  <button
-                    type="button"
-                    onClick={closeModal}
-                    className="px-8 py-3 rounded-2xl font-bold text-slate-500 hover:bg-slate-100 transition-all border border-slate-100"
-                  >
-                    Đóng
-                  </button>
-                  {modalMode === "edit" && (
-                    <button
-                      type="submit"
-                      className="flex items-center gap-2 bg-blue-600 text-white px-10 py-3 rounded-2xl font-bold shadow-xl shadow-blue-200 hover:bg-blue-700 transition-all text-sm uppercase tracking-wider"
-                    >
-                      Cập nhật thông tin
-                    </button>
                   )}
-                </div>
-              </form>
+
+                  <div className="pt-6 flex justify-end gap-3 border-t border-slate-100">
+                    <button
+                      type="button"
+                      onClick={closeModal}
+                      className="px-6 py-2.5 rounded-xl font-bold text-slate-500 hover:bg-slate-100 transition-all border border-transparent"
+                    >
+                      Đóng
+                    </button>
+                    {modalMode === "edit" && (
+                      <button
+                        type="submit"
+                        className="flex items-center gap-2 bg-blue-600 text-white px-8 py-2.5 rounded-xl font-bold shadow-lg hover:bg-blue-700 transition-all active:scale-95"
+                      >
+                        <Edit2 size={18} /> Lưu thay đổi
+                      </button>
+                    )}
+                  </div>
+                </form>
+              </div>
             </motion.div>
           </div>
         )}
