@@ -144,9 +144,6 @@ const Header = () => {
   const isHomePage = location.pathname === "/";
 
   const handleLogout = async () => {
-    setIsLogoutModalOpen(false);
-
-  const handleLogout = async () => {
     try {
       const API_LOGOUT = "http://localhost:8082/api/auth/logout";
       const refreshToken = localStorage.getItem("refreshToken");
