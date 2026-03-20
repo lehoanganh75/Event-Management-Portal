@@ -41,7 +41,7 @@ public class LuckyDrawServiceImpl implements LuckyDrawService {
         luckyDraw.setDescription(request.getDescription());
         luckyDraw.setStartTime(request.getStartTime());
         luckyDraw.setEndTime(request.getEndTime());
-        luckyDraw.setStatus(DrawStatus.Pending);
+        luckyDraw.setStatus(DrawStatus.PENDING);
         luckyDraw.setAllowMultipleWins(request.isAllowMultipleWins());
 
         LuckyDraw savedDraw = luckyDrawRepository.save(luckyDraw);
@@ -55,12 +55,61 @@ public class LuckyDrawServiceImpl implements LuckyDrawService {
                         prize.setName(prizeReq.getName());
                         prize.setQuantity(prizeReq.getQuantity());
                         prize.setRemainingQuantity(prizeReq.getQuantity());
+                        prize.setWinProbabilityPercent(prizeReq.getWinProbabilityPercent());
                         return prize;
             }).collect(Collectors.toList());
 
             prizeRepository.saveAll(prizes);
         }
         return luckyDraw;
+    }
+
+    @Override
+    @Transactional
+    public LuckyDraw updateLuckyDraw(String id, LuckyDrawCreateRequest request, String createdByAccountId) {
+        // 1. Tìm LuckyDraw dựa trên ID của vòng quay (id), không phải accountId
+        LuckyDraw existingDraw = luckyDrawRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy vòng quay với ID: " + id));
+
+        // 2. Kiểm tra quyền: ID người tạo trong DB phải khớp với ID người đang đăng nhập
+        if (!existingDraw.getCreatedByAccountId().equals(createdByAccountId)) {
+            throw new RuntimeException("Bạn không có quyền chỉnh sửa vòng quay này!");
+        }
+
+        // 3. Cập nhật các thông tin cơ bản
+        existingDraw.setTitle(request.getTitle());
+        existingDraw.setDescription(request.getDescription());
+        existingDraw.setStartTime(request.getStartTime());
+        existingDraw.setEndTime(request.getEndTime());
+        existingDraw.setAllowMultipleWins(request.isAllowMultipleWins());
+
+        // Cẩn thận: Nếu request.getStatus() null sẽ gây lỗi, nên check trước
+        if (request.getStatus() != null) {
+            existingDraw.setStatus(request.getStatus());
+        }
+
+        // 4. Lưu LuckyDraw
+        LuckyDraw savedDraw = luckyDrawRepository.save(existingDraw);
+
+        // 5. Cập nhật giải thưởng
+        prizeRepository.deleteByLuckyDrawId(id);
+
+        if (request.getPrizes() != null && !request.getPrizes().isEmpty()) {
+            List<Prize> newPrizes = request.getPrizes().stream()
+                    .map(prizeReq -> {
+                        Prize prize = new Prize();
+                        prize.setLuckyDraw(savedDraw);
+                        prize.setName(prizeReq.getName());
+                        prize.setQuantity(prizeReq.getQuantity());
+                        prize.setRemainingQuantity(prizeReq.getQuantity());
+                        prize.setWinProbabilityPercent(prizeReq.getWinProbabilityPercent());
+                        return prize;
+                    }).collect(Collectors.toList());
+
+            prizeRepository.saveAll(newPrizes);
+        }
+
+        return savedDraw;
     }
 
     @Override
@@ -76,7 +125,7 @@ public class LuckyDrawServiceImpl implements LuckyDrawService {
         LuckyDraw luckyDraw = luckyDrawRepository.findById(luckyDrawId)
                 .orElseThrow(() -> new ResourceNotFoundException("Lucky Draw not found: " + luckyDrawId));
 
-        if (luckyDraw.getStatus() != DrawStatus.Active) {
+        if (luckyDraw.getStatus() != DrawStatus.ACTIVE) {
             throw new IllegalStateException("Lucky Draw phải đang ACTIVE");
         }
 
@@ -84,7 +133,7 @@ public class LuckyDrawServiceImpl implements LuckyDrawService {
         DrawEntry entry = (DrawEntry) drawEntryRepository.findByLuckyDrawIdAndUserProfileId(luckyDrawId, userProfileId)
                 .orElseThrow(() -> new IllegalArgumentException("User không có lượt quay hợp lệ"));
 
-        if (entry.getStatus() != EntryStatus.Valid) {
+        if (entry.getStatus() != EntryStatus.INVALID) {
             throw new IllegalStateException("Lượt quay không hợp lệ: " + entry.getStatus());
         }
 
@@ -123,7 +172,7 @@ public class LuckyDrawServiceImpl implements LuckyDrawService {
         prizeRepository.save(winningPrize);
 
         // 7. Reset guaranteedWin (vì đã trúng)
-        entry.setStatus(EntryStatus.Used);
+        entry.setStatus(EntryStatus.USED);
         drawEntryRepository.save(entry);
 
         DrawResult result = new DrawResult();
@@ -137,7 +186,7 @@ public class LuckyDrawServiceImpl implements LuckyDrawService {
 
         // 9. Cập nhật LuckyDraw nếu hết giải
         if (availablePrizes.stream().allMatch(p -> p.getRemainingQuantity() == 0)) {
-            luckyDraw.setStatus(DrawStatus.Completed);
+            luckyDraw.setStatus(DrawStatus.COMPLETED);
             luckyDrawRepository.save(luckyDraw);
         }
 

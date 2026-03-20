@@ -26,7 +26,7 @@ public class DrawEntryServiceImpl implements DrawEntryService {
         DrawEntry drawEntryEntity = new DrawEntry();
         drawEntryEntity.setUserProfileId(userProfileId);
         drawEntryEntity.setLuckyDraw(luckyDraw);
-        drawEntryEntity.setStatus(EntryStatus.Valid);
+        drawEntryEntity.setStatus(EntryStatus.VALID);
         return drawEntryRepository.save(drawEntryEntity);
     }
 }

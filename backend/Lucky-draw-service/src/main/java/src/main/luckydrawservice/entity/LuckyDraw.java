@@ -1,5 +1,7 @@
 package src.main.luckydrawservice.entity;
 
+import com.fasterxml.jackson.annotation.JsonFormat;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
@@ -26,33 +28,38 @@ public class LuckyDraw {
     private String description;
 
     @Enumerated(EnumType.STRING)
-    private DrawStatus status;
+    private DrawStatus status = DrawStatus.PENDING;
 
     private boolean allowMultipleWins;
+    @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss")
     private LocalDateTime startTime;
+    @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss")
     private LocalDateTime endTime;
 
     // 1 LuckyDraw có nhiều Prize
     @OneToMany(mappedBy = "luckyDraw",
             cascade = CascadeType.ALL,
             orphanRemoval = true)
+    @JsonIgnoreProperties("luckyDraw")
     private List<Prize> prizes;
 
     // 1 LuckyDraw có nhiều Entry
     @OneToMany(mappedBy = "luckyDraw",
             cascade = CascadeType.ALL,
             orphanRemoval = true)
+    @JsonIgnoreProperties("luckyDraw")
     private List<DrawEntry> entries;
 
     // 1 LuckyDraw có nhiều Result
     @OneToMany(mappedBy = "luckyDraw",
             cascade = CascadeType.ALL,
             orphanRemoval = true)
+    @JsonIgnoreProperties("luckyDraw")
     private List<DrawResult> results;
 
     @CreationTimestamp
     private LocalDateTime createdAt;
     @UpdateTimestamp
     private LocalDateTime updatedAt;
-    private boolean isDeleted;
+    private boolean isDeleted = false;
 }

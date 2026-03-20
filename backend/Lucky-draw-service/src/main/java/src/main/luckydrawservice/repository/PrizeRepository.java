@@ -10,4 +10,6 @@ import java.util.List;
 public interface PrizeRepository extends JpaRepository<Prize, String> {
     List<Prize> findByLuckyDrawId(String luckyDrawId);
     List<Prize> findByLuckyDrawIdAndRemainingQuantityGreaterThan(String luckyDrawId, int i);
+
+    void deleteByLuckyDrawId(String luckyDrawId);
 }
