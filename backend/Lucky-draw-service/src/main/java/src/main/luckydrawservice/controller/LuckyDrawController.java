@@ -32,6 +32,17 @@ public class LuckyDrawController {
         return ResponseEntity.ok(luckyDrawService.createLuckyDraw(request, accountId));
     }
 
+    @PutMapping("/{id}") // Thêm {id} vào đây
+    public ResponseEntity<LuckyDraw> updateLuckyDraw(
+            @PathVariable String id, // Lấy ID từ URL
+            @RequestBody LuckyDrawCreateRequest request,
+            @AuthenticationPrincipal Jwt jwt) {
+        String accountId = jwt.getClaimAsString("accountId");
+        // Gọi đúng hàm updateLuckyDraw (bạn đang gọi nhầm hàm create)
+        return ResponseEntity.ok(luckyDrawService.updateLuckyDraw(id, request, accountId));
+    }
+
+
     @PostMapping("/{luckyDrawId}/perform")
     public ResponseEntity<DrawResultResponse> performLuckyDraw(
             @PathVariable String luckyDrawId,

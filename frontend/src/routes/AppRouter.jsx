@@ -77,7 +77,7 @@ const AppRouter = () => {
         <Route path="roles" element={<EventPage />} />
         <Route path="accounts" element={<EventPage />} />
         <Route path="library" element={<EventPage />} />
-        <Route path="spinner" element={<SpinnerManagement />} />
+        <Route path="lucky-draw" element={<SpinnerManagement />} />
       </Route>
 
       <Route path='*' element={<NotFound404 />} />

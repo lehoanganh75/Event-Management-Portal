@@ -43,6 +43,7 @@ import {
 } from "../../api/eventApi";
 import CreateEventModal from "../events/CreateEventModal";
 import { EventCreator } from "../events/EventCreator";
+import { useNavigate } from "react-router-dom";
 
 const STATUS_LABELS = {
   All: "Tất cả trạng thái",
@@ -183,6 +184,8 @@ const EventPage = () => {
   const [fromPlan, setFromPlan] = useState(false);
   const [selectedPlanId, setSelectedPlanId] = useState(null);
   const prefillRef = useRef({});
+
+  const navigate = useNavigate();
 
   const showToast = (message, type = "success") => {
     setToast({ show: true, message, type });
@@ -409,7 +412,7 @@ const EventPage = () => {
             initial={{ opacity: 0, x: 100 }}
             animate={{ opacity: 1, x: 0 }}
             exit={{ opacity: 0, x: 100 }}
-            className={`fixed top-6 right-6 z-[100] flex items-center gap-3 px-5 py-4 rounded-2xl shadow-2xl border bg-white ${toast.type === "success" ? "border-emerald-100" : "border-rose-100"}`}
+            className={`fixed top-6 right-6 z-100 flex items-center gap-3 px-5 py-4 rounded-2xl shadow-2xl border bg-white ${toast.type === "success" ? "border-emerald-100" : "border-rose-100"}`}
           >
             {toast.type === "success" ? (
               <CheckCircle className="text-emerald-500" size={24} />
@@ -471,7 +474,7 @@ const EventPage = () => {
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
-              className="bg-transparent border-none text-sm font-bold text-slate-700 py-1.5 outline-none cursor-pointer min-w-[140px]"
+              className="bg-transparent border-none text-sm font-bold text-slate-700 py-1.5 outline-none cursor-pointer min-w-35"
             >
               {Object.entries(STATUS_LABELS).map(([k, v]) => (
                 <option key={k} value={k}>
@@ -486,7 +489,7 @@ const EventPage = () => {
             <select
               value={creatorFilter}
               onChange={(e) => setCreatorFilter(e.target.value)}
-              className="bg-transparent border-none text-sm font-bold text-slate-700 py-1.5 outline-none cursor-pointer min-w-[140px]"
+              className="bg-transparent border-none text-sm font-bold text-slate-700 py-1.5 outline-none cursor-pointer min-w-35"
             >
               <option value="All">Tất cả người tạo</option>
               {uniqueCreators.map((creator, idx) => (
@@ -546,7 +549,7 @@ const EventPage = () => {
                       <td className="px-6 py-4 space-y-1.5">
                         <div className="flex items-center gap-2 text-xs font-bold text-slate-600">
                           <MapPin size={14} className="text-rose-500" />
-                          <span className="truncate max-w-[200px]">
+                          <span className="truncate max-w-50">
                             {event.location || "Chưa cập nhật"}
                           </span>
                         </div>
@@ -630,6 +633,13 @@ const EventPage = () => {
                           >
                             <Trash2 size={18} />
                           </button>
+                          <button
+                            onClick={() => navigate(`/admin/lucky-draw?eventId=${event.id}&title=${encodeURIComponent(event.title)}`)}
+                            title="Thiết lập vòng quay"
+                            className="p-2 text-purple-600 bg-purple-50 hover:bg-purple-100 rounded-lg transition-colors"
+                          >
+                            <Award size={18} />
+                          </button>
                         </div>
                       </td>
                     </motion.tr>
@@ -678,7 +688,7 @@ const EventPage = () => {
 
       <AnimatePresence>
         {isDeleteModalOpen && eventToDelete && (
-          <div className="fixed inset-0 z-[150] flex items-center justify-center p-4">
+          <div className="fixed inset-0 z-150 flex items-center justify-center p-4">
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
@@ -727,7 +737,7 @@ const EventPage = () => {
 
       <AnimatePresence>
         {isModalOpen && selectedEvent && (
-          <div className="fixed inset-0 z-[150] flex items-center justify-center p-4">
+          <div className="fixed inset-0 z-150 flex items-center justify-center p-4">
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
@@ -741,7 +751,7 @@ const EventPage = () => {
               exit={{ scale: 0.9, opacity: 0, y: 20 }}
               className="relative bg-white w-full max-w-5xl rounded-3xl shadow-2xl overflow-hidden max-h-[90vh] flex flex-col"
             >
-              <div className="px-8 py-5 border-b border-slate-100 flex items-center justify-between bg-gradient-to-r from-slate-50 to-white flex-shrink-0">
+              <div className="px-8 py-5 border-b border-slate-100 flex items-center justify-between bg-linear-to-r from-slate-50 to-white shrink-0">
                 <div className="flex items-center gap-3">
                   <div
                     className={`p-2 rounded-xl ${modalMode === "view" ? "bg-blue-100 text-blue-600" : "bg-amber-100 text-amber-600"}`}

@@ -4,6 +4,7 @@ import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import src.main.luckydrawservice.entity.DrawStatus;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -19,6 +20,7 @@ public class LuckyDrawCreateRequest {
     private LocalDateTime startTime;
     private LocalDateTime endTime;
     private boolean allowMultipleWins;
+    private DrawStatus status;
 
     private List<PrizeCreateRequest> prizes;
 }

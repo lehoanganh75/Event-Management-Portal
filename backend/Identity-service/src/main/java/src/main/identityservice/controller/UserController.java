@@ -22,6 +22,8 @@ public class UserController {
     public ResponseEntity<User> getMyProfile(@AuthenticationPrincipal Jwt jwt) {
         String userId = jwt.getClaimAsString("userId");
 
+        System.out.println("User id" + userId);
+
         if (userId == null) {
             throw new RuntimeException("Token missing accountId claim");
         }
