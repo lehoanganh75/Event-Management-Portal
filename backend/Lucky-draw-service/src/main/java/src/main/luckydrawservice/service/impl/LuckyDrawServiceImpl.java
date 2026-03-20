@@ -2,8 +2,11 @@ package src.main.luckydrawservice.service.impl;
 
 import lombok.RequiredArgsConstructor;
 import org.apache.kafka.common.errors.ResourceNotFoundException;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import src.main.luckydrawservice.client.EventClient;
 import src.main.luckydrawservice.dto.DrawResultResponse;
 import src.main.luckydrawservice.dto.LuckyDrawCreateRequest;
 import src.main.luckydrawservice.dto.PrizeResponse;
@@ -17,7 +20,9 @@ import src.main.luckydrawservice.service.LuckyDrawService;
 import java.math.BigDecimal;
 import java.security.SecureRandom;
 import java.time.LocalDateTime;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Random;
 import java.util.stream.Collectors;
 
@@ -30,6 +35,9 @@ public class LuckyDrawServiceImpl implements LuckyDrawService {
     private final DrawResultRepository drawResultRepository;
 
     private final Random random = new SecureRandom();
+
+    @Autowired
+    private EventClient eventClient;
 
     @Override
     @Transactional
@@ -61,6 +69,12 @@ public class LuckyDrawServiceImpl implements LuckyDrawService {
 
             prizeRepository.saveAll(prizes);
         }
+
+        try {
+            eventClient.updateLuckyDrawId(request.getEventId(), savedDraw.getId());
+        } catch (Exception e) {
+            throw new RuntimeException("Lỗi kết nối với Event-Service: " + e.getMessage());
+        }
         return luckyDraw;
     }
 
@@ -70,11 +84,6 @@ public class LuckyDrawServiceImpl implements LuckyDrawService {
         // 1. Tìm LuckyDraw dựa trên ID của vòng quay (id), không phải accountId
         LuckyDraw existingDraw = luckyDrawRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy vòng quay với ID: " + id));
-
-        // 2. Kiểm tra quyền: ID người tạo trong DB phải khớp với ID người đang đăng nhập
-        if (!existingDraw.getCreatedByAccountId().equals(createdByAccountId)) {
-            throw new RuntimeException("Bạn không có quyền chỉnh sửa vòng quay này!");
-        }
 
         // 3. Cập nhật các thông tin cơ bản
         existingDraw.setTitle(request.getTitle());
@@ -87,7 +96,7 @@ public class LuckyDrawServiceImpl implements LuckyDrawService {
         if (request.getStatus() != null) {
             existingDraw.setStatus(request.getStatus());
         }
-
+        existingDraw.setDeleted(request.isDeleted());
         // 4. Lưu LuckyDraw
         LuckyDraw savedDraw = luckyDrawRepository.save(existingDraw);
 

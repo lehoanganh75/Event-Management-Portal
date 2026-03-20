@@ -1,135 +1,47 @@
-USE event_db;
-
--- 0. Nới rộng các cột Enum để tránh lỗi "Data truncated"
-ALTER TABLE `event_templates` MODIFY COLUMN `template_type` VARCHAR(50);
-ALTER TABLE `events` MODIFY COLUMN `status` VARCHAR(50);
-ALTER TABLE `event_posts` MODIFY COLUMN `post_type` VARCHAR(50);
-ALTER TABLE `event_posts` MODIFY COLUMN `status` VARCHAR(50);
-ALTER TABLE `event_registrations` MODIFY COLUMN `status` VARCHAR(50);
-ALTER TABLE `payments` MODIFY COLUMN `status` VARCHAR(50);
-ALTER TABLE `checkins` MODIFY COLUMN `method` VARCHAR(50);
-ALTER TABLE `recaps` MODIFY COLUMN `status` VARCHAR(50);
-ALTER TABLE `event_sessions` MODIFY COLUMN `type` VARCHAR(50);
-
--- Chèn dữ liệu mới với đầy đủ description và usage_count
-INSERT INTO event_templates (
-    id, 
-    organization_id, 
-    template_name, 
-    template_type, 
-    description, -- Trường mô tả ngắn gọn cho template
-    usage_count, -- Trường số lượt dùng
-    default_title, 
-    default_description,
-    default_max_participants, 
-    created_at
-) VALUES 
-(UUID(), 'org-it', 'Workshop React cho người mới', 'Workshop', 'Mẫu kế hoạch dành cho các buổi thực hành lập trình cơ bản.', 120, 'Học ReactJS cơ bản', 'Mô tả chi tiết workshop...', 50, NOW()),
-(UUID(), 'org-it', 'Seminar AI trong tương lai', 'Seminar', 'Mẫu chuẩn cho các buổi hội thảo khoa học và công nghệ.', 85, 'AI và đời sống', 'Nội dung buổi Seminar...', 100, NOW()),
-(UUID(), 'org-it', 'Talkshow Khởi nghiệp', 'Talkshow', 'Mẫu chương trình giao lưu giữa chuyên gia và sinh viên.', 42, 'Con đường Startup', 'Chia sẻ kinh nghiệm...', 30, NOW());
-
--- 2. Chèn dữ liệu vào EVENTS (Đã khớp hoàn toàn với Java Entity)
-INSERT INTO `events` (
-    `id`, 
-    `organization_id`, 
-    `created_by_account_id`,
-    `approved_by_account_id`,
-    `title`, 
-    `description`, 
-    `event_topic`,
-    `cover_image`,
-    `start_time`, 
-    `end_time`, 
-    `registration_deadline`, 
-    `location`,
-    `event_mode`,
-    `max_participants`, 
-    `type`,
-    `status`, 
-    `has_lucky_draw`, 
-    `finalized`, 
-    `archived`,
-    `organizer_unit`,
-    `notes`,
-    `additional_info`,
-    `created_at`
-) VALUES
-(
-    'e1', 'org-001', 'admin-01', 'boss-01', 'Java Spring Boot Mastery', 'Học Spring Boot từ cơ bản', 'Backend Development', 
-    'cover1.jpg', '2026-10-01 08:00:00', '2026-10-01 17:00:00', '2026-09-25 23:59:59', 'Phòng Lab 502, Tòa H',
-    'OFFLINE', 50, 'WORKSHOP', 'Published', 1, 0, 0, 'Bộ môn Kỹ thuật phần mềm', 'Yêu cầu đem laptop', 'Dành cho SV năm 3', NOW()
-),
-(
-    'e2', 'org-001', 'admin-01', 'boss-01', 'Cloud Computing Intro', 'Giới thiệu về AWS và Azure', 'Infrastructure', 
-    'cover2.jpg', '2026-11-15 09:00:00', '2026-11-15 12:00:00', '2026-11-10 23:59:59', 'https://meet.google.com/aws-intro-2026',
-    'ONLINE', 100, 'WEBINAR', 'Published', 0, 0, 0, 'Bộ môn Hệ thống thông tin', '', '', NOW()
-),
-(
-    'e5', 'org-001', 'user-02', NULL, 'Startup Pitch Day', 'Sân chơi cho các startup trẻ', 'Entrepreneurship', 
-    'cover5.jpg', '2026-12-10 14:00:00', '2026-12-10 18:00:00', '2026-12-01 23:59:59', 'Hội trường A1',
-    'OFFLINE', 50, 'COMPETITION', 'Draft', 1, 0, 0, 'Khoa Quản trị Kinh doanh', 'Chuẩn bị slide thuyết trình', '', NOW()
-),
-(
-    'e7', 'org-005', 'teacher-01', 'boss-02', 'IELTS Workshop', 'Kỹ năng Writing 8.0', 'Education', 
-    'cover7.jpg', '2026-10-12 13:30:00', '2026-10-12 16:30:00', '2026-10-10 23:59:59', 'Zoom Meeting ID: 888 222 555',
-    'ONLINE', 40, 'WORKSHOP', 'Ongoing', 0, 0, 0, 'Trung tâm Ngoại ngữ', '', 'Tặng tài liệu PDF', NOW()
-),
-(
-    'e8', 'org-001', 'admin-01', 'boss-01', 'DevOps Workshop', 'CI/CD với Jenkins', 'Operations', 
-    'cover8.jpg', '2026-09-01 08:00:00', '2026-09-01 12:00:00', '2026-08-25 23:59:59', 'Phòng máy 302, Tòa X',
-    'OFFLINE', 30, 'WORKSHOP', 'Completed', 0, 1, 0, 'Bộ môn Mạng máy tính', '', '', NOW()
-);
-
--- 3. Chèn dữ liệu vào EVENT_SESSIONS
-INSERT INTO `event_sessions` (`id`, `event_id`, `title`, `start_time`, `end_time`, `room`, `type`) VALUES
-('s1', 'e1', 'Introduction to IoC', '2026-10-01 08:00:00', '2026-10-01 10:00:00', 'Room A', 'TALK'),
-('s2', 'e1', 'JPA & Hibernate Deep Dive', '2026-10-01 10:30:00', '2026-10-01 12:00:00', 'Room A', 'WORKSHOP'),
-('s3', 'e2', 'AWS Overview', '2026-11-15 09:00:00', '2026-11-15 10:30:00', 'Hall 1', 'TALK'),
-('s4', 'e3', 'Opening Ceremony', '2026-12-01 05:00:00', '2026-12-01 05:30:00', 'Main Stage', 'OTHER'),
-('s5', 'e6', 'Dinner & Mingling', '2026-11-05 19:00:00', '2026-11-05 20:30:00', 'Grand Ballroom', 'NETWORKING'),
-('s6', 'e7', 'Writing Task 1 Tips', '2026-10-12 13:30:00', '2026-10-12 15:00:00', 'Room 302', 'SEMINAR'),
-('s7', 'e1', 'Security with Keycloak', '2026-10-01 13:30:00', '2026-10-01 15:30:00', 'Room A', 'WORKSHOP'),
-('s8', 'e8', 'Pipeline setup', '2026-09-01 09:00:00', '2026-09-01 11:00:00', 'Lab 1', 'WORKSHOP'),
-('s9', 'e10', 'Lighting Basics', '2026-11-20 09:00:00', '2026-11-20 12:00:00', 'Studio 1', 'TALK'),
-('s10', 'e10', 'Outdoor Shooting', '2026-11-20 13:00:00', '2026-11-20 16:00:00', 'Garden', 'WORKSHOP');
-
--- 4. Chèn dữ liệu vào EVENT_REGISTRATIONS
-INSERT INTO `event_registrations` (`id`, `event_id`, `user_profile_id`, `status`, `registered_at`, `eligible_for_draw`) VALUES
-('r1', 'e1', 'user-001', 'CONFIRMED', NOW(), 1),
-('r2', 'e1', 'user-002', 'PENDING', NOW(), 0),
-('r3', 'e2', 'user-003', 'CONFIRMED', NOW(), 1),
-('r4', 'e3', 'user-004', 'CONFIRMED', NOW(), 1),
-('r5', 'e3', 'user-005', 'CANCELLED', NOW(), 0),
-('r6', 'e6', 'user-006', 'CONFIRMED', NOW(), 0),
-('r7', 'e7', 'user-007', 'CONFIRMED', NOW(), 0),
-('r8', 'e8', 'user-008', 'CONFIRMED', NOW(), 1),
-('r9', 'e9', 'user-009', 'CONFIRMED', NOW(), 0),
-('r10', 'e10', 'user-010', 'CONFIRMED', NOW(), 1);
-
--- 5. Chèn dữ liệu vào PAYMENTS
-INSERT INTO `payments` (`id`, `registration_id`, `amount`, `status`, `paid_at`) VALUES
-('pay1', 'r1', 200000.0, 'SUCCESS', NOW()),
-('pay2', 'r3', 0.0, 'SUCCESS', NOW()),
-('pay3', 'r4', 150000.0, 'SUCCESS', NOW()),
-('pay4', 'r6', 500000.0, 'SUCCESS', NOW()),
-('pay5', 'r7', 100000.0, 'SUCCESS', NOW()),
-('pay6', 'r8', 250000.0, 'SUCCESS', NOW()),
-('pay7', 'r9', 50000.0, 'SUCCESS', NOW()),
-('pay8', 'r10', 300000.0, 'SUCCESS', NOW()),
-('pay9', 'r2', 200000.0, 'PENDING', NULL),
-('pay10', 'r5', 150000.0, 'REFUNDED', NOW());
-
--- 6. Chèn dữ liệu vào CHECKINS
-INSERT INTO `checkins` (`id`, `registration_id`, `check_in_time`, `method`) VALUES
-('ck1', 'r1', '2026-10-01 07:45:00', 'QR_CODE'),
-('ck2', 'r3', '2026-11-15 08:50:00', 'MANUAL'),
-('ck3', 'r4', '2026-12-01 04:30:00', 'QR_CODE'),
-('ck4', 'r6', '2026-11-05 18:15:00', 'FACE_ID'),
-('ck5', 'r7', '2026-10-12 13:10:00', 'QR_CODE'),
+INSERT INTO events (id, title, description, event_topic, status, type, location, event_mode, max_participants, organization_id, created_by_account_id, approved_by_account_id, start_time, end_time, registration_deadline, is_deleted, finalized, archived, created_at) VALUES
+('EVT001', 'Hội thảo AI & Future', 'Khám phá tương lai công nghệ', 'Technology', 'PUBLISHED', 'SEMINAR', 'Hội trường A1', 'OFFLINE', 100, 'FPTU-IT', 'ad80e87e-c1a1-48b7-9303-14e8d2979a0e', '16685b22-4114-4afd-90f1-41d7cb8b259e', '2026-03-22 08:00:00', '2026-03-22 12:00:00', '2026-03-21 23:59:59', 0, 1, 0, NOW()),
+('EVT002', 'Workshop React Advanced', 'Thực hành React chuyên sâu', 'Technology', 'PUBLISHED', 'WORKSHOP', 'Phòng Lab 2', 'OFFLINE', 50, 'GDSC-HCM', 'ad80e87e-c1a1-48b7-9303-14e8d2979a0e', '16685b22-4114-4afd-90f1-41d7cb8b259e', '2026-03-23 13:30:00', '2026-03-23 17:00:00', '2026-03-22 23:59:59', 0, 0, 0, NOW()),
+('EVT003', 'Webinar: Startup 101', 'Kiến thức khởi nghiệp cơ bản', 'Business', 'PUBLISHED', 'WEBINAR', 'Zoom Meetings', 'ONLINE', 500, 'CLB-STU', 'USE001', '16685b22-4114-4afd-90f1-41d7cb8b259e', '2026-03-24 19:00:00', '2026-03-24 21:00:00', '2026-03-24 12:00:00', 0, 1, 0, NOW()),
+('EVT004', 'Giải đấu Cờ Vua', 'Sân chơi trí tuệ', 'Sport', 'PUBLISHED', 'OTHER', 'Sảnh tòa nhà Alpha', 'OFFLINE', 64, 'FPTU-IT', 'ad80e87e-c1a1-48b7-9303-14e8d2979a0e', '16685b22-4114-4afd-90f1-41d7cb8b259e', '2026-03-25 08:00:00', '2026-03-25 17:00:00', '2026-03-24 23:59:59', 0, 0, 0, NOW()),
+('EVT005', 'Đêm nhạc Acoustic tháng 3', 'Giao lưu văn nghệ', 'Music', 'PUBLISHED', 'OTHER', 'Sân khấu trung tâm', 'OFFLINE', 200, 'CLB-AM', 'USE002', '16685b22-4114-4afd-90f1-41d7cb8b259e', '2026-03-26 18:30:00', '2026-03-26 21:30:00', '2026-03-26 12:00:00', 0, 0, 0, NOW()),
+('EVT006', 'Tọa đàm: Kỹ năng Viết CV', 'Chuẩn bị cho mùa thực tập', 'Career', 'PUBLISHED', 'TALKSHOW', 'Phòng B204', 'OFFLINE', 80, 'K-SE', 'USE003', '16685b22-4114-4afd-90f1-41d7cb8b259e', '2026-03-20 09:00:00', '2026-03-20 11:30:00', '2026-03-19 23:59:59', 0, 1, 0, NOW()),
+('EVT007', 'Workshop UI/UX Design', 'Thiết kế Mobile App', 'Design', 'PUBLISHED', 'WORKSHOP', 'Figma Online', 'ONLINE', 100, 'K-Digital', 'USE004', '16685b22-4114-4afd-90f1-41d7cb8b259e', '2026-03-21 14:00:00', '2026-03-21 17:00:00', '2026-03-20 23:59:59', 0, 0, 0, NOW()),
+('EVT008', 'Giải chạy Marathon Sinh viên', 'Rèn luyện thể chất', 'Sport', 'PUBLISHED', 'OTHER', 'Đường nội khu', 'OFFLINE', 1000, 'CLB-Vovinam', 'USE005', '16685b22-4114-4afd-90f1-41d7cb8b259e', '2026-03-22 05:30:00', '2026-03-22 09:30:00', '2026-03-15 23:59:59', 0, 1, 0, NOW()),
+('EVT009', 'Học thuật: Data Science', 'Ứng dụng Python trong Big Data', 'Technology', 'PUBLISHED', 'SEMINAR', 'Hội trường B', 'OFFLINE', 150, 'K-AI', 'USE006', '16685b22-4114-4afd-90f1-41d7cb8b259e', '2026-03-23 08:30:00', '2026-03-23 11:30:00', '2026-03-22 23:59:59', 0, 0, 0, NOW()),
+('EVT010', 'English Speaking Club', 'Chủ đề: Global Citizen', 'Education', 'PUBLISHED', 'OTHER', 'Phòng tự học 1', 'OFFLINE', 40, 'CLB-English', 'USE007', '16685b22-4114-4afd-90f1-41d7cb8b259e', '2026-03-24 15:00:00', '2026-03-24 17:00:00', '2026-03-23 23:59:59', 0, 0, 0, NOW()),
+('EVT011', 'Zalo Pay Integration', 'Tích hợp thanh toán vào App', 'Technology', 'PUBLISHED', 'WORKSHOP', 'Văn phòng Zalo', 'OFFLINE', 30, 'Zalo-Team', 'USE008', '16685b22-4114-4afd-90f1-41d7cb8b259e', '2026-03-25 09:00:00', '2026-03-25 12:00:00', '2026-03-24 23:59:59', 0, 1, 0, NOW()),
+('EVT012', 'Webinar: Logistics 4.0', 'Xu hướng vận tải hiện đại', 'Infrastructure', 'PUBLISHED', 'WEBINAR', 'Microsoft Teams', 'ONLINE', 300, 'K-Logistics', 'USE009', '16685b22-4114-4afd-90f1-41d7cb8b259e', '2026-03-26 14:00:00', '2026-03-26 16:00:00', '2026-03-25 23:59:59', 0, 0, 0, NOW()),
+('EVT013', 'Giao lưu cùng cựu sinh viên', 'Chia sẻ lộ trình nghề nghiệp', 'Career', 'PUBLISHED', 'TALKSHOW', 'Hội trường A2', 'OFFLINE', 200, 'FPT-SOFT', 'USE010', '16685b22-4114-4afd-90f1-41d7cb8b259e', '2026-03-27 08:30:00', '2026-03-27 11:00:00', '2026-03-26 23:59:59', 0, 1, 0, NOW()),
+('EVT014', 'Giải đấu Robotics Mini', 'Sáng tạo và lập trình robot', 'Technology', 'PUBLISHED', 'OTHER', 'Sân tập Robotics', 'OFFLINE', 20, 'CLB-Robotics', 'USE011', '16685b22-4114-4afd-90f1-41d7cb8b259e', '2026-03-28 08:00:00', '2026-03-28 17:00:00', '2026-03-25 23:59:59', 0, 0, 0, NOW()),
+('EVT015', 'Workshop Photography', 'Bắt trọn khoảnh khắc sự kiện', 'Art', 'PUBLISHED', 'WORKSHOP', 'Công viên xanh', 'OFFLINE', 25, 'CLB-Event', 'USE012', '16685b22-4114-4afd-90f1-41d7cb8b259e', '2026-03-29 07:00:00', '2026-03-29 10:00:00', '2026-03-28 23:59:59', 0, 1, 0, NOW()),
+('EVT016', 'Webinar: Quản lý Tài chính', 'Tiết kiệm và đầu tư từ sớm', 'Finance', 'PUBLISHED', 'WEBINAR', 'Google Meet', 'ONLINE', 1000, 'K-Finance', 'USE013', '16685b22-4114-4afd-90f1-41d7cb8b259e', '2026-03-30 20:00:00', '2026-03-30 21:30:00', '2026-03-30 12:00:00', 0, 0, 0, NOW()),
+('EVT017', 'Đại hội Dance Cover', 'Sân chơi vũ đạo sinh viên', 'Art', 'PUBLISHED', 'OTHER', 'Nhà văn hóa', 'OFFLINE', 500, 'CLB-Dance', 'USE014', '16685b22-4114-4afd-90f1-41d7cb8b259e', '2026-03-31 18:00:00', '2026-03-31 22:00:00', '2026-03-30 23:59:59', 0, 1, 0, NOW()),
+('EVT018', 'Workshop Momo Mini App', 'Phát triển ứng dụng trên Momo', 'Technology', 'PUBLISHED', 'WORKSHOP', 'Momo Campus', 'OFFLINE', 40, 'Momo-Fintech', 'USE015', '16685b22-4114-4afd-90f1-41d7cb8b259e', '2026-03-19 09:00:00', '2026-03-19 12:00:00', '2026-03-18 23:59:59', 0, 0, 0, NOW()),
+('EVT019', 'Tọa đàm: Văn hóa Nhật Bản', 'Trải nghiệm trà đạo và thư pháp', 'Culture', 'PUBLISHED', 'TALKSHOW', 'Phòng trà', 'OFFLINE', 30, 'JS-Club', 'USE016', '16685b22-4114-4afd-90f1-41d7cb8b259e', '2026-03-20 14:00:00', '2026-03-20 16:30:00', '2026-03-19 23:59:59', 0, 1, 0, NOW()),
+('EVT020', 'Webinar: Cloud Security', 'Bảo mật hạ tầng đám mây', 'Technology', 'PUBLISHED', 'WEBINAR', 'Webex', 'ONLINE', 400, 'VNG-Corp', 'USE017', '16685b22-4114-4afd-90f1-41d7cb8b259e', '2026-03-21 19:30:00', '2026-03-21 21:00:00', '2026-03-21 12:00:00', 0, 0, 0, NOW());
 
 
-('ck6', 'r8', '2026-09-01 07:55:00', 'MANUAL'),
-('ck7', 'r9', '2026-10-15 05:50:00', 'QR_CODE'),
-('ck8', 'r10', '2026-11-20 08:40:00', 'QR_CODE'),
-('ck9', 'r1', '2026-10-01 13:00:00', 'MANUAL'),
-('ck10', 'r4', '2026-12-01 09:00:00', 'QR_CODE');
+INSERT INTO event_sessions (id, event_id, title, start_time, end_time, room, type)
+SELECT CONCAT('SES-', id), id, CONCAT('Phần 1: ', title), start_time, DATE_ADD(start_time, INTERVAL 1 HOUR), location, 'KEYNOTE'
+FROM events LIMIT 20;
+
+-- 20 Posts thông báo
+INSERT INTO event_posts (id, event_id, created_by_account_id, title, content, post_type, status, created_at, is_deleted)
+SELECT CONCAT('POST-', id), id, created_by_account_id, 'Sự kiện sắp bắt đầu!', 'Mọi người nhớ đến đúng giờ nhé.', 'ANNOUNCEMENT', 'PUBLISHED', NOW(), 0
+FROM events LIMIT 20;
+
+-- Thêm 100 lượt đăng ký ngẫu nhiên (Mỗi user đăng ký vào 5 sự kiện)
+INSERT INTO event_db.event_registrations (id, event_id, user_registration_id, status, registered_at, checked_in, qr_token, eligible_for_draw)
+SELECT
+    UUID(),
+    e.id,
+    u.id,
+    'REGISTERED',
+    NOW(),
+    IF(RAND() > 0.7, 1, 0),
+    CONCAT('QR-', e.id, '-', u.id),
+    1
+FROM event_db.events e
+         CROSS JOIN identity_db.accounts u -- Gọi trực tiếp sang database identity
+WHERE u.id LIKE 'USE%' AND e.id LIKE 'EVT%'
+  AND RAND() < 0.25;

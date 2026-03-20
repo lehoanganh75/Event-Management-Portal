@@ -12,7 +12,6 @@ import java.util.UUID;
 
 @Component
 public class QRTokenUtil {
-
     private static final String SECRET = "qr-checkin-secret-key-must-be-32-chars!!";
     private static final Key KEY = Keys.hmacShaKeyFor(SECRET.getBytes());
 
@@ -41,11 +40,7 @@ public class QRTokenUtil {
     }
 
     public Claims verifyQRToken(String token) {
-        return Jwts.parserBuilder()
-                .setSigningKey(KEY)
-                .build()
-                .parseClaimsJws(token)
-                .getBody();
+        return null;
     }
 
     public boolean isTokenValid(String token) {

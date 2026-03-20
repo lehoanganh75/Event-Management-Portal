@@ -14,6 +14,7 @@ import java.util.List;
 @Table(name = "lucky_draws")
 @Getter
 @Setter
+@ToString
 public class LuckyDraw {
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)

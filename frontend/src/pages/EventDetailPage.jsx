@@ -267,7 +267,7 @@ const EventDetail = () => {
             initial={{ opacity: 0, x: 100 }}
             animate={{ opacity: 1, x: 0 }}
             exit={{ opacity: 0, x: 100 }}
-            className={`fixed top-24 right-6 z-[100] flex items-center gap-3 px-5 py-4 rounded-2xl shadow-2xl border bg-white ${
+            className={`fixed top-24 right-6 z-100 flex items-center gap-3 px-5 py-4 rounded-2xl shadow-2xl border bg-white ${
               toast.type === "success" ? "border-emerald-100" : "border-rose-100"
             }`}
           >
@@ -671,12 +671,12 @@ const EventDetail = () => {
       {/* QR Modal */}
       <AnimatePresence>
         {showQRModal && (
-          <div className="fixed inset-0 z-[150] flex items-center justify-center bg-black/60 p-4">
+          <div className="fixed inset-0 z-150 flex items-center justify-center bg-black/60 p-4">
             <motion.div
               initial={{ opacity: 0, scale: 0.9 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.9 }}
-              className="bg-white rounded-[2rem] p-8 max-w-sm w-full text-center relative shadow-2xl"
+              className="bg-white rounded-4xl p-8 max-w-sm w-full text-center relative shadow-2xl"
             >
               <button
                 onClick={() => setShowQRModal(false)}
@@ -697,7 +697,7 @@ const EventDetail = () => {
                 {qrValue ? (
                   <QRCode value={qrValue} size={200} level="H" />
                 ) : (
-                  <div className="w-[200px] h-[200px] flex items-center justify-center text-slate-400">
+                  <div className="w-50 h-50 flex items-center justify-center text-slate-400">
                     Đang tải mã QR...
                   </div>
                 )}
@@ -710,7 +710,7 @@ const EventDetail = () => {
       {/* Cancel Confirmation Modal */}
       <AnimatePresence>
         {showCancelModal && (
-          <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
+          <div className="fixed inset-0 z-200 flex items-center justify-center p-4">
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
@@ -722,7 +722,7 @@ const EventDetail = () => {
               initial={{ scale: 0.9, opacity: 0, y: 20 }}
               animate={{ scale: 1, opacity: 1, y: 0 }}
               exit={{ scale: 0.9, opacity: 0, y: 20 }}
-              className="relative bg-white w-full max-w-sm rounded-[2rem] shadow-2xl p-8 text-center"
+              className="relative bg-white w-full max-w-sm rounded-4xl shadow-2xl p-8 text-center"
             >
               <div className="w-20 h-20 bg-rose-50 text-rose-500 rounded-full flex items-center justify-center mx-auto mb-6">
                 <AlertCircle size={40} />

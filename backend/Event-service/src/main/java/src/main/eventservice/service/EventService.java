@@ -11,10 +11,17 @@ import java.util.List;
 import java.util.Optional;
 
 public interface EventService {
-    // Lấy toàn bộ danh sách sự kiện
     List<Event> getAllEvents();
 
     List<Event> getFeaturedEvents();
+
+    Optional<Event> findById(String id);
+
+    List<Event> getMyEventsByAccountAndMonth(String accountId);
+
+    Event createEvent(Event event);
+
+    void deleteEvent(String id);
 
     // Tìm một sự kiện theo ID
     Optional<Event> getEventById(String id);
@@ -26,8 +33,7 @@ public interface EventService {
         // Đảm bảo tính toàn vẹn dữ liệu khi update
     Event updateEvent(String id, Event eventDetails);
 
-    // Xóa sự kiện
-    void deleteEvent(String id);
+    void updateLuckyDrawId(String id, String luckyDrawId);
 
     // Plans
     List<Event> getAllPlans();

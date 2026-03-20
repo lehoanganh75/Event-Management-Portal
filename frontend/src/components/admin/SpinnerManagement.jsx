@@ -7,7 +7,7 @@ import { useSearchParams } from 'react-router-dom';
 import axios from 'axios';
 import { getEventById } from "../../api/eventApi";
 
-// Cấu hình hiển thị trạng thái vòng quay
+// Cấu hình hiển thị trạng thái vòng quay theo Enum Backend
 const STATUS_CONFIG = {
   PENDING: { label: "Chờ kích hoạt", color: "bg-amber-100 text-amber-600 border-amber-200" },
   ACTIVE: { label: "Đang diễn ra", color: "bg-emerald-100 text-emerald-600 border-emerald-200" },
@@ -20,20 +20,18 @@ const SpinnerManagement = () => {
   const eventIdFromUrl = searchParams.get("eventId");
   const eventTitleFromUrl = searchParams.get("title");
 
-  // --- States dữ liệu ---
+  // --- States quản lý dữ liệu ---
   const [campaigns, setCampaigns] = useState([]);
-  const [winners, setWinners] = useState([]); // Dữ liệu từ DrawResult
+  const [winners, setWinners] = useState([]); 
   const [activeTab, setActiveTab] = useState('Chiến dịch vòng quay');
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
-  const [loading, setLoading] = useState(false); 
-  const [fetching, setFetching] = useState(true); 
+  const [loading, setLoading] = useState(false); // Dùng cho Button Actions
+  const [fetching, setFetching] = useState(true); // Dùng cho Table Loading
   const [eventDetails, setEventDetails] = useState(null);
 
-  // --- States Chỉnh sửa ---
+  // --- States Chỉnh sửa & Thời gian ---
   const [isEditMode, setIsEditMode] = useState(false);
   const [editingId, setEditingId] = useState(null);
-
-  // --- States Thời gian rời ---
   const [selectedDate, setSelectedDate] = useState(""); 
   const [startTimeOnly, setStartTimeOnly] = useState("08:00"); 
   const [endTimeOnly, setEndTimeOnly] = useState("22:00"); 
@@ -47,7 +45,7 @@ const SpinnerManagement = () => {
     prizes: [{ name: "", quantity: 1, winProbabilityPercent: 0 }]
   });
 
-  // 1. Fetch danh sách chiến dịch
+  // 1. Fetch danh sách vòng quay (Lọc các mục chưa xóa)
   const fetchCampaigns = async () => {
     setFetching(true);
     try {
@@ -55,20 +53,32 @@ const SpinnerManagement = () => {
       const res = await axios.get("http://localhost:8083/api/lucky-draws", {
         headers: { Authorization: `Bearer ${token}` }
       });
+
+      console.log("res", res)
+      
       const formattedData = res.data.map(item => ({
         id: item.id,
         name: item.title,
         eventId: item.eventId,
         time: `${new Date(item.startTime).toLocaleDateString()} (${new Date(item.startTime).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})} - ${new Date(item.endTime).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})})`,
         status: item.status,
+        // Chú ý: Backend trả về isDeleted (boolean) nên ở đây dùng item.isDeleted
+        is_deleted: item.deleted ? 1 : 0, 
         raw: item
       }));
-      setCampaigns(formattedData);
-    } catch (error) { console.error("Lỗi tải danh sách:", error); } 
-    finally { setFetching(false); }
+
+      console.log(formattedData);
+
+      // Chỉ lấy những cái chưa bị xóa (is_deleted = 0)
+      setCampaigns(formattedData.filter(item => item.is_deleted === 0));
+    } catch (error) {
+      console.error("Lỗi tải danh sách:", error);
+    } finally {
+      setFetching(false);
+    }
   };
 
-  // 2. Fetch danh sách trúng thưởng (DrawResult)
+  // 2. Fetch danh sách người trúng thưởng
   const fetchWinners = async () => {
     setFetching(true);
     try {
@@ -77,8 +87,11 @@ const SpinnerManagement = () => {
         headers: { Authorization: `Bearer ${token}` }
       });
       setWinners(res.data);
-    } catch (error) { console.error("Lỗi tải danh sách trúng thưởng:", error); }
-    finally { setFetching(false); }
+    } catch (error) {
+      console.error("Lỗi tải danh sách trúng thưởng:", error);
+    } finally {
+      setFetching(false);
+    }
   };
 
   useEffect(() => {
@@ -86,18 +99,16 @@ const SpinnerManagement = () => {
     if (activeTab === 'Danh sách trúng thưởng') fetchWinners();
   }, [activeTab]);
 
-  // 3. Xử lý khi nhấn Edit
+  // 3. Xử lý mở Modal Chỉnh sửa
   const handleEditClick = (campaign) => {
     const raw = campaign.raw;
     setIsEditMode(true);
     setEditingId(raw.id);
     
     if (raw.startTime) {
-      const start = new Date(raw.startTime);
-      const end = new Date(raw.endTime);
       setSelectedDate(raw.startTime.split('T')[0]);
-      setStartTimeOnly(start.toTimeString().substring(0, 5));
-      setEndTimeOnly(end.toTimeString().substring(0, 5));
+      setStartTimeOnly(raw.startTime.split('T')[1].substring(0, 5));
+      setEndTimeOnly(raw.endTime.split('T')[1].substring(0, 5));
     }
 
     setFormData({
@@ -106,6 +117,7 @@ const SpinnerManagement = () => {
       description: raw.description || "",
       status: raw.status,
       allowMultipleWins: raw.allowMultipleWins,
+      // Lọc bỏ giải "May mắn lần sau" vì nó được tự động bù tỉ lệ ở FE
       prizes: raw.prizes.filter(p => p.name !== "Chúc bạn may mắn lần sau").map(p => ({
         name: p.name,
         quantity: p.quantity,
@@ -115,30 +127,95 @@ const SpinnerManagement = () => {
     setIsCreateModalOpen(true);
   };
 
-  // 4. Nhận sự kiện từ URL
-  useEffect(() => {
-    const fetchEventInfo = async () => {
-      if (eventIdFromUrl) {
-        try {
-          const res = await getEventById(eventIdFromUrl);
-          setEventDetails(res.data);
-          if (res.data.startTime) {
-             const dateStr = Array.isArray(res.data.startTime) 
-                ? `${res.data.startTime[0]}-${String(res.data.startTime[1]).padStart(2, '0')}-${String(res.data.startTime[2]).padStart(2, '0')}`
-                : res.data.startTime.split('T')[0];
-             setSelectedDate(dateStr);
+  const handleDeleteClick = async (campaign) => {
+    if (window.confirm(`Bạn có chắc chắn muốn xóa chiến dịch "${campaign.name}"?`)) {
+      setLoading(true);
+      try {
+        const token = localStorage.getItem("accessToken");
+        
+        // campaign.raw chứa dữ liệu từ Backend trả về
+        // Chú ý: Backend cần List<Prize> ở định dạng đúng
+        const payload = {
+          ...campaign.raw,
+          isDeleted: true // Gửi true (JS) -> Java sẽ nhận và lưu thành 1
+        };
+
+        console.log("Payload gửi đi:", payload);
+
+        const response = await axios.put(
+          `http://localhost:8083/api/lucky-draws/${campaign.raw.id}`, 
+          payload, 
+          {
+            headers: { 
+                Authorization: `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            }
           }
-          setFormData(prev => ({ ...prev, eventId: eventIdFromUrl, title: eventTitleFromUrl ? `Vòng quay: ${eventTitleFromUrl}` : "" }));
-          setIsCreateModalOpen(true);
-          setIsEditMode(false);
-          setTimeout(() => setSearchParams({}), 1000);
-        } catch (error) { console.error(error); }
+        );
+
+        console.log("Response từ server:", response.data);
+
+        alert("Xóa chiến dịch thành công!");
+        fetchCampaigns(); 
+      } catch (error) {
+        console.error("Delete error:", error);
+        alert("Lỗi: Không thể cập nhật trạng thái xóa.");
+      } finally {
+        setLoading(false);
       }
+    }
+  };
+
+  // 5. Nhận diện ID từ URL (Khi điều hướng từ EventPage)
+  useEffect(() => {
+  const fetchEventInfo = async () => {
+    if (eventIdFromUrl) {
+      try {
+        const res = await getEventById(eventIdFromUrl);
+        const eventData = res.data;
+        setEventDetails(eventData);
+
+        // --- XỬ LÝ NGÀY THÁNG AN TOÀN ---
+        if (eventData.startTime) {
+          let dateStr = "";
+
+          if (Array.isArray(eventData.startTime)) {
+            // Trường hợp: [2026, 3, 20, ...]
+            const [year, month, day] = eventData.startTime;
+            dateStr = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+          } else if (typeof eventData.startTime === 'string') {
+            // Trường hợp: "2026-03-20T17:30:00"
+            dateStr = eventData.startTime.split('T')[0];
+          } else {
+            // Trường hợp: Đối tượng Date hoặc khác
+            const d = new Date(eventData.startTime);
+            dateStr = d.toISOString().split('T')[0];
+          }
+          
+          setSelectedDate(dateStr);
+        }
+        // ------------------------------
+
+        setFormData(prev => ({ 
+          ...prev, 
+          eventId: eventIdFromUrl, 
+          title: eventTitleFromUrl ? `Vòng quay: ${eventTitleFromUrl}` : "" 
+        }));
+        
+        setIsCreateModalOpen(true);
+        setIsEditMode(false);
+        
+        // Xóa params trên URL sau khi đã nhận xong
+        setTimeout(() => setSearchParams({}), 1000);
+      } catch (error) { 
+        console.error("Lỗi lấy thông tin sự kiện:", error); 
+      }
+    }
     };
     fetchEventInfo();
   }, [eventIdFromUrl, eventTitleFromUrl, setSearchParams]);
 
-  // 5. Logic tính tỷ lệ %
+  // 6. Logic tính toán tỷ lệ tự động
   const totalAllocatedPercent = useMemo(() => {
     return formData.prizes.reduce((sum, p) => sum + (parseFloat(p.winProbabilityPercent) || 0), 0);
   }, [formData.prizes]);
@@ -152,6 +229,7 @@ const SpinnerManagement = () => {
     const newPrizes = [...formData.prizes];
     if (field === 'winProbabilityPercent') {
       let val = parseFloat(value) || 0;
+      if (val < 0) val = 0;
       const otherSum = formData.prizes.reduce((s, p, i) => i !== index ? s + (parseFloat(p.winProbabilityPercent) || 0) : s, 0);
       if (otherSum + val > 100) val = 100 - otherSum;
       newPrizes[index][field] = val;
@@ -162,17 +240,18 @@ const SpinnerManagement = () => {
   };
 
   const addPrize = () => {
-    if (totalAllocatedPercent >= 100) return alert("Đã đạt giới hạn 100%!");
-    setFormData(p => ({ ...p, prizes: [...p.prizes, { name: "", quantity: 1, winProbabilityPercent: 0 }] }));
+    if (totalAllocatedPercent >= 100) return alert("Đã đạt 100%!");
+    setFormData(prev => ({ ...prev, prizes: [...prev.prizes, { name: "", quantity: 1, winProbabilityPercent: 0 }] }));
   };
 
   const removePrize = (i) => {
     if (formData.prizes.length > 1) setFormData(p => ({ ...p, prizes: p.prizes.filter((_, idx) => idx !== i) }));
   };
 
-  // 6. Submit
+  // 7. Submit Dữ liệu (Create / Update)
   const handleSubmit = async () => {
-    if (!formData.eventId || !formData.title || !selectedDate) return alert("Vui lòng điền đủ thông tin!");
+    if (!formData.eventId || !formData.title || !selectedDate) return alert("Vui lòng nhập đủ các trường bắt buộc!");
+    
     setLoading(true);
     try {
       const token = localStorage.getItem("accessToken");
@@ -181,22 +260,36 @@ const SpinnerManagement = () => {
         startTime: `${selectedDate}T${startTimeOnly}:00`,
         endTime: `${selectedDate}T${endTimeOnly}:00`,
         prizes: [
-          ...formData.prizes.filter(p => p.name.trim() !== "").map(p => ({ ...p, winProbabilityPercent: (p.winProbabilityPercent / 100).toFixed(4) })),
-          { name: "Chúc bạn may mắn lần sau", quantity: 999999, winProbabilityPercent: (parseFloat(unluckyPercent) / 100).toFixed(4) }
+          ...formData.prizes.filter(p => p.name.trim() !== "").map(p => ({ 
+            ...p, 
+            winProbabilityPercent: (p.winProbabilityPercent / 100).toFixed(4) 
+          })),
+          { 
+            name: "Chúc bạn may mắn lần sau", 
+            quantity: 999999, 
+            winProbabilityPercent: (parseFloat(unluckyPercent) / 100).toFixed(4) 
+          }
         ]
       };
 
       if (isEditMode) {
-        await axios.put(`http://localhost:8083/api/lucky-draws/${editingId}`, payload, { headers: { Authorization: `Bearer ${token}` } });
+        await axios.put(`http://localhost:8083/api/lucky-draws/${editingId}`, payload, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        alert("Cập nhật thành công!");
       } else {
-        await axios.post("http://localhost:8083/api/lucky-draws", payload, { headers: { Authorization: `Bearer ${token}` } });
+        await axios.post("http://localhost:8083/api/lucky-draws", payload, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        alert("Khởi tạo thành công!");
       }
       
       setIsCreateModalOpen(false);
       resetForm();
       fetchCampaigns();
-    } catch (err) { alert("Lỗi xử lý!"); } 
-    finally { setLoading(false); }
+    } catch (err) {
+      alert("Lỗi: " + (err.response?.data?.message || err.message));
+    } finally { setLoading(false); }
   };
 
   const resetForm = () => {
@@ -209,9 +302,12 @@ const SpinnerManagement = () => {
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
-          <h1 className="text-4xl font-black text-slate-900 tracking-tighter uppercase italic">Spin Board</h1>
-          <p className="text-slate-400 font-bold text-xs uppercase tracking-widest opacity-60">Lucky Draw Management System</p>
+          <h1 className="text-4xl font-black text-slate-900 tracking-tighter uppercase italic">Lucky Draw Panel</h1>
+          <p className="text-slate-400 font-bold text-xs uppercase tracking-widest opacity-60">Hệ thống quản lý vòng quay may mắn</p>
         </div>
+        <button onClick={() => { resetForm(); setIsCreateModalOpen(true); }} className="flex items-center gap-3 px-8 py-4 bg-indigo-600 text-white font-black rounded-2xl hover:bg-indigo-700 transition-all uppercase text-[10px] tracking-widest shadow-xl shadow-indigo-100">
+          <Plus size={18} /> Tạo chiến dịch mới
+        </button>
       </div>
 
       {/* Tabs */}
@@ -224,18 +320,18 @@ const SpinnerManagement = () => {
         ))}
       </div>
 
-      {/* Main Table Content */}
+      {/* Table Content */}
       <div className="bg-white rounded-4xl border border-slate-200 shadow-sm overflow-hidden mt-8">
         <table className="min-w-full divide-y divide-slate-200 text-center">
           <thead className="bg-slate-50 text-[10px] font-black uppercase text-slate-400">
             <tr>
               {activeTab === 'Chiến dịch vòng quay' ? (
                 <>
-                  <th className="px-6 py-5">ID</th><th className="px-6 py-5">Tiêu đề</th><th className="px-6 py-5">Sự kiện</th><th className="px-6 py-5">Thời gian</th><th className="px-6 py-5">Trạng thái</th><th className="px-6 py-5">Thao tác</th>
+                  <th className="px-6 py-5">ID</th><th className="px-6 py-5 text-left">Tiêu đề</th><th className="px-6 py-5">Sự kiện</th><th className="px-6 py-5">Thời gian</th><th className="px-6 py-5">Trạng thái</th><th className="px-6 py-5">Thao tác</th>
                 </>
               ) : (
                 <>
-                  <th className="px-6 py-5">Thời gian</th><th className="px-6 py-5">Người trúng (ID)</th><th className="px-6 py-5">Chiến dịch</th><th className="px-6 py-5">Giải thưởng</th><th className="px-6 py-5">Nhận giải</th>
+                  <th className="px-6 py-5">Thời gian trúng</th><th className="px-6 py-5">Người trúng (ID)</th><th className="px-6 py-5">Chiến dịch</th><th className="px-6 py-5">Giải thưởng</th><th className="px-6 py-5">Trạng thái</th>
                 </>
               )}
             </tr>
@@ -256,8 +352,8 @@ const SpinnerManagement = () => {
                     </span>
                   </td>
                   <td className="px-6 py-4 flex justify-center gap-2">
-                    <button onClick={() => handleEditClick(item)} className="p-2 text-amber-500 hover:bg-amber-50 rounded-xl transition-all"><Edit size={16}/></button>
-                    <button className="p-2 text-rose-500 hover:bg-rose-50 rounded-xl transition-all"><Trash2 size={16}/></button>
+                    <button onClick={() => handleEditClick(item)} className="p-2 text-amber-500 hover:bg-amber-50 rounded-xl transition-all" title="Sửa"><Edit size={16}/></button>
+                    <button onClick={() => handleDeleteClick(item)} className="p-2 text-rose-500 hover:bg-rose-50 rounded-xl transition-all" title="Xóa"><Trash2 size={16}/></button>
                   </td>
                 </tr>
               ))
@@ -268,10 +364,10 @@ const SpinnerManagement = () => {
                   <td className="px-6 py-4 font-bold text-slate-900">{item.winnerProfileId}</td>
                   <td className="px-6 py-4 text-xs uppercase">{item.luckyDraw?.title}</td>
                   <td className="px-6 py-4 text-indigo-600 font-bold">{item.prize?.name}</td>
-                  <td className="px-6 py-4">
+                  <td className="px-6 py-4 text-center">
                     {item.claimed ? 
-                      <span className="flex items-center justify-center gap-1 text-emerald-500"><CheckCircle2 size={14}/> Đã nhận</span> : 
-                      <span className="flex items-center justify-center gap-1 text-slate-300"><XCircle size={14}/> Chưa nhận</span>
+                      <span className="flex items-center justify-center gap-1 text-emerald-500 text-[10px] font-bold uppercase"><CheckCircle2 size={14}/> Đã nhận</span> : 
+                      <span className="flex items-center justify-center gap-1 text-slate-300 text-[10px] font-bold uppercase"><XCircle size={14}/> Chờ nhận</span>
                     }
                   </td>
                 </tr>
@@ -291,7 +387,7 @@ const SpinnerManagement = () => {
                 <div>
                   <h2 className="text-2xl font-black text-slate-800 uppercase tracking-tighter text-left">{isEditMode ? "Cập nhật" : "Thiết lập"} vòng quay</h2>
                   <p className="text-[10px] text-indigo-500 font-black uppercase tracking-widest mt-1 italic flex items-center gap-1">
-                    <Calendar size={10}/> {eventDetails?.title || formData.eventId || 'Vui lòng chọn sự kiện'}
+                    <Calendar size={10}/> {eventDetails?.title || formData.eventId || 'Chưa liên kết sự kiện'}
                   </p>
                 </div>
               </div>
@@ -301,13 +397,13 @@ const SpinnerManagement = () => {
             <div className="p-10 overflow-y-auto custom-scrollbar space-y-8">
               <div className="space-y-6">
                 <div>
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 block">Tiêu đề chương trình</label>
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 block">Tên chương trình vòng quay</label>
                   <input className="w-full px-6 py-4 bg-slate-50 border-2 border-transparent focus:border-indigo-500 focus:bg-white rounded-2xl outline-none font-bold text-slate-700 transition-all shadow-inner" value={formData.title} onChange={e => setFormData({...formData, title: e.target.value})} />
                 </div>
 
                 {isEditMode && (
                   <div>
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 block">Trạng thái vận hành</label>
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 block">Thay đổi trạng thái</label>
                     <select className="w-full px-6 py-4 bg-slate-50 border-2 border-transparent focus:border-indigo-500 rounded-2xl outline-none font-bold text-slate-700" value={formData.status} onChange={e => setFormData({...formData, status: e.target.value})}>
                       {Object.keys(STATUS_CONFIG).map(s => <option key={s} value={s}>{STATUS_CONFIG[s].label}</option>)}
                     </select>
@@ -334,8 +430,8 @@ const SpinnerManagement = () => {
 
                 <div className="space-y-4 pt-6 border-t border-dashed border-slate-200">
                   <div className="flex justify-between items-center px-1">
-                    <h3 className="text-sm font-black text-slate-800 uppercase tracking-tighter">Cơ cấu giải thưởng</h3>
-                    <button onClick={addPrize} className="flex items-center gap-2 px-4 py-2 bg-indigo-50 text-indigo-600 rounded-xl text-[10px] font-black hover:bg-indigo-600 transition-all uppercase">
+                    <h3 className="text-sm font-black text-slate-800 uppercase tracking-tighter italic">Cơ cấu quà tặng</h3>
+                    <button onClick={addPrize} className="flex items-center gap-2 px-4 py-2 bg-indigo-50 text-indigo-600 rounded-xl text-[10px] font-black hover:bg-indigo-600 hover:text-white transition-all uppercase shadow-sm">
                       <Plus size={14} /> Thêm giải
                     </button>
                   </div>
@@ -345,7 +441,7 @@ const SpinnerManagement = () => {
                       <input className="flex-1 p-4 bg-slate-50 border-2 border-transparent focus:border-indigo-400 rounded-2xl text-sm font-bold text-slate-700 outline-none" placeholder="Tên quà" value={prize.name} onChange={e => handlePrizeChange(idx, 'name', e.target.value)} />
                       <div className="w-20"><input type="number" className="w-full p-4 bg-slate-50 border-2 border-transparent rounded-2xl text-center font-black text-slate-700 outline-none" placeholder="SL" value={prize.quantity} onChange={e => handlePrizeChange(idx, 'quantity', e.target.value)} /></div>
                       <div className="w-24 relative">
-                        <input type="number" step="0.01" className="w-full p-4 bg-indigo-50/50 border-2 border-indigo-100 rounded-2xl text-center font-black text-indigo-600 outline-none" placeholder="%" value={prize.winProbabilityPercent} onChange={e => handlePrizeChange(idx, 'winProbabilityPercent', e.target.value)} />
+                        <input type="number" step="0.01" className="w-full p-4 bg-indigo-50 border-2 border-indigo-100 rounded-2xl text-center font-black text-indigo-600 outline-none" placeholder="%" value={prize.winProbabilityPercent} onChange={e => handlePrizeChange(idx, 'winProbabilityPercent', e.target.value)} />
                         <span className="absolute -top-2 -right-1 bg-white border border-indigo-200 text-indigo-600 text-[8px] font-black px-1.5 rounded-full shadow-sm">%</span>
                       </div>
                       <button onClick={() => removePrize(idx)} className="p-4 text-slate-300 hover:text-rose-500 transition-all"><Trash2 size={20} /></button>
@@ -353,16 +449,31 @@ const SpinnerManagement = () => {
                   ))}
 
                   <div className="flex gap-4 items-center p-4 bg-slate-50/50 border-2 border-dashed border-slate-100 rounded-3xl opacity-60 italic text-left">
-                    <div className="flex-1 text-[11px] font-bold text-slate-400 px-4 italic">Tỷ lệ bù "May mắn lần sau":</div>
+                    <div className="flex-1 text-[11px] font-bold text-slate-400 px-4 italic">Bù tỷ lệ "May mắn lần sau":</div>
                     <div className="w-24 py-3 bg-white border-2 border-slate-100 rounded-2xl text-center font-black text-slate-400">{unluckyPercent}%</div>
                     <div className="w-13"></div>
                   </div>
                 </div>
               </div>
+
+              {/* allowMultipleWins Toggle */}
+              <div className="flex items-center justify-between p-6 bg-amber-50/50 rounded-4xl border-2 border-amber-100/50">
+                <div className="flex items-center gap-4">
+                  <div className="p-3 bg-white rounded-2xl text-amber-500 shadow-sm"><AlertCircle size={24}/></div>
+                  <div>
+                    <p className="text-xs font-black text-amber-800 uppercase tracking-widest">Cho phép trúng nhiều lần</p>
+                    <p className="text-[10px] text-amber-700/60 font-bold uppercase mt-0.5 tracking-tighter italic">Cùng một người có thể trúng các giải khác nhau</p>
+                  </div>
+                </div>
+                <label className="relative inline-flex items-center cursor-pointer">
+                  <input type="checkbox" className="sr-only peer" checked={formData.allowMultipleWins} onChange={e => setFormData({...formData, allowMultipleWins: e.target.checked})} />
+                  <div className="w-14 h-8 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[4px] after:left-[4px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-6 after:w-6 after:transition-all peer-checked:bg-indigo-600"></div>
+                </label>
+              </div>
             </div>
 
             <div className="p-10 border-t bg-slate-50/80 flex justify-end gap-5">
-              <button onClick={() => setIsCreateModalOpen(false)} className="px-8 py-4 font-black text-slate-400 uppercase text-[10px] tracking-widest hover:text-slate-600">Đóng</button>
+              <button onClick={() => setIsCreateModalOpen(false)} className="px-8 py-4 font-black text-slate-400 uppercase text-[10px] tracking-widest hover:text-slate-600 transition-colors">Đóng</button>
               <button disabled={loading} onClick={handleSubmit} className="flex items-center gap-3 px-12 py-4 bg-indigo-600 text-white font-black rounded-[20px] shadow-xl shadow-indigo-100 hover:bg-indigo-700 active:scale-95 uppercase text-[11px] tracking-[0.2em] transition-all">
                 {loading ? <Loader2 className="animate-spin" size={18}/> : <Save size={18} />} {isEditMode ? "Lưu thay đổi" : "Lưu cấu hình"}
               </button>

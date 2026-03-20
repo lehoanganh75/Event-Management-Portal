@@ -57,18 +57,11 @@ public class PlanResponseDto {
         dto.setType(event.getType() != null ? event.getType().name() : null);
         dto.setEventMode(event.getEventMode());
         dto.setMaxParticipants(event.getMaxParticipants());
-        dto.setParticipants(event.getParticipants());
-        dto.setRecipients(event.getRecipients());
-        dto.setCustomRecipients(event.getCustomRecipients());
         dto.setEventTopic(event.getEventTopic());
         dto.setCoverImage(event.getCoverImage());
         dto.setNotes(event.getNotes());
         dto.setAdditionalInfo(event.getAdditionalInfo());
         dto.setCustomFieldsJson(event.getCustomFieldsJson());
-        dto.setAttendees(event.getAttendees());
-        dto.setHasLuckyDraw(event.isHasLuckyDraw());
-        dto.setPresenters(event.getPresenters());
-        dto.setOrganizingCommittee(event.getOrganizingCommittee());
         dto.setCreatedAt(event.getCreatedAt() != null ? event.getCreatedAt().toString() : null);
         dto.setUpdatedAt(event.getUpdatedAt() != null ? event.getUpdatedAt().toString() : null);
         dto.setApprovedByAccountId(event.getApprovedByAccountId());

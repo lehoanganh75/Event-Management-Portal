@@ -37,8 +37,8 @@ public class EventPostServiceImpl implements EventPostService {
         post.setUpdatedAt(LocalDateTime.now());
         post.setDeleted(false);
 
-        if (post.getStatus() == PostStatus.Published) {
-            post.setPublishedAt(LocalDateTime.now());
+        if (post.getStatus() == PostStatus.PUBLISHED) {
+            post.setPostAt(LocalDateTime.now());
         }
 
         return eventPostRepository.save(post);
@@ -54,8 +54,8 @@ public class EventPostServiceImpl implements EventPostService {
         existingPost.setPostType(postDetails.getPostType());
         existingPost.setUpdatedAt(LocalDateTime.now());
 
-        if (existingPost.getStatus() != PostStatus.Published && postDetails.getStatus() == PostStatus.Published) {
-            existingPost.setPublishedAt(LocalDateTime.now());
+        if (existingPost.getStatus() != PostStatus.PUBLISHED && postDetails.getStatus() == PostStatus.PUBLISHED) {
+            existingPost.setPostAt(LocalDateTime.now());
         }
         existingPost.setStatus(postDetails.getStatus());
 
