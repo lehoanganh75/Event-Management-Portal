@@ -9,17 +9,12 @@ import {
   Calendar,
   MapPin,
   Users,
-  Image,
-  AlignLeft,
   BookOpen,
-  Send,
   CheckCircle2,
   ArrowLeft,
-  Upload,
-  Globe,
   Search,
 } from "lucide-react";
-import { getPlansByStatus, createEvent } from "../../api/eventApi";
+import { getPlansByStatus } from "../../api/eventApi";
 
 const ChooseModeStep = ({ onChoose }) => (
   <div className="p-8">
@@ -62,8 +57,7 @@ const ChooseModeStep = ({ onChoose }) => (
           Tạo mới trực tiếp
         </span>
         <p className="text-xs text-slate-500 leading-relaxed">
-          Nhập đầy đủ thông tin sự kiện và đăng ngay lập tức với trạng thái{" "}
-          <span className="font-bold text-emerald-600">Published</span>.
+          Nhập đầy đủ thông tin sự kiện qua các bước chi tiết và gửi phê duyệt.
         </p>
         <div className="mt-4 flex items-center gap-1 text-emerald-600 text-xs font-bold">
           Tạo mới <ChevronRight size={14} />
@@ -80,7 +74,33 @@ const SelectPlanStep = ({ onSelectPlan, onBack }) => {
   const [searchTerm, setSearchTerm] = useState("");
 
   useEffect(() => {
-    getPlansByStatus("Draft")
+    let accountId = null;
+    
+    const userData = localStorage.getItem("user");
+    if (userData) {
+      try {
+        const user = JSON.parse(userData);
+        accountId = user.id || user.accountId || user.account?.id || user.userId;
+      } catch (error) {
+        console.error("Lỗi parse user data:", error);
+      }
+    }
+
+    if (!accountId) {
+      const accessToken = localStorage.getItem("accessToken");
+      if (accessToken) {
+        try {
+          const base64Url = accessToken.split('.')[1];
+          const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+          const payload = JSON.parse(atob(base64));
+          accountId = payload.accountId || payload.sub || payload.userId || payload.id;
+        } catch (e) {
+          console.error("Lỗi decode token:", e);
+        }
+      }
+    }
+
+    getPlansByStatus("Draft", accountId)
       .then((res) => setPlans(Array.isArray(res.data) ? res.data : []))
       .catch(() => setPlans([]))
       .finally(() => setLoading(false));
@@ -188,7 +208,10 @@ const SelectPlanStep = ({ onSelectPlan, onBack }) => {
       <div className="mt-6 flex justify-end">
         <button
           disabled={!selected}
-          onClick={() => onSelectPlan(selected)}
+          onClick={() => {
+            console.log("📋 Plan raw data:", selected);
+            onSelectPlan(selected);
+          }}
           className="flex items-center gap-2 px-8 py-3 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 disabled:bg-slate-100 disabled:text-slate-400 transition-all shadow-lg shadow-blue-100 disabled:shadow-none"
         >
           Tiếp theo <ChevronRight size={16} />
@@ -198,357 +221,113 @@ const SelectPlanStep = ({ onSelectPlan, onBack }) => {
   );
 };
 
-const inputCls =
-  "w-full px-3 py-2.5 bg-white border border-slate-200 rounded-xl text-sm font-medium text-slate-700 outline-none focus:ring-2 focus:ring-blue-400 transition-all";
-
-const Field = ({ label, value, onChange, placeholder }) => (
-  <div>
-    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-0.5">
-      {label}
-    </p>
-    <input
-      value={value}
-      onChange={onChange}
-      placeholder={placeholder}
-      className={inputCls}
-    />
-  </div>
-);
-
-const EventForm = ({ initialData, onSubmit, onBack, submitting }) => {
-  const [form, setForm] = useState({
-    title: "",
-    shortDescription: "",
-    description: "",
-    postTitle: "",
-    coverImage: "",
-    location: "",
-    eventMode: "Offline",
-    startTime: "",
-    endTime: "",
-    registrationDeadline: "",
-    maxParticipants: 50,
-    eventType: "",
-    status: "Published",
-    ...initialData,
-  });
-  const [coverPreview, setCoverPreview] = useState(
-    initialData?.coverImage || "",
-  );
-  const set = (field) => (e) =>
-    setForm((f) => ({ ...f, [field]: e.target.value }));
-
-  const handleImageChange = (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (ev) => {
-      setCoverPreview(ev.target.result);
-      setForm((f) => ({ ...f, coverImage: ev.target.result }));
-    };
-    reader.readAsDataURL(file);
-  };
-
-  return (
-    <div className="p-8 max-h-[78vh] overflow-y-auto space-y-6">
-      <div className="flex items-center gap-3">
-        <button
-          onClick={onBack}
-          className="p-1.5 rounded-lg hover:bg-slate-100 transition-colors text-slate-400 hover:text-slate-700"
-        >
-          <ArrowLeft size={16} />
-        </button>
-        <div>
-          <h2 className="text-xl font-black text-slate-800">Tạo sự kiện mới</h2>
-          <p className="text-xs text-slate-500 mt-0.5">
-            Điền đầy đủ thông tin để đăng sự kiện ngay lập tức.
-          </p>
-        </div>
-      </div>
-
-      <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-bold bg-emerald-50 text-emerald-600 border border-emerald-100">
-        <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-        Đăng ngay sau khi tạo
-      </div>
-
-      {/* Cover image */}
-      <section>
-        <p className="text-[10px] font-black text-rose-500 uppercase tracking-widest flex items-center gap-1.5 mb-2">
-          <Image size={12} /> Ảnh bìa sự kiện
-        </p>
-        <div
-          className="relative w-full h-40 rounded-2xl overflow-hidden border-2 border-dashed border-slate-200 bg-slate-50 flex items-center justify-center cursor-pointer hover:border-blue-400 hover:bg-blue-50/30 transition-all group"
-          onClick={() => document.getElementById("coverInput").click()}
-        >
-          {coverPreview ? (
-            <>
-              <img
-                src={coverPreview}
-                alt="cover"
-                className="w-full h-full object-cover"
-              />
-              <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity rounded-2xl">
-                <Upload size={22} className="text-white" />
-              </div>
-            </>
-          ) : (
-            <div className="text-center text-slate-400">
-              <Upload size={26} className="mx-auto mb-1.5 opacity-50" />
-              <p className="text-xs font-medium">Nhấn để tải ảnh bìa</p>
-            </div>
-          )}
-          <input
-            id="coverInput"
-            type="file"
-            accept="image/*"
-            className="hidden"
-            onChange={handleImageChange}
-          />
-        </div>
-      </section>
-
-      {/* Basic info */}
-      <section>
-        <p className="text-[10px] font-black text-blue-500 uppercase tracking-widest flex items-center gap-1.5 mb-2">
-          <Globe size={12} /> Thông tin cơ bản
-        </p>
-        <div className="bg-slate-50/80 rounded-2xl p-5 space-y-4 border border-slate-100">
-          <Field
-            label="Tên sự kiện *"
-            value={form.title}
-            onChange={set("title")}
-            placeholder="VD: Workshop AI cho sinh viên"
-          />
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-0.5">
-                Địa điểm / Link *
-              </p>
-              <div className="relative">
-                <MapPin
-                  size={13}
-                  className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-300"
-                />
-                <input
-                  value={form.location}
-                  onChange={set("location")}
-                  className={`${inputCls} pl-8`}
-                  placeholder="Tòa A - Phòng 301"
-                />
-              </div>
-            </div>
-            <div>
-              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-0.5">
-                Chế độ *
-              </p>
-              <select
-                value={form.eventMode}
-                onChange={set("eventMode")}
-                className={inputCls}
-              >
-                <option value="Offline">Offline</option>
-                <option value="Online">Online</option>
-                <option value="Hybrid">Hybrid</option>
-              </select>
-            </div>
-          </div>
-          <div className="grid grid-cols-3 gap-3">
-            <div>
-              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-0.5">
-                Bắt đầu *
-              </p>
-              <input
-                type="datetime-local"
-                value={form.startTime}
-                onChange={set("startTime")}
-                className={inputCls}
-              />
-            </div>
-            <div>
-              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-0.5">
-                Kết thúc *
-              </p>
-              <input
-                type="datetime-local"
-                value={form.endTime}
-                onChange={set("endTime")}
-                className={inputCls}
-              />
-            </div>
-            <div>
-              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-0.5">
-                Hạn đăng ký
-              </p>
-              <input
-                type="datetime-local"
-                value={form.registrationDeadline}
-                onChange={set("registrationDeadline")}
-                className={inputCls}
-              />
-            </div>
-          </div>
-          <div className="w-40">
-            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-0.5">
-              Số người tối đa *
-            </p>
-            <div className="relative">
-              <Users
-                size={13}
-                className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-300"
-              />
-              <input
-                type="number"
-                value={form.maxParticipants}
-                onChange={set("maxParticipants")}
-                className={`${inputCls} pl-8`}
-              />
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* PR content */}
-      <section>
-        <p className="text-[10px] font-black text-purple-500 uppercase tracking-widest flex items-center gap-1.5 mb-2">
-          <AlignLeft size={12} /> Nội dung truyền thông
-        </p>
-        <div className="bg-slate-50/80 rounded-2xl p-5 space-y-4 border border-slate-100">
-          <Field
-            label="Tiêu đề bài viết *"
-            value={form.postTitle}
-            onChange={set("postTitle")}
-            placeholder="VD: 🚀 Workshop AI lớn nhất năm — Đừng bỏ lỡ!"
-          />
-          <div>
-            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-0.5">
-              Mô tả ngắn *
-            </p>
-            <textarea
-              rows={2}
-              value={form.shortDescription}
-              onChange={set("shortDescription")}
-              placeholder="Tóm tắt ngắn gọn hiển thị trên thẻ sự kiện..."
-              className={`${inputCls} resize-none`}
-            />
-          </div>
-          <div>
-            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-0.5">
-              Mô tả chi tiết *
-            </p>
-            <textarea
-              rows={5}
-              value={form.description}
-              onChange={set("description")}
-              placeholder="Nội dung chi tiết cho bài đăng truyền thông..."
-              className={`${inputCls} resize-none`}
-            />
-          </div>
-        </div>
-      </section>
-
-      <div className="flex justify-end gap-3 pt-1 pb-2">
-        <button
-          type="button"
-          onClick={onBack}
-          className="px-6 py-2.5 rounded-xl font-bold text-slate-500 hover:bg-slate-100 transition-all border border-slate-200 text-sm"
-        >
-          Hủy
-        </button>
-        <button
-          onClick={() => onSubmit(form)}
-          disabled={
-            submitting || !form.title || !form.location || !form.startTime
-          }
-          className="flex items-center gap-2 px-8 py-2.5 rounded-xl font-bold text-sm transition-all shadow-lg disabled:opacity-50 disabled:cursor-not-allowed bg-emerald-600 text-white hover:bg-emerald-700 shadow-emerald-100"
-        >
-          {submitting ? (
-            <Loader2 size={16} className="animate-spin" />
-          ) : (
-            <Send size={16} />
-          )}
-          Đăng sự kiện
-        </button>
-      </div>
-    </div>
-  );
+const formatForInput = (val) => {
+  if (!val) return "";
+  const d = val instanceof Date ? val : new Date(val);
+  if (isNaN(d)) return "";
+  return d.toISOString().slice(0, 16);
 };
 
-const CreateEventModal = ({ isOpen, onClose, onCreated, onSelectPlan }) => {
-  const [step, setStep] = useState("choose");
-  const [mode, setMode] = useState(null);
-  const [submitting, setSubmitting] = useState(false);
-
-  const reset = () => {
-    setStep("choose");
-    setMode(null);
+const toPersonObject = (nameOrObj, index) => {
+  if (typeof nameOrObj === "object" && nameOrObj !== null) return nameOrObj;
+  const name = String(nameOrObj).trim();
+  const avatar =
+    name
+      .split(" ")
+      .map((w) => w[0])
+      .slice(-2)
+      .join("")
+      .toUpperCase() || "NG";
+  return {
+    id: `plan_person_${index}_${Date.now()}`,
+    name,
+    title: "",
+    org: "",
+    avatar,
+    isManual: true,
   };
+};
+
+const mapPlanToPrefill = (plan) => ({
+  planId: plan.id,
+  organizationId: plan.organizationId || "",
+  title: plan.title || "",
+  eventTitle: plan.title || "",
+  description: plan.description || "",
+  eventPurpose: plan.description || "",
+  eventTopic: plan.eventTopic || "",
+  themes: plan.eventTopic ? [plan.eventTopic] : [],
+  eventType: plan.type || "",
+  eventMode: plan.eventMode || "OFFLINE",
+  location: plan.location || "",
+  startTime: formatForInput(plan.startTime),
+  endTime: formatForInput(plan.endTime),
+  registrationDeadline: formatForInput(plan.registrationDeadline),
+  maxParticipants: plan.maxParticipants || 50,
+  faculty: plan.faculty || "",
+  major: plan.major || "",
+  participants: Array.isArray(plan.participants) ? plan.participants : [],
+  recipients: Array.isArray(plan.recipients) ? plan.recipients : [],
+  customRecipients: Array.isArray(plan.customRecipients)
+    ? plan.customRecipients
+    : [],
+  presenters: Array.isArray(plan.presenters)
+    ? plan.presenters.map(toPersonObject)
+    : [],
+  organizers: Array.isArray(plan.organizingCommittee)
+    ? plan.organizingCommittee.map(toPersonObject)
+    : [],
+  attendees: Array.isArray(plan.attendees)
+    ? plan.attendees.map(toPersonObject)
+    : [],
+  programItems: [],
+  customFields: [],
+  notes: plan.notes || "",
+  additionalInfo: plan.additionalInfo || "",
+  coverImage: plan.coverImage || "",
+  templateId: plan.templateId || null,
+  hasLuckyDraw: plan.hasLuckyDraw || false,
+  mode: "event",
+  _selectedPlanId: plan.id,
+});
+
+const CreateEventModal = ({
+  isOpen,
+  onClose,
+  onCreated,
+  onSelectPlan,
+  onCreateNew,
+}) => {
+  const [step, setStep] = useState("choose");
+
+  const reset = () => setStep("choose");
+
   const handleClose = () => {
     reset();
     onClose();
   };
-  const handleChoose = (m) => {
-    setMode(m);
-    setStep(m === "plan" ? "selectPlan" : "form");
-  };
 
-  const formatForInput = (val) => {
-    if (!val) return "";
-    const d = val instanceof Date ? val : new Date(val);
-    if (isNaN(d)) return "";
-    return d.toISOString().slice(0, 16);
+  const handleChoose = (mode) => {
+    if (mode === "plan") {
+      setStep("selectPlan");
+    } else {
+      onCreateNew({ fromPlan: false, initialFormData: {} });
+      handleClose();
+    }
   };
 
   const handleSelectPlan = (plan) => {
-    console.log("🔍 Plan raw data:", plan);
-
-    const prefillData = {
-      title: plan.title || "",
-      eventTitle: plan.title || "",
-      description: plan.description || "",
-      eventPurpose: plan.description || "",
-      location: plan.location || "",
-      eventMode: plan.eventMode || "OFFLINE",
-      startTime: formatForInput(plan.startTime),
-      endTime: formatForInput(plan.endTime),
-      registrationDeadline: formatForInput(plan.registrationDeadline),
-      maxParticipants: plan.maxParticipants || 50,
-      planId: plan.id,
-      eventType: plan.type || "",
-      organizationId: plan.organizationId || plan.orgId || "org-it",
-    };
-
-    console.log("📦 prefillData gửi đi:", prefillData);
+    const prefillData = mapPlanToPrefill(plan);
+    onSelectPlan({ fromPlan: true, initialFormData: prefillData });
     handleClose();
-    onSelectPlan(prefillData);
   };
 
-  const handleSubmit = async (formData) => {
-    setSubmitting(true);
-    try {
-      const payload = {
-        ...formData,
-        type: formData.eventType,
-      };
-
-      delete payload.eventType;
-      delete payload.eventTitle;
-      delete payload.eventPurpose;
-      delete payload.planId;
-
-      console.log("Payload gửi lên backend:", payload);
-
-      const res = await createEvent(payload);
-
-      if (res.data) {
-        onCreated?.();
-        handleClose();
-      }
-    } catch (e) {
-      console.error("Lỗi tạo sự kiện:", e);
-    } finally {
-      setSubmitting(false);
-    }
+  const animationProps = {
+    initial: { opacity: 0, x: 20 },
+    animate: { opacity: 1, x: 0 },
+    exit: { opacity: 0, x: -20 },
   };
+
   return (
     <AnimatePresence>
       {isOpen && (
@@ -576,40 +355,15 @@ const CreateEventModal = ({ isOpen, onClose, onCreated, onSelectPlan }) => {
 
             <AnimatePresence mode="wait">
               {step === "choose" && (
-                <motion.div
-                  key="choose"
-                  initial={{ opacity: 0, x: -20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  exit={{ opacity: 0, x: 20 }}
-                >
+                <motion.div key="choose" {...animationProps}>
                   <ChooseModeStep onChoose={handleChoose} />
                 </motion.div>
               )}
               {step === "selectPlan" && (
-                <motion.div
-                  key="selectPlan"
-                  initial={{ opacity: 0, x: 20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  exit={{ opacity: 0, x: -20 }}
-                >
+                <motion.div key="selectPlan" {...animationProps}>
                   <SelectPlanStep
                     onSelectPlan={handleSelectPlan}
                     onBack={() => setStep("choose")}
-                  />
-                </motion.div>
-              )}
-              {step === "form" && mode === "new" && (
-                <motion.div
-                  key="form"
-                  initial={{ opacity: 0, x: 20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  exit={{ opacity: 0, x: -20 }}
-                >
-                  <EventForm
-                    initialData={{}}
-                    onSubmit={handleSubmit}
-                    onBack={() => setStep("choose")}
-                    submitting={submitting}
                   />
                 </motion.div>
               )}

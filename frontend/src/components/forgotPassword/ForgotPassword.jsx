@@ -1,97 +1,179 @@
-import React, { useState } from 'react';
-import axios from 'axios';
+import React, { useState } from "react";
+import { ArrowLeft, Mail, CheckCircle, AlertCircle } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import logo_iuh from "../../assets/images/logo_iuh.png";
+import axios from "axios";
+import HeaderAdmin from "../header/HeaderAdmin";
+import Header from "../common/Header";
 
 const ForgotPassword = () => {
-    const [email, setEmail] = useState('');
-    const [message, setMessage] = useState({ type: '', content: '' });
-    const [loading, setLoading] = useState(false);
+  const navigate = useNavigate();
+  const [email, setEmail] = useState("");
+  const [message, setMessage] = useState({ type: "", content: "" });
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
-    const handleSubmit = async (e) => {
-        e.preventDefault();
-        setLoading(true);
-        setMessage({ type: '', content: '' });
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!email.trim()) {
+      setError("Email không được để trống");
+      return;
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
+      setError("Email không hợp lệ");
+      return;
+    }
 
-        try {
-            const response = await axios.post(`http://localhost:8081/api/auth/forgot-password?email=${email}`);
-            
-            setMessage({
-                type: 'success',
-                content: 'Một liên kết khôi phục đã được gửi đến email của bạn. Vui lòng kiểm tra hộp thư!'
-            });
-        } catch (error) {
-            setMessage({
-                type: 'error',
-                content: error.response?.data?.message || 'Có lỗi xảy ra, vui lòng thử lại sau.'
-            });
-        } finally {
-            setLoading(false);
-        }
-    };
+    setLoading(true);
+    setMessage({ type: "", content: "" });
+    setError("");
 
-    return (
-        <div className="min-h-screen flex items-center justify-center bg-gray-100 px-4">
-            <div className="max-w-md w-full bg-white rounded-lg shadow-xl p-8">
-                <div className="text-center mb-8">
-                    <div className="bg-blue-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
-                        <i className="fas fa-key text-blue-600 text-2xl"></i>
-                    </div>
-                    <h2 className="text-3xl font-bold text-gray-800">Quên mật khẩu?</h2>
-                    <p className="text-gray-600 mt-2">Đừng lo, chúng tôi sẽ gửi hướng dẫn khôi phục cho bạn.</p>
-                </div>
+    try {
+      await axios.post(
+        `${import.meta.env.VITE_AUTH_API_URL || "http://localhost:8082/api"}/auth/forgot-password?email=${email.trim()}`
+      );
+      setMessage({
+        type: "success",
+        content: "Một liên kết khôi phục đã được gửi đến email của bạn. Vui lòng kiểm tra hộp thư!",
+      });
+    } catch (err) {
+      setMessage({
+        type: "error",
+        content: err.response?.data?.message || "Có lỗi xảy ra, vui lòng thử lại sau.",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
 
-                {/* Thông báo lỗi hoặc thành công */}
-                {message.content && (
-                    <div className={`mb-6 p-4 rounded-md text-sm ${
-                        message.type === 'success' ? 'bg-green-50 text-green-700 border border-green-200' : 'bg-red-50 text-red-700 border border-red-200'
-                    }`}>
-                        {message.content}
-                    </div>
-                )}
+  return (
+    <div><Header />
+    <div className="min-h-screen bg-[#eef2f7] flex flex-col items-center justify-center p-4 font-sans">
+     <button
+          onClick={() => navigate(-1)}
+          className="group flex items-center gap-2 text-sm font-semibold text-[#1a3a6b] hover:gap-3 transition-all duration-200 mb-6"
+        >
+          <span className="w-8 h-8 bg-white rounded-full shadow-sm border border-gray-200 flex items-center justify-center group-hover:bg-[#1a3a6b] group-hover:border-[#1a3a6b] transition-all duration-200">
+            <ArrowLeft
+              size={15}
+              className="text-[#1a3a6b] group-hover:text-white transition-colors duration-200"
+            />
+          </span>
+          <span className="group-hover:text-[#15306b] transition-colors hover:cursor-pointer">
+            Quay lại
+          </span>
+        </button>
 
-                <form onSubmit={handleSubmit} className="space-y-6">
-                    <div>
-                        <label htmlFor="email" className="block text-sm font-medium text-gray-700">
-                            Địa chỉ Email đăng ký
-                        </label>
-                        <div className="mt-1">
-                            <input
-                                id="email"
-                                name="email"
-                                type="email"
-                                required
-                                value={email}
-                                onChange={(e) => setEmail(e.target.value)}
-                                className="appearance-none block w-full px-3 py-3 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                                placeholder="example@iuh.edu.vn"
-                            />
-                        </div>
-                    </div>
+      <div className="flex flex-col items-center mb-6">
+        <img src={logo_iuh} alt="IUH Logo" className="h-14 object-contain mb-3" />
+        <h1 className="text-[22px] font-bold text-[#1a3a6b] tracking-tight">Quên mật khẩu?</h1>
+        <p className="text-sm text-gray-400 mt-0.5 text-center max-w-xs">
+          Đừng lo, chúng tôi sẽ gửi hướng dẫn khôi phục đến email của bạn
+        </p>
+      </div>
 
-                    <button
-                        type="submit"
-                        disabled={loading}
-                        className={`w-full flex justify-center py-3 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white transition-all ${
-                            loading ? 'bg-blue-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700 active:scale-95'
-                        }`}
-                    >
-                        {loading ? (
-                            <span className="flex items-center">
-                                <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
-                                Đang gửi...
-                            </span>
-                        ) : 'Gửi yêu cầu khôi phục'}
-                    </button>
-                </form>
+      <div className="w-full max-w-[420px] bg-white rounded-2xl shadow-[0_4px_24px_rgba(0,0,0,0.08)] overflow-hidden">
+        <div className="h-1 bg-[#1a3a6b]" />
 
-                <div className="mt-6 text-center">
-                    <a href="/login" className="text-sm font-medium text-blue-600 hover:text-blue-500 flex items-center justify-center">
-                        <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path></svg>
-                        Quay lại đăng nhập
-                    </a>
-                </div>
+        <div className="px-8 py-7 space-y-5">
+          {message.content && (
+            <div
+              className={`flex items-start gap-3 p-4 rounded-lg text-sm border ${
+                message.type === "success"
+                  ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                  : "bg-red-50 text-red-700 border-red-200"
+              }`}
+            >
+              {message.type === "success" ? (
+                <CheckCircle size={18} className="shrink-0 mt-0.5" />
+              ) : (
+                <AlertCircle size={18} className="shrink-0 mt-0.5" />
+              )}
+              <p>{message.content}</p>
             </div>
+          )}
+
+          {message.type !== "success" && (
+            <form onSubmit={handleSubmit} className="space-y-5">
+              <div className="space-y-1.5">
+                <label className="block text-sm font-medium text-gray-700">
+                  Địa chỉ Email đăng ký
+                </label>
+                <div className="relative">
+                  <input
+                    type="email"
+                    value={email}
+                    onChange={(e) => {
+                      setEmail(e.target.value);
+                      if (error) setError("");
+                    }}
+                    placeholder="example@iuh.edu.vn"
+                    className={`w-full px-4 py-2.5 pl-10 border rounded-lg text-sm outline-none transition-all placeholder:text-gray-300 ${
+                      error
+                        ? "border-red-300 bg-red-50 focus:ring-2 focus:ring-red-100"
+                        : "border-gray-200 bg-gray-50 focus:bg-white focus:border-[#1a3a6b] focus:ring-2 focus:ring-[#1a3a6b]/10"
+                    }`}
+                  />
+                  <Mail
+                    size={16}
+                    className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
+                  />
+                </div>
+                {error && <p className="text-xs text-red-500">{error}</p>}
+              </div>
+
+              <button
+                type="submit"
+                disabled={loading}
+                className={`w-full py-3 bg-[#1a3a6b] text-white rounded-lg font-semibold text-sm transition-all flex items-center justify-center gap-2 ${
+                  loading
+                    ? "opacity-70 cursor-not-allowed"
+                    : "hover:bg-[#15306b] active:scale-[0.98] shadow-md shadow-[#1a3a6b]/25"
+                }`}
+              >
+                {loading ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    Đang gửi...
+                  </>
+                ) : (
+                  "Gửi yêu cầu khôi phục"
+                )}
+              </button>
+            </form>
+          )}
+
+          {message.type === "success" && (
+            <button
+              onClick={() => navigate("/login")}
+              className="w-full py-3 bg-[#1a3a6b] text-white rounded-lg font-semibold text-sm hover:bg-[#15306b] active:scale-[0.98] shadow-md shadow-[#1a3a6b]/25 transition-all"
+            >
+              Quay lại đăng nhập
+            </button>
+          )}
+
+          <p className="text-center text-sm text-gray-400 pt-1">
+            Nhớ mật khẩu rồi?{" "}
+            <button
+              type="button"
+              onClick={() => navigate("/login")}
+              className="text-[#1a3a6b] font-semibold hover:underline hover:cursor-pointer"
+            >
+              Đăng nhập ngay
+            </button>
+          </p>
         </div>
-    );
-}
+      </div>
+
+      <div className="mt-5 text-center text-xs text-gray-400 space-y-1">
+        <p>Gặp vấn đề khi khôi phục?</p>
+        <button className="text-[#1a3a6b] font-medium hover:underline">
+          Liên hệ bộ phận hỗ trợ
+        </button>
+      </div>
+    </div>
+    </div>
+  );
+};
 
 export default ForgotPassword;

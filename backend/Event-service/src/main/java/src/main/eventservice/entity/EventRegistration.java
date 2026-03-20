@@ -30,4 +30,11 @@ public class EventRegistration {
 
     private boolean eligibleForDraw;
     private LocalDateTime drawEntries;
+
+    @Column(name = "qr_token", length = 2048)
+    private String qrToken;
+    private LocalDateTime qrTokenExpiry;
+    private boolean checkedIn = false;
+    private LocalDateTime checkInTime;
+    private String checkInByAccountId;
 }

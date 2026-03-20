@@ -1,6 +1,6 @@
 import axios from "axios";
 
-const BASE_URL = "http://localhost:8080/api/templates";
+const BASE_URL = `${import.meta.env.VITE_EVENT_API_URL || "http://localhost:8081/api"}/templates`;
 
 export const eventTemplateApi = {
   getAllTemplates: async (orgId, search = "", page = 0, size = 10) => {
@@ -14,7 +14,15 @@ export const eventTemplateApi = {
     });
     return response.data;
   },
-
+  getTemplateById: async (templateId) => {
+    try {
+      const response = await axios.get(`${BASE_URL}/${templateId}`);
+      return response.data;
+    } catch (error) {
+      console.error("Lỗi khi lấy chi tiết bản mẫu:", error);
+      throw error;
+    }
+  },
   applyTemplate: async (templateId, accountId = null) => {
     try {
       const response = await axios.post(

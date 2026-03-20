@@ -10,6 +10,8 @@ import src.main.identityservice.entity.ApprovalStatus;
 import src.main.identityservice.entity.User;
 import src.main.identityservice.service.UserService;
 
+import java.util.List;
+
 @RestController
 @RequestMapping("/api/profiles")
 @RequiredArgsConstructor
@@ -27,6 +29,17 @@ public class UserController {
         return ResponseEntity.ok(userService.getProfileByUserId(userId));
     }
 
+    @GetMapping("/me/roles")
+    public ResponseEntity<List<String>> getMyRoles(@AuthenticationPrincipal Jwt jwt) {
+        String userId = jwt.getClaimAsString("userId");
+        if (userId == null) {
+            throw new RuntimeException("Token missing userId claim");
+        }
+
+        List<String> roles = userService.getRolesByAccountId(userId);
+        return ResponseEntity.ok(roles);
+    }
+
     // 2. Cập nhật hồ sơ cá nhân
     @PutMapping("/me")
     public ResponseEntity<User> updateMyProfile(
@@ -39,6 +52,12 @@ public class UserController {
         }
 
         return ResponseEntity.ok(userService.updateProfile(accountId, updatedProfile));
+    }
+
+
+    @GetMapping("/internal/{accountId}")
+    public ResponseEntity<User> getUserByAccountId(@PathVariable String accountId) {
+        return ResponseEntity.ok(userService.getProfileByUserId(accountId));
     }
 
     // 3. Dành cho admin: Phê duyệt hoặc từ chối hồ sơ người dùng

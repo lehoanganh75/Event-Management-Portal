@@ -9,6 +9,7 @@ import {
   ArrowRight,
   Plus,
   X,
+  Award,
   Check,
 } from "lucide-react";
 
@@ -171,13 +172,6 @@ const Pill = ({ label, checked, onChange, error }) => (
       transition: "all .12s",
       userSelect: "none",
     }}
-    onMouseEnter={(e) => {
-      if (!checked) e.currentTarget.style.borderColor = "#d0d0d0";
-    }}
-    onMouseLeave={(e) => {
-      if (!checked)
-        e.currentTarget.style.borderColor = error ? "#fca5a5" : "#e5e5e5";
-    }}
   >
     <div
       style={{
@@ -268,8 +262,6 @@ const CheckRow = ({ label, checked, onChange, onRemove }) => (
           padding: 2,
           borderRadius: 4,
         }}
-        onMouseEnter={(e) => (e.currentTarget.style.color = "#ef4444")}
-        onMouseLeave={(e) => (e.currentTarget.style.color = "#ccc")}
       >
         <X size={13} />
       </button>
@@ -282,6 +274,7 @@ export const ManualInputStep = ({
   onNext,
   formData: externalFormData,
   setFormData: setExternalFormData,
+  isQuickCreate = false,
 }) => {
   const eventTypeLabels = {
     WORKSHOP: "Workshop",
@@ -305,9 +298,7 @@ export const ManualInputStep = ({
     "OTHER",
   ]);
 
-  const [loadingTypes] = useState(false);
-
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState(() => ({
     eventType: externalFormData?.eventType || "",
     eventTypeOther: externalFormData?.eventTypeOther || "",
     eventTitle: externalFormData?.eventTitle || externalFormData?.title || "",
@@ -319,17 +310,29 @@ export const ManualInputStep = ({
     registrationDeadline: externalFormData?.registrationDeadline || "",
     location: externalFormData?.location || "",
     maxParticipants: externalFormData?.maxParticipants || 0,
-    organizer: externalFormData?.organizer || "Khoa Công nghệ thông tin",
-    organizerUnit: externalFormData?.organizerUnit || "",
+    faculty: externalFormData?.faculty || "Khoa Công nghệ thông tin",
+    major: externalFormData?.major || "",
     recipients: externalFormData?.recipients || [],
     customRecipients: externalFormData?.customRecipients || [],
     participants: externalFormData?.participants || [],
     notes: externalFormData?.notes || "",
-  });
+    themes: externalFormData?.themes || [],
+    programItems: externalFormData?.programItems || [],
+    presenters: externalFormData?.presenters || [],
+    organizers: externalFormData?.organizers || [],
+    templateId: externalFormData?.templateId || null,
+    hasLuckyDraw: externalFormData?.hasLuckyDraw || false,
+  }));
 
   const [errors, setErrors] = useState({});
+  const [hasAttemptedSubmit, setHasAttemptedSubmit] = useState(false);
   const [newRecipient, setNewRecipient] = useState("");
   const [showAddRecipient, setShowAddRecipient] = useState(false);
+  const [newParticipant, setNewParticipant] = useState("");
+  const [showAddParticipant, setShowAddParticipant] = useState(false);
+  const [newTheme, setNewTheme] = useState("");
+  const [showAddTheme, setShowAddTheme] = useState(false);
+
   const nowStr = new Date().toISOString().slice(0, 16);
   const khoaOrganizers = [
     "Khoa Công nghệ thông tin",
@@ -337,41 +340,69 @@ export const ManualInputStep = ({
     "Khoa Quản trị Kinh doanh",
   ];
 
-  const isKhoa = khoaOrganizers.includes(formData.organizer);
+  const isKhoa = khoaOrganizers.includes(formData.faculty);
+
+  const addTheme = () => {
+    const trimmed = newTheme.trim();
+    if (trimmed && !formData.themes.includes(trimmed)) {
+      setFormData((prev) => ({
+        ...prev,
+        themes: [...prev.themes, trimmed],
+        eventTopic: [...(prev.themes || []), trimmed].join(", "),
+      }));
+    }
+    setNewTheme("");
+    setShowAddTheme(false);
+  };
+
+  const removeTheme = (theme) => {
+    setFormData((prev) => {
+      const newThemes = prev.themes.filter((t) => t !== theme);
+      return {
+        ...prev,
+        themes: newThemes,
+        eventTopic: newThemes.join(", "),
+      };
+    });
+  };
 
   const validateForm = () => {
     const e = {};
-    const comingFromPlan = !!externalFormData?.planId;
-    if (!formData.eventType && !comingFromPlan)
-      e.eventType = "Vui lòng chọn loại sự kiện";
+    if (!formData.eventType) e.eventType = "Vui lòng chọn loại sự kiện";
     if (!formData.eventTitle) e.eventTitle = "Vui lòng nhập tên sự kiện";
-    if (!formData.eventPurpose)
-      e.eventPurpose = "Vui lòng nhập mục đích tổ chức";
-    if (!formData.startTime) e.startTime = true;
-    if (!formData.endTime) e.endTime = true;
-    if (!formData.location) e.location = "Vui lòng nhập địa điểm";
+    if (!formData.eventPurpose) e.eventPurpose = "Vui lòng nhập mục đích tổ chức";
+    if (!formData.faculty) e.faculty = "Vui lòng chọn khoa";
+    if (!formData.startTime) e.startTime = "Vui lòng chọn thời gian bắt đầu";
+    if (!formData.endTime) e.endTime = "Vui lòng chọn thời gian kết thúc";
+    else if (formData.startTime && new Date(formData.endTime) <= new Date(formData.startTime)) {
+      e.endTime = "Thời gian kết thúc phải sau thời gian bắt đầu";
+    }
     if (
-      formData.recipients.length === 0 &&
-      formData.customRecipients.length === 0
-    )
+      formData.registrationDeadline &&
+      formData.startTime &&
+      new Date(formData.registrationDeadline) >= new Date(formData.startTime)
+    ) {
+      e.registrationDeadline = "Hạn đăng ký phải trước thời gian bắt đầu";
+    }
+    if (!formData.location) e.location = "Vui lòng nhập địa điểm";
+    if (formData.recipients.length === 0 && formData.customRecipients.length === 0)
       e.recipients = "Vui lòng chọn ít nhất một nơi nhận";
     if (formData.participants.length === 0)
       e.participants = "Vui lòng chọn ít nhất một đối tượng";
+
     setErrors(e);
     return Object.keys(e).length === 0;
   };
 
   useEffect(() => {
-    console.log("📊 ManualInputStep - Current formData:", {
-      eventType: formData.eventType,
-      eventTitle: formData.eventTitle,
-      eventPurpose: formData.eventPurpose,
-    });
-  }, [formData]);
+    if (hasAttemptedSubmit) {
+      validateForm();
+    }
+  }, [formData, hasAttemptedSubmit]);
 
   const handleNext = () => {
+    setHasAttemptedSubmit(true);
     if (validateForm()) {
-      console.log("📤 Sending to parent:", formData);
       setExternalFormData(formData);
       onNext(formData);
     }
@@ -385,6 +416,24 @@ export const ManualInputStep = ({
         : [...prev.participants, type],
     }));
 
+  const addCustomParticipant = () => {
+    const trimmed = newParticipant.trim();
+    if (trimmed && !formData.participants.includes(trimmed)) {
+      setFormData((prev) => ({
+        ...prev,
+        participants: [...prev.participants, trimmed],
+      }));
+    }
+    setNewParticipant("");
+    setShowAddParticipant(false);
+  };
+
+  const removeCustomParticipant = (p) =>
+    setFormData((prev) => ({
+      ...prev,
+      participants: prev.participants.filter((x) => x !== p),
+    }));
+
   const toggleRecipient = (r) =>
     setFormData((prev) => ({
       ...prev,
@@ -395,35 +444,14 @@ export const ManualInputStep = ({
 
   const addCustomRecipient = () => {
     const trimmed = newRecipient.trim();
-    if (trimmed && !formData.customRecipients.includes(trimmed))
+    if (trimmed && !formData.customRecipients.includes(trimmed)) {
       setFormData((prev) => ({
         ...prev,
         customRecipients: [...prev.customRecipients, trimmed],
       }));
+    }
     setNewRecipient("");
     setShowAddRecipient(false);
-  };
-
-  const handleTimeChange = (field, value) => {
-    setFormData((prev) => {
-      const newData = { ...prev, [field]: value };
-
-      if (field === "startTime" && value) {
-        if (!prev.endTime || new Date(prev.endTime) <= new Date(value)) {
-          const suggestedEnd = new Date(value);
-          suggestedEnd.setHours(suggestedEnd.getHours() + 2);
-          newData.endTime = suggestedEnd.toISOString().slice(0, 16);
-        }
-        if (!prev.registrationDeadline) {
-          const suggestedDeadline = new Date(value);
-          suggestedDeadline.setDate(suggestedDeadline.getDate() - 1);
-          newData.registrationDeadline = suggestedDeadline
-            .toISOString()
-            .slice(0, 16);
-        }
-      }
-      return newData;
-    });
   };
 
   const removeCustomRecipient = (r) =>
@@ -431,6 +459,10 @@ export const ManualInputStep = ({
       ...prev,
       customRecipients: prev.customRecipients.filter((x) => x !== r),
     }));
+
+  const handleTimeChange = (field, value) => {
+    setFormData((prev) => ({ ...prev, [field]: value }));
+  };
 
   const errorCount = Object.keys(errors).length;
 
@@ -454,7 +486,7 @@ export const ManualInputStep = ({
             letterSpacing: "0.04em",
           }}
         >
-          Bước 2 / 3
+          {isQuickCreate ? "Tạo sự kiện mới" : "Bước 2 / 3"}
         </p>
         <h2
           style={{
@@ -573,13 +605,119 @@ export const ManualInputStep = ({
               label="Chủ đề sự kiện"
               icon={<FileText size={14} color="#6366f1" />}
             >
-              <Input
-                placeholder="Ví dụ: Ứng dụng AI trong giáo dục đại học"
-                value={formData.eventTopic}
-                onChange={(e) =>
-                  setFormData({ ...formData, eventTopic: e.target.value })
-                }
-              />
+              <div
+                style={{
+                  padding: "10px 12px",
+                  background: "#fafafa",
+                  border: "1px solid #ebebeb",
+                  borderRadius: 8,
+                }}
+              >
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+                  {(formData.themes || []).map((theme) => (
+                    <div
+                      key={theme}
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 6,
+                        padding: "4px 8px",
+                        background: "#e0e7ff",
+                        color: "#4338ca",
+                        borderRadius: 6,
+                        fontSize: 12,
+                        fontWeight: 500,
+                      }}
+                    >
+                      {theme}
+                      <button
+                        onClick={() => removeTheme(theme)}
+                        style={{
+                          border: "none",
+                          background: "none",
+                          cursor: "pointer",
+                          padding: 0,
+                          display: "flex",
+                          color: "#6366f1",
+                        }}
+                      >
+                        <X size={12} />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+
+                {showAddTheme ? (
+                  <div style={{ display: "flex", gap: 6, marginTop: 10 }}>
+                    <input
+                      type="text"
+                      placeholder="Nhập chủ đề..."
+                      value={newTheme}
+                      onChange={(e) => setNewTheme(e.target.value)}
+                      onKeyDown={(e) => e.key === "Enter" && addTheme()}
+                      autoFocus
+                      style={{
+                        flex: 1,
+                        padding: "6px 10px",
+                        border: "1px solid #6366f1",
+                        borderRadius: 6,
+                        fontSize: 12,
+                        outline: "none",
+                      }}
+                    />
+                    <button
+                      onClick={addTheme}
+                      style={{
+                        padding: "6px 12px",
+                        background: "#6366f1",
+                        color: "#fff",
+                        border: "none",
+                        borderRadius: 6,
+                        fontSize: 12,
+                        cursor: "pointer",
+                      }}
+                    >
+                      Thêm
+                    </button>
+                    <button
+                      onClick={() => {
+                        setShowAddTheme(false);
+                        setNewTheme("");
+                      }}
+                      style={{
+                        padding: "6px 10px",
+                        background: "none",
+                        color: "#666",
+                        border: "1px solid #e5e5e5",
+                        borderRadius: 6,
+                        fontSize: 12,
+                        cursor: "pointer",
+                      }}
+                    >
+                      Hủy
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => setShowAddTheme(true)}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 4,
+                      fontSize: 12,
+                      color: "#6366f1",
+                      background: "none",
+                      border: "none",
+                      cursor: "pointer",
+                      fontWeight: 500,
+                      marginTop: (formData.themes || []).length > 0 ? 8 : 0,
+                      padding: 0,
+                    }}
+                  >
+                    <Plus size={12} /> Thêm chủ đề
+                  </button>
+                )}
+              </div>
             </Field>
           </div>
 
@@ -617,8 +755,8 @@ export const ManualInputStep = ({
             >
               <div
                 style={{
-                  display: "grid",
-                  gridTemplateColumns: "repeat(4, 1fr)",
+                  display: "flex",
+                  flexWrap: "wrap",
                   gap: 8,
                 }}
               >
@@ -632,6 +770,133 @@ export const ManualInputStep = ({
                       onChange={() => toggleParticipant(type)}
                     />
                   ),
+                )}
+
+                {formData.participants
+                  .filter(
+                    (p) =>
+                      ![
+                        "Sinh viên",
+                        "Giảng viên",
+                        "Cán bộ",
+                        "Khách mời",
+                      ].includes(p),
+                  )
+                  .map((customP) => (
+                    <div
+                      key={customP}
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 8,
+                        padding: "9px 12px",
+                        border: "1px solid #2563eb",
+                        borderRadius: 8,
+                        background: "#eff6ff",
+                        color: "#1d4ed8",
+                        fontSize: 13,
+                        fontWeight: 500,
+                        cursor: "default",
+                      }}
+                    >
+                      {customP}
+                      <button
+                        onClick={() => removeCustomParticipant(customP)}
+                        style={{
+                          border: "none",
+                          background: "none",
+                          cursor: "pointer",
+                          color: "#2563eb",
+                          display: "flex",
+                          padding: 0,
+                        }}
+                      >
+                        <X size={14} />
+                      </button>
+                    </div>
+                  ))}
+
+                {showAddParticipant ? (
+                  <div
+                    style={{
+                      display: "flex",
+                      gap: 6,
+                      width: "100%",
+                      marginTop: 4,
+                    }}
+                  >
+                    <input
+                      type="text"
+                      placeholder="Nhập đối tượng khác..."
+                      value={newParticipant}
+                      onChange={(e) => setNewParticipant(e.target.value)}
+                      onKeyDown={(e) =>
+                        e.key === "Enter" && addCustomParticipant()
+                      }
+                      autoFocus
+                      style={{
+                        flex: 1,
+                        padding: "8px 12px",
+                        border: "1px solid #2563eb",
+                        borderRadius: 8,
+                        fontSize: 13,
+                        outline: "none",
+                      }}
+                    />
+                    <button
+                      onClick={addCustomParticipant}
+                      style={{
+                        padding: "8px 16px",
+                        background: "#2563eb",
+                        color: "#fff",
+                        border: "none",
+                        borderRadius: 8,
+                        fontSize: 12,
+                        fontWeight: 600,
+                        cursor: "pointer",
+                      }}
+                    >
+                      Thêm
+                    </button>
+                    <button
+                      onClick={() => {
+                        setShowAddParticipant(false);
+                        setNewParticipant("");
+                      }}
+                      style={{
+                        padding: "8px 12px",
+                        background: "none",
+                        color: "#666",
+                        border: "1px solid #e5e5e5",
+                        borderRadius: 8,
+                        fontSize: 12,
+                        fontWeight: 500,
+                        cursor: "pointer",
+                      }}
+                    >
+                      Hủy
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => setShowAddParticipant(true)}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 5,
+                      padding: "9px 12px",
+                      border: "1.5px dashed #e5e5e5",
+                      borderRadius: 8,
+                      background: "none",
+                      color: "#aaa",
+                      fontSize: 13,
+                      fontWeight: 500,
+                      cursor: "pointer",
+                      transition: "all .15s",
+                    }}
+                  >
+                    <Plus size={14} /> Khác
+                  </button>
                 )}
               </div>
             </Field>
@@ -706,9 +971,7 @@ export const ManualInputStep = ({
                 min={formData.startTime || nowStr}
                 error={!!errors.endTime}
                 value={formData.endTime}
-                onChange={(e) =>
-                  setFormData({ ...formData, endTime: e.target.value })
-                }
+                onChange={(e) => handleTimeChange("endTime", e.target.value)}
               />
             </Field>
 
@@ -725,10 +988,7 @@ export const ManualInputStep = ({
                 error={!!errors.registrationDeadline}
                 value={formData.registrationDeadline}
                 onChange={(e) =>
-                  setFormData({
-                    ...formData,
-                    registrationDeadline: e.target.value,
-                  })
+                  handleTimeChange("registrationDeadline", e.target.value)
                 }
               />
             </Field>
@@ -753,49 +1013,40 @@ export const ManualInputStep = ({
 
         <Section title="Đơn vị tổ chức">
           <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: isKhoa ? "1fr 1fr" : "1fr 2fr",
-              gap: 20,
-            }}
+            style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}
           >
             <Field
-              label="Đơn vị"
-              icon={<Users size={14} color="#8b5cf6" />}
-              required
+              label="Khoa *"
+              icon={<Users size={14} color="#a855f7" />}
+              error={errors.faculty}
             >
               <Select
-                value={formData.organizer}
+                value={formData.faculty}
                 onChange={(e) =>
-                  setFormData({
-                    ...formData,
-                    organizer: e.target.value,
-                    organizerUnit: "",
-                  })
+                  setFormData({ ...formData, faculty: e.target.value })
                 }
               >
-                <option>Khoa Công nghệ thông tin</option>
-                <option>Khoa Kế toán - Kiểm toán</option>
-                <option>Khoa Quản trị Kinh doanh</option>
-                <option>Phòng Đào tạo</option>
-                <option>Phòng CTSV</option>
+                {khoaOrganizers.map((k) => (
+                  <option key={k} value={k}>
+                    {k}
+                  </option>
+                ))}
               </Select>
             </Field>
-            {isKhoa && (
-              <Field
-                label="Bộ môn / Chuyên ngành"
-                icon={<Users size={14} color="#8b5cf6" />}
-                hint="Không bắt buộc"
-              >
-                <Input
-                  placeholder="Ví dụ: Bộ môn Kỹ thuật phần mềm"
-                  value={formData.organizerUnit}
-                  onChange={(e) =>
-                    setFormData({ ...formData, organizerUnit: e.target.value })
-                  }
-                />
-              </Field>
-            )}
+
+            <Field
+              label="Chuyên ngành"
+              icon={<Users size={14} color="#a855f7" />}
+              hint="Không bắt buộc"
+            >
+              <Input
+                placeholder="Ví dụ: Kỹ thuật phần mềm"
+                value={formData.major}
+                onChange={(e) =>
+                  setFormData({ ...formData, major: e.target.value })
+                }
+              />
+            </Field>
           </div>
         </Section>
 
@@ -896,12 +1147,6 @@ export const ManualInputStep = ({
                       cursor: "pointer",
                       fontFamily: "inherit",
                     }}
-                    onMouseEnter={(e) =>
-                      (e.currentTarget.style.background = "#1d4ed8")
-                    }
-                    onMouseLeave={(e) =>
-                      (e.currentTarget.style.background = "#2563eb")
-                    }
                   >
                     Thêm
                   </button>
@@ -942,16 +1187,53 @@ export const ManualInputStep = ({
                     marginTop: 10,
                     padding: 0,
                   }}
-                  onMouseEnter={(e) =>
-                    (e.currentTarget.style.color = "#1d4ed8")
-                  }
-                  onMouseLeave={(e) =>
-                    (e.currentTarget.style.color = "#2563eb")
-                  }
                 >
                   <Plus size={13} /> Thêm nơi nhận khác
                 </button>
               )}
+            </div>
+          </Field>
+          <Field
+            label="Tính năng bốc thăm may mắn"
+            icon={<Award size={14} color="#eab308" />}
+            hint="Bật nếu sự kiện có phần rút thăm trúng thưởng"
+          >
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 16,
+                padding: "8px 0",
+              }}
+            >
+              <label
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 8,
+                  cursor: "pointer",
+                  userSelect: "none",
+                }}
+              >
+                <input
+                  type="checkbox"
+                  checked={formData.hasLuckyDraw}
+                  onChange={(e) =>
+                    setFormData((prev) => ({
+                      ...prev,
+                      hasLuckyDraw: e.target.checked,
+                    }))
+                  }
+                  style={{
+                    width: 18,
+                    height: 18,
+                    accentColor: "#2563eb",
+                  }}
+                />
+                <span style={{ fontSize: 14, color: "#333" }}>
+                  Có tổ chức bốc thăm may mắn
+                </span>
+              </label>
             </div>
           </Field>
         </Section>
@@ -995,16 +1277,6 @@ export const ManualInputStep = ({
               fontSize: 13,
               fontWeight: 500,
               cursor: "pointer",
-              fontFamily: "inherit",
-              transition: "all .15s",
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.background = "#fafafa";
-              e.currentTarget.style.borderColor = "#d0d0d0";
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.background = "#fff";
-              e.currentTarget.style.borderColor = "#e5e5e5";
             }}
           >
             <ArrowLeft size={15} /> Quay lại
@@ -1028,6 +1300,7 @@ export const ManualInputStep = ({
             )}
             <button
               onClick={handleNext}
+              disabled={errorCount > 0}
               style={{
                 display: "flex",
                 alignItems: "center",
@@ -1035,22 +1308,16 @@ export const ManualInputStep = ({
                 padding: "9px 20px",
                 border: "none",
                 borderRadius: 8,
-                background: "#2563eb",
+                background: isQuickCreate ? "#10b981" : "#2563eb",
                 color: "#fff",
                 fontSize: 13,
                 fontWeight: 500,
-                cursor: "pointer",
-                fontFamily: "inherit",
-                transition: "background .15s",
+                cursor: errorCount > 0 ? "not-allowed" : "pointer",
+                opacity: errorCount > 0 ? 0.6 : 1,
               }}
-              onMouseEnter={(e) =>
-                (e.currentTarget.style.background = "#1d4ed8")
-              }
-              onMouseLeave={(e) =>
-                (e.currentTarget.style.background = "#2563eb")
-              }
             >
-              Tiếp tục <ArrowRight size={15} />
+              {isQuickCreate ? "Gửi phê duyệt" : "Tiếp tục"}
+              {!isQuickCreate && <ArrowRight size={15} />}
             </button>
           </div>
         </div>

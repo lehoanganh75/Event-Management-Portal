@@ -1,29 +1,32 @@
 import React, { useState, useEffect } from "react";
-import { LogIn, ArrowRight } from "lucide-react";
+import {
+  Eye,
+  EyeOff,
+  CalendarCheck,
+  Users,
+  QrCode,
+  BarChart3,
+  ArrowLeft,
+} from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import logo_iuh from "../../assets/images/logo_iuh.png";
 import Notification from "../notification/Notification";
-import FloatingInput from "../custom/FloatingInput";
 import ErrorNotification from "../notification/ErrorNotification";
 import axios from "axios";
+import Header from "../common/Header";
 
 const LoginPage = () => {
   const navigate = useNavigate();
-  
-  // States cho thông báo
   const [toastVisible, setToastVisible] = useState(false);
   const [message, setMessage] = useState("");
-  const [errorToastVisible, setErrorToastVisible] = useState(false); 
-  const [errorMessage, setErrorMessage] = useState(""); 
-  const [isLoading, setIsLoading] = useState(false); // Tránh double-click
-  
-  const [formData, setFormData] = useState({
-    username: "", 
-    password: "",
-  });
+  const [errorToastVisible, setErrorToastVisible] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [rememberMe, setRememberMe] = useState(false);
+  const [formData, setFormData] = useState({ username: "", password: "" });
   const [errors, setErrors] = useState({});
 
-  // Cleanup timeout khi component unmount
   useEffect(() => {
     let timer;
     return () => clearTimeout(timer);
@@ -32,19 +35,15 @@ const LoginPage = () => {
   const handleChange = (e) => {
     const { id, value } = e.target;
     setFormData((prev) => ({ ...prev, [id]: value }));
-    if (errors[id]) {
-      setErrors((prev) => ({ ...prev, [id]: "" }));
-    }
+    if (errors[id]) setErrors((prev) => ({ ...prev, [id]: "" }));
   };
 
   const validateForm = () => {
     const newErrors = {};
-    const username = formData.username.trim();
-    const password = formData.password.trim();
-
-    if (!username) newErrors.username = "Tên đăng nhập không được để trống";
-    if (!password) newErrors.password = "Mật khẩu không được để trống";
-
+    if (!formData.username.trim())
+      newErrors.username = "Tên đăng nhập không được để trống";
+    if (!formData.password.trim())
+      newErrors.password = "Mật khẩu không được để trống";
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -52,12 +51,7 @@ const LoginPage = () => {
   const handleLogin = async (e) => {
     e.preventDefault();
     if (isLoading || !validateForm()) return;
-
     setIsLoading(true);
-    const payload = {
-      username: formData.username.trim(),
-      password: formData.password
-    };
 
     console.log(payload);
     
@@ -119,109 +113,273 @@ const LoginPage = () => {
     }
   };
 
+  const features = [
+    {
+      icon: CalendarCheck,
+      title: "Quản lý sự kiện",
+      desc: "Tạo và theo dõi toàn bộ sự kiện trong trường",
+    },
+    {
+      icon: QrCode,
+      title: "QR Check-in",
+      desc: "Điểm danh nhanh chóng bằng mã QR cá nhân",
+    },
+    {
+      icon: Users,
+      title: "Quản lý người dùng",
+      desc: "Phân quyền linh hoạt theo vai trò",
+    },
+    {
+      icon: BarChart3,
+      title: "Thống kê realtime",
+      desc: "Báo cáo và phân tích dữ liệu tức thì",
+    },
+  ];
+
   return (
-    <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4 md:p-8 antialiased font-sans">
-      {/* Thành công */}
-      <Notification
-        toastVisible={toastVisible}
-        setToastVisible={setToastVisible}
-        notification="Thành công"
-        message={message}
-      />
-
-      {/* Thất bại */}
-      <ErrorNotification
-        toastVisible={errorToastVisible}
-        setToastVisible={setErrorToastVisible}
-        notification="Đăng nhập thất bại!"
-        message={errorMessage}
-      />
-
-      <div className="max-w-5xl w-full bg-white rounded-[40px] shadow-2xl overflow-hidden flex flex-col lg:flex-row min-h-120">
-        
-        {/* LEFT SIDE: BRANDING */}
-        <div className="lg:w-[50%] bg-linear-to-br from-indigo-700 via-blue-700 to-cyan-600 p-10 text-white flex flex-col justify-between items-center text-center">           
-          <div className="space-y-5">
-            <img src={logo_iuh} alt="IUH Logo" className="h-20 brightness-0 invert mx-auto drop-shadow-lg" />
-            <h1 className="text-lg font-semibold tracking-wide opacity-90 uppercase">
-              Industrial University of Ho Chi Minh City
-            </h1>
-          </div>
-
-          <div className="space-y-4">
-            <h2 className="text-3xl font-bold tracking-tight">Hệ thống quản lý sự kiện</h2>
-            <p className="text-blue-100 text-base italic opacity-80">
-              "Chào mừng bạn quay trở lại!"
-            </p>
-          </div>
-
-          <div className="space-y-4 w-full">
-            <p className="text-sm tracking-widest font-medium opacity-70">Bạn chưa có tài khoản?</p>
-            <button 
-              onClick={() => navigate("/register")}
-              className="w-full py-3 bg-white/10 backdrop-blur-md border border-white/20 rounded-xl text-base font-bold hover:bg-white hover:text-blue-700 transition-all duration-300 flex items-center justify-center gap-2 active:scale-95"
-            >
-              <LogIn size={20} /> Đăng ký ngay
-            </button>
-          </div>
-        </div>
-
-        {/* RIGHT SIDE: LOGIN FORM */}
-        <div className="lg:w-[50%] p-10 lg:p-16 flex flex-col justify-center bg-white">  
-          <div className="mb-10">
-            <h2 className="text-3xl font-bold text-slate-700 mb-3">
-              Tài khoản của bản
-            </h2>
-            <div className="h-1 w-20 bg-linear-to-r from-indigo-600 to-blue-600 rounded-full"></div>
-          </div>
-
-          <form className="space-y-8" onSubmit={handleLogin}>
-            <div className="relative">
-              <FloatingInput
-                id="username"
-                label="Tên đăng nhập"
-                value={formData.username}
-                onChange={handleChange}
-                error={errors.username}
-                autoComplete="username"
+    <div className="min-h-screen flex flex-col font-sans">
+      <Header />
+      <div className="flex-1 bg-[#eef2f7] flex flex-col items-center justify-center p-4">
+        <div className="w-full max-w-5xl flex flex-col">
+          <button
+            onClick={() => navigate("/")}
+            className="group flex items-center gap-2 text-sm font-semibold text-[#1a3a6b] hover:gap-3 transition-all duration-200 mb-6"
+          >
+            <span className="w-8 h-8 bg-white rounded-full shadow-sm border border-gray-200 flex items-center justify-center group-hover:bg-[#1a3a6b] group-hover:border-[#1a3a6b] transition-all duration-200">
+              <ArrowLeft
+                size={15}
+                className="text-[#1a3a6b] group-hover:text-white transition-colors duration-200"
               />
+            </span>
+            <span className="group-hover:text-[#15306b] transition-colors">
+              Quay lại
+            </span>
+          </button>
+
+          <Notification
+            toastVisible={toastVisible}
+            setToastVisible={setToastVisible}
+            notification="Thành công"
+            message={message}
+          />
+          <ErrorNotification
+            toastVisible={errorToastVisible}
+            setToastVisible={setErrorToastVisible}
+            notification="Đăng nhập thất bại!"
+            message={errorMessage}
+          />
+
+          <div className="w-full bg-white rounded-3xl shadow-[0_8px_40px_rgba(0,0,0,0.1)] overflow-hidden flex min-h-[600px]">
+            {/* LEFT — Branding */}
+            <div className="hidden lg:flex lg:w-[52%] bg-[#1a3a6b] flex-col justify-between p-10 relative overflow-hidden">
+              <div className="absolute inset-0 opacity-10">
+                <div className="absolute top-0 right-0 w-72 h-72 bg-white rounded-full -translate-y-1/2 translate-x-1/2" />
+                <div className="absolute bottom-0 left-0 w-96 h-96 bg-white rounded-full translate-y-1/2 -translate-x-1/2" />
+              </div>
+
+              <div className="relative z-10">
+                <div className="flex items-center gap-3 mb-10">
+                  <img
+                    src={logo_iuh}
+                    alt="IUH"
+                    className="h-10 brightness-0 invert"
+                  />
+                  <div>
+                    <p className="text-white font-bold text-sm leading-none">
+                      IUH
+                    </p>
+                    <p className="text-blue-200 text-xs mt-0.5">
+                      Đại học Công nghiệp TP.HCM
+                    </p>
+                  </div>
+                </div>
+
+                <h2 className="text-white text-3xl font-bold leading-tight mb-3">
+                  Hệ thống Quản lý
+                  <br />
+                  <span className="text-blue-300">Sự kiện IUH</span>
+                </h2>
+                <p className="text-blue-200 text-sm leading-relaxed">
+                  Nền tảng số hóa toàn bộ quy trình tổ chức sự kiện — từ đăng
+                  ký, check-in đến thống kê và báo cáo realtime.
+                </p>
+              </div>
+
+              <div className="relative z-10 grid grid-cols-1 gap-3">
+                {features.map(({ icon: Icon, title, desc }) => (
+                  <div
+                    key={title}
+                    className="flex items-center gap-3 bg-white/10 backdrop-blur-sm rounded-xl p-3 border border-white/10"
+                  >
+                    <div className="w-9 h-9 bg-white/20 rounded-lg flex items-center justify-center shrink-0">
+                      <Icon size={18} className="text-white" />
+                    </div>
+                    <div>
+                      <p className="text-white text-sm font-semibold leading-none mb-0.5">
+                        {title}
+                      </p>
+                      <p className="text-blue-200 text-xs">{desc}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <div className="relative z-10 flex items-center gap-3 pt-4 border-t border-white/20">
+                <div className="flex -space-x-2">
+                  {["SV", "GV", "BT"].map((t) => (
+                    <div
+                      key={t}
+                      className="w-8 h-8 bg-blue-400 rounded-full border-2 border-[#1a3a6b] flex items-center justify-center text-[10px] font-bold text-white"
+                    >
+                      {t}
+                    </div>
+                  ))}
+                </div>
+                <p className="text-blue-200 text-xs">
+                  Hàng nghìn người dùng tin tưởng sử dụng
+                </p>
+              </div>
             </div>
 
-            <div className="relative">
-              <FloatingInput
-                id="password"
-                label="Mật khẩu"
-                isPassword
-                value={formData.password}
-                onChange={handleChange}
-                error={errors.password}
-                autoComplete="current-password"
-              />              
-            </div>
+            {/* RIGHT — Form */}
+            <div className="flex-1 flex flex-col justify-center px-8 py-10 lg:px-12">
+              <div className="lg:hidden flex flex-col items-center mb-8">
+                <img
+                  src={logo_iuh}
+                  alt="IUH Logo"
+                  className="h-12 object-contain mb-2"
+                />
+                <h1 className="text-xl font-bold text-[#1a3a6b]">
+                  Hệ thống Sự kiện IUH
+                </h1>
+              </div>
 
-            <div className="flex justify-end items-center -mt-4">
-              <button 
-                type="button"
-                className="text-xs font-bold uppercase tracking-widest hover:scale-105 transition-all duration-300"
-              >
-                <span className="bg-linear-to-r from-indigo-600 to-cyan-600 bg-clip-text text-transparent">
-                  Quên mật khẩu?
-                </span>
-              </button>
-            </div>
+              <div className="mb-7">
+                <h2 className="text-2xl font-bold text-[#1a3a6b] tracking-tight">
+                  Đăng nhập
+                </h2>
+                <p className="text-sm text-gray-400 mt-1">
+                  Chào mừng bạn quay trở lại!
+                </p>
+              </div>
 
-            <div className="flex justify-center pt-4">
-              <button
-                type="submit"
-                disabled={isLoading}
-                className={`w-full sm:w-80 py-4 bg-linear-to-r from-indigo-600 via-blue-700 to-sky-600 text-white text-base font-black rounded-2xl shadow-xl shadow-blue-100 transition-all duration-300 tracking-widest uppercase flex items-center justify-center gap-3 
-                  ${isLoading ? 'opacity-70 cursor-not-allowed' : 'hover:-translate-y-1 hover:shadow-blue-300 active:scale-95'}`}
-              >
-                {isLoading ? "Đang xử lý..." : "Xác nhận đăng nhập"}
-                {!isLoading && <ArrowRight size={20} />}
-              </button>
+              <form onSubmit={handleLogin} className="space-y-4 mt-4">
+                <div className="space-y-1.5">
+                  <label className="block text-sm font-medium text-gray-700">
+                    Tên đăng nhập
+                  </label>
+                  <input
+                    id="username"
+                    type="text"
+                    value={formData.username}
+                    onChange={handleChange}
+                    placeholder="Nhập tên đăng nhập"
+                    autoComplete="username"
+                    className={`w-full px-4 py-2.5 border rounded-xl text-sm outline-none transition-all placeholder:text-gray-300 ${
+                      errors.username
+                        ? "border-red-300 bg-red-50 focus:ring-2 focus:ring-red-100"
+                        : "border-gray-200 bg-gray-50 focus:bg-white focus:border-[#1a3a6b] focus:ring-2 focus:ring-[#1a3a6b]/10"
+                    }`}
+                  />
+                  {errors.username && (
+                    <p className="text-xs text-red-500">{errors.username}</p>
+                  )}
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="block text-sm font-medium text-gray-700">
+                    Mật khẩu
+                  </label>
+                  <div className="relative">
+                    <input
+                      id="password"
+                      type={showPassword ? "text" : "password"}
+                      value={formData.password}
+                      onChange={handleChange}
+                      placeholder="Nhập mật khẩu"
+                      autoComplete="current-password"
+                      className={`w-full px-4 py-2.5 pr-11 border rounded-xl text-sm outline-none transition-all placeholder:text-gray-300 ${
+                        errors.password
+                          ? "border-red-300 bg-red-50 focus:ring-2 focus:ring-red-100"
+                          : "border-gray-200 bg-gray-50 focus:bg-white focus:border-[#1a3a6b] focus:ring-2 focus:ring-[#1a3a6b]/10"
+                      }`}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+                    >
+                      {showPassword ? <EyeOff size={17} /> : <Eye size={17} />}
+                    </button>
+                  </div>
+                  {errors.password && (
+                    <p className="text-xs text-red-500">{errors.password}</p>
+                  )}
+                </div>
+
+                <div className="flex items-center justify-between pt-1">
+                  <label className="flex items-center gap-2 cursor-pointer select-none">
+                    <input
+                      type="checkbox"
+                      checked={rememberMe}
+                      onChange={(e) => setRememberMe(e.target.checked)}
+                      className="w-4 h-4 rounded border-gray-300 accent-[#1a3a6b] cursor-pointer"
+                    />
+                    <span className="text-sm text-gray-500">
+                      Ghi nhớ đăng nhập
+                    </span>
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => navigate("/forgot-password")}
+                    className="text-sm text-[#1a3a6b] font-semibold hover:underline hover:cursor-pointer"
+                  >
+                    Quên mật khẩu?
+                  </button>
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={isLoading}
+                  className={`w-full py-3 bg-[#1a3a6b] text-white rounded-xl font-semibold text-sm transition-all flex items-center justify-center gap-2 mt-2 ${
+                    isLoading
+                      ? "opacity-70 cursor-not-allowed"
+                      : "hover:bg-[#15306b] active:scale-[0.98] shadow-lg shadow-[#1a3a6b]/25"
+                  }`}
+                >
+                  {isLoading ? (
+                    <>
+                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                      Đang xử lý...
+                    </>
+                  ) : (
+                    "Đăng nhập"
+                  )}
+                </button>
+              </form>
+
+              <p className="text-center text-sm text-gray-400 mt-5">
+                Chưa có tài khoản?{" "}
+                <button
+                  type="button"
+                  onClick={() => navigate("/register")}
+                  className="text-[#1a3a6b] font-semibold hover:underline hover:cursor-pointer"
+                >
+                  Đăng ký ngay
+                </button>
+              </p>
+
+              <div className="mt-5 text-center text-xs text-gray-400 space-y-1">
+                <p>Gặp vấn đề khi đăng nhập?</p>
+                <button 
+                  type="button"
+                  className="text-[#1a3a6b] font-medium hover:underline hover:cursor-pointer"
+                >
+                  Liên hệ bộ phận hỗ trợ
+                </button>
+              </div>
             </div>
-          </form>
+          </div>
         </div>
       </div>
     </div>
