@@ -1,128 +1,231 @@
-import React, { useState } from 'react';
-import { useSearchParams, useNavigate, Link } from 'react-router-dom';
-import axios from 'axios';
+import React, { useState } from "react";
+import { ArrowLeft, Eye, EyeOff, CheckCircle, AlertCircle } from "lucide-react";
+import { useSearchParams, useNavigate } from "react-router-dom";
+import logo_iuh from "../../assets/images/logo_iuh.png";
+import axios from "axios";
+import Header from "../common/Header";
 
 const ResetPassword = () => {
-    const [searchParams] = useSearchParams();
-    const token = searchParams.get("token");
-    const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const token = searchParams.get("token");
+  const navigate = useNavigate();
 
-    const [formData, setFormData] = useState({
-        newPassword: '',
-        confirmPassword: ''
-    });
-    const [status, setStatus] = useState({ type: '', message: '' });
-    const [loading, setLoading] = useState(false);
+  const [formData, setFormData] = useState({ newPassword: "", confirmPassword: "" });
+  const [errors, setErrors] = useState({});
+  const [status, setStatus] = useState({ type: "", message: "" });
+  const [loading, setLoading] = useState(false);
+  const [showNew, setShowNew] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
 
-    const handleSubmit = async (e) => {
-        e.preventDefault();
-        if (formData.newPassword !== formData.confirmPassword) {
-            return setStatus({ type: 'error', message: 'Mật khẩu xác nhận không khớp!' });
-        }
+  const validatePassword = (password) => {
+    const errs = [];
+    if (!password.trim()) return ["Mật khẩu không được để trống"];
+    if (password.length < 8) errs.push("Ít nhất 8 ký tự");
+    if (!/[A-Z]/.test(password)) errs.push("Ít nhất 1 chữ hoa");
+    if (!/[a-z]/.test(password)) errs.push("Ít nhất 1 chữ thường");
+    if (!/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?`~]/.test(password)) errs.push("Ít nhất 1 ký tự đặc biệt");
+    return errs;
+  };
 
-        setLoading(true);
-        try {
-            await axios.post(`http://localhost:8081/api/auth/reset-password`, null, {
-                params: {
-                    token: token,
-                    newPassword: formData.newPassword
-                }
-            });
-            setStatus({ type: 'success', message: 'Thành công! Đang chuyển hướng...' });
-            setTimeout(() => navigate('/login'), 2000);
-        } catch (error) {
-            setStatus({ 
-                type: 'error', 
-                message: error.response?.data?.message || 'Liên kết không hợp lệ.' 
-            });
-        } finally {
-            setLoading(false);
-        }
-    };
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    const newErrs = {};
 
-    return (
-        <div className="min-h-screen flex items-center justify-center bg-slate-50 px-4">
-            {/* max-w-md là kích thước chuẩn, gọn gàng nhất cho form reset */}
-            <div className="max-w-md w-full">                
-                <div className="flex justify-center mb-6">
-                    <div className="h-12 w-12 bg-blue-600 rounded-xl flex items-center justify-center shadow-lg shadow-blue-600/20">
-                        <svg className="h-7 w-7 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 00-2 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                        </svg>
-                    </div>
-                </div>
+    const pwErrs = validatePassword(formData.newPassword);
+    if (pwErrs.length > 0) newErrs.newPassword = pwErrs;
 
-                <div className="bg-white rounded-3xl shadow-xl shadow-slate-200/50 p-8 border border-slate-100">
-                    <div className="text-center mb-6"> 
-                        <h2 className="text-2xl font-bold text-slate-900 tracking-tight">Đặt lại mật khẩu</h2>
-                        <p className="text-slate-500 mt-2 text-sm">Nhập mật khẩu mới để tiếp tục.</p>
-                    </div>
+    if (!formData.confirmPassword.trim()) {
+      newErrs.confirmPassword = ["Vui lòng xác nhận mật khẩu"];
+    } else if (formData.newPassword !== formData.confirmPassword) {
+      newErrs.confirmPassword = ["Mật khẩu xác nhận không khớp"];
+    }
 
-                    {status.message && (
-                        <div className={`mb-4 p-3 rounded-lg text-sm font-medium flex items-center gap-2 animate-in fade-in slide-in-from-top-1 duration-200 ${
-                            status.type === 'success' ? 'bg-emerald-50 text-emerald-700 border border-emerald-100' : 'bg-rose-50 text-rose-700 border border-rose-100'
-                        }`}>
-                            <span>{status.type === 'success' ? '✓' : '⚠'}</span>
-                            {status.message}
-                        </div>
-                    )}
+    if (Object.keys(newErrs).length > 0) {
+      setErrors(newErrs);
+      return;
+    }
 
-                    <form onSubmit={handleSubmit} className="space-y-4"> 
-                        <div className="space-y-1.5">
-                            <label className="text-xs font-bold text-slate-400 uppercase tracking-widest ml-1">Mật khẩu mới</label>
-                            <input
-                                type="password"
-                                required
-                                placeholder="Tối thiểu 8 ký tự"
-                                className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-4 focus:ring-blue-600/5 focus:border-blue-600 outline-none transition-all duration-200 text-sm placeholder:text-slate-300"
-                                onChange={(e) => setFormData({...formData, newPassword: e.target.value})}
-                            />
-                        </div>
+    setLoading(true);
+    setStatus({ type: "", message: "" });
 
-                        <div className="space-y-1.5">
-                            <label className="text-xs font-bold text-slate-400 uppercase tracking-widest ml-1">Xác nhận lại</label>
-                            <input
-                                type="password"
-                                required
-                                placeholder="Nhập lại mật khẩu"
-                                className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-4 focus:ring-blue-600/5 focus:border-blue-600 outline-none transition-all duration-200 text-sm placeholder:text-slate-300"
-                                onChange={(e) => setFormData({...formData, confirmPassword: e.target.value})}
-                            />
-                        </div>
+    try {
+      await axios.post(`${import.meta.env.VITE_AUTH_API_URL || "http://localhost:8082/api"}/auth/reset-password`, null, {
+        params: { token, newPassword: formData.newPassword },
+      });
+      setStatus({ type: "success", message: "Đặt lại mật khẩu thành công! Đang chuyển hướng..." });
+      setTimeout(() => navigate("/login"), 2000);
+    } catch (error) {
+      setStatus({
+        type: "error",
+        message: error.response?.data?.message || "Liên kết không hợp lệ hoặc đã hết hạn.",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
 
-                        <button
-                            type="submit"
-                            disabled={loading || !token}
-                            className="group relative w-full py-3 px-4 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl shadow-md shadow-blue-600/20 transition-all duration-200 active:scale-[0.98] disabled:opacity-50 overflow-hidden mt-2"
-                        >
-                            <span className={`flex items-center justify-center gap-2 ${loading ? 'opacity-0' : 'opacity-100'}`}>
-                                Xác nhận
-                                <svg className="w-4 h-4 group-hover:translate-x-1 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M14 5l7 7m0 0l-7 7m7-7H3" />
-                                </svg>
-                            </span>
-                            {loading && (
-                                <div className="absolute inset-0 flex items-center justify-center">
-                                    <div className="w-5 h-5 border-2 border-white/20 border-t-white rounded-full animate-spin"></div>
-                                </div>
-                            )}
-                        </button>
-                    </form>
-
-                    <div className="mt-6 text-center border-t border-slate-50 pt-4">
-                        <Link to="/login" className="text-xs font-bold text-slate-400 hover:text-blue-600 transition-colors inline-flex items-center gap-1 group">
-                            <span className="group-hover:-translate-x-1 transition-transform text-sm">←</span>
-                            Quay lại đăng nhập
-                        </Link>
-                    </div>
-                </div>
-                
-                <p className="mt-6 text-center text-slate-400 text-[10px]">
-                    &copy; 2026 Event Management System.
-                </p>
-            </div>
+  const PasswordInput = ({ id, label, value, show, onToggle, error }) => (
+    <div className="space-y-1.5">
+      <label className="block text-sm font-medium text-gray-700">{label}</label>
+      <div className="relative">
+        <input
+          type={show ? "text" : "password"}
+          value={value}
+          onChange={(e) => {
+            setFormData((prev) => ({ ...prev, [id]: e.target.value }));
+            if (errors[id]) setErrors((prev) => ({ ...prev, [id]: "" }));
+          }}
+          placeholder="Nhập mật khẩu..."
+          className={`w-full px-4 py-2.5 pr-11 border rounded-lg text-sm outline-none transition-all placeholder:text-gray-300 ${
+            error
+              ? "border-red-300 bg-red-50 focus:ring-2 focus:ring-red-100"
+              : "border-gray-200 bg-gray-50 focus:bg-white focus:border-[#1a3a6b] focus:ring-2 focus:ring-[#1a3a6b]/10"
+          }`}
+        />
+        <button
+          type="button"
+          onClick={onToggle}
+          className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+        >
+          {show ? <EyeOff size={17} /> : <Eye size={17} />}
+        </button>
+      </div>
+      {error && (
+        <div className="space-y-0.5">
+          {Array.isArray(error)
+            ? error.map((e, i) => <p key={i} className="text-xs text-red-500">{e}</p>)
+            : <p className="text-xs text-red-500">{error}</p>
+          }
         </div>
-    );
+      )}
+    </div>
+  );
+
+  return (
+    <div>
+      <Header />
+      <div className="min-h-screen bg-[#eef2f7] flex flex-col items-center justify-center p-4 font-sans">
+     <button
+          onClick={() => navigate("/login")}
+          className="group flex items-center gap-2 text-sm font-semibold text-[#1a3a6b] hover:gap-3 transition-all duration-200 mb-6"
+        >
+          <span className="w-8 h-8 bg-white rounded-full shadow-sm border border-gray-200 flex items-center justify-center group-hover:bg-[#1a3a6b] group-hover:border-[#1a3a6b] transition-all duration-200">
+            <ArrowLeft
+              size={15}
+              className="text-[#1a3a6b] group-hover:text-white transition-colors duration-200"
+            />
+          </span>
+          <span className="group-hover:text-[#15306b] transition-colors hover:cursor-pointer">
+            Quay lại đăng nhập
+          </span>
+        </button>
+
+      <div className="flex flex-col items-center mb-6">
+        <img src={logo_iuh} alt="IUH Logo" className="h-14 object-contain mb-3" />
+        <h1 className="text-[22px] font-bold text-[#1a3a6b] tracking-tight">Đặt lại mật khẩu</h1>
+        <p className="text-sm text-gray-400 mt-0.5">Nhập mật khẩu mới để tiếp tục</p>
+      </div>
+
+      <div className="w-full max-w-[420px] bg-white rounded-2xl shadow-[0_4px_24px_rgba(0,0,0,0.08)] overflow-hidden">
+        <div className="h-1 bg-[#1a3a6b]" />
+
+        <div className="px-8 py-7 space-y-5">
+          {status.message && (
+            <div
+              className={`flex items-start gap-3 p-4 rounded-lg text-sm border ${
+                status.type === "success"
+                  ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                  : "bg-red-50 text-red-700 border-red-200"
+              }`}
+            >
+              {status.type === "success" ? (
+                <CheckCircle size={18} className="shrink-0 mt-0.5" />
+              ) : (
+                <AlertCircle size={18} className="shrink-0 mt-0.5" />
+              )}
+              <p>{status.message}</p>
+            </div>
+          )}
+
+          {!token && (
+            <div className="flex items-start gap-3 p-4 rounded-lg text-sm border bg-red-50 text-red-700 border-red-200">
+              <AlertCircle size={18} className="shrink-0 mt-0.5" />
+              <p>Liên kết không hợp lệ. Vui lòng yêu cầu đặt lại mật khẩu mới.</p>
+            </div>
+          )}
+
+          {status.type !== "success" && token && (
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <PasswordInput
+                id="newPassword"
+                label="Mật khẩu mới"
+                value={formData.newPassword}
+                show={showNew}
+                onToggle={() => setShowNew(!showNew)}
+                error={errors.newPassword}
+              />
+
+              <PasswordInput
+                id="confirmPassword"
+                label="Xác nhận mật khẩu"
+                value={formData.confirmPassword}
+                show={showConfirm}
+                onToggle={() => setShowConfirm(!showConfirm)}
+                error={errors.confirmPassword}
+              />
+
+              <button
+                type="submit"
+                disabled={loading}
+                className={`w-full py-3 bg-[#1a3a6b] text-white rounded-lg font-semibold text-sm transition-all flex items-center justify-center gap-2 mt-2 ${
+                  loading
+                    ? "opacity-70 cursor-not-allowed"
+                    : "hover:bg-[#15306b] active:scale-[0.98] shadow-md shadow-[#1a3a6b]/25"
+                }`}
+              >
+                {loading ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    Đang xử lý...
+                  </>
+                ) : (
+                  "Xác nhận đặt lại mật khẩu"
+                )}
+              </button>
+            </form>
+          )}
+
+          {status.type === "success" && (
+            <button
+              onClick={() => navigate("/login")}
+              className="w-full py-3 bg-[#1a3a6b] text-white rounded-lg font-semibold text-sm hover:bg-[#15306b] active:scale-[0.98] shadow-md shadow-[#1a3a6b]/25 transition-all"
+            >
+              Đăng nhập ngay
+            </button>
+          )}
+
+          <p className="text-center text-sm text-gray-400 pt-1">
+            Nhớ mật khẩu rồi?{" "}
+            <button
+              type="button"
+              onClick={() => navigate("/login")}
+              className="text-[#1a3a6b] font-semibold hover:underline"
+            >
+              Đăng nhập ngay
+            </button>
+          </p>
+        </div>
+      </div>
+
+      <div className="mt-5 text-center text-xs text-gray-400 space-y-1">
+        <p>Gặp vấn đề khi đặt lại mật khẩu?</p>
+        <button className="text-[#1a3a6b] font-medium hover:underline">
+          Liên hệ bộ phận hỗ trợ
+        </button>
+      </div>
+    </div>
+    </div>
+  );
 };
 
 export default ResetPassword;

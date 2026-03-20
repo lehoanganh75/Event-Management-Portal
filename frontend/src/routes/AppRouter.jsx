@@ -27,13 +27,14 @@ import Dashboard from '../components/admin/Dashboard';
 import EventPage from '../components/admin/EventPage';
 import SpinnerManagement from '../components/admin/SpinnerManagement';
 import UserProfile from '../components/user/UserProfile';
-
+import ForgotPassword from '../components/forgotPassword/ForgotPassword';
 const AppRouter = () => {
   return (
     <Routes>
       <Route path='/' element={<VangLaiPage />} />
       <Route path='/login' element={<LoginPage />} />
       <Route path='/register' element={<RegisterPage />} />
+      <Route path="/forgot-password" element={<ForgotPassword />} />
       <Route path='/attendance' element={<AttendancePage />} />
       <Route path="/events/:id" element={<EventDetail />} />
       <Route path='/userprofile' element={<UserProfile />} />

@@ -16,6 +16,7 @@
     "docx": "^9.6.1",
     "file-saver": "^2.0.5",
     "framer-motion": "^12.31.2",
+    "jsqr": "^1.4.0",
     "jszip": "^3.10.1",
     "jwt-decode": "^4.0.0",
     "lucide-react": "^0.563.0",

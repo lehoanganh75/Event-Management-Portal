@@ -55,4 +55,6 @@ public interface EventService {
     List<PlanResponseDto> getPlansByAccountId(String accountId);
 
     List<PlanResponseDto> getEventsByAccountId(String accountId);
+
+    List<PlanResponseDto> getEventsByStatus(EventStatus status);
 }
