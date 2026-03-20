@@ -1,14 +1,5 @@
 import { useNavigate, useLocation } from "react-router-dom";
-import {
-  LogIn,
-  Mail,
-  User,
-  Globe,
-  LogOut,
-  Settings,
-  ShieldCheck,
-  ChevronDown,
-} from "lucide-react";
+import { LogIn, Mail, User, Globe, LogOut, Settings, ShieldCheck, ChevronDown } from "lucide-react";
 import logo_iuh from "../../assets/images/logo_iuh.png";
 import { useEffect, useState, useRef, useCallback } from "react";
 import axios from "axios";
@@ -41,7 +32,6 @@ api.interceptors.request.use(
 const Header = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const [activeSection, setActiveSection] = useState(null);
   const [currentUser, setCurrentUser] = useState(null);
   const [userRoles, setUserRoles] = useState([]);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -117,50 +107,23 @@ const Header = () => {
     };
   }, [location.pathname, checkActiveSection]);
 
+  // Lấy dữ liệu user từ localStorage
   useEffect(() => {
-    if (location.pathname !== "/") {
-      setActiveSection(null);
-      lastClickedRef.current = null;
-      lockActiveRef.current = false;
-      if (lockTimerRef.current) {
-        clearTimeout(lockTimerRef.current);
+    const userData = localStorage.getItem("user");
+    if (userData) {
+      try {
+        setCurrentUser(JSON.parse(userData));
+      } catch (error) {
+        console.error("Lỗi parse user data:", error);
+        localStorage.removeItem("user");
       }
+    } else {
+      setCurrentUser(null); // Đảm bảo UI cập nhật khi logout
     }
-  }, [location.pathname]);
+  }, [location]); // Cập nhật lại khi chuyển trang
 
-  const fetchUserData = async () => {
-    const accessToken = localStorage.getItem("accessToken");
-    if (!accessToken) {
-      setLoading(false);
-      return;
-    }
-
-    try {
-      const payload = JSON.parse(atob(accessToken.split(".")[1]));
-      const roles = payload.roles || [];
-      setUserRoles(roles);
-
-      const profileRes = await api.get("/profiles/me");
-      const userData = profileRes.data;
-      setCurrentUser({
-        id: userData.id,
-        username: userData.account?.username || userData.username,
-        fullName: userData.fullName,
-        avatarUrl: userData.avatarUrl,
-      });
-    } catch (error) {
-      console.error("❌ Lỗi fetch user data:", error);
-      if (error.response?.status === 401) {
-        handleLogout();
-      }
-    } finally {
-      setLoading(false);
-    }
-  };
-
+  // Đóng menu khi click ra ngoài
   useEffect(() => {
-    fetchUserData();
-
     const handleClickOutside = (event) => {
       if (menuRef.current && !menuRef.current.contains(event.target)) {
         setIsMenuOpen(false);
@@ -169,7 +132,7 @@ const Header = () => {
 
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, [location.pathname]);
+  }, []);
 
   const isLecturerPage = location.pathname.startsWith("/lecturer");
   const isAdminPage = location.pathname.startsWith("/admin");
@@ -183,116 +146,36 @@ const Header = () => {
   const handleLogout = async () => {
     setIsLogoutModalOpen(false);
 
+  const handleLogout = async () => {
     try {
+      const API_LOGOUT = "http://localhost:8082/api/auth/logout";
       const refreshToken = localStorage.getItem("refreshToken");
+
       if (refreshToken) {
-        await api.post("/auth/logout", null, {
-          params: { refreshToken },
+        // Gọi API Logout (truyền @RequestParam qua params)
+        await axios.post(API_LOGOUT, null, {
+          params: { refreshToken: refreshToken }
         });
       }
     } catch (error) {
-      console.error("Lỗi logout:", error);
+      console.error("Lỗi khi gọi API logout:", error);
     } finally {
-      localStorage.clear();
+      // Dọn dẹp cục bộ luôn nằm trong finally
+      localStorage.clear(); // Xóa sạch để đảm bảo an toàn
       setCurrentUser(null);
-      setUserRoles([]);
+      setIsMenuOpen(false);
       navigate("/login");
     }
   };
 
-  const hasManagementAccess = () => {
-    return userRoles.some((r) => ["ADMIN", "SUPER_ADMIN"].includes(r));
-  };
-
-  const hasOrganizerAccess = () => {
-    return userRoles.some((r) => ["ORGANIZER"].includes(r));
-  };
-
-  const hasLecturerAccess = () => {
-    return userRoles.some((r) =>
-      ["ADMIN", "SUPER_ADMIN", "ORGANIZER", "MEMBER"].includes(r),
-    );
-  };
-
-  const getManagementPath = () => {
-    if (userRoles.includes("SUPER_ADMIN")) {
-      return "/admin";
-    } else if (userRoles.includes("ADMIN") || userRoles.includes("ORGANIZER")) {
-      return "/lecturer/events/feed";
-    } else if (userRoles.includes("MEMBER")) {
-      return "/lecturer/events/feed";
-    }
-    return null;
-  };
-
-  const getManagementButtonText = () => {
-    if (userRoles.includes("SUPER_ADMIN")) {
-      return "Quản trị hệ thống";
-    } else if (
-      userRoles.includes("ADMIN") ||
-      userRoles.includes("ORGANIZER") ||
-      userRoles.includes("MEMBER")
-    ) {
-      return "Quản lý";
-    }
-    return null;
-  };
-
-  const getManagementButtonClass = () => {
-    const baseClass =
-      "px-4 py-2 rounded-lg text-sm font-bold transition-all duration-200";
-
-    const isInManagementPage = isLecturerPage || isAdminPage;
-
-    if (userRoles.includes("SUPER_ADMIN")) {
-      return `${baseClass} ${
-        isInManagementPage
-          ? "text-purple-600 bg-purple-50"
-          : "text-slate-600 hover:text-purple-600 hover:bg-purple-50"
-      }`;
-    } else {
-      return `${baseClass} ${
-        isInManagementPage
-          ? "text-orange-600 bg-orange-50"
-          : "text-slate-600 hover:text-orange-600 hover:bg-orange-50"
-      }`;
-    }
-  };
-
-  const getPrimaryRole = () => {
-    if (userRoles.length === 0) return "Thành viên";
-
-    const rolePriority = [
-      "SUPER_ADMIN",
-      "ADMIN",
-      "ORGANIZER",
-      "MEMBER",
-      "EVENT_PARTICIPANT",
-      "GUEST",
-    ];
-
-    for (const priorityRole of rolePriority) {
-      if (userRoles.includes(priorityRole)) {
-        return roleMap[priorityRole] || "Thành viên";
-      }
-    }
-
-    return roleMap[userRoles[0]] || "Thành viên";
-  };
-
-  const getMenuItemClass = (itemId) => {
-    const baseClass =
-      "px-4 py-2 rounded-lg text-sm font-bold transition-all duration-200";
-
-    if (isHomePage) {
-      return `${baseClass} ${
-        activeSection === itemId
-          ? "text-orange-600 bg-orange-50"
-          : "text-slate-600 hover:text-orange-600 hover:bg-orange-50"
-      }`;
-    }
-    return `${baseClass} text-slate-600 hover:text-orange-600 hover:bg-orange-50`;
-  };
+  return (
+    <header className="w-full font-sans sticky top-0 z-50 bg-white/80 backdrop-blur-md border-b border-slate-100 shadow-sm">
+      {/* TOP BAR */}
+      <div className="bg-linear-to-r from-[#1a479a] to-[#2563eb] text-white py-1.5 px-4 md:px-10 flex justify-between items-center text-[11px] font-medium tracking-wide">
+        <div className="hidden md:flex items-center gap-2 opacity-90">
+          <span className="w-1.5 h-1.5 bg-green-400 rounded-full animate-pulse"></span>
+          Hệ thống Quản lý Sự kiện IUH
+        </div>
 
   const getAttendanceClass = () => {
     const baseClass =
@@ -367,59 +250,42 @@ const Header = () => {
             </div>
           </div>
         </div>
-      </header>
-    );
-  }
+      </div>
 
-  return (
-    <>
-      <header className="w-full font-sans sticky top-0 z-50 bg-white/80 backdrop-blur-md border-b border-slate-100 shadow-sm">
-        <div className="bg-linear-to-r from-[#1a479a] to-[#2563eb] text-white py-1.5 px-4 md:px-10 flex justify-between items-center text-[11px] font-medium tracking-wide">
-          <div className="hidden md:flex items-center gap-2 opacity-90">
-            <span className="w-1.5 h-1.5 bg-green-400 rounded-full animate-pulse"></span>
-            Hệ thống Quản lý Sự kiện IUH - Chào mừng bạn quay trở lại
+      {/* MAIN NAV */}
+      {!isLoginPage && (
+        <div className="max-w-7xl mx-auto px-4 md:px-6 py-3 flex justify-between items-center">
+          <div 
+            className="cursor-pointer transition-all duration-300 hover:opacity-80 active:scale-95" 
+            onClick={() => navigate("/")}
+          >
+            <img src={logo_iuh} alt="IUH Logo" className="h-10 md:h-12 object-contain" />
           </div>
 
-          <div className="flex items-center gap-5 ml-auto">
-            <button className="hover:text-orange-300 transition-colors flex items-center gap-1">
-              <Mail size={12} /> Hỗ trợ kỹ thuật
-            </button>
-            <div className="h-3 w-px bg-white/20"></div>
-            <div className="flex items-center gap-1.5 cursor-pointer group">
-              <Globe
-                size={12}
-                className="group-hover:rotate-12 transition-transform"
-              />
-              <span>Tiếng Việt (VN)</span>
-            </div>
-          </div>
-        </div>
+          {!isLecturerPage && (
+            <nav className="hidden lg:flex items-center gap-1">
+              <button onClick={() => navigate("/")} className="px-4 py-2 rounded-lg text-sm font-bold text-slate-600 hover:text-blue-600 hover:bg-slate-50 transition-all">
+                Trang chủ
+              </button>
+              <a href="/attendance" className="px-4 py-2 rounded-lg text-sm font-bold text-slate-600 hover:text-blue-600 hover:bg-slate-50 transition-all">
+                Điểm danh
+              </a>
+              {/* Kiểm tra quyền Admin/Lecturer an toàn */}
+              {currentUser?.roles?.some(r => ["ADMIN", "LECTURER", "SUPER_ADMIN"].includes(r)) && (
+                 <button onClick={() => navigate("/lecturer/dashboard")} className="ml-2 px-4 py-2 bg-orange-50 text-orange-600 rounded-lg text-sm font-bold hover:bg-orange-100 transition-all border border-orange-100">
+                    Bảng điều khiển
+                 </button>
+              )}
+            </nav>
+          )}
 
-        {!isLoginPage && (
-          <div className="w-full mx-auto px-4 md:px-6 py-3 flex justify-between items-center">
-            <div
-              className="cursor-pointer transition-all duration-300 hover:opacity-80 active:scale-95"
-              onClick={() => navigate("/")}
-            >
-              <img
-                src={logo_iuh}
-                alt="IUH Logo"
-                className="h-10 md:h-12 object-contain"
-              />
-            </div>
-
-            {!isLecturerPage && !isAdminPage && (
-              <nav className="hidden lg:flex items-center gap-1">
-                <button
-                  onClick={() => handleMenuItemClick("gioi-thieu")}
-                  className={getMenuItemClass("gioi-thieu")}
-                >
-                  Giới thiệu
-                </button>
-
-                <button
-                  onClick={() => handleMenuItemClick("su-kien")}
-                  className={getMenuItemClass("su-kien")}
+          {/* AUTH SECTION */}
+          <div className="flex items-center gap-4 border-l border-slate-100 pl-6">
+            {currentUser ? (
+              <div className="relative" ref={menuRef}>
+                <div 
+                  onClick={() => setIsMenuOpen(!isMenuOpen)}
+                  className="flex items-center gap-3 p-1 pr-3 rounded-full hover:bg-slate-100 cursor-pointer transition-all border border-transparent hover:border-slate-200"
                 >
                   Sự kiện
                 </button>
@@ -472,85 +338,44 @@ const Header = () => {
                       size={14}
                       className={`text-slate-400 transition-transform duration-300 ${isMenuOpen ? "rotate-180" : ""}`}
                     />
+                    <span className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-green-500 border-2 border-white rounded-full"></span>
+                  </div>
+                  <div className="hidden sm:block text-left">
+                    <p className="text-xs font-bold text-slate-800 leading-none">{currentUser.username}</p>
+                    <p className="text-[10px] text-slate-500 font-medium mt-0.5 uppercase tracking-tighter">
+                       {/* Dùng Optional Chaining để tránh lỗi undefined */}
+                       {roleMap[currentUser?.roles?.[0]] || "Thành viên"}
+                    </p>
                   </div>
 
-                  {isMenuOpen && (
-                    <div className="absolute right-0 mt-3 w-64 bg-white rounded-2xl shadow-2xl border border-slate-100 overflow-hidden animate-in fade-in zoom-in-95 duration-200">
-                      <div className="p-4 bg-linear-to-br from-slate-50 to-white border-b border-slate-100">
-                        <p className="text-xs font-semibold text-slate-400 uppercase tracking-widest mb-2">
-                          Tài khoản của bạn
-                        </p>
-                        <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 bg-orange-100 text-orange-600 rounded-xl flex items-center justify-center font-bold">
-                            {currentUser.username?.charAt(0).toUpperCase() ||
-                              "U"}
-                          </div>
-                          <div>
-                            <p className="text-sm font-black text-slate-800">
-                              {currentUser.fullName || currentUser.username}
-                            </p>
-                            <p className="text-[11px] text-orange-600 font-bold flex items-center gap-1">
-                              <ShieldCheck size={12} />
-                              {getPrimaryRole()}
-                            </p>
-                          </div>
+                {isMenuOpen && (
+                  <div className="absolute right-0 mt-3 w-64 bg-white rounded-2xl shadow-2xl border border-slate-100 overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+                    <div className="p-4 bg-slate-50/50 border-b border-slate-100">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 bg-blue-600 text-white rounded-xl flex items-center justify-center font-bold">
+                          {currentUser.username?.charAt(0).toUpperCase()}
+                        </div>
+                        <div>
+                          <p className="text-sm font-black text-slate-800">{currentUser.username}</p>
+                          <p className="text-[11px] text-blue-600 font-bold flex items-center gap-1">
+                            <ShieldCheck size={12} /> {roleMap[currentUser?.roles?.[0]] || "Người dùng"}
+                          </p>
                         </div>
                       </div>
 
-                      <div className="p-2">
-                        {hasLecturerAccess() && getManagementPath() && (
-                          <>
-                            <button
-                              onClick={() => {
-                                navigate(getManagementPath());
-                                setIsMenuOpen(false);
-                              }}
-                              className="w-full flex items-center gap-3 px-3 py-2.5 text-sm font-semibold text-slate-600 hover:bg-orange-50 hover:text-orange-700 rounded-xl transition-colors"
-                            >
-                              <ShieldCheck
-                                size={16}
-                                className="text-slate-400"
-                              />
-                              {getManagementButtonText()}
-                            </button>
-                            <div className="border-t border-slate-100 my-2"></div>
-                          </>
-                        )}
+                    <div className="p-2">
+                      <button onClick={() => { navigate("/userprofile"); setIsMenuOpen(false); }} className="w-full flex items-center gap-3 px-3 py-2.5 text-sm font-semibold text-slate-600 hover:bg-blue-50 hover:text-blue-700 rounded-xl transition-colors">
+                        <User size={16} className="text-slate-400" /> Hồ sơ cá nhân
+                      </button>
+                      <button className="w-full flex items-center gap-3 px-3 py-2.5 text-sm font-semibold text-slate-600 hover:bg-blue-50 hover:text-blue-700 rounded-xl transition-colors">
+                        <Settings size={16} className="text-slate-400" /> Cài đặt tài khoản
+                      </button>
+                    </div>
 
-                        <button
-                          onClick={() => {
-                            navigate("/userprofile");
-                            setIsMenuOpen(false);
-                          }}
-                          className="w-full flex items-center gap-3 px-3 py-2.5 text-sm font-semibold text-slate-600 hover:bg-orange-50 hover:text-orange-700 rounded-xl transition-colors"
-                        >
-                          <User size={16} className="text-slate-400" /> Hồ sơ cá
-                          nhân
-                        </button>
-
-                        <button
-                          onClick={() => {
-                            navigate("/settings");
-                            setIsMenuOpen(false);
-                          }}
-                          className="w-full flex items-center gap-3 px-3 py-2.5 text-sm font-semibold text-slate-600 hover:bg-orange-50 hover:text-orange-700 rounded-xl transition-colors"
-                        >
-                          <Settings size={16} className="text-slate-400" /> Cài
-                          đặt tài khoản
-                        </button>
-                      </div>
-
-                      <div className="p-2 bg-slate-50 border-t border-slate-100">
-                        <button
-                          onClick={() => {
-                            setIsMenuOpen(false);
-                            setIsLogoutModalOpen(true);
-                          }}
-                          className="w-full flex items-center gap-3 px-3 py-2.5 text-sm font-bold text-red-500 hover:bg-red-100 rounded-xl transition-colors"
-                        >
-                          <LogOut size={16} /> Đăng xuất hệ thống
-                        </button>
-                      </div>
+                    <div className="p-2 bg-slate-50 border-t border-slate-100">
+                      <button onClick={handleLogout} className="w-full flex items-center gap-3 px-3 py-2.5 text-sm font-bold text-red-500 hover:bg-red-100 rounded-xl transition-colors">
+                        <LogOut size={16} /> Đăng xuất
+                      </button>
                     </div>
                   )}
                 </div>

@@ -1,6 +1,6 @@
 package src.main.identityservice.entity;
 
-import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonUnwrapped;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
@@ -19,12 +19,6 @@ public class User {
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
     private String id;
-
-    @JsonIgnore
-    @MapsId
-    @OneToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "id")
-    private Account account;
 
     private String loginCode;       // mã sinh viên / nhân viên nếu cần
     private String fullName;
@@ -45,4 +39,10 @@ public class User {
     private LocalDateTime updatedAt;
 
     private boolean isDeleted = false;
+
+    @MapsId
+    @OneToOne(fetch = FetchType.EAGER) // Chuyển sang EAGER để lấy luôn data account
+    @JoinColumn(name = "id")
+    @JsonUnwrapped
+    private Account account;
 }

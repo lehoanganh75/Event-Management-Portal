@@ -22,7 +22,7 @@ public class UserServiceImpl implements UserService {
     @Override
     public User getProfileByUserId(String userId) {
         return userRepository.findById(userId)
-                .orElseThrow(() -> new RuntimeException("User profile not found for account ID: " + userId));
+                .orElseThrow(() -> new RuntimeException("User profile not found for userId ID: " + userId));
     }
 
     @Override
