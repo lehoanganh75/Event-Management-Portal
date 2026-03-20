@@ -53,36 +53,37 @@ const LoginPage = () => {
     if (isLoading || !validateForm()) return;
     setIsLoading(true);
 
-    console.log(payload);
-    
-
     try {
-      const API_LOGIN = "http://localhost:8082/api/auth/login";
-      const API_PROFILE = "http://localhost:8082/api/profiles/me";
-      
+      const API_LOGIN = `${import.meta.env.VITE_AUTH_API_URL}/auth/login`;
+      const API_PROFILE = `${import.meta.env.VITE_AUTH_API_URL}/profiles/me`;
+
       // 1. Gọi API Login
-      const loginRes = await axios.post(API_LOGIN, payload);
-      
+      const loginRes = await axios.post(API_LOGIN, {
+        username: formData.username,
+        password: formData.password,
+      });
+
       if (loginRes.data && loginRes.data.accessToken) {
         const { accessToken, refreshToken } = loginRes.data;
-        
+
         localStorage.setItem("accessToken", accessToken);
         localStorage.setItem("refreshToken", refreshToken);
 
+        // 2. Lấy thông tin profile
         const profileRes = await axios.get(API_PROFILE, {
-          headers: { 
-            Authorization: `Bearer ${accessToken}` 
-          }
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+          },
         });
 
         const data = profileRes.data;
 
         const userData = {
-          username: data?.username || data?.email?.split('@')[0] || "User",
+          username: data?.username || data?.email?.split("@")[0] || "User",
           roles: Array.isArray(data?.roles) ? data.roles : ["GUEST"],
           email: data?.email || "",
           fullName: data?.fullName || "Chưa cập nhật",
-          avatarUrl: data?.avatarUrl || null
+          avatarUrl: data?.avatarUrl || null,
         };
 
         localStorage.setItem("user", JSON.stringify(userData));
@@ -91,10 +92,13 @@ const LoginPage = () => {
         setToastVisible(true);
 
         setTimeout(() => {
-          if (userData.roles.includes("ADMIN") || userData.roles.includes("SUPER_ADMIN")) {
-            navigate("/admin/dashboard");
+          if (
+            userData.roles.includes("ADMIN") ||
+            userData.roles.includes("SUPER_ADMIN")
+          ) {
+            navigate("/admin");
           } else if (userData.roles.includes("LECTURER")) {
-            navigate("/lecturer/dashboard");
+            navigate("/lecturer");
           } else {
             navigate("/");
           }
@@ -371,7 +375,7 @@ const LoginPage = () => {
 
               <div className="mt-5 text-center text-xs text-gray-400 space-y-1">
                 <p>Gặp vấn đề khi đăng nhập?</p>
-                <button 
+                <button
                   type="button"
                   className="text-[#1a3a6b] font-medium hover:underline hover:cursor-pointer"
                 >

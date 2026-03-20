@@ -25,4 +25,12 @@ public interface EventRepository extends JpaRepository<Event, String> {
 
     @Query("SELECT e FROM Event e WHERE e.createdByAccountId = :accountId AND e.deletedAt IS NULL AND e.status IN ('Published', 'Ongoing', 'Completed')")
     List<Event> findEventsByAccountId(@Param("accountId") String accountId);
+
+    @Query("""
+    SELECT e FROM Event e
+    WHERE e.status IN ('Published', 'Ongoing')
+    AND e.archived = false
+    AND e.deletedAt IS NULL
+""")
+    List<Event> findCandidateEvents();
 }

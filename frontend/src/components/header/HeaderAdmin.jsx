@@ -59,12 +59,6 @@ const HeaderAdmin = () => {
       {/* Right - User & Actions */}
       <div className="flex items-center gap-5 md:gap-7">
         
-        {/* Quick Actions (Desktop) */}
-        <div className="hidden lg:flex items-center gap-6 text-[12px] font-bold text-slate-500 uppercase tracking-wider">
-          <button className="hover:text-blue-600 transition-colors">Giảng viên</button>
-          <button className="hover:text-blue-600 transition-colors">Sinh viên</button>
-          <button className="hover:text-blue-600 transition-colors">Báo cáo</button>
-        </div>
 
         {/* Notification */}
         <button 

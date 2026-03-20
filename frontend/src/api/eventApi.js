@@ -95,7 +95,6 @@ const mapEvent = (e) => {
     target: e.target || "all",
     eventTopic: e.eventTopic || "",
     organizerUnit: e.organizerUnit || "",
-    // Thêm các field cho agenda và speakers nếu có
     agenda: e.agenda || [],
     speakers: e.speakers || [],
     createdByName: e.createdByName || null,
@@ -222,3 +221,9 @@ export const getRegistrationQR = (registrationId) =>
 
 export const checkInQR = (qrToken) =>
   api.post("/check-in", { qrToken });
+
+export const getAttendedEvents = (userProfileId) =>
+  api.get(`/registrations/user/${userProfileId}`).then((res) => ({
+    ...res,
+    data: Array.isArray(res.data) ? res.data : [],
+  }));

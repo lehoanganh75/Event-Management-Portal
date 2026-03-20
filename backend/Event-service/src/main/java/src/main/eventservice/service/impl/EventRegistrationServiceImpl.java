@@ -257,6 +257,11 @@ public class EventRegistrationServiceImpl implements EventRegistrationService {
                 .id(r.getId())
                 .eventId(r.getEvent().getId())
                 .eventTitle(r.getEvent().getTitle())
+                .eventStartTime(r.getEvent().getStartTime() != null
+                        ? r.getEvent().getStartTime().toString() : null)
+                .eventEndTime(r.getEvent().getEndTime() != null
+                        ? r.getEvent().getEndTime().toString() : null)
+                .eventLocation(r.getEvent().getLocation())
                 .userProfileId(r.getUserProfileId())
                 .status(r.getStatus() != null ? r.getStatus().name() : null)
                 .registeredAt(r.getRegisteredAt() != null ? r.getRegisteredAt().toString() : null)
@@ -266,7 +271,6 @@ public class EventRegistrationServiceImpl implements EventRegistrationService {
                 .checkInTime(r.getCheckInTime() != null ? r.getCheckInTime().toString() : null)
                 .build();
     }
-
     @Transactional
     @Override
     public RegistrationResponseDto cancelRegistration(String eventId, String userProfileId) {

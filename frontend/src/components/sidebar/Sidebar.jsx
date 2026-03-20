@@ -17,7 +17,6 @@ const Sidebar = () => {
     { name: 'Quản lý khoa',        icon: GraduationCap,  path: '/admin/departments' },
     { name: 'Quản lý vai trò',     icon: ShieldCheck,    path: '/admin/roles' },
     { name: 'Quản lý tài khoản',   icon: UserCog,        path: '/admin/accounts' },
-    { name: 'Quản lý thư viện',    icon: Library,        path: '/admin/library' },
     { name: 'Quản lý vòng quay',   icon: RotateCw,       path: '/admin/spinner' },
   ];
 

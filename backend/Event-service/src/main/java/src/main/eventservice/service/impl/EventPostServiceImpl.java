@@ -1,22 +1,40 @@
 package src.main.eventservice.service.impl;
 
 import lombok.RequiredArgsConstructor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import src.main.eventservice.client.UserServiceClient;
+import src.main.eventservice.dto.PostRequestDto;
+import src.main.eventservice.dto.PostResponseDto;
+import src.main.eventservice.dto.UserDto;
+import src.main.eventservice.entity.Event;
 import src.main.eventservice.entity.EventPost;
 import src.main.eventservice.entity.enums.PostStatus;
 import src.main.eventservice.repository.EventPostRepository;
+import src.main.eventservice.repository.EventRepository;
 import src.main.eventservice.service.EventPostService;
 
 import java.time.LocalDateTime;
+import java.util.List;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
 public class EventPostServiceImpl implements EventPostService {
-
+    @Autowired
     private final EventPostRepository eventPostRepository;
+    @Autowired
+    private final EventRepository eventRepository;
+
+    @Autowired
+    private UserServiceClient userServiceClient;
+
+    private static final Logger log = LoggerFactory.getLogger(EventServiceImpl.class);
 
     @Override
     public Page<EventPost> getAllPosts(String title, PostStatus status, Pageable pageable) {
@@ -69,5 +87,63 @@ public class EventPostServiceImpl implements EventPostService {
         post.setDeleted(true);
         post.setUpdatedAt(LocalDateTime.now());
         eventPostRepository.save(post);
+    }
+
+    @Override
+    public List<PostResponseDto> getPostsByAccountId(String accountId) {
+        List<EventPost> posts = eventPostRepository.findByCreatedByAccountIdOrderByCreatedAtDesc(accountId);
+
+        return posts.stream().map(post -> {
+            UserDto creator = null;
+            try {
+                if (post.getCreatedByAccountId() != null) {
+                    creator = userServiceClient.getUserById(post.getCreatedByAccountId());
+                }
+            } catch (Exception e) {
+                log.warn("Không lấy được creator: {}", e.getMessage());
+            }
+            return PostResponseDto.from(post, creator);
+        }).collect(Collectors.toList());
+    }
+
+    @Override
+    public List<PostResponseDto> getPostsByAccountIdAndEventId(String accountId, String eventId) {
+        List<EventPost> posts = eventPostRepository.findByCreatedByAccountIdAndEventId(accountId, eventId);
+
+        return posts.stream().map(post -> {
+            UserDto creator = null;
+            try {
+                if (post.getCreatedByAccountId() != null) {
+                    creator = userServiceClient.getUserById(post.getCreatedByAccountId());
+                }
+            } catch (Exception e) {
+                log.warn("Không lấy được creator: {}", e.getMessage());
+            }
+            return PostResponseDto.from(post, creator);
+        }).collect(Collectors.toList());
+    }
+    @Transactional
+    @Override
+    public EventPost createPost(PostRequestDto postDto) {
+        EventPost post = new EventPost();
+
+        // Set event
+        if (postDto.getEventId() != null) {
+            Event event = eventRepository.findById(postDto.getEventId())
+                    .orElseThrow(() -> new RuntimeException("Không tìm thấy sự kiện"));
+            post.setEvent(event);
+        }
+
+        post.setTitle(postDto.getTitle());
+        post.setContent(postDto.getContent());
+        post.setPostType(postDto.getPostType());
+        post.setStatus(postDto.getStatus());
+        post.setCreatedByAccountId(postDto.getAccountId());
+        post.setPublishedAt(postDto.getPublishedAt());
+        post.setCreatedAt(LocalDateTime.now());
+        post.setUpdatedAt(LocalDateTime.now());
+        post.setDeleted(false);
+
+        return eventPostRepository.save(post);
     }
 }

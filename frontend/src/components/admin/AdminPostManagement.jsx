@@ -17,11 +17,11 @@ import {
   RefreshCw,
   Calendar
 } from "lucide-react";
-import { getMyEvents } from "../../api/eventApi";
+import { getAllEvents } from "../../api/eventApi";
 
-const PostManagement = ({ eventId, eventTitle }) => {
+const AdminPostManagement = ({ eventId, eventTitle }) => {
   const [posts, setPosts] = useState([]);
-  const [userEvents, setUserEvents] = useState([]);
+  const [allEvents, setAllEvents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
@@ -61,28 +61,7 @@ const PostManagement = ({ eventId, eventTitle }) => {
   const fetchPosts = async () => {
     setLoading(true);
     try {
-      let accountId = null;
-      const userData = localStorage.getItem("user");
-      if (userData) {
-        try {
-          const user = JSON.parse(userData);
-          accountId = user.id || user.accountId || user.account?.id || user.userId;
-        } catch (error) {}
-      }
-
-      if (!accountId) {
-        const accessToken = localStorage.getItem("accessToken");
-        if (accessToken) {
-          try {
-            const payload = JSON.parse(atob(accessToken.split('.')[1]));
-            accountId = payload.accountId || payload.sub || payload.userId || payload.id;
-          } catch (e) {}
-        }
-      }
-
-      const url = accountId 
-        ? `http://localhost:8081/api/posts/user/${accountId}`
-        : `http://localhost:8081/api/posts`;
+      const url = `http://localhost:8081/api/posts?size=1000`;
       
       const response = await fetch(url);
       
@@ -106,37 +85,18 @@ const PostManagement = ({ eventId, eventTitle }) => {
 
   useEffect(() => {
     fetchPosts();
-  }, [eventId, searchTerm, statusFilter]);
+  }, [eventId]);
 
   useEffect(() => {
-    const fetchUserEvents = async () => {
-      let accountId = null;
-      const userData = localStorage.getItem("user");
-      if (userData) {
-        try {
-          const user = JSON.parse(userData);
-          accountId = user.id || user.accountId || user.account?.id || user.userId;
-        } catch (error) {}
-      }
-      if (!accountId) {
-        const accessToken = localStorage.getItem("accessToken");
-        if (accessToken) {
-          try {
-            const payload = JSON.parse(atob(accessToken.split('.')[1]));
-            accountId = payload.accountId || payload.sub || payload.userId || payload.id;
-          } catch (e) {}
-        }
-      }
-      if (accountId) {
-        try {
-          const res = await getMyEvents(accountId);
-          setUserEvents(res.data || []);
-        } catch (error) {
-          console.error("Lỗi lấy danh sách sự kiện:", error);
-        }
+    const fetchAllEvents = async () => {
+      try {
+        const res = await getAllEvents();
+        setAllEvents(res.data || []);
+      } catch (error) {
+        console.error("Lỗi lấy danh sách sự kiện:", error);
       }
     };
-    fetchUserEvents();
+    fetchAllEvents();
   }, []);
 
   const filteredPosts = posts.filter(post => {
@@ -184,7 +144,6 @@ const PostManagement = ({ eventId, eventTitle }) => {
         }
       }
 
-      // Chuẩn bị payload (dữ liệu gửi đi)
       const payload = { ...formData };
       if (modalMode === "create") {
         if (accountId) payload.createdByAccountId = accountId;
@@ -426,7 +385,7 @@ const PostManagement = ({ eventId, eventTitle }) => {
           onClose={() => setIsModalOpen(false)}
           postTypes={POST_TYPES}
           postStatus={POST_STATUS}
-          userEvents={userEvents}
+          userEvents={allEvents}
         />
       )}
     </div>
@@ -624,4 +583,4 @@ const PostModal = ({ mode, formData, setFormData, onSave, onClose, postTypes, po
   );
 };
 
-export default PostManagement;
+export default AdminPostManagement;

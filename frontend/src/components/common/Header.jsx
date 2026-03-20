@@ -1,5 +1,14 @@
 import { useNavigate, useLocation } from "react-router-dom";
-import { LogIn, User, LogOut, Settings, ShieldCheck, ChevronDown } from "lucide-react";
+import {
+  LogIn,
+  User,
+  LogOut,
+  Mail,
+  Globe,
+  Settings,
+  ShieldCheck,
+  ChevronDown,
+} from "lucide-react";
 import logo_iuh from "../../assets/images/logo_iuh.png";
 import { useEffect, useState, useRef, useCallback } from "react";
 import axios from "axios";
@@ -156,14 +165,14 @@ const Header = () => {
 
   const hasLecturerAccess = () => {
     return currentUser?.roles?.some((r) =>
-      ["ADMIN", "LECTURER", "SUPER_ADMIN", "ORGANIZER"].includes(r)
+      ["ADMIN", "LECTURER", "SUPER_ADMIN", "ORGANIZER"].includes(r),
     );
   };
 
   const getManagementPath = () => {
     if (!currentUser?.roles) return null;
     if (currentUser.roles.some((r) => ["ADMIN", "SUPER_ADMIN"].includes(r)))
-      return "/admin/dashboard";
+      return "/admin";
     if (currentUser.roles.includes("ORGANIZER")) return "/lecturer/dashboard";
     return null;
   };
@@ -176,7 +185,8 @@ const Header = () => {
   };
 
   const getNavClass = (section) => {
-    const base = "px-4 py-2 rounded-lg text-sm font-bold transition-all duration-200";
+    const base =
+      "px-4 py-2 rounded-lg text-sm font-bold transition-all duration-200";
     return `${base} ${
       activeSection === section
         ? "text-blue-600 bg-blue-50"
@@ -185,7 +195,8 @@ const Header = () => {
   };
 
   const getAttendanceClass = () => {
-    const base = "px-4 py-2 rounded-lg text-sm font-bold transition-all duration-200";
+    const base =
+      "px-4 py-2 rounded-lg text-sm font-bold transition-all duration-200";
     return `${base} ${
       location.pathname === "/attendance"
         ? "text-orange-600 bg-orange-50"
@@ -194,7 +205,8 @@ const Header = () => {
   };
 
   const getManagementButtonClass = () => {
-    const base = "ml-2 px-4 py-2 rounded-lg text-sm font-bold transition-all border";
+    const base =
+      "ml-2 px-4 py-2 rounded-lg text-sm font-bold transition-all border";
     return `${base} bg-orange-50 text-orange-600 hover:bg-orange-100 border-orange-100`;
   };
 
@@ -235,7 +247,7 @@ const Header = () => {
 
   const handleLogout = async () => {
     try {
-      const API_LOGOUT = "http://localhost:8082/api/auth/logout";
+      const API_LOGOUT = `${process.env.VITE_AUTH_API_URL}/auth/logout`;
       const refreshToken = localStorage.getItem("refreshToken");
       if (refreshToken) {
         await axios.post(API_LOGOUT, null, {
@@ -272,17 +284,31 @@ const Header = () => {
   return (
     <>
       <header className="w-full font-sans sticky top-0 z-50 bg-white/80 backdrop-blur-md border-b border-slate-100 shadow-sm">
-        {/* TOP BAR */}
         <div className="bg-gradient-to-r from-[#1a479a] to-[#2563eb] text-white py-1.5 px-4 md:px-10 flex justify-between items-center text-[11px] font-medium tracking-wide">
           <div className="hidden md:flex items-center gap-2 opacity-90">
             <span className="w-1.5 h-1.5 bg-green-400 rounded-full animate-pulse"></span>
             Hệ thống Quản lý Sự kiện IUH
           </div>
+
+          {/* ✅ Thêm phần bên phải */}
+          <div className="flex items-center gap-5 ml-auto">
+            <button className="hover:text-orange-300 transition-colors flex items-center gap-1 cursor-pointer">
+              <Mail size={12} /> Hỗ trợ kỹ thuật
+            </button>
+            <div className="h-3 w-px bg-white/20"></div>
+            <div className="flex items-center gap-1.5 cursor-pointer group">
+              <Globe
+                size={12}
+                className="group-hover:rotate-12 transition-transform"
+              />
+              <span>Tiếng Việt (VN)</span>
+            </div>
+          </div>
         </div>
 
         {/* MAIN NAV */}
         {!isLoginPage && (
-          <div className="max-w-7xl mx-auto px-4 md:px-6 py-3 flex justify-between items-center">
+          <div className="w-full mx-auto px-4 md:px-6 py-3 flex justify-between items-center">
             {/* LOGO */}
             <div
               className="cursor-pointer transition-all duration-300 hover:opacity-80 active:scale-95"
@@ -396,10 +422,12 @@ const Header = () => {
                           }}
                           className="w-full flex items-center gap-3 px-3 py-2.5 text-sm font-semibold text-slate-600 hover:bg-blue-50 hover:text-blue-700 rounded-xl transition-colors"
                         >
-                          <User size={16} className="text-slate-400" /> Hồ sơ cá nhân
+                          <User size={16} className="text-slate-400" /> Hồ sơ cá
+                          nhân
                         </button>
                         <button className="w-full flex items-center gap-3 px-3 py-2.5 text-sm font-semibold text-slate-600 hover:bg-blue-50 hover:text-blue-700 rounded-xl transition-colors">
-                          <Settings size={16} className="text-slate-400" /> Cài đặt tài khoản
+                          <Settings size={16} className="text-slate-400" /> Cài
+                          đặt tài khoản
                         </button>
                       </div>
 

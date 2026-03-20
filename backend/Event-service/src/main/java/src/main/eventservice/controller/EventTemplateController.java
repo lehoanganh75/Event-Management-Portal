@@ -108,4 +108,21 @@ public class EventTemplateController {
         templateService.deleteTemplate(id);
         return ResponseEntity.noContent().build();
     }
+
+    @GetMapping("/global")
+    public ResponseEntity<Page<EventTemplate>> getAllTemplatesGlobal(
+            @RequestParam(required = false) String search,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(defaultValue = "usageCount") String sortBy,
+            @RequestParam(defaultValue = "desc") String direction) {
+
+        Sort sort = direction.equalsIgnoreCase("desc")
+                ? Sort.by(sortBy).descending()
+                : Sort.by(sortBy).ascending();
+
+        Pageable pageable = PageRequest.of(page, size, sort);
+
+        return ResponseEntity.ok(templateService.getAllTemplatesGlobal(search, pageable));
+    }
 }

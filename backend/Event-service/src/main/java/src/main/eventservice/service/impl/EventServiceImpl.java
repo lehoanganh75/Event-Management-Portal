@@ -48,14 +48,70 @@ public class EventServiceImpl implements EventService {
                 .collect(Collectors.toList());
     }
 
+//    @Override
+//    public List<Event> getFeaturedEvents() {
+//        Pageable topTwo = PageRequest.of(0, 2);
+//        List<Event> events = eventRepository.findOngoingEvents(topTwo);
+//
+//        events.forEach(this::enrichEventWithRegistrationCount);
+//
+//        return events;
+//    }
+
     @Override
     public List<Event> getFeaturedEvents() {
-        Pageable topTwo = PageRequest.of(0, 2);
-        List<Event> events = eventRepository.findOngoingEvents(topTwo);
-            
-        events.forEach(this::enrichEventWithRegistrationCount);
+        List<Event> candidates = eventRepository.findCandidateEvents();
+        LocalDateTime now = LocalDateTime.now();
 
-        return events;
+        candidates.forEach(this::enrichEventWithRegistrationCount);
+
+        return candidates.stream()
+                .sorted(Comparator.comparingDouble(event -> -calculateScore(event, now)))
+                .limit(6)
+                .collect(Collectors.toList());
+    }
+
+    private double calculateScore(Event event, LocalDateTime now) {
+        double score = 0;
+
+        score += event.getRegisteredCount() * 0.4;
+
+        try {
+            if (event.getFeedbacks() != null)
+                score += event.getFeedbacks().size() * 0.2;
+        } catch (Exception e) {
+            log.warn("Error loading feedbacks for event {}: {}", event.getId(), e.getMessage());
+        }
+
+        try {
+            if (event.getPosts() != null)
+                score += event.getPosts().size() * 0.1;
+        } catch (Exception e) {
+            log.warn("Error loading posts for event {}: {}", event.getId(), e.getMessage());
+        }
+
+        if (event.getStartTime() != null && event.getEndTime() != null
+                && now.isAfter(event.getStartTime())
+                && now.isBefore(event.getEndTime())) {
+            score += 30;
+        }
+
+        if (event.getStartTime() != null
+                && now.isBefore(event.getStartTime())
+                && event.getStartTime().isBefore(now.plusDays(3))) {
+            score += 20;
+        }
+
+        if (event.isHasLuckyDraw()) score += 10;
+        
+        if (event.getRecap() != null) score += 5;
+
+        if (event.getMaxParticipants() > 0) {
+            double fillRate = (double) event.getRegisteredCount() / event.getMaxParticipants();
+            if (fillRate >= 0.8) score += 15;
+        }
+
+        return score;
     }
 
     private void enrichEventWithRegistrationCount(Event event) {

@@ -6,7 +6,6 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.*;
-import src.main.identityservice.entity.ApprovalStatus;
 import src.main.identityservice.entity.User;
 import src.main.identityservice.service.UserService;
 
@@ -69,4 +68,5 @@ public class UserController {
         String accountId = jwt.getClaimAsString("accountId");
         return ResponseEntity.ok(userService.updateApprovalStatus(accountId));
     }
+
 }

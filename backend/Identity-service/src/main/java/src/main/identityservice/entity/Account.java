@@ -52,7 +52,8 @@ public class Account {
     @JsonIgnore
     private List<RefreshToken> refreshTokens;
 
-    @OneToOne(mappedBy = "account", cascade = CascadeType.ALL, orphanRemoval = true, optional = false)
+    @OneToOne(mappedBy = "account", cascade = CascadeType.ALL, orphanRemoval = true, optional = true)
     @JsonIgnore
     private User userProfile;
+
 }

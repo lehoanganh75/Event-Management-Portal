@@ -3,8 +3,12 @@ package src.main.eventservice.service;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.transaction.annotation.Transactional;
+import src.main.eventservice.dto.PostRequestDto;
+import src.main.eventservice.dto.PostResponseDto;
 import src.main.eventservice.entity.EventPost;
 import src.main.eventservice.entity.enums.PostStatus;
+
+import java.util.List;
 
 public interface EventPostService {
     // 1. Tìm kiếm và Lọc (Search & Filter)
@@ -24,4 +28,11 @@ public interface EventPostService {
     // 5. Xóa bài viết (Soft Delete)
     @Transactional
     void deletePost(String id);
+
+    List<PostResponseDto> getPostsByAccountId(String accountId);
+
+    List<PostResponseDto> getPostsByAccountIdAndEventId(String accountId, String eventId);
+
+    @Transactional
+    EventPost createPost(PostRequestDto postDto);
 }

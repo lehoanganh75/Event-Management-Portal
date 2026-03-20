@@ -30,6 +30,7 @@ import { getEventsByStatus } from "../../api/eventApi";
 
 function LeftSidebar({ onSearchChange, variant = "full" }) {
   const [keyword, setKeyword] = useState("");
+  const navigate = useNavigate();
 
   if (variant === "minimal") return null;
 
@@ -67,31 +68,28 @@ function LeftSidebar({ onSearchChange, variant = "full" }) {
             },
             {
               icon: <Calendar className="w-4 h-4" />,
-              label: "Sự kiện sắp diễn ra",
-              link: "/?filter=upcoming",
+              label: "Sự kiện đang diễn ra",
+              link: "/?status=ongoing",
             },
             {
               icon: <CheckCircle className="w-4 h-4" />,
               label: "Điểm danh hôm nay",
-              link: "/attendance?today=true",
+              link: "/my-events?filter=today",
             },
             {
               icon: <FileText className="w-4 h-4" />,
               label: "Sự kiện đã tham gia",
-              link: "/?tab=joined",
-            },
-            {
-              icon: <Star className="w-4 h-4" />,
-              label: "Sự kiện nổi bật",
-              link: "/?filter=featured",
+              link: "/my-events",
             },
           ].map((item, idx) => (
-            <a key={idx} href={item.link} className="block">
-              <button className="w-full flex items-center gap-2 px-3 py-2 text-sm text-blue-700 hover:bg-blue-50 rounded-md transition">
-                {item.icon}
-                {item.label}
-              </button>
-            </a>
+            <button
+              key={idx}
+              onClick={() => navigate(item.link)}
+              className="w-full flex items-center gap-2 px-3 py-2 text-sm text-blue-700 hover:bg-blue-50 rounded-md transition text-left cursor-pointer"
+            >
+              {item.icon}
+              {item.label}
+            </button>
           ))}
         </div>
       </div>
@@ -526,8 +524,15 @@ export function EventFeed() {
   const [showFilterModal, setShowFilterModal] = useState(false);
   const [showChat, setShowChat] = useState(false);
   const [showWheel, setShowWheel] = useState(false);
+
+  const navigate = useNavigate();
+  const location = useLocation();
+  const isLecturerView = location.pathname.startsWith("/lecturer");
+
+  const searchParams = new URLSearchParams(location.search);
+
   const [filters, setFilters] = useState({
-    status: "all",
+    status: searchParams.get("status") || "all",
     type: "all",
     organizer: "all",
     location: "all",
@@ -540,26 +545,49 @@ export function EventFeed() {
     dateTo: "",
   });
   const ITEMS_PER_PAGE = 5;
-  const navigate = useNavigate();
-  const location = useLocation();
-  const isLecturerView = location.pathname.startsWith("/lecturer");
 
   const handleEventClick = (eventId) => navigate(`/events/${eventId}`);
+
+  useEffect(() => {
+    // 1. Cập nhật bộ lọc tự động nếu URL có tham số
+    const statusFromUrl = searchParams.get("status") || "all";
+    setFilters((prev) => {
+      if (prev.status !== statusFromUrl) {
+        return { ...prev, status: statusFromUrl };
+      }
+      return prev;
+    });
+
+    // 2. Tự động cuộn xuống phần id="su-kien"
+    if (location.search) {
+      setTimeout(() => {
+        const el = document.getElementById("su-kien");
+        if (el) {
+          const yOffset = -120; // Bù khoảng không gian của sticky header
+          const y =
+            el.getBoundingClientRect().top + window.pageYOffset + yOffset;
+          window.scrollTo({ top: y, behavior: "smooth" });
+        }
+      }, 100);
+    }
+  }, [location.search]);
 
   useEffect(() => {
     setIsLoading(true);
     Promise.all([
       getEventsByStatus("Published").catch(() => ({ data: [] })),
       getEventsByStatus("Ongoing").catch(() => ({ data: [] })),
-      getEventsByStatus("Completed").catch(() => ({ data: [] }))
+      getEventsByStatus("Completed").catch(() => ({ data: [] })),
     ])
       .then(([pubRes, ongRes, comRes]) => {
         const combined = [
           ...(pubRes.data || []),
           ...(ongRes.data || []),
-          ...(comRes.data || [])
+          ...(comRes.data || []),
         ];
-        const uniqueEvents = Array.from(new Map(combined.map(item => [item.id, item])).values());
+        const uniqueEvents = Array.from(
+          new Map(combined.map((item) => [item.id, item])).values(),
+        );
         setPosts(uniqueEvents);
       })
       .catch((err) => {
@@ -573,9 +601,9 @@ export function EventFeed() {
   useEffect(() => {
     // Dispatch event để thông báo EventFeed đã sẵn sàng
     const timer = setTimeout(() => {
-      window.dispatchEvent(new CustomEvent('eventFeedReady'));
+      window.dispatchEvent(new CustomEvent("eventFeedReady"));
     }, 500);
-    
+
     return () => clearTimeout(timer);
   }, []);
 
@@ -589,7 +617,7 @@ export function EventFeed() {
         .toLowerCase()
         .includes(searchKeyword.toLowerCase());
       const matchesStatus =
-        filters.status === "all" || 
+        filters.status === "all" ||
         (filters.status === "upcoming" && post.status === "Published") ||
         (filters.status === "ongoing" && post.status === "Ongoing") ||
         (filters.status === "completed" && post.status === "Completed");
@@ -667,7 +695,6 @@ export function EventFeed() {
         {!isLecturerView && <LeftSidebar onSearchChange={setSearchKeyword} />}
 
         <main className="flex-1 min-w-0">
-
           <div className="bg-white rounded-xl border border-gray-200 p-4 sm:p-6 mb-4 flex items-center gap-3">
             <div className="w-10 h-10 sm:w-12 sm:h-12 bg-blue-100 rounded-lg flex items-center justify-center shrink-0">
               <Newspaper className="w-5 h-5 sm:w-6 sm:h-6 text-blue-600" />

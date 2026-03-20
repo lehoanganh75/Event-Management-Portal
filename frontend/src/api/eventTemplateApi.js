@@ -1,56 +1,25 @@
 import axios from "axios";
 
-const BASE_URL = `${import.meta.env.VITE_EVENT_API_URL || "http://localhost:8081/api"}/templates`;
+const API_URL = import.meta.env.VITE_EVENT_API_URL || "http://localhost:8081/api";
 
 export const eventTemplateApi = {
-  getAllTemplates: async (orgId, search = "", page = 0, size = 10) => {
-    const response = await axios.get(`${BASE_URL}/all`, {
-      params: {
-        organizationId: orgId,
-        search: search,
-        page: page,
-        size: size,
-      },
-    });
-    return response.data;
+  getAllTemplates: (organizationId, searchTerm, page, size) => {
+    return axios.get(`${API_URL}/templates`, {
+      params: { organizationId, searchTerm, page, size }
+    }).then(res => res.data);
   },
-  getTemplateById: async (templateId) => {
-    try {
-      const response = await axios.get(`${BASE_URL}/${templateId}`);
-      return response.data;
-    } catch (error) {
-      console.error("Lỗi khi lấy chi tiết bản mẫu:", error);
-      throw error;
-    }
+  getAllTemplatesGlobal: (search, page, size) => {
+    return axios.get(`${API_URL}/templates/global`, {
+      params: { search, page, size }
+    }).then(res => res.data);
   },
-  applyTemplate: async (templateId, accountId = null) => {
-    try {
-      const response = await axios.post(
-        `${BASE_URL}/${templateId}/apply?accountId=${accountId}`,
-      );
-      return response.data;
-    } catch (error) {
-      console.error("Lỗi khi áp dụng bản mẫu:", error);
-      throw error;
-    }
+  createTemplate: (data) => {
+    return axios.post(`${API_URL}/templates`, data).then(res => res.data);
   },
-
-  createTemplate: async (templateData) => {
-    try {
-      const response = await axios.post(BASE_URL, templateData);
-      return response.data;
-    } catch (error) {
-      console.error("Lỗi khi tạo bản mẫu mới:", error);
-      throw error;
-    }
+  updateTemplate: (id, data) => {
+    return axios.put(`${API_URL}/templates/${id}`, data).then(res => res.data);
   },
-
-  deleteTemplate: async (templateId) => {
-    try {
-      await axios.delete(`${BASE_URL}/${templateId}`);
-    } catch (error) {
-      console.error("Lỗi khi xóa bản mẫu:", error);
-      throw error;
-    }
-  },
+  deleteTemplate: (id) => {
+    return axios.delete(`${API_URL}/templates/${id}`).then(res => res.data);
+  }
 };
