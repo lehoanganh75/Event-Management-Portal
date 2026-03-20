@@ -1,5 +1,5 @@
 import { useNavigate, useLocation } from "react-router-dom";
-import { LogIn, Mail, User, Globe, LogOut, Settings, ShieldCheck, ChevronDown } from "lucide-react";
+import { LogIn, User, LogOut, Settings, ShieldCheck, ChevronDown } from "lucide-react";
 import logo_iuh from "../../assets/images/logo_iuh.png";
 import { useEffect, useState, useRef, useCallback } from "react";
 import axios from "axios";
@@ -33,7 +33,7 @@ const Header = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const [currentUser, setCurrentUser] = useState(null);
-  const [userRoles, setUserRoles] = useState([]);
+  const [activeSection, setActiveSection] = useState(null);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
@@ -63,7 +63,6 @@ const Header = () => {
       if (element) {
         const rect = element.getBoundingClientRect();
         const viewportHeight = window.innerHeight;
-
         const visibleTop = Math.max(0, rect.top);
         const visibleBottom = Math.min(viewportHeight, rect.bottom);
         const visibleHeight = Math.max(0, visibleBottom - visibleTop);
@@ -118,9 +117,10 @@ const Header = () => {
         localStorage.removeItem("user");
       }
     } else {
-      setCurrentUser(null); // Đảm bảo UI cập nhật khi logout
+      setCurrentUser(null);
     }
-  }, [location]); // Cập nhật lại khi chuyển trang
+    setLoading(false);
+  }, [location]);
 
   // Đóng menu khi click ra ngoài
   useEffect(() => {
@@ -129,59 +129,73 @@ const Header = () => {
         setIsMenuOpen(false);
       }
     };
-
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
+  useEffect(() => {
+    const handleEventFeedReady = () => {
+      setTimeout(checkActiveSection, 100);
+    };
+    window.addEventListener("eventFeedReady", handleEventFeedReady);
+    return () => {
+      window.removeEventListener("eventFeedReady", handleEventFeedReady);
+    };
+  }, [checkActiveSection]);
+
   const isLecturerPage = location.pathname.startsWith("/lecturer");
-  const isAdminPage = location.pathname.startsWith("/admin");
   const isLoginPage =
-    location.pathname === "/login" || 
-    location.pathname === "/register" || 
-    location.pathname === "/forgot-password" || 
+    location.pathname === "/login" ||
+    location.pathname === "/register" ||
+    location.pathname === "/forgot-password" ||
     location.pathname === "/reset-password";
-  const isHomePage = location.pathname === "/";
 
-  const handleLogout = async () => {
-    try {
-      const API_LOGOUT = "http://localhost:8082/api/auth/logout";
-      const refreshToken = localStorage.getItem("refreshToken");
-
-      if (refreshToken) {
-        // Gọi API Logout (truyền @RequestParam qua params)
-        await axios.post(API_LOGOUT, null, {
-          params: { refreshToken: refreshToken }
-        });
-      }
-    } catch (error) {
-      console.error("Lỗi khi gọi API logout:", error);
-    } finally {
-      // Dọn dẹp cục bộ luôn nằm trong finally
-      localStorage.clear(); // Xóa sạch để đảm bảo an toàn
-      setCurrentUser(null);
-      setIsMenuOpen(false);
-      navigate("/login");
-    }
+  const getPrimaryRole = () => {
+    return roleMap[currentUser?.roles?.[0]] || "Thành viên";
   };
 
-  return (
-    <header className="w-full font-sans sticky top-0 z-50 bg-white/80 backdrop-blur-md border-b border-slate-100 shadow-sm">
-      {/* TOP BAR */}
-      <div className="bg-linear-to-r from-[#1a479a] to-[#2563eb] text-white py-1.5 px-4 md:px-10 flex justify-between items-center text-[11px] font-medium tracking-wide">
-        <div className="hidden md:flex items-center gap-2 opacity-90">
-          <span className="w-1.5 h-1.5 bg-green-400 rounded-full animate-pulse"></span>
-          Hệ thống Quản lý Sự kiện IUH
-        </div>
+  const hasLecturerAccess = () => {
+    return currentUser?.roles?.some((r) =>
+      ["ADMIN", "LECTURER", "SUPER_ADMIN", "ORGANIZER"].includes(r)
+    );
+  };
+
+  const getManagementPath = () => {
+    if (!currentUser?.roles) return null;
+    if (currentUser.roles.some((r) => ["ADMIN", "SUPER_ADMIN"].includes(r)))
+      return "/admin/dashboard";
+    if (currentUser.roles.includes("ORGANIZER")) return "/lecturer/dashboard";
+    return null;
+  };
+
+  const getManagementButtonText = () => {
+    if (!currentUser?.roles) return "";
+    if (currentUser.roles.some((r) => ["ADMIN", "SUPER_ADMIN"].includes(r)))
+      return "Quản trị";
+    return "Bảng điều khiển";
+  };
+
+  const getNavClass = (section) => {
+    const base = "px-4 py-2 rounded-lg text-sm font-bold transition-all duration-200";
+    return `${base} ${
+      activeSection === section
+        ? "text-blue-600 bg-blue-50"
+        : "text-slate-600 hover:text-blue-600 hover:bg-slate-50"
+    }`;
+  };
 
   const getAttendanceClass = () => {
-    const baseClass =
-      "px-4 py-2 rounded-lg text-sm font-bold transition-all duration-200";
-    return `${baseClass} ${
+    const base = "px-4 py-2 rounded-lg text-sm font-bold transition-all duration-200";
+    return `${base} ${
       location.pathname === "/attendance"
         ? "text-orange-600 bg-orange-50"
         : "text-slate-600 hover:text-orange-600 hover:bg-orange-50"
     }`;
+  };
+
+  const getManagementButtonClass = () => {
+    const base = "ml-2 px-4 py-2 rounded-lg text-sm font-bold transition-all border";
+    return `${base} bg-orange-50 text-orange-600 hover:bg-orange-100 border-orange-100`;
   };
 
   const handleMenuItemClick = (itemId) => {
@@ -190,18 +204,14 @@ const Header = () => {
     }
 
     lastClickedRef.current = itemId;
-
     lockActiveRef.current = true;
-
     isScrollingRef.current = true;
-
     setActiveSection(itemId);
 
     const scrollToSection = () => {
       const el = document.getElementById(itemId);
       if (el) {
         window.scrollTo({ top: el.offsetTop - 100, behavior: "smooth" });
-
         setTimeout(() => {
           isScrollingRef.current = false;
         }, 500);
@@ -223,22 +233,30 @@ const Header = () => {
     }, 1500);
   };
 
-  useEffect(() => {
-    const handleEventFeedReady = () => {
-      setTimeout(checkActiveSection, 100);
-    };
-
-    window.addEventListener("eventFeedReady", handleEventFeedReady);
-
-    return () => {
-      window.removeEventListener("eventFeedReady", handleEventFeedReady);
-    };
-  }, [checkActiveSection]);
+  const handleLogout = async () => {
+    try {
+      const API_LOGOUT = "http://localhost:8082/api/auth/logout";
+      const refreshToken = localStorage.getItem("refreshToken");
+      if (refreshToken) {
+        await axios.post(API_LOGOUT, null, {
+          params: { refreshToken },
+        });
+      }
+    } catch (error) {
+      console.error("Lỗi khi gọi API logout:", error);
+    } finally {
+      localStorage.clear();
+      setCurrentUser(null);
+      setIsMenuOpen(false);
+      setIsLogoutModalOpen(false);
+      navigate("/login");
+    }
+  };
 
   if (loading) {
     return (
       <header className="w-full font-sans sticky top-0 z-50 bg-white/80 backdrop-blur-md border-b border-slate-100 shadow-sm">
-        <div className="bg-linear-to-r from-[#1a479a] to-[#2563eb] text-white py-1.5 px-4 md:px-10">
+        <div className="bg-gradient-to-r from-[#1a479a] to-[#2563eb] text-white py-1.5 px-4 md:px-10">
           <div className="flex justify-between items-center">
             <div>Hệ thống Quản lý Sự kiện IUH</div>
             <div className="flex items-center gap-2">
@@ -247,50 +265,60 @@ const Header = () => {
             </div>
           </div>
         </div>
-      </div>
+      </header>
+    );
+  }
 
-      {/* MAIN NAV */}
-      {!isLoginPage && (
-        <div className="max-w-7xl mx-auto px-4 md:px-6 py-3 flex justify-between items-center">
-          <div 
-            className="cursor-pointer transition-all duration-300 hover:opacity-80 active:scale-95" 
-            onClick={() => navigate("/")}
-          >
-            <img src={logo_iuh} alt="IUH Logo" className="h-10 md:h-12 object-contain" />
+  return (
+    <>
+      <header className="w-full font-sans sticky top-0 z-50 bg-white/80 backdrop-blur-md border-b border-slate-100 shadow-sm">
+        {/* TOP BAR */}
+        <div className="bg-gradient-to-r from-[#1a479a] to-[#2563eb] text-white py-1.5 px-4 md:px-10 flex justify-between items-center text-[11px] font-medium tracking-wide">
+          <div className="hidden md:flex items-center gap-2 opacity-90">
+            <span className="w-1.5 h-1.5 bg-green-400 rounded-full animate-pulse"></span>
+            Hệ thống Quản lý Sự kiện IUH
           </div>
+        </div>
 
-          {!isLecturerPage && (
-            <nav className="hidden lg:flex items-center gap-1">
-              <button onClick={() => navigate("/")} className="px-4 py-2 rounded-lg text-sm font-bold text-slate-600 hover:text-blue-600 hover:bg-slate-50 transition-all">
-                Trang chủ
-              </button>
-              <a href="/attendance" className="px-4 py-2 rounded-lg text-sm font-bold text-slate-600 hover:text-blue-600 hover:bg-slate-50 transition-all">
-                Điểm danh
-              </a>
-              {/* Kiểm tra quyền Admin/Lecturer an toàn */}
-              {currentUser?.roles?.some(r => ["ADMIN", "LECTURER", "SUPER_ADMIN"].includes(r)) && (
-                 <button onClick={() => navigate("/lecturer/dashboard")} className="ml-2 px-4 py-2 bg-orange-50 text-orange-600 rounded-lg text-sm font-bold hover:bg-orange-100 transition-all border border-orange-100">
-                    Bảng điều khiển
-                 </button>
-              )}
-            </nav>
-          )}
+        {/* MAIN NAV */}
+        {!isLoginPage && (
+          <div className="max-w-7xl mx-auto px-4 md:px-6 py-3 flex justify-between items-center">
+            {/* LOGO */}
+            <div
+              className="cursor-pointer transition-all duration-300 hover:opacity-80 active:scale-95"
+              onClick={() => navigate("/")}
+            >
+              <img
+                src={logo_iuh}
+                alt="IUH Logo"
+                className="h-10 md:h-12 object-contain"
+              />
+            </div>
 
-          {/* AUTH SECTION */}
-          <div className="flex items-center gap-4 border-l border-slate-100 pl-6">
-            {currentUser ? (
-              <div className="relative" ref={menuRef}>
-                <div 
-                  onClick={() => setIsMenuOpen(!isMenuOpen)}
-                  className="flex items-center gap-3 p-1 pr-3 rounded-full hover:bg-slate-100 cursor-pointer transition-all border border-transparent hover:border-slate-200"
+            {/* NAV LINKS */}
+            {!isLecturerPage && (
+              <nav className="hidden lg:flex items-center gap-1">
+                <button
+                  onClick={() => navigate("/")}
+                  className={getNavClass(null)}
+                >
+                  Trang chủ
+                </button>
+                <button
+                  onClick={() => handleMenuItemClick("gioi-thieu")}
+                  className={getNavClass("gioi-thieu")}
+                >
+                  Giới thiệu
+                </button>
+                <button
+                  onClick={() => handleMenuItemClick("su-kien")}
+                  className={getNavClass("su-kien")}
                 >
                   Sự kiện
                 </button>
-
                 <a href="/attendance" className={getAttendanceClass()}>
                   Điểm danh
                 </a>
-
                 {hasLecturerAccess() && getManagementPath() && (
                   <a
                     href={getManagementPath()}
@@ -302,9 +330,11 @@ const Header = () => {
               </nav>
             )}
 
+            {/* AUTH SECTION */}
             <div className="flex items-center gap-4 border-l border-slate-100 pl-6">
               {currentUser ? (
                 <div className="relative" ref={menuRef}>
+                  {/* Avatar Button */}
                   <div
                     onClick={() => setIsMenuOpen(!isMenuOpen)}
                     className="flex items-center gap-3 p-1 pr-3 rounded-full hover:bg-slate-100 cursor-pointer transition-all border border-transparent hover:border-slate-200"
@@ -333,53 +363,64 @@ const Header = () => {
                     </div>
                     <ChevronDown
                       size={14}
-                      className={`text-slate-400 transition-transform duration-300 ${isMenuOpen ? "rotate-180" : ""}`}
+                      className={`text-slate-400 transition-transform duration-300 ${
+                        isMenuOpen ? "rotate-180" : ""
+                      }`}
                     />
-                    <span className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-green-500 border-2 border-white rounded-full"></span>
-                  </div>
-                  <div className="hidden sm:block text-left">
-                    <p className="text-xs font-bold text-slate-800 leading-none">{currentUser.username}</p>
-                    <p className="text-[10px] text-slate-500 font-medium mt-0.5 uppercase tracking-tighter">
-                       {/* Dùng Optional Chaining để tránh lỗi undefined */}
-                       {roleMap[currentUser?.roles?.[0]] || "Thành viên"}
-                    </p>
                   </div>
 
-                {isMenuOpen && (
-                  <div className="absolute right-0 mt-3 w-64 bg-white rounded-2xl shadow-2xl border border-slate-100 overflow-hidden animate-in fade-in zoom-in-95 duration-200">
-                    <div className="p-4 bg-slate-50/50 border-b border-slate-100">
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 bg-blue-600 text-white rounded-xl flex items-center justify-center font-bold">
-                          {currentUser.username?.charAt(0).toUpperCase()}
-                        </div>
-                        <div>
-                          <p className="text-sm font-black text-slate-800">{currentUser.username}</p>
-                          <p className="text-[11px] text-blue-600 font-bold flex items-center gap-1">
-                            <ShieldCheck size={12} /> {roleMap[currentUser?.roles?.[0]] || "Người dùng"}
-                          </p>
+                  {/* Dropdown Menu */}
+                  {isMenuOpen && (
+                    <div className="absolute right-0 mt-3 w-64 bg-white rounded-2xl shadow-2xl border border-slate-100 overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+                      <div className="p-4 bg-slate-50/50 border-b border-slate-100">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 bg-blue-600 text-white rounded-xl flex items-center justify-center font-bold">
+                            {currentUser.username?.charAt(0).toUpperCase()}
+                          </div>
+                          <div>
+                            <p className="text-sm font-black text-slate-800">
+                              {currentUser.username}
+                            </p>
+                            <p className="text-[11px] text-blue-600 font-bold flex items-center gap-1">
+                              <ShieldCheck size={12} /> {getPrimaryRole()}
+                            </p>
+                          </div>
                         </div>
                       </div>
 
-                    <div className="p-2">
-                      <button onClick={() => { navigate("/userprofile"); setIsMenuOpen(false); }} className="w-full flex items-center gap-3 px-3 py-2.5 text-sm font-semibold text-slate-600 hover:bg-blue-50 hover:text-blue-700 rounded-xl transition-colors">
-                        <User size={16} className="text-slate-400" /> Hồ sơ cá nhân
-                      </button>
-                      <button className="w-full flex items-center gap-3 px-3 py-2.5 text-sm font-semibold text-slate-600 hover:bg-blue-50 hover:text-blue-700 rounded-xl transition-colors">
-                        <Settings size={16} className="text-slate-400" /> Cài đặt tài khoản
-                      </button>
-                    </div>
+                      <div className="p-2">
+                        <button
+                          onClick={() => {
+                            navigate("/userprofile");
+                            setIsMenuOpen(false);
+                          }}
+                          className="w-full flex items-center gap-3 px-3 py-2.5 text-sm font-semibold text-slate-600 hover:bg-blue-50 hover:text-blue-700 rounded-xl transition-colors"
+                        >
+                          <User size={16} className="text-slate-400" /> Hồ sơ cá nhân
+                        </button>
+                        <button className="w-full flex items-center gap-3 px-3 py-2.5 text-sm font-semibold text-slate-600 hover:bg-blue-50 hover:text-blue-700 rounded-xl transition-colors">
+                          <Settings size={16} className="text-slate-400" /> Cài đặt tài khoản
+                        </button>
+                      </div>
 
-                    <div className="p-2 bg-slate-50 border-t border-slate-100">
-                      <button onClick={handleLogout} className="w-full flex items-center gap-3 px-3 py-2.5 text-sm font-bold text-red-500 hover:bg-red-100 rounded-xl transition-colors">
-                        <LogOut size={16} /> Đăng xuất
-                      </button>
+                      <div className="p-2 bg-slate-50 border-t border-slate-100">
+                        <button
+                          onClick={() => {
+                            setIsMenuOpen(false);
+                            setIsLogoutModalOpen(true);
+                          }}
+                          className="w-full flex items-center gap-3 px-3 py-2.5 text-sm font-bold text-red-500 hover:bg-red-100 rounded-xl transition-colors"
+                        >
+                          <LogOut size={16} /> Đăng xuất
+                        </button>
+                      </div>
                     </div>
                   )}
                 </div>
               ) : (
                 <button
                   onClick={() => navigate("/login")}
-                  className="group flex items-center gap-2 bg-linear-to-r from-[#1a479a] to-blue-600 text-white px-5 py-2.5 rounded-xl text-[13px] font-bold hover:shadow-lg hover:shadow-blue-200 transition-all active:scale-95 uppercase tracking-wide"
+                  className="group flex items-center gap-2 bg-gradient-to-r from-[#1a479a] to-blue-600 text-white px-5 py-2.5 rounded-xl text-[13px] font-bold hover:shadow-lg hover:shadow-blue-200 transition-all active:scale-95 uppercase tracking-wide"
                 >
                   <LogIn
                     size={16}
@@ -393,6 +434,7 @@ const Header = () => {
         )}
       </header>
 
+      {/* LOGOUT MODAL */}
       <AnimatePresence>
         {isLogoutModalOpen && (
           <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
