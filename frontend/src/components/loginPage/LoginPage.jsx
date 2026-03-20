@@ -59,40 +59,59 @@ const LoginPage = () => {
       password: formData.password
     };
 
-    try {
-      const API = "http://localhost:8082/api/auth/login";
-      const response = await axios.post(API, payload);
+    console.log(payload);
+    
 
-      if (response.data && response.data.accessToken) {
-        localStorage.setItem("accessToken", response.data.accessToken);
-        localStorage.setItem("refreshToken", response.data.refreshToken);
-        localStorage.setItem("tokenType", response.data.tokenType);
-        localStorage.setItem("user", JSON.stringify({
-          username: response.data.username,
-          roles: response.data.roles
-        }));
+    try {
+      const API_LOGIN = "http://localhost:8082/api/auth/login";
+      const API_PROFILE = "http://localhost:8082/api/profiles/me";
+      
+      // 1. Gọi API Login
+      const loginRes = await axios.post(API_LOGIN, payload);
+      
+      if (loginRes.data && loginRes.data.accessToken) {
+        const { accessToken, refreshToken } = loginRes.data;
+        
+        localStorage.setItem("accessToken", accessToken);
+        localStorage.setItem("refreshToken", refreshToken);
+
+        const profileRes = await axios.get(API_PROFILE, {
+          headers: { 
+            Authorization: `Bearer ${accessToken}` 
+          }
+        });
+
+        const data = profileRes.data;
+
+        const userData = {
+          username: data?.username || data?.email?.split('@')[0] || "User",
+          roles: Array.isArray(data?.roles) ? data.roles : ["GUEST"],
+          email: data?.email || "",
+          fullName: data?.fullName || "Chưa cập nhật",
+          avatarUrl: data?.avatarUrl || null
+        };
+
+        localStorage.setItem("user", JSON.stringify(userData));
 
         setMessage("Đăng nhập thành công! Đang chuyển hướng...");
         setToastVisible(true);
 
         setTimeout(() => {
-          const roles = response.data.roles || [];
-          if (roles.includes("ADMIN")) {
+          if (userData.roles.includes("ADMIN") || userData.roles.includes("SUPER_ADMIN")) {
             navigate("/admin/dashboard");
+          } else if (userData.roles.includes("LECTURER")) {
+            navigate("/lecturer/dashboard");
           } else {
             navigate("/");
           }
         }, 1500);
       }
     } catch (error) {
+      console.error("Login Error:", error);
       let errorMsg = "Tên đăng nhập hoặc mật khẩu không chính xác.";
-      
-      if (error.response && error.response.data) {
-        errorMsg = error.response.data.message || errorMsg;
-      } else if (error.request) {
-        errorMsg = "Không thể kết nối đến máy chủ. Vui lòng kiểm tra kết nối mạng.";
+      if (error.response?.data?.message) {
+        errorMsg = error.response.data.message;
       }
-
       setErrorMessage(errorMsg);
       setErrorToastVisible(true);
     } finally {

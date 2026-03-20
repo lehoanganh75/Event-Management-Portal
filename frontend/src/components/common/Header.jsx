@@ -1,5 +1,5 @@
 import { useNavigate, useLocation } from "react-router-dom";
-import { LogIn, Search, Mail, User, GraduationCap, Globe, LogOut, Settings, ShieldCheck, ChevronDown } from "lucide-react";
+import { LogIn, Mail, User, Globe, LogOut, Settings, ShieldCheck, ChevronDown } from "lucide-react";
 import logo_iuh from "../../assets/images/logo_iuh.png";
 import { useEffect, useState, useRef } from "react";
 
@@ -16,18 +16,27 @@ const roleMap = {
 const Header = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const [activeSection, setActiveSection] = useState(null);
   const [currentUser, setCurrentUser] = useState(null);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const menuRef = useRef(null);
 
+  // Lấy dữ liệu user từ localStorage
   useEffect(() => {
     const userData = localStorage.getItem("user");
     if (userData) {
-      setCurrentUser(JSON.parse(userData));
+      try {
+        setCurrentUser(JSON.parse(userData));
+      } catch (error) {
+        console.error("Lỗi parse user data:", error);
+        localStorage.removeItem("user");
+      }
+    } else {
+      setCurrentUser(null); // Đảm bảo UI cập nhật khi logout
     }
+  }, [location]); // Cập nhật lại khi chuyển trang
 
-    // Đóng menu khi click ra ngoài
+  // Đóng menu khi click ra ngoài
+  useEffect(() => {
     const handleClickOutside = (event) => {
       if (menuRef.current && !menuRef.current.contains(event.target)) {
         setIsMenuOpen(false);
@@ -35,24 +44,40 @@ const Header = () => {
     };
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, [location]);
+  }, []);
 
   const isLecturerPage = location.pathname.startsWith("/lecturer");
   const isLoginPage = location.pathname === "/login" || location.pathname === "/register";
 
-  const handleLogout = () => {
-    localStorage.clear();
-    setCurrentUser(null);
-    navigate("/login");
+  const handleLogout = async () => {
+    try {
+      const API_LOGOUT = "http://localhost:8082/api/auth/logout";
+      const refreshToken = localStorage.getItem("refreshToken");
+
+      if (refreshToken) {
+        // Gọi API Logout (truyền @RequestParam qua params)
+        await axios.post(API_LOGOUT, null, {
+          params: { refreshToken: refreshToken }
+        });
+      }
+    } catch (error) {
+      console.error("Lỗi khi gọi API logout:", error);
+    } finally {
+      // Dọn dẹp cục bộ luôn nằm trong finally
+      localStorage.clear(); // Xóa sạch để đảm bảo an toàn
+      setCurrentUser(null);
+      setIsMenuOpen(false);
+      navigate("/login");
+    }
   };
 
   return (
     <header className="w-full font-sans sticky top-0 z-50 bg-white/80 backdrop-blur-md border-b border-slate-100 shadow-sm">
-      {/* TOP BAR - Tinh giản và hiện đại */}
+      {/* TOP BAR */}
       <div className="bg-linear-to-r from-[#1a479a] to-[#2563eb] text-white py-1.5 px-4 md:px-10 flex justify-between items-center text-[11px] font-medium tracking-wide">
         <div className="hidden md:flex items-center gap-2 opacity-90">
           <span className="w-1.5 h-1.5 bg-green-400 rounded-full animate-pulse"></span>
-          Hệ thống Quản lý Sự kiện IUH - Chào mừng bạn quay trở lại
+          Hệ thống Quản lý Sự kiện IUH
         </div>
 
         <div className="flex items-center gap-5 ml-auto">
@@ -70,7 +95,6 @@ const Header = () => {
       {/* MAIN NAV */}
       {!isLoginPage && (
         <div className="max-w-7xl mx-auto px-4 md:px-6 py-3 flex justify-between items-center">
-          {/* Logo với hiệu ứng hover nhẹ */}
           <div 
             className="cursor-pointer transition-all duration-300 hover:opacity-80 active:scale-95" 
             onClick={() => navigate("/")}
@@ -78,38 +102,19 @@ const Header = () => {
             <img src={logo_iuh} alt="IUH Logo" className="h-10 md:h-12 object-contain" />
           </div>
 
-          {/* Navigation Links - Chỉ hiện khi không phải trang quản lý */}
           {!isLecturerPage && (
             <nav className="hidden lg:flex items-center gap-1">
-              {[
-                { id: "gioi-thieu", label: "Giới thiệu" },
-                { id: "su-kien", label: "Sự kiện" },
-              ].map((item) => (
-                <button
-                  key={item.id}
-                  onClick={() => {
-                    if (location.pathname !== "/") navigate("/");
-                    setTimeout(() => {
-                      const el = document.getElementById(item.id);
-                      if (el) window.scrollTo({ top: el.offsetTop - 100, behavior: "smooth" });
-                    }, 100);
-                  }}
-                  className={`px-4 py-2 rounded-lg text-sm font-bold transition-all duration-200 ${
-                    activeSection === item.id 
-                    ? "text-blue-700 bg-blue-50" 
-                    : "text-slate-600 hover:text-blue-600 hover:bg-slate-50"
-                  }`}
-                >
-                  {item.label}
-                </button>
-              ))}
+              <button onClick={() => navigate("/")} className="px-4 py-2 rounded-lg text-sm font-bold text-slate-600 hover:text-blue-600 hover:bg-slate-50 transition-all">
+                Trang chủ
+              </button>
               <a href="/attendance" className="px-4 py-2 rounded-lg text-sm font-bold text-slate-600 hover:text-blue-600 hover:bg-slate-50 transition-all">
                 Điểm danh
               </a>
-              {currentUser?.roles?.some(r => ["ADMIN", "LECTURER"].includes(r)) && (
-                 <a href="/lecturer/dashboard" className="ml-2 px-4 py-2 bg-orange-50 text-orange-600 rounded-lg text-sm font-bold hover:bg-orange-100 transition-all border border-orange-100">
+              {/* Kiểm tra quyền Admin/Lecturer an toàn */}
+              {currentUser?.roles?.some(r => ["ADMIN", "LECTURER", "SUPER_ADMIN"].includes(r)) && (
+                 <button onClick={() => navigate("/lecturer/dashboard")} className="ml-2 px-4 py-2 bg-orange-50 text-orange-600 rounded-lg text-sm font-bold hover:bg-orange-100 transition-all border border-orange-100">
                     Bảng điều khiển
-                 </a>
+                 </button>
               )}
             </nav>
           )}
@@ -118,7 +123,6 @@ const Header = () => {
           <div className="flex items-center gap-4 border-l border-slate-100 pl-6">
             {currentUser ? (
               <div className="relative" ref={menuRef}>
-                {/* User Trigger */}
                 <div 
                   onClick={() => setIsMenuOpen(!isMenuOpen)}
                   className="flex items-center gap-3 p-1 pr-3 rounded-full hover:bg-slate-100 cursor-pointer transition-all border border-transparent hover:border-slate-200"
@@ -134,36 +138,31 @@ const Header = () => {
                   <div className="hidden sm:block text-left">
                     <p className="text-xs font-bold text-slate-800 leading-none">{currentUser.username}</p>
                     <p className="text-[10px] text-slate-500 font-medium mt-0.5 uppercase tracking-tighter">
-                       {roleMap[currentUser.roles[0]] || "Thành viên"}
+                       {/* Dùng Optional Chaining để tránh lỗi undefined */}
+                       {roleMap[currentUser?.roles?.[0]] || "Thành viên"}
                     </p>
                   </div>
                   <ChevronDown size={14} className={`text-slate-400 transition-transform duration-300 ${isMenuOpen ? 'rotate-180' : ''}`} />
                 </div>
 
-                {/* Dropdown Menu - Luxury Style */}
                 {isMenuOpen && (
                   <div className="absolute right-0 mt-3 w-64 bg-white rounded-2xl shadow-2xl border border-slate-100 overflow-hidden animate-in fade-in zoom-in-95 duration-200">
-                    {/* User Info Header */}
-                    <div className="p-4 bg-linear-to-br from-slate-50 to-white border-b border-slate-100">
-                      <p className="text-xs font-semibold text-slate-400 uppercase tracking-widest mb-2">Tài khoản của bạn</p>
+                    <div className="p-4 bg-slate-50/50 border-b border-slate-100">
                       <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 bg-blue-100 text-blue-600 rounded-xl flex items-center justify-center font-bold">
-                          {currentUser.username.charAt(0).toUpperCase()}
+                        <div className="w-10 h-10 bg-blue-600 text-white rounded-xl flex items-center justify-center font-bold">
+                          {currentUser.username?.charAt(0).toUpperCase()}
                         </div>
                         <div>
                           <p className="text-sm font-black text-slate-800">{currentUser.username}</p>
                           <p className="text-[11px] text-blue-600 font-bold flex items-center gap-1">
-                            <ShieldCheck size={12} /> {roleMap[currentUser.roles[0]]}
+                            <ShieldCheck size={12} /> {roleMap[currentUser?.roles?.[0]] || "Người dùng"}
                           </p>
                         </div>
                       </div>
                     </div>
 
-                    {/* Menu Links */}
                     <div className="p-2">
-                      <button 
-                      onClick={() => navigate("/userprofile")}
-                      className="w-full flex items-center gap-3 px-3 py-2.5 text-sm font-semibold text-slate-600 hover:bg-blue-50 hover:text-blue-700 rounded-xl transition-colors">
+                      <button onClick={() => { navigate("/userprofile"); setIsMenuOpen(false); }} className="w-full flex items-center gap-3 px-3 py-2.5 text-sm font-semibold text-slate-600 hover:bg-blue-50 hover:text-blue-700 rounded-xl transition-colors">
                         <User size={16} className="text-slate-400" /> Hồ sơ cá nhân
                       </button>
                       <button className="w-full flex items-center gap-3 px-3 py-2.5 text-sm font-semibold text-slate-600 hover:bg-blue-50 hover:text-blue-700 rounded-xl transition-colors">
@@ -171,13 +170,9 @@ const Header = () => {
                       </button>
                     </div>
 
-                    {/* Logout Footer */}
                     <div className="p-2 bg-slate-50 border-t border-slate-100">
-                      <button 
-                        onClick={handleLogout}
-                        className="w-full flex items-center gap-3 px-3 py-2.5 text-sm font-bold text-red-500 hover:bg-red-100 rounded-xl transition-colors"
-                      >
-                        <LogOut size={16} /> Đăng xuất hệ thống
+                      <button onClick={handleLogout} className="w-full flex items-center gap-3 px-3 py-2.5 text-sm font-bold text-red-500 hover:bg-red-100 rounded-xl transition-colors">
+                        <LogOut size={16} /> Đăng xuất
                       </button>
                     </div>
                   </div>

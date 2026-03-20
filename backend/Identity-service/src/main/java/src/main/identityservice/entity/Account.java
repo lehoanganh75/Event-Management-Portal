@@ -1,5 +1,6 @@
 package src.main.identityservice.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -26,7 +27,9 @@ public class Account {
     @Column(unique = true, nullable = false)
     private String username;
     @Column(unique = true, nullable = false)
-    private String email; @Column(nullable = false)
+    private String email;
+    @Column(nullable = false)
+    @JsonIgnore
     private String passwordHash;
 
     @Enumerated(EnumType.STRING)
@@ -46,8 +49,10 @@ public class Account {
     private Set<Role> roles;
 
     @OneToMany(mappedBy = "account", cascade = CascadeType.ALL, orphanRemoval = true)
+    @JsonIgnore
     private List<RefreshToken> refreshTokens;
 
     @OneToOne(mappedBy = "account", cascade = CascadeType.ALL, orphanRemoval = true, optional = false)
+    @JsonIgnore
     private User userProfile;
 }
