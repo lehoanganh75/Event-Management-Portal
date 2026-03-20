@@ -109,7 +109,7 @@ const UserProfile = () => {
 
   return (
     <div className="min-h-screen bg-slate-50/50 pb-20">
-      <div className="h-48 bg-gradient-to-r from-blue-700 to-indigo-600 w-full" />
+      <div className="h-48 bg-linear-to-r from-blue-700 to-indigo-600 w-full" />
       
       <div className="max-w-5xl mx-auto px-4 -mt-24">
         <div className="flex flex-col lg:flex-row gap-8">
@@ -154,7 +154,7 @@ const UserProfile = () => {
 
           {/* MAIN CONTENT */}
           <div className="lg:w-2/3">
-            <div className="bg-white rounded-3xl shadow-xl border border-slate-100 p-8 min-h-[550px]">
+            <div className="bg-white rounded-3xl shadow-xl border border-slate-100 p-8 min-h-137.5">
               {activeTab === "info" ? (
                 <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
                   <div className="flex items-center justify-between mb-8 pb-4 border-b border-slate-50">

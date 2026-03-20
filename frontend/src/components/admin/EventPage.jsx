@@ -634,9 +634,27 @@ const EventPage = () => {
                             <Trash2 size={18} />
                           </button>
                           <button
-                            onClick={() => navigate(`/admin/lucky-draw?eventId=${event.id}&title=${encodeURIComponent(event.title)}`)}
+                            onClick={() => {
+                              // Kiểm tra nếu luckyDrawId đã tồn tại (khác null, undefined hoặc chuỗi rỗng)
+                              console.log("Dữ liệu Event hiện tại:", event);
+                              
+                              if (event.luckyDrawId) {
+                                alert(`Sự kiện "${event.title}" đã được thiết lập vòng quay rồi!`);
+                                // Nếu bạn muốn vẫn cho phép sang xem/sửa thì bỏ qua return, 
+                                // còn nếu muốn chặn hoàn toàn thì thêm return;
+                                return; 
+                              }
+
+                              // Nếu chưa có thì mới điều hướng đi
+                              const titleEncoded = encodeURIComponent(event.title);
+                              navigate(`/admin/lucky-draw?eventId=${event.id}&title=${titleEncoded}`);
+                            }}
                             title="Thiết lập vòng quay"
-                            className="p-2 text-purple-600 bg-purple-50 hover:bg-purple-100 rounded-lg transition-colors"
+                            className={`p-2 rounded-lg transition-colors ${
+                              event.luckyDrawId 
+                                ? "text-gray-400 bg-gray-100 cursor-not-allowed" // Style khi đã có vòng quay
+                                : "text-purple-600 bg-purple-50 hover:bg-purple-100" // Style khi chưa có
+                            }`}
                           >
                             <Award size={18} />
                           </button>

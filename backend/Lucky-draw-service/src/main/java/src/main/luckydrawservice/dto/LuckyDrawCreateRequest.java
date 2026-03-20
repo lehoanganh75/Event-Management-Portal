@@ -1,5 +1,6 @@
 package src.main.luckydrawservice.dto;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -21,6 +22,8 @@ public class LuckyDrawCreateRequest {
     private LocalDateTime endTime;
     private boolean allowMultipleWins;
     private DrawStatus status;
+    @JsonProperty("isDeleted")
+    private boolean isDeleted;
 
     private List<PrizeCreateRequest> prizes;
 }

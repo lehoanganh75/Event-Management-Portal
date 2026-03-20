@@ -3,6 +3,20 @@ import axios from "axios";
 const api = axios.create({
   baseURL: "http://localhost:8081/api" 
 });
+
+api.interceptors.request.use(
+  (config) => {
+    const token = localStorage.getItem("accessToken");
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+    return config;
+  },
+  (error) => {
+    return Promise.reject(error);
+  }
+);
+
 const mapStatus = (status) => {
   if (!status) return "Draft";
   const s = status.charAt(0).toUpperCase() + status.slice(1).toLowerCase();
@@ -120,12 +134,6 @@ export const getEventsByStatus = (status) =>
     data: Array.isArray(res.data) ? res.data.map(mapEvent) : [],
   }));
 
-export const getFeaturedEvents = () =>
-  api.get("/events/featured").then((res) => ({
-    ...res,
-    data: Array.isArray(res.data) ? res.data.map(mapEvent) : [],
-  }));
-
 export const getTotalParticipants = () =>
   api.get("/events").then((res) => {
     const events = Array.isArray(res.data) ? res.data : [];
@@ -222,3 +230,9 @@ export const getRegistrationQR = (registrationId) =>
 
 export const checkInQR = (qrToken) =>
   api.post("/check-in", { qrToken });
+
+export const getFeaturedEvents = () => 
+  api.get("/events/featured").then((res) => ({
+    ...res,
+    data: Array.isArray(res.data) ? res.data.map(mapEvent) : [],
+  }));

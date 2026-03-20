@@ -1,13 +1,10 @@
 package src.main.eventservice.service.impl;
 
 import jakarta.transaction.Transactional;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
-import src.main.eventservice.client.UserServiceClient;
 import src.main.eventservice.dto.PlanResponseDto;
 import src.main.eventservice.dto.UserDto;
 import src.main.eventservice.entity.EventTemplate;
@@ -21,41 +18,73 @@ import org.springframework.data.domain.Pageable;
 import java.time.LocalDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 @Service
+@RequiredArgsConstructor
 public class EventServiceImpl implements EventService {
-    @Autowired
-    private EventRepository eventRepository;
-
-    @Autowired
-    private UserServiceClient userServiceClient;
-
-    private static final Logger log = LoggerFactory.getLogger(EventServiceImpl.class);
-
-
-    @Autowired
-    private EventTemplateRepository eventTemplateRepository;
+    private final EventRepository eventRepository;
+    private final EventTemplateRepository eventTemplateRepository;
 
     @Override
     public List<Event> getAllEvents() {
-        List<Event> events = eventRepository.findAll();
-
+        List<Event> events = eventRepository.findAllByIsDeletedFalseOrderByStartTimeDesc();
         events.forEach(this::enrichEventWithRegistrationCount);
-
-        return events.stream()
-                .sorted(Comparator.comparing(Event::getStartTime,
-                        Comparator.nullsLast(Comparator.naturalOrder())).reversed())
-                .collect(Collectors.toList());
+        return events;
     }
 
     @Override
     public List<Event> getFeaturedEvents() {
-        Pageable topTwo = PageRequest.of(0, 2);
-        List<Event> events = eventRepository.findOngoingEvents(topTwo);
-            
-        events.forEach(this::enrichEventWithRegistrationCount);
+        List<Event> featuredEvents = eventRepository.findTopFeaturedEventsThisMonth();
 
-        return events;
+        if (featuredEvents.isEmpty()) {
+            return Collections.emptyList();
+        }
+
+        featuredEvents.forEach(this::enrichEventWithRegistrationCount);
+
+        return featuredEvents;
+    }
+
+    @Override
+    public Optional<Event> findById(String id) {
+        return eventRepository.findById(id);
+    }
+
+    @Override
+    public List<Event> getMyEventsByAccountAndMonth(String accountId) {
+        return eventRepository.findEventsByRegistrationAndMonth(accountId);
+    }
+
+    @Override
+    public Event createEvent(Event event) {
+        if (event.getSession() != null && !event.getSession().isEmpty()) {
+            event.getSession().forEach(s -> s.setEvent(event));
+        }
+
+        if (event.getPosts() != null) {
+            event.getPosts().forEach(p -> p.setEvent(event));
+        }
+
+        validateEventTime(event);
+        return eventRepository.save(event);
+    }
+
+    private void validateEventTime(Event event) {
+        if (event.getStartTime() != null && event.getEndTime() != null) {
+            if (event.getStartTime().isAfter(event.getEndTime())) {
+                throw new RuntimeException("Thời gian bắt đầu phải trước thời gian kết thúc");
+            }
+        }
+    }
+
+    @Override
+    public void deleteEvent(String id) {
+        if (!eventRepository.existsById(id)) {
+            throw new RuntimeException("Không tìm thấy sự kiện với ID: " + id);
+        }
+
+        eventRepository.softDeleteById(id);
     }
 
     private void enrichEventWithRegistrationCount(Event event) {
@@ -91,19 +120,13 @@ public class EventServiceImpl implements EventService {
             existingEvent.setRegistrationDeadline(eventDetails.getRegistrationDeadline());
 
             existingEvent.setStatus(eventDetails.getStatus());
-            existingEvent.setHasLuckyDraw(eventDetails.isHasLuckyDraw());
+
             existingEvent.setFinalized(eventDetails.isFinalized());
             existingEvent.setArchived(eventDetails.isArchived());
 
             existingEvent.setApprovedByAccountId(eventDetails.getApprovedByAccountId());
 
-            existingEvent.setParticipants(eventDetails.getParticipants());
             existingEvent.setOrganizerUnit(eventDetails.getOrganizerUnit());
-            existingEvent.setRecipients(eventDetails.getRecipients());
-            existingEvent.setCustomRecipients(eventDetails.getCustomRecipients());
-            existingEvent.setPresenters(eventDetails.getPresenters());
-            existingEvent.setOrganizingCommittee(eventDetails.getOrganizingCommittee());
-            existingEvent.setAttendees(eventDetails.getAttendees());
             existingEvent.setNotes(eventDetails.getNotes());
             existingEvent.setAdditionalInfo(eventDetails.getAdditionalInfo());
             existingEvent.setCustomFieldsJson(eventDetails.getCustomFieldsJson());
@@ -115,29 +138,32 @@ public class EventServiceImpl implements EventService {
     }
 
     @Override
-    public void deleteEvent(String id) {
+    @Transactional
+    public void updateLuckyDrawId(String id, String luckyDrawId) {
         Event event = eventRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Không tìm thấy sự kiện"));
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy sự kiện với ID: " + id));
 
-        event.setDeletedAt(LocalDateTime.now());
-        event.setStatus(EventStatus.Cancelled);
+        event.setLuckyDrawId(luckyDrawId);
+
         eventRepository.save(event);
     }
+
     // Plans
     @Override
     public List<Event> getAllPlans() {
         List<EventStatus> planStatuses = Arrays.asList(
-                EventStatus.Draft,
-                EventStatus.PendingApproval,
-                EventStatus.Cancelled
+                EventStatus.DRAFT,
+                EventStatus.PENDING_APPROVAL,
+                EventStatus.CANCELLED
         );
-        return eventRepository.findByStatusInAndDeletedAtIsNull(planStatuses);
+        return eventRepository.findByStatusInAndIsDeletedFalse(planStatuses);
     }
 
     @Override
     public List<Event> getPlansByStatus(EventStatus status) {
         List<EventStatus> planStatuses = Arrays.asList(status);
-        List<Event> plans = eventRepository.findByStatusInAndDeletedAtIsNull(planStatuses);
+        // Cập nhật tên hàm mới
+        List<Event> plans = eventRepository.findByStatusInAndIsDeletedFalse(planStatuses);
         plans.forEach(this::enrichEventWithRegistrationCount);
         return plans;
     }
@@ -145,8 +171,9 @@ public class EventServiceImpl implements EventService {
     @Override
     public List<Event> getPlansByStatusById(EventStatus status, String accountId) {
         List<EventStatus> planStatuses = Arrays.asList(status);
+        // Cập nhật tên hàm mới khớp với Repository
         List<Event> plans = eventRepository
-                .findByStatusInAndDeletedAtIsNullAndCreatedByAccountId(planStatuses, accountId);
+                .findByStatusInAndIsDeletedFalseAndCreatedByAccountId(planStatuses, accountId);
         plans.forEach(this::enrichEventWithRegistrationCount);
         return plans;
     }
@@ -159,7 +186,7 @@ public class EventServiceImpl implements EventService {
         event.setArchived(false);
         event.setFinalized(false);
         if (event.getStatus() == null) {
-            event.setStatus(EventStatus.Draft);
+            event.setStatus(EventStatus.DRAFT);
         }
         if (event.getTitle() == null || event.getTitle().trim().isEmpty()) {
             throw new IllegalArgumentException("Tiêu đề kế hoạch không được để trống");
@@ -180,7 +207,7 @@ public class EventServiceImpl implements EventService {
         Event existingEvent = eventRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy kế hoạch"));
 
-        if (existingEvent.getStatus() == EventStatus.Published || existingEvent.getStatus() == EventStatus.Ongoing) {
+        if (existingEvent.getStatus() == EventStatus.PUBLISHED || existingEvent.getStatus() == EventStatus.ONGOING) {
             throw new RuntimeException("Không thể sửa kế hoạch đã được công bố hoặc đang diễn ra");
         }
 
@@ -200,7 +227,7 @@ public class EventServiceImpl implements EventService {
     @Override
     public void deletePlan(String id) {
         Event event = eventRepository.findById(id).orElseThrow();
-        event.setDeletedAt(LocalDateTime.now());
+        event.setDeleted(false);
         event.setArchived(true);
         eventRepository.save(event);
     }
@@ -212,11 +239,11 @@ public class EventServiceImpl implements EventService {
             event.setStatus(status);
             event.setUpdatedAt(LocalDateTime.now());
 
-            if (status == EventStatus.Published && approverId != null) {
+            if (status == EventStatus.PUBLISHED && approverId != null) {
                 event.setApprovedByAccountId(approverId);
             }
 
-            if (status == EventStatus.Cancelled) {
+            if (status == EventStatus.CANCELLED) {
                 event.setApprovedByAccountId(null);
             }
 
@@ -232,31 +259,15 @@ public class EventServiceImpl implements EventService {
     @Override
     public List<PlanResponseDto> getAllPlansEnriched() {
         List<EventStatus> planStatuses = Arrays.asList(
-                EventStatus.Draft,
-                EventStatus.PendingApproval,
-                EventStatus.Cancelled
+                EventStatus.DRAFT,
+                EventStatus.PENDING_APPROVAL,
+                EventStatus.CANCELLED
         );
-        List<Event> plans = eventRepository.findByStatusInAndDeletedAtIsNull(planStatuses);
+        List<Event> plans = eventRepository.findByStatusInAndIsDeletedFalse(planStatuses);
 
         return plans.stream().map(event -> {
             UserDto creator = null;
             UserDto approver = null;
-
-            try {
-                if (event.getCreatedByAccountId() != null) {
-                    creator = userServiceClient.getUserById(event.getCreatedByAccountId());
-                }
-            } catch (Exception e) {
-                log.warn("Không lấy được creator cho event {}: {}", event.getId(), e.getMessage());
-            }
-
-            try {
-                if (event.getApprovedByAccountId() != null) {
-                    approver = userServiceClient.getUserById(event.getApprovedByAccountId());
-                }
-            } catch (Exception e) {
-                log.warn("Không lấy được approver cho event {}: {}", event.getId(), e.getMessage());
-            }
 
             return PlanResponseDto.from(event, creator, approver);
         }).collect(Collectors.toList());
@@ -264,38 +275,28 @@ public class EventServiceImpl implements EventService {
     @Override
     public List<PlanResponseDto> getPlansByAccountId(String accountId) {
         List<EventStatus> planStatuses = Arrays.asList(
-                EventStatus.Draft,
-                EventStatus.PendingApproval,
-                EventStatus.Cancelled
+                EventStatus.DRAFT,
+                EventStatus.PENDING_APPROVAL,
+                EventStatus.CANCELLED
         );
         List<Event> plans = eventRepository
-                .findByStatusInAndDeletedAtIsNullAndCreatedByAccountId(planStatuses, accountId);
+                .findByStatusInAndIsDeletedFalseAndCreatedByAccountId(planStatuses, accountId);
 
-        return plans.stream().map(event -> {
-            UserDto creator = null;
-            try {
-                if (event.getCreatedByAccountId() != null) {
-                    creator = userServiceClient.getUserById(event.getCreatedByAccountId());
-                }
-            } catch (Exception e) {
-                log.warn("Không lấy được creator cho event {}: {}", event.getId(), e.getMessage());
-            }
-            return PlanResponseDto.from(event, creator, null);
-        }).collect(Collectors.toList());
+        return null;
     }
 
     @Override
     public List<PlanResponseDto> getEventsByAccountId(String accountId) {
         List<EventStatus> eventStatuses = Arrays.asList(
-                EventStatus.PendingApproval,
-                EventStatus.Published,
-                EventStatus.Ongoing,
-                EventStatus.Completed,
-                EventStatus.Cancelled
+                EventStatus.PENDING_APPROVAL,
+                EventStatus.PUBLISHED,
+                EventStatus.ONGOING,
+                EventStatus.COMPLETED,
+                EventStatus.CANCELLED
         );
 
         List<Event> events = eventRepository
-                .findByStatusInAndDeletedAtIsNullAndCreatedByAccountId(eventStatuses, accountId);
+                .findByStatusInAndIsDeletedFalseAndCreatedByAccountId(eventStatuses, accountId);
 
         events.forEach(this::enrichEventWithRegistrationCount);
 
@@ -307,19 +308,13 @@ public class EventServiceImpl implements EventService {
                     UserDto approver = null;
 
                     try {
-                        if (event.getCreatedByAccountId() != null) {
-                            creator = userServiceClient.getUserById(event.getCreatedByAccountId());
-                        }
+
                     } catch (Exception e) {
-                        log.warn("Không lấy được creator: {}", e.getMessage());
                     }
 
                     try {
-                        if (event.getApprovedByAccountId() != null) {
-                            approver = userServiceClient.getUserById(event.getApprovedByAccountId());
-                        }
+
                     } catch (Exception e) {
-                        log.warn("Không lấy được approver: {}", e.getMessage());
                     }
 
                     return PlanResponseDto.from(event, creator, approver);
@@ -329,40 +324,25 @@ public class EventServiceImpl implements EventService {
 
     @Override
     public List<PlanResponseDto> getEventsByStatus(EventStatus status) {
-        List<EventStatus> eventStatuses = Arrays.asList(status);
+        // 1. Lấy danh sách từ DB
+        List<Event> events = eventRepository.findByStatusInAndIsDeletedFalse(Arrays.asList(status));
 
-        List<Event> events = eventRepository
-                .findByStatusInAndDeletedAtIsNull(eventStatuses);
-
+        // 2. Làm giàu dữ liệu (Số lượng đăng ký)
         events.forEach(this::enrichEventWithRegistrationCount);
 
+        // 3. Xử lý chuyển đổi sang DTO và sắp xếp
         return events.stream()
                 .sorted(Comparator.comparing(Event::getStartTime,
                         Comparator.nullsLast(Comparator.naturalOrder())).reversed())
                 .map(event -> {
+                    // Ở đây bạn có thể gọi sang Identity Service (qua FeignClient hoặc RestTemplate)
+                    // để lấy thông tin User dựa trên createdByAccountId và approvedByAccountId
                     UserDto creator = null;
                     UserDto approver = null;
 
-                    try {
-                        if (event.getCreatedByAccountId() != null) {
-                            creator = userServiceClient.getUserById(event.getCreatedByAccountId());
-                        }
-                    } catch (Exception e) {
-                        log.warn("Không lấy được creator: {}", e.getMessage());
-                    }
-
-                    try {
-                        if (event.getApprovedByAccountId() != null) {
-                            approver = userServiceClient.getUserById(event.getApprovedByAccountId());
-                        }
-                    } catch (Exception e) {
-                        log.warn("Không lấy được approver: {}", e.getMessage());
-                    }
-
+                    // Tạm thời trả về DTO từ event
                     return PlanResponseDto.from(event, creator, approver);
                 })
                 .collect(Collectors.toList());
     }
-
-
 }

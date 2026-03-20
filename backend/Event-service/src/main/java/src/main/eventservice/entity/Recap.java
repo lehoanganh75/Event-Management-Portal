@@ -2,6 +2,8 @@ package src.main.eventservice.entity;
 
 import jakarta.persistence.*;
 import lombok.*;
+import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.UpdateTimestamp;
 import src.main.eventservice.entity.enums.RecapStatus;
 
 import java.time.LocalDateTime;
@@ -30,6 +32,10 @@ public class Recap {
     private int viewCount;
     private int likeCount;
 
+    @CreationTimestamp
     private LocalDateTime createdAt;
+    @UpdateTimestamp
     private LocalDateTime updatedAt;
+
+    private boolean isDeleted;
 }

@@ -4,6 +4,8 @@ import com.fasterxml.jackson.annotation.JsonFormat;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.*;
+import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.UpdateTimestamp;
 import src.main.eventservice.entity.enums.EventStatus;
 import src.main.eventservice.entity.enums.EventType;
 
@@ -18,7 +20,6 @@ import java.util.List;
 @NoArgsConstructor
 @AllArgsConstructor
 public class Event {
-
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
     private String id;
@@ -39,7 +40,6 @@ public class Event {
 
     private String coverImage;
 
-
     private LocalDateTime startTime;
 
     private LocalDateTime endTime;
@@ -55,11 +55,12 @@ public class Event {
     private EventType type;
 
     @Enumerated(EnumType.STRING)
-    private EventStatus status;
+    private EventStatus status = EventStatus.DRAFT;
 
-    private boolean hasLuckyDraw;
-    private boolean finalized;
-    private boolean archived;
+    private String luckyDrawId;
+
+    private boolean finalized = false;
+    private boolean archived = false;
 
     private String faculty;
     private String major;
@@ -75,25 +76,7 @@ public class Event {
     @JsonIgnore
     private List<EventRegistration> registrations;
 
-    @ElementCollection
-    private List<String> participants = new ArrayList<>();
-
     private String organizerUnit;
-
-    @ElementCollection
-    private List<String> recipients = new ArrayList<>();
-
-    @ElementCollection
-    private List<String> customRecipients = new ArrayList<>();
-
-    @ElementCollection
-    private List<String> presenters = new ArrayList<>();
-
-    @ElementCollection
-    private List<String> organizingCommittee = new ArrayList<>();
-
-    @ElementCollection
-    private List<String> attendees = new ArrayList<>();
 
     @OneToOne(mappedBy = "event", cascade = CascadeType.ALL, orphanRemoval = true)
     @JsonIgnore
@@ -103,12 +86,12 @@ public class Event {
     @JsonIgnore
     private List<EventSession> session;
 
-
+    @CreationTimestamp
     private LocalDateTime createdAt;
-
+    @UpdateTimestamp
     private LocalDateTime updatedAt;
 
-    private LocalDateTime deletedAt;
+    private boolean isDeleted = false;
 
     @Transient
     private int registeredCount;

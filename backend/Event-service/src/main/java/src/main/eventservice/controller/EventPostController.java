@@ -15,9 +15,7 @@ import src.main.eventservice.service.EventPostService;
 @RestController
 @RequestMapping("/api/posts")
 @RequiredArgsConstructor
-@CrossOrigin(origins = "*")
 public class EventPostController {
-
     private final EventPostService eventPostService;
 
     @GetMapping

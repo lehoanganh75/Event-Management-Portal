@@ -1,5 +1,6 @@
 package src.main.eventservice.controller;
 
+import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -13,14 +14,12 @@ import java.util.List;
 import java.util.Map;
 
 @RestController
-@RequestMapping("/api")
-@CrossOrigin(origins = "*")
+@RequestMapping("/api/registrations")
+@RequiredArgsConstructor
 public class EventRegistrationController {
+    private final EventRegistrationService registrationService;
 
-    @Autowired
-    private EventRegistrationService registrationService;
-
-    @PostMapping("/events/{eventId}/register")
+    @PostMapping("/{eventId}/register")
     public ResponseEntity<?> register(
             @PathVariable String eventId,
             @RequestParam String userProfileId) {
@@ -32,7 +31,7 @@ public class EventRegistrationController {
         }
     }
 
-    @GetMapping("/registrations/{registrationId}/qr")
+    @GetMapping("/{registrationId}/qr")
     public ResponseEntity<?> getQR(@PathVariable String registrationId) {
         try {
             RegistrationResponseDto dto = registrationService.getRegistrationWithQR(registrationId);
@@ -50,7 +49,7 @@ public class EventRegistrationController {
                 : ResponseEntity.badRequest().body(response);
     }
 
-    @PostMapping("/registrations/{registrationId}/manual-check-in")
+    @PostMapping("/{registrationId}/manual-check-in")
     public ResponseEntity<CheckInResponse> manualCheckIn(
             @PathVariable String registrationId,
             @RequestParam String adminAccountId) {
@@ -60,19 +59,19 @@ public class EventRegistrationController {
                 : ResponseEntity.badRequest().body(response);
     }
 
-    @GetMapping("/registrations/event/{eventId}")
+    @GetMapping("/event/{eventId}")
     public ResponseEntity<List<RegistrationResponseDto>> getByEvent(
             @PathVariable String eventId) {
         return ResponseEntity.ok(registrationService.getRegistrationsByEvent(eventId));
     }
 
-    @GetMapping("/registrations/user/{userProfileId}")
+    @GetMapping("/user/{userProfileId}")
     public ResponseEntity<List<RegistrationResponseDto>> getByUser(
             @PathVariable String userProfileId) {
         return ResponseEntity.ok(registrationService.getRegistrationsByUser(userProfileId));
     }
 
-    @GetMapping("/registrations/check")
+    @GetMapping("/check")
     public ResponseEntity<Map<String, Boolean>> check(
             @RequestParam String eventId,
             @RequestParam String userProfileId) {
@@ -81,7 +80,7 @@ public class EventRegistrationController {
         ));
     }
 
-    @PatchMapping("/registrations/cancel")
+    @PatchMapping("/cancel")
     public ResponseEntity<?> cancelRegistration(
             @RequestParam String eventId,
             @RequestParam String userProfileId) {

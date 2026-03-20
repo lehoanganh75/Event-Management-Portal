@@ -15,26 +15,20 @@ public class EventRegistration {
     @GeneratedValue(strategy = GenerationType.UUID)
     private String id;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "event_id", nullable = false)
-    private Event event;
-    @OneToOne(mappedBy = "eventRegistration", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
-    private Payment payment;
-
-    private String userProfileId;
-
+    private String userRegistrationId;
     @Enumerated(EnumType.STRING)
     private RegistrationStatus status;
-
     private LocalDateTime registeredAt;
-
     private boolean eligibleForDraw;
     private LocalDateTime drawEntries;
-
     @Column(name = "qr_token", length = 2048)
     private String qrToken;
     private LocalDateTime qrTokenExpiry;
     private boolean checkedIn = false;
     private LocalDateTime checkInTime;
     private String checkInByAccountId;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "event_id", nullable = false)
+    private Event event;
 }

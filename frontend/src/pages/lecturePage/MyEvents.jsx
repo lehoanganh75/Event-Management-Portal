@@ -833,7 +833,7 @@ const MyEvents = () => {
               exit={{ scale: 0.9, opacity: 0, y: 20 }}
               className="relative bg-white w-full max-w-5xl rounded-3xl shadow-2xl overflow-hidden max-h-[90vh] flex flex-col"
             >
-              <div className="px-8 py-5 border-b border-slate-100 flex items-center justify-between bg-gradient-to-r from-slate-50 to-white flex-shrink-0">
+              <div className="px-8 py-5 border-b border-slate-100 flex items-center justify-between bg-linear-to-r from-slate-50 to-white shrink-0">
                 <div className="flex items-center gap-3">
                   <div
                     className={`p-2 rounded-xl ${modalMode === "view" ? "bg-blue-100 text-blue-600" : "bg-amber-100 text-amber-600"}`}

@@ -2,6 +2,8 @@ package src.main.eventservice.entity;
 
 import jakarta.persistence.*;
 import lombok.*;
+import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.UpdateTimestamp;
 import src.main.eventservice.entity.enums.EventType;
 
 import java.time.LocalDateTime;
@@ -28,15 +30,6 @@ public class EventTemplate {
     private EventType templateType;
     private String customTemplateType;
 
-    @ElementCollection
-    @CollectionTable(
-            name = "event_template_themes",
-            joinColumns = @JoinColumn(name = "template_id")
-    )
-    @Column(name = "theme")
-    @Builder.Default
-    private List<String> themes = new ArrayList<>();
-
     private String description;
 
     private String defaultTitle;
@@ -56,17 +49,19 @@ public class EventTemplate {
     @Column(columnDefinition = "TEXT")
     private String configData;
 
+    @CreationTimestamp
     private LocalDateTime createdAt;
+    @UpdateTimestamp
     private LocalDateTime updatedAt;
 
-    @PrePersist
-    protected void onCreate() {
-        createdAt = LocalDateTime.now();
-        updatedAt = LocalDateTime.now();
-    }
+    private boolean isDeleted;
 
-    @PreUpdate
-    protected void onUpdate() {
-        updatedAt = LocalDateTime.now();
-    }
+    @ElementCollection
+    @CollectionTable(
+            name = "event_template_themes",
+            joinColumns = @JoinColumn(name = "template_id")
+    )
+    @Column(name = "theme")
+    @Builder.Default
+    private List<String> themes = new ArrayList<>();
 }

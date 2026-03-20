@@ -56,12 +56,6 @@ public class UserController {
         return ResponseEntity.ok(userService.updateProfile(accountId, updatedProfile));
     }
 
-
-    @GetMapping("/internal/{accountId}")
-    public ResponseEntity<User> getUserByAccountId(@PathVariable String accountId) {
-        return ResponseEntity.ok(userService.getProfileByUserId(accountId));
-    }
-
     // 3. Dành cho admin: Phê duyệt hoặc từ chối hồ sơ người dùng
     @PreAuthorize("hasRole('ADMIN')")
     @PutMapping("/{accountId}/approval")

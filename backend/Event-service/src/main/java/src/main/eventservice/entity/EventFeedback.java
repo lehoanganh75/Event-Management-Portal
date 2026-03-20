@@ -6,7 +6,7 @@ import lombok.*;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "event_feedback")
+@Table(name = "event_feedbacks")
 @Getter
 @Setter
 public class EventFeedback {
