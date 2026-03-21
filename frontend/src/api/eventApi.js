@@ -127,8 +127,10 @@ export const getAllEvents = () =>
     };
   });
 
-export const getEventsByStatus = (status) =>
-  api.get("/events/status", { params: { status } }).then((res) => ({
+export const getEventsByStatuses = (statuses) =>
+  api.get("/events/by-statuses", { 
+    params: { statuses: statuses.join(',') } 
+  }).then((res) => ({
     ...res,
     data: Array.isArray(res.data) ? res.data.map(mapEvent) : [],
   }));
@@ -215,8 +217,8 @@ export const checkRegistration = (eventId, userProfileId) =>
 export const registerEvent = (eventId, userProfileId) =>
   api.post(`/events/${eventId}/register`, null, { params: { userProfileId } });
 
-export const cancelRegistration = (eventId, userProfileId) =>
-  api.patch("/registrations/cancel", null, { params: { eventId, userProfileId } });
+export const cancelRegistration = (eventId) =>
+  api.put(`/registrations/cancel/${eventId}`);
 
 export const getEventRegistrations = (eventId) =>
   api.get(`/registrations/event/${eventId}`);

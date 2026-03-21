@@ -7,8 +7,11 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import src.main.eventservice.dto.PlanResponseDto;
 import src.main.eventservice.dto.UserDto;
+import src.main.eventservice.entity.EventRegistration;
 import src.main.eventservice.entity.EventTemplate;
 import src.main.eventservice.entity.enums.EventStatus;
+import src.main.eventservice.entity.enums.RegistrationStatus;
+import src.main.eventservice.repository.EventRegistrationRepository;
 import src.main.eventservice.repository.EventTemplateRepository;
 import src.main.eventservice.service.EventService;
 import src.main.eventservice.entity.Event;
@@ -18,13 +21,13 @@ import org.springframework.data.domain.Pageable;
 import java.time.LocalDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 @Service
 @RequiredArgsConstructor
 public class EventServiceImpl implements EventService {
     private final EventRepository eventRepository;
     private final EventTemplateRepository eventTemplateRepository;
+    private final EventRegistrationRepository registrationRepository;
 
     @Override
     public List<Event> getAllEvents() {
@@ -48,7 +51,20 @@ public class EventServiceImpl implements EventService {
 
     @Override
     public Optional<Event> findById(String id) {
-        return eventRepository.findById(id);
+        Optional<Event> eventOptional = eventRepository.findById(id);
+        eventOptional.ifPresent(this::enrichEventWithValidRegistrationCount);
+        return eventOptional;
+    }
+
+    private void enrichEventWithValidRegistrationCount(Event event) {
+        List<RegistrationStatus> validStatuses = Arrays.asList(
+                RegistrationStatus.REGISTERED,
+                RegistrationStatus.ATTENDED
+        );
+
+        long count = registrationRepository.countByEventIdAndStatusIn(event.getId(), validStatuses);
+
+        event.setRegisteredCount((int) count);
     }
 
     @Override
@@ -146,6 +162,14 @@ public class EventServiceImpl implements EventService {
         event.setLuckyDrawId(luckyDrawId);
 
         eventRepository.save(event);
+    }
+
+    @Override
+    @Transactional
+    public List<Event> getEventsByStatuses(List<EventStatus> statuses) {
+        List<Event> events = eventRepository.findByStatusInAndIsDeletedFalseOrderByStartTimeDesc(statuses);
+        events.forEach(this::enrichEventWithRegistrationCount);
+        return events;
     }
 
     // Plans
@@ -317,30 +341,6 @@ public class EventServiceImpl implements EventService {
                     } catch (Exception e) {
                     }
 
-                    return PlanResponseDto.from(event, creator, approver);
-                })
-                .collect(Collectors.toList());
-    }
-
-    @Override
-    public List<PlanResponseDto> getEventsByStatus(EventStatus status) {
-        // 1. Lấy danh sách từ DB
-        List<Event> events = eventRepository.findByStatusInAndIsDeletedFalse(Arrays.asList(status));
-
-        // 2. Làm giàu dữ liệu (Số lượng đăng ký)
-        events.forEach(this::enrichEventWithRegistrationCount);
-
-        // 3. Xử lý chuyển đổi sang DTO và sắp xếp
-        return events.stream()
-                .sorted(Comparator.comparing(Event::getStartTime,
-                        Comparator.nullsLast(Comparator.naturalOrder())).reversed())
-                .map(event -> {
-                    // Ở đây bạn có thể gọi sang Identity Service (qua FeignClient hoặc RestTemplate)
-                    // để lấy thông tin User dựa trên createdByAccountId và approvedByAccountId
-                    UserDto creator = null;
-                    UserDto approver = null;
-
-                    // Tạm thời trả về DTO từ event
                     return PlanResponseDto.from(event, creator, approver);
                 })
                 .collect(Collectors.toList());

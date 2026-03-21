@@ -21,6 +21,7 @@ public class EventSession {
     private String room;
     @Enumerated(EnumType.STRING)
     private SessionType type;
+    private boolean isDeleted = false;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "event_id", nullable = false)

@@ -68,5 +68,5 @@ public interface EventRepository extends JpaRepository<Event, String> {
 
     List<Event> id(String id);
 
-    List<Event> findByStatusAndIsDeletedFalseOrderByStartTimeDesc(EventStatus status);
+    List<Event> findByStatusInAndIsDeletedFalseOrderByStartTimeDesc(List<EventStatus> statuses);
 }

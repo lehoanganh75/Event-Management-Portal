@@ -16,6 +16,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/events")
@@ -72,6 +73,17 @@ public class EventController {
         return ResponseEntity.ok().build();
     }
 
+    @GetMapping("/by-statuses")
+    public ResponseEntity<List<Event>> getEventsByStatuses(
+            @RequestParam("statuses") List<String> statusStrings) {
+
+        List<EventStatus> statuses = statusStrings.stream()
+                .map(s -> EventStatus.valueOf(s.trim().toUpperCase()))
+                .collect(Collectors.toList());
+
+        return ResponseEntity.ok(eventService.getEventsByStatuses(statuses));
+    }
+
     // 6. Lấy danh sách kế hoạch
     @GetMapping("/plans")
     public ResponseEntity<List<PlanResponseDto>> getAllPlans() {
@@ -82,11 +94,6 @@ public class EventController {
     public ResponseEntity<List<PlanResponseDto>> getMyPlans(@AuthenticationPrincipal Jwt jwt) {
         String accountId = jwt.getClaimAsString("accountId");
         return ResponseEntity.ok(eventService.getPlansByAccountId(accountId));
-    }
-
-    @GetMapping("/status")
-    public ResponseEntity<List<PlanResponseDto>> getByStatus(@RequestParam EventStatus status) {
-        return ResponseEntity.ok(eventService.getEventsByStatus(status));
     }
 
     @GetMapping("/plans/{statusName}")

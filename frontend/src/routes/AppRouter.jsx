@@ -36,7 +36,7 @@ const AppRouter = () => {
       <Route path='/register' element={<RegisterPage />} />
       <Route path="/forgot-password" element={<ForgotPassword />} />
       <Route path='/attendance' element={<AttendancePage />} />
-      <Route path="/events/:id" element={<EventDetail />} />
+      <Route path="/events/:eventId" element={<EventDetail />} />
       <Route path='/userprofile' element={<UserProfile />} />
 
       <Route

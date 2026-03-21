@@ -2,6 +2,7 @@ package src.main.eventservice.entity;
 
 import jakarta.persistence.*;
 import lombok.*;
+import org.hibernate.annotations.CreationTimestamp;
 
 import java.time.LocalDateTime;
 
@@ -26,5 +27,7 @@ public class EventFeedback {
     @Column(length = 200)
     private String comment;
 
+    @CreationTimestamp
     private LocalDateTime createdAt;
+    private boolean isDeleted = false;
 }
