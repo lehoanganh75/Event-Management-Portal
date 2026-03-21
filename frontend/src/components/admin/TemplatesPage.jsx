@@ -76,6 +76,7 @@ const TemplatesPage = () => {
       setTotalPages(res.totalPages || 0);
       setTotalElements(res.totalElements || 0);
     } catch (e) {
+      console.error("Lỗi fetchTemplates:", e);
       showToast("Lỗi tải dữ liệu!", "error");
       setTemplates([]);
     } finally {

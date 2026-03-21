@@ -3,15 +3,12 @@ package src.main.eventservice.service.impl;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import src.main.eventservice.client.UserServiceClient;
 import src.main.eventservice.dto.PostRequestDto;
 import src.main.eventservice.dto.PostResponseDto;
-import src.main.eventservice.dto.UserDto;
 import src.main.eventservice.entity.Event;
 import src.main.eventservice.entity.EventPost;
 import src.main.eventservice.entity.enums.PostStatus;
@@ -26,15 +23,11 @@ import java.util.stream.Collectors;
 @Service
 @RequiredArgsConstructor
 public class EventPostServiceImpl implements EventPostService {
-    @Autowired
+
     private final EventPostRepository eventPostRepository;
-    @Autowired
     private final EventRepository eventRepository;
 
-    @Autowired
-    private UserServiceClient userServiceClient;
-
-    private static final Logger log = LoggerFactory.getLogger(EventServiceImpl.class);
+    private static final Logger log = LoggerFactory.getLogger(EventPostServiceImpl.class);
 
     @Override
     public Page<EventPost> getAllPosts(String title, PostStatus status, Pageable pageable) {
@@ -50,13 +43,12 @@ public class EventPostServiceImpl implements EventPostService {
     @Transactional
     @Override
     public EventPost createPost(EventPost post) {
-
         post.setCreatedAt(LocalDateTime.now());
         post.setUpdatedAt(LocalDateTime.now());
         post.setDeleted(false);
 
-        if (post.getStatus() == PostStatus.Published) {
-            post.setPublishedAt(LocalDateTime.now());
+        if (post.getStatus() == PostStatus.PUBLISHED) {
+            post.setPostAt(LocalDateTime.now());
         }
 
         return eventPostRepository.save(post);
@@ -72,8 +64,8 @@ public class EventPostServiceImpl implements EventPostService {
         existingPost.setPostType(postDetails.getPostType());
         existingPost.setUpdatedAt(LocalDateTime.now());
 
-        if (existingPost.getStatus() != PostStatus.Published && postDetails.getStatus() == PostStatus.Published) {
-            existingPost.setPublishedAt(LocalDateTime.now());
+        if (existingPost.getStatus() != PostStatus.PUBLISHED && postDetails.getStatus() == PostStatus.PUBLISHED) {
+            existingPost.setPostAt(LocalDateTime.now());
         }
         existingPost.setStatus(postDetails.getStatus());
 
@@ -94,15 +86,7 @@ public class EventPostServiceImpl implements EventPostService {
         List<EventPost> posts = eventPostRepository.findByCreatedByAccountIdOrderByCreatedAtDesc(accountId);
 
         return posts.stream().map(post -> {
-            UserDto creator = null;
-            try {
-                if (post.getCreatedByAccountId() != null) {
-                    creator = userServiceClient.getUserById(post.getCreatedByAccountId());
-                }
-            } catch (Exception e) {
-                log.warn("Không lấy được creator: {}", e.getMessage());
-            }
-            return PostResponseDto.from(post, creator);
+            return PostResponseDto.from(post, null);
         }).collect(Collectors.toList());
     }
 
@@ -111,23 +95,15 @@ public class EventPostServiceImpl implements EventPostService {
         List<EventPost> posts = eventPostRepository.findByCreatedByAccountIdAndEventId(accountId, eventId);
 
         return posts.stream().map(post -> {
-            UserDto creator = null;
-            try {
-                if (post.getCreatedByAccountId() != null) {
-                    creator = userServiceClient.getUserById(post.getCreatedByAccountId());
-                }
-            } catch (Exception e) {
-                log.warn("Không lấy được creator: {}", e.getMessage());
-            }
-            return PostResponseDto.from(post, creator);
+            return PostResponseDto.from(post, null);
         }).collect(Collectors.toList());
     }
+
     @Transactional
     @Override
     public EventPost createPost(PostRequestDto postDto) {
         EventPost post = new EventPost();
 
-        // Set event
         if (postDto.getEventId() != null) {
             Event event = eventRepository.findById(postDto.getEventId())
                     .orElseThrow(() -> new RuntimeException("Không tìm thấy sự kiện"));
@@ -139,7 +115,7 @@ public class EventPostServiceImpl implements EventPostService {
         post.setPostType(postDto.getPostType());
         post.setStatus(postDto.getStatus());
         post.setCreatedByAccountId(postDto.getAccountId());
-        post.setPublishedAt(postDto.getPublishedAt());
+        post.setPostAt(postDto.getPublishedAt());
         post.setCreatedAt(LocalDateTime.now());
         post.setUpdatedAt(LocalDateTime.now());
         post.setDeleted(false);

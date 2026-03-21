@@ -22,7 +22,7 @@ public class DrawEntryController {
             @AuthenticationPrincipal Jwt jwt,
             @RequestParam String luckyDrawId
     ) {
-        String userProfileId = jwt.getClaimAsString("userProfileId");
-        return ResponseEntity.ok(drawEntryService.createDrawEntry(userProfileId, luckyDrawId));
+        String userId = jwt.getClaimAsString("userId");
+        return ResponseEntity.ok(drawEntryService.createDrawEntry(userId, luckyDrawId));
     }
 }

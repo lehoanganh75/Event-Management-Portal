@@ -50,7 +50,7 @@ public class EventTemplateServiceImpl implements EventTemplateService {
         event.setOrganizationId(template.getOrganizationId());
         event.setCreatedByAccountId(accountId);
 
-        event.setStatus(EventStatus.Draft);
+        event.setStatus(EventStatus.DRAFT);
         event.setFinalized(false);
         event.setArchived(false);
         event.setCreatedAt(LocalDateTime.now());

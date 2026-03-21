@@ -1,12 +1,26 @@
 import axios from "axios";
 
 const api = axios.create({
-  baseURL: import.meta.env.VITE_EVENT_API_URL || "http://localhost:8081/api" 
+  baseURL: import.meta.env.VITE_EVENT_API_URL 
 });
+
+api.interceptors.request.use(
+  (config) => {
+    const token = localStorage.getItem("accessToken");
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+    return config;
+  },
+  (error) => {
+    return Promise.reject(error);
+  }
+);
+
 const mapStatus = (status) => {
-  if (!status) return "Draft";
+  if (!status) return "DRAFT";
   const s = status.charAt(0).toUpperCase() + status.slice(1).toLowerCase();
-  if (s === "Pendingapproval") return "PendingApproval";
+  if (s === "PENDING_APPROVAL") return "PENDING_APPROVAL";
   return s;
 };
 
@@ -114,13 +128,7 @@ export const getAllEvents = () =>
   });
 
 export const getEventsByStatus = (status) =>
-  api.get("/events/status", { params: { status } }).then((res) => ({
-    ...res,
-    data: Array.isArray(res.data) ? res.data.map(mapEvent) : [],
-  }));
-
-export const getFeaturedEvents = () =>
-  api.get("/events/featured").then((res) => ({
+  api.get("/events/status", { params: { status: status ? status.toUpperCase() : status } }).then((res) => ({
     ...res,
     data: Array.isArray(res.data) ? res.data.map(mapEvent) : [],
   }));
@@ -141,11 +149,6 @@ export const getEventById = (id) =>
     data: res.data ? mapEvent(res.data) : null,
   }));
 
-export const getMyEvents = (accountId) =>
-  api.get("/events/my", { params: { accountId } }).then((res) => ({
-    ...res,
-    data: Array.isArray(res.data) ? res.data.map(mapEvent) : [],
-  }));
 
 export const getMyPlans = (accountId) =>
   api.get("/events/plans/my", { params: { accountId } }).then((res) => ({
@@ -180,7 +183,7 @@ export const updatePlan = (id, planData) =>
 export const deletePlan = (id) => api.delete(`/events/${id}`);
 
 export const getPlansByStatus = (status, accountId) =>
-  api.get(`/events/plans/${status}`, { 
+  api.get(`/events/plans/${status ? status.toUpperCase() : status}`, { 
     params: accountId ? { accountId } : {} 
   }).then((res) => ({
     ...res,
@@ -227,3 +230,21 @@ export const getAttendedEvents = (userProfileId) =>
     ...res,
     data: Array.isArray(res.data) ? res.data : [],
   }));
+
+  export const getFeaturedEvents = () =>
+  api.get("/events/featured").then((res) => ({
+    ...res,
+    data: Array.isArray(res.data) ? res.data.map(mapEvent) : [],
+  }));
+
+  export const getMyEvents = async (accountId) => {
+  try {
+    const response = await axios.get(`${API_BASE_URL}/events`, {
+      params: { createdByAccountId: accountId }
+    });
+    return response;
+  } catch (error) {
+    console.error('Error fetching my events:', error);
+    return { data: [] };
+  }
+};

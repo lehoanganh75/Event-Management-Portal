@@ -51,7 +51,6 @@ const LoginPage = () => {
   const handleLogin = async (e) => {
     e.preventDefault();
     if (isLoading || !validateForm()) return;
-    setIsLoading(true);
 
     try {
       const API_LOGIN = `${import.meta.env.VITE_AUTH_API_URL}/auth/login`;
@@ -173,7 +172,7 @@ const LoginPage = () => {
             message={errorMessage}
           />
 
-          <div className="w-full bg-white rounded-3xl shadow-[0_8px_40px_rgba(0,0,0,0.1)] overflow-hidden flex min-h-[600px]">
+          <div className="w-full bg-white rounded-3xl shadow-[0_8px_40px_rgba(0,0,0,0.1)] overflow-hidden flex min-h-150">
             {/* LEFT — Branding */}
             <div className="hidden lg:flex lg:w-[52%] bg-[#1a3a6b] flex-col justify-between p-10 relative overflow-hidden">
               <div className="absolute inset-0 opacity-10">

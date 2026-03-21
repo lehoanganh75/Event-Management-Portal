@@ -21,6 +21,8 @@ public class UserController {
     public ResponseEntity<User> getMyProfile(@AuthenticationPrincipal Jwt jwt) {
         String userId = jwt.getClaimAsString("userId");
 
+        System.out.println("User id" + userId);
+
         if (userId == null) {
             throw new RuntimeException("Token missing accountId claim");
         }
@@ -51,12 +53,6 @@ public class UserController {
         }
 
         return ResponseEntity.ok(userService.updateProfile(accountId, updatedProfile));
-    }
-
-
-    @GetMapping("/internal/{accountId}")
-    public ResponseEntity<User> getUserByAccountId(@PathVariable String accountId) {
-        return ResponseEntity.ok(userService.getProfileByUserId(accountId));
     }
 
     // 3. Dành cho admin: Phê duyệt hoặc từ chối hồ sơ người dùng

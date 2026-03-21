@@ -11,25 +11,28 @@ import java.util.List;
 import java.util.Optional;
 
 public interface EventService {
-    // Lấy toàn bộ danh sách sự kiện
+
     List<Event> getAllEvents();
+
+    Page<Event> getAllEvents(PageRequest pageable);
 
     List<Event> getFeaturedEvents();
 
-    // Tìm một sự kiện theo ID
     Optional<Event> getEventById(String id);
 
-    // Lưu hoặc cập nhật sự kiện
+    List<Event> getMyEventsByAccountAndMonth(String accountId);
+
+    Event createEvent(Event event);
+
     Event saveEvent(Event event);
 
     @Transactional
-        // Đảm bảo tính toàn vẹn dữ liệu khi update
     Event updateEvent(String id, Event eventDetails);
 
-    // Xóa sự kiện
     void deleteEvent(String id);
 
-    // Plans
+    void updateLuckyDrawId(String id, String luckyDrawId);
+
     List<Event> getAllPlans();
 
     List<Event> getPlansByStatus(EventStatus status);
@@ -47,8 +50,6 @@ public interface EventService {
 
     @Transactional
     Event updateEventStatus(String id, EventStatus status, String approverId, String accountId);
-
-    Page<Event> getAllEvents(PageRequest pageable);
 
     List<PlanResponseDto> getAllPlansEnriched();
 

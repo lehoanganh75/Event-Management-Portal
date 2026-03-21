@@ -1,3 +1,4 @@
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import {
   LogIn,
@@ -8,11 +9,20 @@ import {
   Settings,
   ShieldCheck,
   ChevronDown,
+  Bell,
+  Check,
+  Clock,
+  ChevronRight,
+  Calendar,
+  AlertCircle,
+  CheckCircle,
+  XCircle,
+  Info
 } from "lucide-react";
 import logo_iuh from "../../assets/images/logo_iuh.png";
-import { useEffect, useState, useRef, useCallback } from "react";
 import axios from "axios";
 import { motion, AnimatePresence } from "framer-motion";
+import notificationApi from "../../api/notificationApi";
 
 const roleMap = {
   SUPER_ADMIN: "Quản Trị Viên Cao Cấp",
@@ -46,27 +56,191 @@ const Header = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
+  const [isNotificationOpen, setIsNotificationOpen] = useState(false);
+  const [notifications, setNotifications] = useState([]);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [isMarkingAll, setIsMarkingAll] = useState(false);
   const menuRef = useRef(null);
+  const notificationRef = useRef(null);
   const isScrollingRef = useRef(false);
   const timeoutRef = useRef(null);
   const lastClickedRef = useRef(null);
   const lockActiveRef = useRef(false);
   const lockTimerRef = useRef(null);
 
+ const decodeJWT = (token) => {
+    try {
+      const base64Url = token.split('.')[1];
+      const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+      const jsonPayload = decodeURIComponent(atob(base64).split('').map(function(c) {
+        return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+      }).join(''));
+      return JSON.parse(jsonPayload);
+    } catch (error) {
+      console.error("Error decoding JWT:", error);
+      return null;
+    }
+  };
+
+  const getCurrentUserId = () => {
+    
+    let accountId = localStorage.getItem("userId");
+    if (accountId) return accountId;
+
+    const accessToken = localStorage.getItem("accessToken");
+    if (accessToken) {
+      try {
+        const decoded = decodeJWT(accessToken);
+        if (decoded?.accountId) {
+          localStorage.setItem("userId", decoded.accountId);
+          return decoded.accountId;
+        }
+        if (decoded?.sub || decoded?.id) {
+          const id = decoded.sub || decoded.id;
+          localStorage.setItem("userId", id);
+          return id;
+        }
+      } catch (error) {
+        console.error("Error decoding token:", error);
+      }
+    }
+  };
+  
+  useEffect(() => {
+    if (currentUser) {
+      const userId = getCurrentUserId();
+      if (userId) {
+        fetchUnreadCount(userId);
+        fetchRecentNotifications(userId);
+        const interval = setInterval(() => fetchUnreadCount(userId), 30000);
+        return () => clearInterval(interval);
+      }
+    }
+  }, [currentUser]);
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (notificationRef.current && !notificationRef.current.contains(event.target)) {
+        setIsNotificationOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  const fetchUnreadCount = async (userId) => {
+    if (!userId) return;
+    try {
+      const response = await notificationApi.getUnreadCount(userId);
+      setUnreadCount(response.data);
+    } catch (error) {
+      console.error("Error fetching unread count:", error);
+      setUnreadCount(0);
+    }
+  };
+
+  const fetchRecentNotifications = async (userId) => {
+    if (!userId) return;
+    try {
+      const response = await notificationApi.getRecentNotifications(userId, 5);
+      setNotifications(response.data || []);
+    } catch (error) {
+      console.error("Error fetching notifications:", error);
+      setNotifications([]);
+    }
+  };
+
+  const handleMarkAsRead = async (id) => {
+    try {
+      await notificationApi.markAsRead(id);
+      setNotifications(
+        notifications.map((n) => (n.id === id ? { ...n, read: true } : n))
+      );
+      setUnreadCount((prev) => Math.max(0, prev - 1));
+    } catch (error) {
+      console.error("Error marking as read:", error);
+    }
+  };
+
+  const handleMarkAllAsRead = async () => {
+    const userId = getUserId();
+    if (!userId) return;
+    
+    setIsMarkingAll(true);
+    try {
+      await notificationApi.markAllAsRead(userId);
+      setNotifications(
+        notifications.map((n) => ({ ...n, read: true }))
+      );
+      setUnreadCount(0);
+    } catch (error) {
+      console.error("Error marking all as read:", error);
+    } finally {
+      setIsMarkingAll(false);
+    }
+  };
+
+  const handleViewAll = () => {
+    setIsNotificationOpen(false);
+    const userRole = currentUser?.roles?.[0];
+    const userId = getCurrentUserId();
+    if (userRole === 'SUPER_ADMIN' || userRole === 'ADMIN') {
+      navigate("/admin/notifications");
+    } else if (userRole === 'ORGANIZER') {
+      navigate("/lecturer/notifications");
+    } else {
+      navigate(`/notifications/${userId || ''}`);
+    }
+  };
+
+  const formatTime = (dateString) => {
+    if (!dateString) return "";
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffInMs = now - date;
+    const diffInMinutes = Math.floor(diffInMs / (1000 * 60));
+    
+    if (diffInMinutes < 1) return "Vừa xong";
+    if (diffInMinutes < 60) return `${diffInMinutes} phút trước`;
+    if (diffInMinutes < 1440) return `${Math.floor(diffInMinutes / 60)} giờ trước`;
+    if (diffInMinutes < 43200) return `${Math.floor(diffInMinutes / 1440)} ngày trước`;
+    
+    return date.toLocaleDateString("vi-VN", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+    });
+  };
+
+  const getNotificationIcon = (type) => {
+    const icons = {
+      'EVENT_APPROVED': <CheckCircle size={20} className="text-green-500" />,
+      'EVENT_REJECTED': <XCircle size={20} className="text-red-500" />,
+      'REGISTRATION_CONFIRMED': <Calendar size={20} className="text-blue-500" />,
+      'CHECKIN_REMINDER': <Clock size={20} className="text-orange-500" />,
+      'SYSTEM': <Info size={20} className="text-purple-500" />,
+      'PROMOTION': <AlertCircle size={20} className="text-pink-500" />,
+    };
+    return icons[type] || <Bell size={20} className="text-slate-400" />;
+  };
+
+  const getNotificationBgColor = (notification) => {
+    if (!notification.read) {
+      return "bg-gradient-to-r from-blue-50/80 to-transparent";
+    }
+    return "hover:bg-slate-50";
+  };
+
   const checkActiveSection = useCallback(() => {
     if (lockActiveRef.current) return;
-
     if (location.pathname !== "/") {
       setActiveSection(null);
       return;
     }
-
     if (isScrollingRef.current) return;
-
     const sections = ["gioi-thieu", "su-kien"];
     let foundSection = null;
     let maxVisiblePercent = 0;
-
     for (const section of sections) {
       const element = document.getElementById(section);
       if (element) {
@@ -76,14 +250,12 @@ const Header = () => {
         const visibleBottom = Math.min(viewportHeight, rect.bottom);
         const visibleHeight = Math.max(0, visibleBottom - visibleTop);
         const visiblePercent = (visibleHeight / rect.height) * 100;
-
         if (visiblePercent > maxVisiblePercent) {
           maxVisiblePercent = visiblePercent;
           foundSection = section;
         }
       }
     }
-
     if (foundSection && maxVisiblePercent > 20) {
       setActiveSection(foundSection);
     } else {
@@ -96,17 +268,14 @@ const Header = () => {
       setActiveSection(null);
       return;
     }
-
     const handleScroll = () => {
       if (timeoutRef.current) {
         cancelAnimationFrame(timeoutRef.current);
       }
       timeoutRef.current = requestAnimationFrame(checkActiveSection);
     };
-
     window.addEventListener("scroll", handleScroll, { passive: true });
     setTimeout(checkActiveSection, 100);
-
     return () => {
       window.removeEventListener("scroll", handleScroll);
       if (timeoutRef.current) {
@@ -115,14 +284,14 @@ const Header = () => {
     };
   }, [location.pathname, checkActiveSection]);
 
-  // Lấy dữ liệu user từ localStorage
   useEffect(() => {
     const userData = localStorage.getItem("user");
     if (userData) {
       try {
-        setCurrentUser(JSON.parse(userData));
+        const parsedUser = JSON.parse(userData);
+        setCurrentUser(parsedUser);
       } catch (error) {
-        console.error("Lỗi parse user data:", error);
+        console.error("Error parsing user data:", error);
         localStorage.removeItem("user");
       }
     } else {
@@ -131,7 +300,6 @@ const Header = () => {
     setLoading(false);
   }, [location]);
 
-  // Đóng menu khi click ra ngoài
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (menuRef.current && !menuRef.current.contains(event.target)) {
@@ -214,12 +382,10 @@ const Header = () => {
     if (lockTimerRef.current) {
       clearTimeout(lockTimerRef.current);
     }
-
     lastClickedRef.current = itemId;
     lockActiveRef.current = true;
     isScrollingRef.current = true;
     setActiveSection(itemId);
-
     const scrollToSection = () => {
       const el = document.getElementById(itemId);
       if (el) {
@@ -231,14 +397,12 @@ const Header = () => {
         isScrollingRef.current = false;
       }
     };
-
     if (location.pathname !== "/") {
       navigate("/");
       setTimeout(scrollToSection, 300);
     } else {
       scrollToSection();
     }
-
     lockTimerRef.current = setTimeout(() => {
       lockActiveRef.current = false;
       checkActiveSection();
@@ -247,7 +411,7 @@ const Header = () => {
 
   const handleLogout = async () => {
     try {
-      const API_LOGOUT = `${process.env.VITE_AUTH_API_URL}/auth/logout`;
+      const API_LOGOUT = `${import.meta.env.VITE_AUTH_API_URL}/auth/logout`;
       const refreshToken = localStorage.getItem("refreshToken");
       if (refreshToken) {
         await axios.post(API_LOGOUT, null, {
@@ -255,7 +419,7 @@ const Header = () => {
         });
       }
     } catch (error) {
-      console.error("Lỗi khi gọi API logout:", error);
+      console.error("Error during logout:", error);
     } finally {
       localStorage.clear();
       setCurrentUser(null);
@@ -289,8 +453,6 @@ const Header = () => {
             <span className="w-1.5 h-1.5 bg-green-400 rounded-full animate-pulse"></span>
             Hệ thống Quản lý Sự kiện IUH
           </div>
-
-          {/* ✅ Thêm phần bên phải */}
           <div className="flex items-center gap-5 ml-auto">
             <button className="hover:text-orange-300 transition-colors flex items-center gap-1 cursor-pointer">
               <Mail size={12} /> Hỗ trợ kỹ thuật
@@ -306,10 +468,8 @@ const Header = () => {
           </div>
         </div>
 
-        {/* MAIN NAV */}
         {!isLoginPage && (
           <div className="w-full mx-auto px-4 md:px-6 py-3 flex justify-between items-center">
-            {/* LOGO */}
             <div
               className="cursor-pointer transition-all duration-300 hover:opacity-80 active:scale-95"
               onClick={() => navigate("/")}
@@ -321,7 +481,6 @@ const Header = () => {
               />
             </div>
 
-            {/* NAV LINKS */}
             {!isLecturerPage && (
               <nav className="hidden lg:flex items-center gap-1">
                 <button
@@ -356,11 +515,143 @@ const Header = () => {
               </nav>
             )}
 
-            {/* AUTH SECTION */}
             <div className="flex items-center gap-4 border-l border-slate-100 pl-6">
+              {/* Notification Bell */}
+              {currentUser && (
+                <div className="relative" ref={notificationRef}>
+                  <button
+                    onClick={() => setIsNotificationOpen(!isNotificationOpen)}
+                    className="relative p-2 text-slate-500 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-all duration-200"
+                  >
+                    <Bell size={20} />
+                    {unreadCount > 0 && (
+                      <motion.span
+                        initial={{ scale: 0 }}
+                        animate={{ scale: 1 }}
+                        className="absolute -top-1 -right-1 min-w-[18px] h-[18px] bg-gradient-to-r from-red-500 to-red-600 text-white text-[10px] font-bold rounded-full flex items-center justify-center px-1 shadow-lg"
+                      >
+                        {unreadCount > 99 ? "99+" : unreadCount}
+                      </motion.span>
+                    )}
+                  </button>
+
+                  <AnimatePresence>
+                    {isNotificationOpen && (
+                      <motion.div
+                        initial={{ opacity: 0, y: -10, scale: 0.95 }}
+                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                        exit={{ opacity: 0, y: -10, scale: 0.95 }}
+                        transition={{ duration: 0.2 }}
+                        className="absolute right-0 mt-3 w-96 bg-white rounded-2xl shadow-2xl border border-slate-100 overflow-hidden z-50"
+                      >
+                        {/* Header */}
+                        <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100 bg-gradient-to-r from-blue-50 to-white">
+                          <div className="flex items-center gap-2">
+                            <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-blue-600 rounded-xl flex items-center justify-center">
+                              <Bell size={16} className="text-white" />
+                            </div>
+                            <div>
+                              <h3 className="font-bold text-slate-800">
+                                Thông báo
+                              </h3>
+                              {unreadCount > 0 && (
+                                <p className="text-xs text-red-500">
+                                  {unreadCount} thông báo chưa đọc
+                                </p>
+                              )}
+                            </div>
+                          </div>
+                          {unreadCount > 0 && (
+                            <button
+                              onClick={handleMarkAllAsRead}
+                              disabled={isMarkingAll}
+                              className="text-xs font-semibold text-blue-600 hover:text-blue-700 flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 hover:bg-blue-100 rounded-lg transition-all disabled:opacity-50"
+                            >
+                              {isMarkingAll ? (
+                                <div className="w-3 h-3 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
+                              ) : (
+                                <Check size={12} />
+                              )}
+                              Đánh dấu đã đọc
+                            </button>
+                          )}
+                        </div>
+
+                        {/* Notifications List */}
+                        <div className="max-h-[480px] overflow-y-auto divide-y divide-slate-50">
+                          {notifications.length > 0 ? (
+                            notifications.map((notification, index) => (
+                              <motion.div
+                                key={notification.id}
+                                initial={{ opacity: 0, x: -20 }}
+                                animate={{ opacity: 1, x: 0 }}
+                                transition={{ delay: index * 0.05 }}
+                                onClick={() => !notification.read && handleMarkAsRead(notification.id)}
+                                className={`px-5 py-4 cursor-pointer transition-all duration-200 ${getNotificationBgColor(notification)} ${
+                                  !notification.read ? "border-l-4 border-l-blue-500" : ""
+                                }`}
+                              >
+                                <div className="flex items-start gap-3">
+                                  <div className="flex-shrink-0 mt-0.5">
+                                    {getNotificationIcon(notification.type)}
+                                  </div>
+                                  <div className="flex-1 min-w-0">
+                                    <div className="flex items-start justify-between gap-2 mb-1">
+                                      <p className={`text-sm ${!notification.read ? "font-semibold text-slate-800" : "font-medium text-slate-700"}`}>
+                                        {notification.title}
+                                      </p>
+                                      {!notification.read && (
+                                        <div className="w-2 h-2 bg-blue-500 rounded-full flex-shrink-0 mt-1.5" />
+                                      )}
+                                    </div>
+                                    <p className="text-xs text-slate-500 leading-relaxed mb-2 line-clamp-2">
+                                      {notification.message}
+                                    </p>
+                                    <div className="flex items-center gap-2">
+                                      <Clock size={10} className="text-slate-400" />
+                                      <p className="text-[10px] text-slate-400">
+                                        {formatTime(notification.createdAt)}
+                                      </p>
+                                    </div>
+                                  </div>
+                                </div>
+                              </motion.div>
+                            ))
+                          ) : (
+                            <div className="py-12 text-center">
+                              <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                                <Bell size={28} className="text-slate-400" />
+                              </div>
+                              <p className="text-sm font-medium text-slate-500 mb-1">
+                                Không có thông báo
+                              </p>
+                              <p className="text-xs text-slate-400">
+                                Bạn sẽ nhận được thông báo khi có hoạt động mới
+                              </p>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Footer */}
+                        {notifications.length > 0 && (
+                          <div className="px-5 py-3 border-t border-slate-100 bg-slate-50/50">
+                            <button
+                              onClick={handleViewAll}
+                              className="w-full flex items-center justify-center gap-2 text-sm font-semibold text-blue-600 hover:text-blue-700 py-2 transition-colors group"
+                            >
+                              Xem tất cả thông báo
+                              <ChevronRight size={16} className="group-hover:translate-x-1 transition-transform" />
+                            </button>
+                          </div>
+                        )}
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </div>
+              )}
+
               {currentUser ? (
                 <div className="relative" ref={menuRef}>
-                  {/* Avatar Button */}
                   <div
                     onClick={() => setIsMenuOpen(!isMenuOpen)}
                     className="flex items-center gap-3 p-1 pr-3 rounded-full hover:bg-slate-100 cursor-pointer transition-all border border-transparent hover:border-slate-200"
@@ -373,7 +664,7 @@ const Header = () => {
                           className="w-9 h-9 rounded-full border-2 border-white shadow-sm object-cover"
                         />
                       ) : (
-                        <div className="w-9 h-9 bg-orange-100 text-orange-600 rounded-full flex items-center justify-center font-bold text-sm border-2 border-white shadow-sm">
+                        <div className="w-9 h-9 bg-gradient-to-r from-orange-400 to-orange-500 text-white rounded-full flex items-center justify-center font-bold text-sm border-2 border-white shadow-sm">
                           {currentUser.username?.charAt(0).toUpperCase() || "U"}
                         </div>
                       )}
@@ -395,55 +686,75 @@ const Header = () => {
                     />
                   </div>
 
-                  {/* Dropdown Menu */}
-                  {isMenuOpen && (
-                    <div className="absolute right-0 mt-3 w-64 bg-white rounded-2xl shadow-2xl border border-slate-100 overflow-hidden animate-in fade-in zoom-in-95 duration-200">
-                      <div className="p-4 bg-slate-50/50 border-b border-slate-100">
-                        <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 bg-blue-600 text-white rounded-xl flex items-center justify-center font-bold">
-                            {currentUser.username?.charAt(0).toUpperCase()}
-                          </div>
-                          <div>
-                            <p className="text-sm font-black text-slate-800">
-                              {currentUser.username}
-                            </p>
-                            <p className="text-[11px] text-blue-600 font-bold flex items-center gap-1">
-                              <ShieldCheck size={12} /> {getPrimaryRole()}
-                            </p>
+                  <AnimatePresence>
+                    {isMenuOpen && (
+                      <motion.div
+                        initial={{ opacity: 0, y: -10, scale: 0.95 }}
+                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                        exit={{ opacity: 0, y: -10, scale: 0.95 }}
+                        transition={{ duration: 0.2 }}
+                        className="absolute right-0 mt-3 w-64 bg-white rounded-2xl shadow-2xl border border-slate-100 overflow-hidden z-20"
+                      >
+                        <div className="p-4 bg-gradient-to-r from-slate-50 to-white border-b border-slate-100">
+                          <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-xl flex items-center justify-center font-bold shadow-md">
+                              {currentUser.username?.charAt(0).toUpperCase()}
+                            </div>
+                            <div>
+                              <p className="text-sm font-black text-slate-800">
+                                {currentUser.username}
+                              </p>
+                              <p className="text-[11px] text-blue-600 font-bold flex items-center gap-1">
+                                <ShieldCheck size={12} /> {getPrimaryRole()}
+                              </p>
+                            </div>
                           </div>
                         </div>
-                      </div>
 
-                      <div className="p-2">
-                        <button
-                          onClick={() => {
-                            navigate("/userprofile");
-                            setIsMenuOpen(false);
-                          }}
-                          className="w-full flex items-center gap-3 px-3 py-2.5 text-sm font-semibold text-slate-600 hover:bg-blue-50 hover:text-blue-700 rounded-xl transition-colors"
-                        >
-                          <User size={16} className="text-slate-400" /> Hồ sơ cá
-                          nhân
-                        </button>
-                        <button className="w-full flex items-center gap-3 px-3 py-2.5 text-sm font-semibold text-slate-600 hover:bg-blue-50 hover:text-blue-700 rounded-xl transition-colors">
-                          <Settings size={16} className="text-slate-400" /> Cài
-                          đặt tài khoản
-                        </button>
-                      </div>
+                        <div className="p-2">
+                          <button
+                            onClick={() => {
+                              navigate("/userprofile");
+                              setIsMenuOpen(false);
+                            }}
+                            className="w-full flex items-center gap-3 px-3 py-2.5 text-sm font-semibold text-slate-600 hover:bg-blue-50 hover:text-blue-700 rounded-xl transition-colors"
+                          >
+                            <User size={16} className="text-slate-400" /> Hồ sơ cá nhân
+                          </button>
+                          <button
+                            onClick={() => {
+                              navigate("/my-events");
+                              setIsMenuOpen(false);
+                            }}
+                            className="w-full flex items-center gap-3 px-3 py-2.5 text-sm font-semibold text-slate-600 hover:bg-blue-50 hover:text-blue-700 rounded-xl transition-colors"
+                          >
+                            <Calendar size={16} className="text-slate-400" /> Sự kiện của tôi
+                          </button>
+                          <button
+                            onClick={() => {
+                              navigate("/settings");
+                              setIsMenuOpen(false);
+                            }}
+                            className="w-full flex items-center gap-3 px-3 py-2.5 text-sm font-semibold text-slate-600 hover:bg-blue-50 hover:text-blue-700 rounded-xl transition-colors"
+                          >
+                            <Settings size={16} className="text-slate-400" /> Cài đặt tài khoản
+                          </button>
+                        </div>
 
-                      <div className="p-2 bg-slate-50 border-t border-slate-100">
-                        <button
-                          onClick={() => {
-                            setIsMenuOpen(false);
-                            setIsLogoutModalOpen(true);
-                          }}
-                          className="w-full flex items-center gap-3 px-3 py-2.5 text-sm font-bold text-red-500 hover:bg-red-100 rounded-xl transition-colors"
-                        >
-                          <LogOut size={16} /> Đăng xuất
-                        </button>
-                      </div>
-                    </div>
-                  )}
+                        <div className="p-2 bg-slate-50 border-t border-slate-100">
+                          <button
+                            onClick={() => {
+                              setIsMenuOpen(false);
+                              setIsLogoutModalOpen(true);
+                            }}
+                            className="w-full flex items-center gap-3 px-3 py-2.5 text-sm font-bold text-red-500 hover:bg-red-100 rounded-xl transition-colors"
+                          >
+                            <LogOut size={16} /> Đăng xuất
+                          </button>
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
                 </div>
               ) : (
                 <button
@@ -462,7 +773,6 @@ const Header = () => {
         )}
       </header>
 
-      {/* LOGOUT MODAL */}
       <AnimatePresence>
         {isLogoutModalOpen && (
           <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">

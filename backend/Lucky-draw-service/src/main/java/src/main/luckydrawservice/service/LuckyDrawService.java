@@ -10,4 +10,5 @@ public interface LuckyDrawService {
     LuckyDraw createLuckyDraw(LuckyDrawCreateRequest request, String createdByAccountId);
     List<LuckyDraw> getAllLuckyDraws();
     DrawResultResponse performLuckyDraw(String luckyDrawId, String userProfileId);
+    LuckyDraw updateLuckyDraw(String id, LuckyDrawCreateRequest request, String createdByAccountId);
 }

@@ -2,6 +2,7 @@ package src.main.eventservice.entity;
 
 import jakarta.persistence.*;
 import lombok.*;
+import org.hibernate.annotations.CreationTimestamp;
 import src.main.eventservice.entity.enums.PostStatus;
 import src.main.eventservice.entity.enums.PostType;
 
@@ -37,8 +38,11 @@ public class EventPost {
     @Enumerated(EnumType.STRING)
     private PostStatus status;
 
-    private LocalDateTime publishedAt;
+    private LocalDateTime postAt;
+
+    @CreationTimestamp
     private LocalDateTime createdAt;
+    @CreationTimestamp
     private LocalDateTime updatedAt;
     private boolean isDeleted;
 }

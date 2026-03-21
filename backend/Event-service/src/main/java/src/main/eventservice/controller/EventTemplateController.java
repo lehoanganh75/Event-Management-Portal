@@ -1,5 +1,6 @@
 package src.main.eventservice.controller;
 
+import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -18,7 +19,7 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/templates")
-@CrossOrigin(origins = "*")
+@RequiredArgsConstructor
 public class EventTemplateController {
 
     @Autowired

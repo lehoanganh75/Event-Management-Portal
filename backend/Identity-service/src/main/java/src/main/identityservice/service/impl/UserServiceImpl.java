@@ -60,8 +60,9 @@ public class UserServiceImpl implements UserService {
 
     @Override
     public String getUserProfileIdByAccountId(String accountId) {
-        User profile = userRepository.findById(accountId)
-                .orElseThrow(() -> new RuntimeException("Profile not found"));
-        return profile.getId();
+
+        return userRepository.findByAccountId(accountId)
+                .map(User::getId)
+                .orElseThrow(() -> new RuntimeException("User profile not found for account ID: " + accountId));
     }
 }

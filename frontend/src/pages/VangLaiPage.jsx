@@ -4,6 +4,7 @@ import Layout from "../components/layout/Layout";
 import { Award, TrendingUp, Users, X, Calendar, MapPin, Clock, UserCheck } from "lucide-react";
 import React, { useState, useEffect } from "react";
 import { getFeaturedEvents } from "../api/eventApi";
+import axios from "axios";
 
 const VangLaiPage = () => {
   const navigate = useNavigate();
@@ -12,8 +13,6 @@ const VangLaiPage = () => {
   const [totalParticipants, setTotalParticipants] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [selectedEvent, setSelectedEvent] = useState(null);
-  const [isModalOpen, setIsModalOpen] = useState(false);
 
   useEffect(() => {
     const loadData = async () => {
@@ -21,9 +20,7 @@ const VangLaiPage = () => {
         setLoading(true);
         setError(null);
 
-        console.log("Đang gọi API getFeaturedEvents...");
         const res = await getFeaturedEvents();
-        console.log("Dữ liệu từ API:", res.data);
 
         if (res.data && Array.isArray(res.data)) {
           setFeaturedEvents(res.data);
@@ -33,7 +30,6 @@ const VangLaiPage = () => {
           }, 0);
           setTotalParticipants(sum);
         } else {
-          console.error("Dữ liệu không đúng định dạng:", res.data);
           setError("Dữ liệu không hợp lệ");
         }
       } catch (error) {

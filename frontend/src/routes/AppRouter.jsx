@@ -21,7 +21,6 @@ import MyEventsPage from "../components/user/MyEventsPage";
 
 import ManagePosts from "../pages/lecturePage/ManagePosts";
 import CreatePost from "../components/events/CreatePost";
-import NotificationPage from "../pages/lecturePage/Notifications";
 import AdminLayout from "../pages/adminPage/AdminPage";
 import Dashboard from "../components/admin/Dashboard";
 import EventPage from "../components/admin/EventPage";
@@ -34,6 +33,9 @@ import PlansAdminPage from "../components/admin/PlansPage";
 import TemplatesAdminPage from "../components/admin/TemplatesPage";
 import AdminPostManagement from "../components/admin/AdminPostManagement";
 
+import NotificationUserPage from "../components/notification/Notification";
+import AdminNotifications from "../components/admin/AdminNotifications";
+
 const AppRouter = () => {
   return (
     <Routes>
@@ -45,6 +47,9 @@ const AppRouter = () => {
       <Route path="/events/:id" element={<EventDetail />} />
       <Route path="/userprofile" element={<UserProfile />} />
       <Route path="/my-events" element={<MyEventsPage />} />
+      <Route path="/notifications" element={<NotificationUserPage />} />
+      <Route path="/notifications/:userId" element={<NotificationUserPage />} />
+      
       <Route path="/lecturer" element={<LecturerLayout />}>
         <Route index element={<Navigate to="events/feed" replace />} />
 
@@ -63,7 +68,6 @@ const AppRouter = () => {
           <Route path="create" element={<CreatePost />} />
         </Route>
 
-        <Route path="notifications" element={<NotificationPage />} />
         <Route path="attendance" element={<AttendancePage />} />
         <Route path="plans" element={<PlansPage />} />
         <Route path="profile" element={<ProfileUser />} />
@@ -76,6 +80,7 @@ const AppRouter = () => {
         <Route path="summaries" element={
           <div className="p-8 text-2xl font-bold text-slate-400 text-center mt-20">Trang Quản lý bài tổng kết đang phát triển...</div>
         } />
+        <Route path="notifications" element={<AdminNotifications />} />
         <Route path="spinner" element={<SpinnerManagement />} />
         <Route path="plans" element={<PlansAdminPage />} />
         <Route path="templates" element={<TemplatesAdminPage />} />
