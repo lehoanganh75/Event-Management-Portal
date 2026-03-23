@@ -25,4 +25,13 @@ public class Notification {
 
     private boolean isRead;
     private LocalDateTime createdAt;
+
+    private String relatedEntityId;
+    private String relatedEntityType;
+
+    private String actionUrl;
+
+    private LocalDateTime readAt;
+
+    private Integer priority;
 }

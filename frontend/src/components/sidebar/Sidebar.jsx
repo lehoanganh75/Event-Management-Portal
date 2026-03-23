@@ -16,9 +16,9 @@ const Sidebar = () => {
     { name: 'Quản lý mẫu kế hoạch', icon: Layout,        path: '/admin/templates' },
     { name: 'Quản lý khoa',        icon: GraduationCap,  path: '/admin/departments' },
     { name: 'Quản lý vai trò',     icon: ShieldCheck,    path: '/admin/roles' },
+    { name: 'Quản lý thông báo',    icon: Library,        path: '/admin/notifications' },
     { name: 'Quản lý tài khoản',   icon: UserCog,        path: '/admin/accounts' },
-    { name: 'Quản lý thư viện',    icon: Library,        path: '/admin/library' },
-    { name: 'Quản lý vòng quay',   icon: RotateCw,       path: '/admin/lucky-draw' },
+    { name: 'Quản lý vòng quay',   icon: RotateCw,       path: '/admin/spinner' },
   ];
 
   return (

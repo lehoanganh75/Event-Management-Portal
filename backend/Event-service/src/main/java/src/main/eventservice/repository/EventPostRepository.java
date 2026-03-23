@@ -9,6 +9,7 @@ import org.springframework.stereotype.Repository;
 import src.main.eventservice.entity.EventPost;
 import src.main.eventservice.entity.enums.PostStatus;
 
+import java.util.List;
 import java.util.Optional;
 
 @Repository
@@ -23,4 +24,15 @@ public interface EventPostRepository extends JpaRepository<EventPost, String> {
                                        Pageable pageable);
 
     Optional<EventPost> findByIdAndIsDeletedFalse(String id);
+
+    List<EventPost> findByCreatedByAccountId(String accountId);
+
+    // Tìm posts theo accountId và sắp xếp theo thời gian
+    List<EventPost> findByCreatedByAccountIdOrderByCreatedAtDesc(String accountId);
+
+    // Tìm posts theo accountId và status
+    List<EventPost> findByCreatedByAccountIdAndStatus(String accountId, PostStatus status);
+
+    // Tìm posts theo accountId với điều kiện eventId (nếu cần)
+    List<EventPost> findByCreatedByAccountIdAndEventId(String accountId, String eventId);
 }

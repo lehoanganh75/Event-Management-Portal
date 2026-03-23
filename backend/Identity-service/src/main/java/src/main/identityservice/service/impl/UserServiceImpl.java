@@ -2,6 +2,7 @@ package src.main.identityservice.service.impl;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import src.main.identityservice.dto.UserDto;
 import src.main.identityservice.entity.Account;
 import src.main.identityservice.entity.Role;
 import src.main.identityservice.entity.User;
@@ -56,5 +57,30 @@ public class UserServiceImpl implements UserService {
         User userProfile = userRepository.findById(profileId)
                 .orElseThrow(() -> new RuntimeException("User profile not found for account ID: " + profileId));
         return userRepository.save(userProfile);
+    }
+
+    @Override
+    public String getUserProfileIdByAccountId(String accountId) {
+
+        return userRepository.findByAccountId(accountId)
+                .map(User::getId)
+                .orElseThrow(() -> new RuntimeException("User profile not found for account ID: " + accountId));
+    }
+
+    @Override
+    public List<User> searchUsers(String keyword) {
+        if (keyword == null || keyword.trim().isEmpty()) {
+            return userRepository.findAll();
+        }
+        return userRepository.searchUsers(keyword);
+    }
+
+    @Override
+    public List<UserDto> getUsersByIds(List<String> ids) {
+        List<User> users = userRepository.findAllById(ids);
+
+        return users.stream()
+                .map(UserDto::from)
+                .collect(Collectors.toList());
     }
 }

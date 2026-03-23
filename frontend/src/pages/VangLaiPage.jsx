@@ -190,7 +190,7 @@ const VangLaiPage = () => {
                       </button>
                     </div>
                   ) : featuredEvents.length > 0 ? (
-                    featuredEvents.map((event) => (
+                  featuredEvents.slice(0, 3).map((event) => (
                       <div
                         key={event.id}
                         onClick={() => handleEventClick(event)}
@@ -218,8 +218,8 @@ const VangLaiPage = () => {
                           <div className="text-[11px] text-gray-500 mt-1 flex items-center gap-1">
                             <MapPin size={12} /> {event.location || "Đang cập nhật"}
                           </div>
-                          <div className="mt-2 text-xs text-blue-600 font-semibold opacity-0 group-hover:opacity-100 transition-opacity">
-                            Xem chi tiết →
+                        <div className="mt-3 w-fit flex items-center gap-1 px-3 py-1.5 rounded-lg bg-blue-50 text-blue-700 text-[11px] font-bold opacity-0 translate-y-2 group-hover:opacity-100 group-hover:translate-y-0 transition-all duration-300">
+                          Xem chi tiết
                           </div>
                         </div>
                       </div>

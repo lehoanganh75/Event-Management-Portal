@@ -34,18 +34,24 @@ import {
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { EventPlanner } from "./EventPlanner";
-import { getMyPlans, deletePlan, updatePlan } from "../../api/eventApi";
+import {
+  getMyPlans,
+  deletePlan,
+  updatePlan,
+  submitPlanForApproval,
+} from "../../api/eventApi";
+import axios from "axios";
+import notificationApi from "../../api/notificationApi";
 
 const STATUS_LABELS = {
   DRAFT: "Bản nháp",
-  PENDING_APPROVAL: "Chờ duyệt",
-  APPROVED: "Đã duyệt",
-  REJECTED: "Từ chối",
+  PLAN_PENDING_APPROVAL: "Chờ duyệt kế hoạch",
+  PLAN_APPROVED: "Kế hoạch đã duyệt",
+  EVENT_PENDING_APPROVAL: "Chờ duyệt sự kiện",
   PUBLISHED: "Đã xuất bản",
   CANCELLED: "Đã hủy",
   COMPLETED: "Đã kết thúc",
-  upcoming: "Sắp diễn ra",
-  ongoing: "Đang diễn ra",
+  ONGOING: "Đang diễn ra",
 };
 
 const EVENT_TYPE_LABELS = {
@@ -164,6 +170,7 @@ const ManagePlans = () => {
   const [selectedPlan, setSelectedPlan] = useState(null);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [planToDelete, setPlanToDelete] = useState(null);
+  const [submittingId, setSubmittingId] = useState(null);
   const [toast, setToast] = useState({
     show: false,
     message: "",
@@ -174,12 +181,13 @@ const ManagePlans = () => {
     try {
       setLoading(true);
       let accountId = null;
-      
+
       const userData = localStorage.getItem("user");
       if (userData) {
         try {
           const user = JSON.parse(userData);
-          accountId = user.id || user.accountId || user.account?.id || user.userId;
+          accountId =
+            user.id || user.accountId || user.account?.id || user.userId;
         } catch (error) {
           console.error("Lỗi parse user data:", error);
         }
@@ -189,10 +197,11 @@ const ManagePlans = () => {
         const accessToken = localStorage.getItem("accessToken");
         if (accessToken) {
           try {
-            const base64Url = accessToken.split('.')[1];
-            const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+            const base64Url = accessToken.split(".")[1];
+            const base64 = base64Url.replace(/-/g, "+").replace(/_/g, "/");
             const payload = JSON.parse(atob(base64));
-            accountId = payload.accountId || payload.sub || payload.userId || payload.id;
+            accountId =
+              payload.accountId || payload.sub || payload.userId || payload.id;
           } catch (e) {
             console.error("Lỗi decode token:", e);
           }
@@ -213,9 +222,187 @@ const ManagePlans = () => {
   };
 
   useEffect(() => {
+    if (modalMode === "edit" && selectedPlan) {
+      console.log("📝 Editing plan data:", {
+        id: selectedPlan.id,
+        title: selectedPlan.title,
+        startTime: selectedPlan.startTime,
+        endTime: selectedPlan.endTime,
+        rawData: selectedPlan,
+      });
+    }
+  }, [modalMode, selectedPlan]);
+
+  useEffect(() => {
     fetchPlans();
   }, []);
 
+  const getCurrentUser = () => {
+    try {
+      const accessToken = localStorage.getItem("accessToken");
+      if (accessToken) {
+        const base64Url = accessToken.split(".")[1];
+        const base64 = base64Url.replace(/-/g, "+").replace(/_/g, "/");
+        const payload = JSON.parse(atob(base64));
+        return {
+          accountId:
+            payload.accountId || payload.sub || payload.userId || payload.id,
+          name: payload.name || payload.fullName || "Người dùng",
+          email: payload.email,
+        };
+      }
+    } catch (e) {
+      console.error("Lỗi decode token:", e);
+    }
+
+    try {
+      const userData = localStorage.getItem("user");
+      if (userData) {
+        const user = JSON.parse(userData);
+        return {
+          accountId:
+            user.id || user.accountId || user.account?.id || user.userId,
+          name: user.fullName || user.name || "Người dùng",
+          email: user.email,
+        };
+      }
+    } catch (error) {
+      console.error("Lỗi parse user data:", error);
+    }
+
+    return null;
+  };
+
+  const sendNotifications = async (planId, planTitle) => {
+    try {
+      const currentUser = getCurrentUser();
+      if (!currentUser || !currentUser.accountId) {
+        console.error("Không tìm thấy thông tin người dùng");
+        return;
+      }
+
+      const IDENTITY_SERVICE_URL =
+        import.meta.env.VITE_IDENTITY_API_URL || "http://localhost:8082";
+      const token = localStorage.getItem("accessToken");
+
+      let allAccounts = [];
+      try {
+        const accountsResponse = await axios.get(
+          `${IDENTITY_SERVICE_URL}/api/admin/accounts`,
+          {
+            headers: { Authorization: `Bearer ${token}` },
+          },
+        );
+        allAccounts = accountsResponse.data || [];
+        console.log("📋 All accounts:", allAccounts);
+      } catch (err) {
+        console.error("Lỗi lấy danh sách accounts:", err);
+      }
+
+      const adminRoles = ["ADMIN", "SUPER_ADMIN"];
+      const adminAccounts = allAccounts.filter((account) =>
+        account.roles?.some((role) => adminRoles.includes(role.toUpperCase())),
+      );
+
+      console.log("👥 Admin accounts found:", adminAccounts.length);
+
+      const sendPlanNotification = async (
+        targetUserId,
+        planId,
+        planTitle,
+        isAdmin = false,
+      ) => {
+        try {
+          const payload = {
+            userProfileId: targetUserId,
+            type: "SYSTEM",
+            title: isAdmin
+              ? "Kế hoạch mới cần phê duyệt! 📋"
+              : "Đã gửi phê duyệt thành công! ✅",
+            message: isAdmin
+              ? `${currentUser.name || "Người dùng"} đã gửi kế hoạch "${planTitle}" để phê duyệt. Vui lòng xem xét.`
+              : `Kế hoạch "${planTitle}" đã được gửi và đang chờ phê duyệt. Bạn sẽ nhận được thông báo khi có kết quả.`,
+            relatedEntityId: planId,
+            relatedEntityType: "PLAN",
+            actionUrl: `/manage-plans/${planId}`,
+            priority: isAdmin ? 1 : 2,
+          };
+
+          console.log(
+            `📤 Gửi thông báo đến ${isAdmin ? "admin" : "user"} (ID: ${targetUserId}):`,
+            payload,
+          );
+          await notificationApi.createNotification(payload);
+          console.log(`✅ Đã gửi thông báo đến ${targetUserId}`);
+        } catch (error) {
+          console.warn(
+            `⚠️ Lỗi gửi thông báo cho ${targetUserId}:`,
+            error.message,
+          );
+        }
+      };
+
+      for (const admin of adminAccounts) {
+        const adminUserId = admin.id || admin.userProfileId;
+        if (!adminUserId) continue;
+        if (String(adminUserId) === String(currentUser.accountId)) continue;
+
+        await sendPlanNotification(adminUserId, planId, planTitle, true);
+      }
+
+      await sendPlanNotification(
+        currentUser.accountId,
+        planId,
+        planTitle,
+        false,
+      );
+
+      console.log("✅ Hoàn thành gửi tất cả thông báo");
+    } catch (error) {
+      console.error("❌ Lỗi tổng thể gửi thông báo:", error);
+    }
+  };
+
+  const handleSubmitForApproval = async (planId) => {
+    setSubmittingId(planId);
+    try {
+      const planToSubmit = plans.find((p) => p.id === planId);
+      console.log("📋 Plan details:", {
+        id: planToSubmit.id,
+        title: planToSubmit.title,
+        status: planToSubmit.status,
+        statusUpperCase: planToSubmit.status?.toUpperCase(),
+        statusLowerCase: planToSubmit.status?.toLowerCase(),
+        statusTrimmed: `"${planToSubmit.status}"`,
+        statusLength: planToSubmit.status?.length,
+        statusCharCodes: planToSubmit.status
+          ?.split("")
+          .map((c) => c.charCodeAt(0)),
+      });
+
+      if (planToSubmit.status?.toUpperCase() !== "DRAFT") {
+        showToast(
+          `Không thể gửi duyệt. Kế hoạch đang ở trạng thái: ${STATUS_LABELS[planToSubmit.status] || planToSubmit.status}`,
+          "error",
+        );
+        setSubmittingId(null);
+        return;
+      }
+
+      await submitPlanForApproval(planId);
+      await sendNotifications(planId, planToSubmit.title);
+      showToast("Đã gửi yêu cầu phê duyệt thành công", "success");
+      await fetchPlans();
+    } catch (error) {
+      console.error("Submit error:", error);
+      console.error("Error response:", error.response?.data);
+      const errorMsg = error.response?.data?.error || "Gửi phê duyệt thất bại";
+      showToast(errorMsg, "error");
+    } finally {
+      setSubmittingId(null);
+      if (isModalOpen) closeModal();
+    }
+  };
   const showToast = (message, type = "success") => {
     setToast({ show: true, message, type });
     setTimeout(() => setToast((prev) => ({ ...prev, show: false })), 3000);
@@ -234,16 +421,20 @@ const ManagePlans = () => {
 
   const handleUpdate = async (e) => {
     e.preventDefault();
-    
+
     if (selectedPlan.startTime && selectedPlan.endTime) {
-      if (new Date(selectedPlan.endTime) <= new Date(selectedPlan.startTime)) {
+      const start = new Date(selectedPlan.startTime);
+      const end = new Date(selectedPlan.endTime);
+      if (end <= start) {
         showToast("Thời gian kết thúc phải sau thời gian bắt đầu!", "error");
         return;
       }
     }
 
     if (selectedPlan.registrationDeadline && selectedPlan.startTime) {
-      if (new Date(selectedPlan.registrationDeadline) >= new Date(selectedPlan.startTime)) {
+      const deadline = new Date(selectedPlan.registrationDeadline);
+      const start = new Date(selectedPlan.startTime);
+      if (deadline >= start) {
         showToast("Hạn đăng ký phải trước thời gian bắt đầu!", "error");
         return;
       }
@@ -251,15 +442,25 @@ const ManagePlans = () => {
 
     try {
       const response = await updatePlan(selectedPlan.id, selectedPlan);
-      if (response.ok || response.status === 200) {
+
+      if (response.status >= 200 && response.status < 300) {
         setPlans(
-          plans.map((p) => (p.id === selectedPlan.id ? selectedPlan : p)),
+          plans.map((p) =>
+            p.id === selectedPlan.id
+              ? { ...selectedPlan, updatedAt: new Date() }
+              : p,
+          ),
         );
         closeModal();
         showToast("Cập nhật kế hoạch thành công", "success");
+      } else {
+        throw new Error("Update failed");
       }
-    } catch {
-      showToast("Lỗi khi cập nhật dữ liệu", "error");
+    } catch (error) {
+      console.error("❌ Update error:", error);
+      const errorMsg =
+        error.response?.data?.message || "Lỗi khi cập nhật dữ liệu";
+      showToast(errorMsg, "error");
     }
   };
 
@@ -311,12 +512,13 @@ const ManagePlans = () => {
     const statusUpper = status?.toUpperCase?.() || "";
     const colors = {
       DRAFT: "slate",
-      PENDING_APPROVAL: "amber",
-      APPROVED: "emerald",
-      REJECTED: "rose",
+      PLAN_PENDING_APPROVAL: "amber",
+      PLAN_APPROVED: "emerald",
+      EVENT_PENDING_APPROVAL: "amber",
       PUBLISHED: "blue",
       CANCELLED: "red",
       COMPLETED: "green",
+      ONGOING: "blue",
     };
     return colors[statusUpper] || "slate";
   };
@@ -429,7 +631,10 @@ const ManagePlans = () => {
                           </span>
                         )}
                         {p.hasLuckyDraw && (
-                          <span className="inline-flex items-center gap-1 text-[10px] font-medium bg-amber-50 text-amber-600 px-2 py-0.5 rounded border border-amber-100" title="Có tổ chức vòng quay may mắn">
+                          <span
+                            className="inline-flex items-center gap-1 text-[10px] font-medium bg-amber-50 text-amber-600 px-2 py-0.5 rounded border border-amber-100"
+                            title="Có tổ chức vòng quay may mắn"
+                          >
                             <Award size={10} /> Vòng quay
                           </span>
                         )}
@@ -461,6 +666,31 @@ const ManagePlans = () => {
                         >
                           <Edit2 size={16} />
                         </button>
+                        {(p.status === "DRAFT" || p.status === "BẢN NHÁP") && (
+                          <button
+                            onClick={() => handleSubmitForApproval(p.id)}
+                            disabled={submittingId === p.id}
+                            className="p-2 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-all disabled:opacity-50"
+                            title="Gửi phê duyệt"
+                          >
+                            {submittingId === p.id ? (
+                              <Loader2 size={16} className="animate-spin" />
+                            ) : (
+                              <CheckCircle2 size={16} />
+                            )}
+                          </button>
+                        )}
+                        {p.status === "PLAN_APPROVED" && (
+                          <button
+                            onClick={() => {
+                              console.log("Tạo sự kiện từ kế hoạch:", p);
+                            }}
+                            className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all"
+                            title="Tạo sự kiện"
+                          >
+                            <CalendarIcon size={16} />
+                          </button>
+                        )}
                         <button
                           onClick={() => {
                             setPlanToDelete(p);
@@ -613,318 +843,363 @@ const ManagePlans = () => {
                     </p>
                   </div>
                 </div>
-                <button
-                  onClick={closeModal}
-                  className="p-2 hover:bg-slate-200 rounded-full transition-colors text-slate-400"
-                >
-                  <X size={20} />
-                </button>
+                <div className="flex items-center gap-2">
+                  {modalMode === "view" &&
+                    (selectedPlan?.status === "DRAFT" ||
+                      selectedPlan?.status === "BẢN NHÁP") && (
+                      <button
+                        onClick={() => handleSubmitForApproval(selectedPlan.id)}
+                        disabled={submittingId === selectedPlan.id}
+                        className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-xl font-bold hover:bg-emerald-700 transition-all disabled:opacity-50 text-sm"
+                      >
+                        {submittingId === selectedPlan.id ? (
+                          <Loader2 size={16} className="animate-spin" />
+                        ) : (
+                          <CheckCircle2 size={16} />
+                        )}
+                        Gửi phê duyệt
+                      </button>
+                    )}
+                  {modalMode === "view" &&
+                    (selectedPlan?.status === "PLAN_APPROVED" ||
+                      selectedPlan?.status === "KẾ HOẠCH ĐÃ DUYỆT") && (
+                      <button
+                        onClick={() => {
+                          console.log("Tạo sự kiện từ kế hoạch:", selectedPlan);
+                        }}
+                        className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 transition-all text-sm"
+                      >
+                        <CalendarIcon size={16} />
+                        Tạo sự kiện
+                      </button>
+                    )}
+                  <button
+                    onClick={closeModal}
+                    className="p-2 hover:bg-slate-200 rounded-full transition-colors text-slate-400"
+                  >
+                    <X size={20} />
+                  </button>
+                </div>
               </div>
 
               <div className="flex-1 overflow-y-auto p-8 custom-scrollbar">
                 <form onSubmit={handleUpdate} className="space-y-8">
                   {modalMode === "view" ? (
                     <>
-                  <Section
-                    title="Thông tin cơ bản"
-                    icon={FileText}
-                    color="blue"
-                  >
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      <InfoRow
-                        label="ID"
-                        value={formatID(selectedPlan.id)}
-                        icon={Hash}
-                        color="slate"
-                      />
-                      <InfoRow
-                        label="Tên kế hoạch"
-                        value={selectedPlan.title}
+                      <Section
+                        title="Thông tin cơ bản"
                         icon={FileText}
                         color="blue"
-                      />
-                      <InfoRow
-                        label="Loại sự kiện"
-                        value={
-                          EVENT_TYPE_LABELS[selectedPlan.type] ||
-                          selectedPlan.type
-                        }
-                        icon={Tag}
-                        color="purple"
-                      />
-                      <InfoRow
-                        label="Chủ đề"
-                        value={selectedPlan.eventTopic || "Không có"}
-                        icon={BookOpen}
-                        color="emerald"
-                      />
-                      <InfoRow
-                        label="Đơn vị tổ chức"
-                        value={
-                          selectedPlan.major
-                            ? `${selectedPlan.faculty} – ${selectedPlan.major}`
-                            : selectedPlan.faculty || "Chưa xác định"
-                        }
-                        icon={Building2}
-                        color="amber"
-                      />
-                      <InfoRow
-                        label="Hình thức"
-                        value={
-                          EVENT_MODE_LABELS[selectedPlan.eventMode] ||
-                          selectedPlan.eventMode
-                        }
-                        icon={Globe}
-                        color="cyan"
-                      />
-                      <InfoRow
-                        label="Trạng thái"
-                        value={
-                          <Badge color={getStatusColor(selectedPlan.status)}>
-                            {STATUS_LABELS[
-                              selectedPlan.status?.toUpperCase?.()
-                            ] || selectedPlan.status}
-                          </Badge>
-                        }
-                        icon={ShieldCheck}
-                        color="slate"
-                      />
-                      <InfoRow
-                        label="Vòng quay may mắn"
-                        value={selectedPlan.hasLuckyDraw ? "Có" : "Không"}
-                        icon={Award}
-                        color="amber"
-                      />
-                      <InfoRow
-                        label="Ảnh bìa"
-                        value={selectedPlan.coverImage || "Không có"}
-                        icon={ImageIcon}
-                        color="pink"
-                      />
-                    </div>
-                  </Section>
+                      >
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                          <InfoRow
+                            label="ID"
+                            value={formatID(selectedPlan.id)}
+                            icon={Hash}
+                            color="slate"
+                          />
+                          <InfoRow
+                            label="Tên kế hoạch"
+                            value={selectedPlan.title}
+                            icon={FileText}
+                            color="blue"
+                          />
+                          <InfoRow
+                            label="Loại sự kiện"
+                            value={
+                              EVENT_TYPE_LABELS[selectedPlan.type] ||
+                              selectedPlan.type
+                            }
+                            icon={Tag}
+                            color="purple"
+                          />
+                          <InfoRow
+                            label="Chủ đề"
+                            value={selectedPlan.eventTopic || "Không có"}
+                            icon={BookOpen}
+                            color="emerald"
+                          />
+                          <InfoRow
+                            label="Đơn vị tổ chức"
+                            value={
+                              selectedPlan.major
+                                ? `${selectedPlan.faculty} – ${selectedPlan.major}`
+                                : selectedPlan.faculty || "Chưa xác định"
+                            }
+                            icon={Building2}
+                            color="amber"
+                          />
+                          <InfoRow
+                            label="Hình thức"
+                            value={
+                              EVENT_MODE_LABELS[selectedPlan.eventMode] ||
+                              selectedPlan.eventMode
+                            }
+                            icon={Globe}
+                            color="cyan"
+                          />
+                          <InfoRow
+                            label="Trạng thái"
+                            value={
+                              <Badge
+                                color={getStatusColor(selectedPlan.status)}
+                              >
+                                {STATUS_LABELS[
+                                  selectedPlan.status?.toUpperCase?.()
+                                ] || selectedPlan.status}
+                              </Badge>
+                            }
+                            icon={ShieldCheck}
+                            color="slate"
+                          />
+                          <InfoRow
+                            label="Vòng quay may mắn"
+                            value={selectedPlan.hasLuckyDraw ? "Có" : "Không"}
+                            icon={Award}
+                            color="amber"
+                          />
+                          <InfoRow
+                            label="Ảnh bìa"
+                            value={selectedPlan.coverImage || "Không có"}
+                            icon={ImageIcon}
+                            color="pink"
+                          />
+                        </div>
+                      </Section>
 
-                  <Section
-                    title="Thời gian & Địa điểm"
-                    icon={Clock}
-                    color="rose"
-                  >
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      <InfoRow
-                        label="Thời gian bắt đầu"
-                        value={formatDate(selectedPlan.startTime)}
-                        icon={CalendarIcon}
-                        color="rose"
-                      />
-                      <InfoRow
-                        label="Thời gian kết thúc"
-                        value={formatDate(selectedPlan.endTime)}
-                        icon={CalendarIcon}
-                        color="rose"
-                      />
-                      <InfoRow
-                        label="Hạn đăng ký"
-                        value={formatDate(selectedPlan.registrationDeadline)}
+                      <Section
+                        title="Thời gian & Địa điểm"
                         icon={Clock}
-                        color="amber"
-                      />
-                      <InfoRow
-                        label="Địa điểm"
-                        value={selectedPlan.location}
-                        icon={MapPin}
-                        color="green"
-                      />
-                    </div>
-                  </Section>
+                        color="rose"
+                      >
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                          <InfoRow
+                            label="Thời gian bắt đầu"
+                            value={formatDate(selectedPlan.startTime)}
+                            icon={CalendarIcon}
+                            color="rose"
+                          />
+                          <InfoRow
+                            label="Thời gian kết thúc"
+                            value={formatDate(selectedPlan.endTime)}
+                            icon={CalendarIcon}
+                            color="rose"
+                          />
+                          <InfoRow
+                            label="Hạn đăng ký"
+                            value={formatDate(
+                              selectedPlan.registrationDeadline,
+                            )}
+                            icon={Clock}
+                            color="amber"
+                          />
+                          <InfoRow
+                            label="Địa điểm"
+                            value={selectedPlan.location}
+                            icon={MapPin}
+                            color="green"
+                          />
+                        </div>
+                      </Section>
 
-                  <Section
-                    title="Quy mô & Đối tượng"
-                    icon={Users}
-                    color="violet"
-                  >
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      <InfoRow
-                        label="Số lượng tối đa"
-                        value={`${selectedPlan.maxParticipants || 0} người`}
+                      <Section
+                        title="Quy mô & Đối tượng"
                         icon={Users}
                         color="violet"
-                      />
-                      <InfoRow
-                        label="Đã đăng ký"
-                        value={`${selectedPlan.registeredCount || 0} người`}
-                        icon={UserPlus}
-                        color="indigo"
-                      />
-                      <div className="col-span-2">
-                        <InfoRow
-                          label="Đối tượng tham gia"
-                          value={getArrayDisplay(selectedPlan.participants)}
-                          icon={Users}
-                          color="purple"
-                        />
-                      </div>
-                      <InfoRow
-                        label="Chuyên ngành"
-                        value={selectedPlan.major || "Không có"}
-                        icon={Building2}
-                        color="amber"
-                      />
-                    </div>
-                  </Section>
-
-                  <Section title="Nơi nhận kế hoạch" icon={Mail} color="amber">
-                    <div className="space-y-4">
-                      {selectedPlan.recipients?.length > 0 && (
-                        <div>
-                          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">
-                            Nơi nhận chính
-                          </p>
-                          <div className="flex flex-wrap gap-2">
-                            {selectedPlan.recipients.map((r, i) => (
-                              <Badge key={i} color="blue">
-                                {r}
-                              </Badge>
-                            ))}
+                      >
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                          <InfoRow
+                            label="Số lượng tối đa"
+                            value={`${selectedPlan.maxParticipants || 0} người`}
+                            icon={Users}
+                            color="violet"
+                          />
+                          <InfoRow
+                            label="Đã đăng ký"
+                            value={`${selectedPlan.registeredCount || 0} người`}
+                            icon={UserPlus}
+                            color="indigo"
+                          />
+                          <div className="col-span-2">
+                            <InfoRow
+                              label="Đối tượng tham gia"
+                              value={getArrayDisplay(selectedPlan.participants)}
+                              icon={Users}
+                              color="purple"
+                            />
                           </div>
+                          <InfoRow
+                            label="Chuyên ngành"
+                            value={selectedPlan.major || "Không có"}
+                            icon={Building2}
+                            color="amber"
+                          />
                         </div>
-                      )}
-                      {selectedPlan.customRecipients?.length > 0 && (
-                        <div>
-                          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">
-                            Nơi nhận khác
-                          </p>
-                          <div className="flex flex-wrap gap-2">
-                            {selectedPlan.customRecipients.map((r, i) => (
-                              <Badge key={i} color="purple">
-                                {r}
-                              </Badge>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-                      {!selectedPlan.recipients?.length &&
-                        !selectedPlan.customRecipients?.length && (
-                          <p className="text-sm text-slate-400 italic">
-                            Chưa có nơi nhận
-                          </p>
-                        )}
-                    </div>
-                  </Section>
+                      </Section>
 
-                  <Section
-                    title="Thành phần tham gia"
-                    icon={Users}
-                    color="indigo"
-                  >
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      <InfoRow
-                        label="Người trình bày"
-                        value={getArrayDisplay(selectedPlan.presenters)}
-                        icon={UserPlus}
-                        color="cyan"
-                      />
-                      <InfoRow
-                        label="Ban tổ chức"
-                        value={getArrayDisplay(
-                          selectedPlan.organizingCommittee,
-                        )}
-                        icon={Award}
+                      <Section
+                        title="Nơi nhận kế hoạch"
+                        icon={Mail}
                         color="amber"
-                      />
-                      <InfoRow
-                        label="Người tham dự"
-                        value={getArrayDisplay(selectedPlan.attendees)}
+                      >
+                        <div className="space-y-4">
+                          {selectedPlan.recipients?.length > 0 && (
+                            <div>
+                              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">
+                                Nơi nhận chính
+                              </p>
+                              <div className="flex flex-wrap gap-2">
+                                {selectedPlan.recipients.map((r, i) => (
+                                  <Badge key={i} color="blue">
+                                    {r}
+                                  </Badge>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                          {selectedPlan.customRecipients?.length > 0 && (
+                            <div>
+                              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">
+                                Nơi nhận khác
+                              </p>
+                              <div className="flex flex-wrap gap-2">
+                                {selectedPlan.customRecipients.map((r, i) => (
+                                  <Badge key={i} color="purple">
+                                    {r}
+                                  </Badge>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                          {!selectedPlan.recipients?.length &&
+                            !selectedPlan.customRecipients?.length && (
+                              <p className="text-sm text-slate-400 italic">
+                                Chưa có nơi nhận
+                              </p>
+                            )}
+                        </div>
+                      </Section>
+
+                      <Section
+                        title="Thành phần tham gia"
                         icon={Users}
-                        color="green"
-                      />
-                      <InfoRow
-                        label="Người tạo"
-                        value={selectedPlan.createdByName || "Không có"}
-                        icon={UserPlus}
-                        color="slate"
-                      />
-                      <InfoRow
-                        label="Người duyệt"
-                        value={selectedPlan.approvedByName || "Đang xử lý"}
-                        icon={ShieldCheck}
-                        color="emerald"
-                      />
-                    </div>
-                  </Section>
+                        color="indigo"
+                      >
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                          <InfoRow
+                            label="Người trình bày"
+                            value={getArrayDisplay(selectedPlan.presenters)}
+                            icon={UserPlus}
+                            color="cyan"
+                          />
+                          <InfoRow
+                            label="Ban tổ chức"
+                            value={getArrayDisplay(
+                              selectedPlan.organizingCommittee,
+                            )}
+                            icon={Award}
+                            color="amber"
+                          />
+                          <InfoRow
+                            label="Người tham dự"
+                            value={getArrayDisplay(selectedPlan.attendees)}
+                            icon={Users}
+                            color="green"
+                          />
+                          <InfoRow
+                            label="Người tạo"
+                            value={selectedPlan.createdByName || "Không có"}
+                            icon={UserPlus}
+                            color="slate"
+                          />
+                          <InfoRow
+                            label="Người duyệt"
+                            value={selectedPlan.approvedByName || "Đang xử lý"}
+                            icon={ShieldCheck}
+                            color="emerald"
+                          />
+                        </div>
+                      </Section>
 
-                  <Section title="Mô tả chi tiết" icon={FileText} color="slate">
-                    <div className="bg-white rounded-xl p-4 border border-slate-200">
-                      <p className="text-sm text-slate-700 whitespace-pre-line leading-relaxed">
-                        {selectedPlan.description || "Không có mô tả"}
-                      </p>
-                    </div>
-                  </Section>
-
-                  <Section
-                    title="Thông tin bổ sung"
-                    icon={MessageSquare}
-                    color="amber"
-                  >
-                    <div className="grid grid-cols-1 gap-4">
-                      <InfoRow
-                        label="Ghi chú"
-                        value={selectedPlan.notes || "Không có"}
+                      <Section
+                        title="Mô tả chi tiết"
                         icon={FileText}
-                        color="amber"
-                      />
-                      <InfoRow
-                        label="Thông tin thêm"
-                        value={selectedPlan.additionalInfo || "Không có"}
-                        icon={Info}
                         color="slate"
-                      />
-                      {selectedPlan.customFieldsJson && (
-                        <InfoRow
-                          label="Custom Fields"
-                          value={selectedPlan.customFieldsJson}
-                          icon={FileText}
-                          color="purple"
-                        />
-                      )}
-                    </div>
-                  </Section>
+                      >
+                        <div className="bg-white rounded-xl p-4 border border-slate-200">
+                          <p className="text-sm text-slate-700 whitespace-pre-line leading-relaxed">
+                            {selectedPlan.description || "Không có mô tả"}
+                          </p>
+                        </div>
+                      </Section>
 
-                    <div className="bg-slate-50 rounded-2xl p-4 border border-slate-200">
-                      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 text-xs">
-                        <div className="flex items-center gap-2">
-                          <CalendarIcon size={14} className="text-slate-400" />
-                          <span className="font-medium text-slate-500">
-                            Ngày tạo:{" "}
-                            <span className="font-bold text-slate-700">
-                              {formatDate(selectedPlan.createdAt)}
-                            </span>
-                          </span>
+                      <Section
+                        title="Thông tin bổ sung"
+                        icon={MessageSquare}
+                        color="amber"
+                      >
+                        <div className="grid grid-cols-1 gap-4">
+                          <InfoRow
+                            label="Ghi chú"
+                            value={selectedPlan.notes || "Không có"}
+                            icon={FileText}
+                            color="amber"
+                          />
+                          <InfoRow
+                            label="Thông tin thêm"
+                            value={selectedPlan.additionalInfo || "Không có"}
+                            icon={Info}
+                            color="slate"
+                          />
+                          {selectedPlan.customFieldsJson && (
+                            <InfoRow
+                              label="Custom Fields"
+                              value={selectedPlan.customFieldsJson}
+                              icon={FileText}
+                              color="purple"
+                            />
+                          )}
                         </div>
-                        <div className="flex items-center gap-2">
-                          <Clock size={14} className="text-slate-400" />
-                          <span className="font-medium text-slate-500">
-                            Cập nhật lần cuối:{" "}
-                            <span className="font-bold text-slate-700">
-                              {formatDate(selectedPlan.updatedAt)}
-                            </span>
-                          </span>
-                        </div>
-                        {selectedPlan.deletedAt && (
+                      </Section>
+
+                      <div className="bg-slate-50 rounded-2xl p-4 border border-slate-200">
+                        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 text-xs">
                           <div className="flex items-center gap-2">
-                            <X size={14} className="text-rose-400" />
+                            <CalendarIcon
+                              size={14}
+                              className="text-slate-400"
+                            />
                             <span className="font-medium text-slate-500">
-                              Đã xóa:{" "}
-                              <span className="font-bold text-rose-600">
-                                {formatDate(selectedPlan.deletedAt)}
+                              Ngày tạo:{" "}
+                              <span className="font-bold text-slate-700">
+                                {formatDate(selectedPlan.createdAt)}
                               </span>
                             </span>
                           </div>
-                        )}
+                          <div className="flex items-center gap-2">
+                            <Clock size={14} className="text-slate-400" />
+                            <span className="font-medium text-slate-500">
+                              Cập nhật lần cuối:{" "}
+                              <span className="font-bold text-slate-700">
+                                {formatDate(selectedPlan.updatedAt)}
+                              </span>
+                            </span>
+                          </div>
+                          {selectedPlan.deletedAt && (
+                            <div className="flex items-center gap-2">
+                              <X size={14} className="text-rose-400" />
+                              <span className="font-medium text-slate-500">
+                                Đã xóa:{" "}
+                                <span className="font-bold text-rose-600">
+                                  {formatDate(selectedPlan.deletedAt)}
+                                </span>
+                              </span>
+                            </div>
+                          )}
+                        </div>
                       </div>
-                    </div>
                     </>
                   ) : (
-
                     <div className="space-y-6">
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
@@ -1072,35 +1347,38 @@ const ManagePlans = () => {
                           />
                         </div>
 
-                    <div>
-                      <label className="block text-xs font-bold text-slate-500 mb-2">
-                        Người tạo
-                      </label>
-                      <input
-                        type="text"
-                        disabled
-                        value={selectedPlan.createdByName || "Không có"}
-                        className="w-full px-4 py-2.5 border border-slate-200 rounded-xl text-sm bg-slate-50 text-slate-500 cursor-not-allowed outline-none"
-                      />
-                    </div>
+                        <div>
+                          <label className="block text-xs font-bold text-slate-500 mb-2">
+                            Người tạo
+                          </label>
+                          <input
+                            type="text"
+                            disabled
+                            value={selectedPlan.createdByName || "Không có"}
+                            className="w-full px-4 py-2.5 border border-slate-200 rounded-xl text-sm bg-slate-50 text-slate-500 cursor-not-allowed outline-none"
+                          />
+                        </div>
 
-                    <div className="col-span-2 flex items-center gap-3 py-2 mt-2">
-                      <input
-                        type="checkbox"
-                        id="edit-lucky-draw"
-                        checked={selectedPlan.hasLuckyDraw || false}
-                        onChange={(e) =>
-                          setSelectedPlan({
-                            ...selectedPlan,
-                            hasLuckyDraw: e.target.checked,
-                          })
-                        }
-                        className="w-4 h-4 accent-amber-500 cursor-pointer"
-                      />
-                      <label htmlFor="edit-lucky-draw" className="text-xs font-bold text-slate-500 cursor-pointer">
-                        Có tổ chức vòng quay may mắn
-                      </label>
-                    </div>
+                        <div className="col-span-2 flex items-center gap-3 py-2 mt-2">
+                          <input
+                            type="checkbox"
+                            id="edit-lucky-draw"
+                            checked={selectedPlan.hasLuckyDraw || false}
+                            onChange={(e) =>
+                              setSelectedPlan({
+                                ...selectedPlan,
+                                hasLuckyDraw: e.target.checked,
+                              })
+                            }
+                            className="w-4 h-4 accent-amber-500 cursor-pointer"
+                          />
+                          <label
+                            htmlFor="edit-lucky-draw"
+                            className="text-xs font-bold text-slate-500 cursor-pointer"
+                          >
+                            Có tổ chức vòng quay may mắn
+                          </label>
+                        </div>
 
                         <div className="col-span-2">
                           <label className="block text-xs font-bold text-slate-500 mb-2">
@@ -1167,6 +1445,41 @@ const ManagePlans = () => {
                     >
                       Đóng
                     </button>
+                    {modalMode === "view" &&
+                      (selectedPlan?.status?.toUpperCase() === "DRAFT" ||
+                        selectedPlan?.status === "BẢN NHÁP") && (
+                        <button
+                          type="button"
+                          onClick={() =>
+                            handleSubmitForApproval(selectedPlan.id)
+                          }
+                          disabled={submittingId === selectedPlan.id}
+                          className="flex items-center gap-2 bg-emerald-600 text-white px-6 py-2.5 rounded-xl font-bold shadow-lg hover:bg-emerald-700 transition-all disabled:opacity-50"
+                        >
+                          {submittingId === selectedPlan.id ? (
+                            <Loader2 size={18} className="animate-spin" />
+                          ) : (
+                            <CheckCircle2 size={18} />
+                          )}
+                          Gửi phê duyệt
+                        </button>
+                      )}
+                    {modalMode === "view" &&
+                      selectedPlan?.status === "PLAN_APPROVED" && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            console.log(
+                              "Tạo sự kiện từ kế hoạch:",
+                              selectedPlan,
+                            );
+                          }}
+                          className="flex items-center gap-2 bg-blue-600 text-white px-6 py-2.5 rounded-xl font-bold shadow-lg hover:bg-blue-700 transition-all"
+                        >
+                          <CalendarIcon size={18} />
+                          Tạo sự kiện
+                        </button>
+                      )}
                     {modalMode === "edit" && (
                       <button
                         type="submit"

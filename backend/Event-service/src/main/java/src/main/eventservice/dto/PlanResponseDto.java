@@ -36,6 +36,7 @@ public class PlanResponseDto {
     private List<String> attendees;
     private boolean hasLuckyDraw;
 
+    private String createdByAccountId;
     private String createdByName;
     private String createdByAvatar;
     private String approvedByName;
@@ -65,6 +66,7 @@ public class PlanResponseDto {
         dto.setCreatedAt(event.getCreatedAt() != null ? event.getCreatedAt().toString() : null);
         dto.setUpdatedAt(event.getUpdatedAt() != null ? event.getUpdatedAt().toString() : null);
         dto.setApprovedByAccountId(event.getApprovedByAccountId());
+        dto.setCreatedByAccountId(event.getCreatedByAccountId());
 
         if (approver != null) {
             dto.setApprovedByName(approver.getFullName());

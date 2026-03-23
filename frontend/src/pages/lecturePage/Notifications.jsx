@@ -6,8 +6,27 @@ import notificationApi from "../../api/notificationApi";
 const NotificationPage = () => {
   const { userId: urlUserId } = useParams();
 
-  const currentUserId =
-    urlUserId || localStorage.getItem("userId") || "user-iuh-001";
+  const getCurrentUserId = () => {
+    if (urlUserId) return urlUserId;
+    
+    let accountId = localStorage.getItem("userId");
+    if (accountId) return accountId;
+
+    const userData = localStorage.getItem("user");
+    if (userData) {
+      try {
+        const user = JSON.parse(userData);
+        accountId = user.id || user.accountId || user.account?.id || user.userId;
+        if (accountId) return accountId;
+      } catch (error) {
+        console.error("Lỗi parse user data:", error);
+      }
+    }
+    
+    return "user-iuh-001";
+  };
+
+  const currentUserId = getCurrentUserId();
 
   const [activeTab, setActiveTab] = useState("all");
   const [notifications, setNotifications] = useState([]);
@@ -19,7 +38,7 @@ const NotificationPage = () => {
 
   const fetchData = () => {
     notificationApi
-      .getNotificationsByUser("user-iuh-001")
+      .getNotificationsByUser(currentUserId)
       .then((res) => {
         console.log("Dữ liệu nhận được:", res.data);
         setNotifications(res.data);
@@ -111,7 +130,6 @@ const NotificationPage = () => {
         ))}
       </div>
 
-      {/* Danh sách thông báo */}
       <div className="divide-y divide-slate-50">
         {filteredNotifications.length > 0 ? (
           filteredNotifications.map((n) => (

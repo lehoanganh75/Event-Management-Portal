@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Eye,
   EyeOff,
@@ -7,10 +7,11 @@ import {
   Users,
   QrCode,
   BarChart3,
+  CheckCircle,
+  X,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import logo_iuh from "../../assets/images/logo_iuh.png";
-import Notification from "../notification/Notification";
 import ErrorNotification from "../notification/ErrorNotification";
 import axios from "axios";
 import Header from "../common/Header";
@@ -35,6 +36,14 @@ const RegisterPage = () => {
   });
 
   const [errors, setErrors] = useState({});
+
+  useEffect(() => {
+    let timer;
+    if (toastVisible) {
+      timer = setTimeout(() => setToastVisible(false), 3000);
+    }
+    return () => clearTimeout(timer);
+  }, [toastVisible]);
 
   const validatePassword = (password) => {
     const trimmed = password.trim();
@@ -228,12 +237,34 @@ const RegisterPage = () => {
     <div>
       <Header />
       <div className="min-h-screen bg-[#eef2f7] flex items-center justify-center p-4 font-sans">
-        <Notification
-          toastVisible={toastVisible}
-          setToastVisible={setToastVisible}
-          notification="Vui lòng xác nhận email!"
-          message={message}
-        />
+        {toastVisible && (
+          <div className="fixed top-6 right-6 z-50 transform transition-all duration-500 ease-out translate-x-0 opacity-100 scale-100">
+            <div className="relative overflow-hidden w-full max-w-xl
+                bg-linear-to-r from-emerald-600 via-green-600 to-teal-600
+                text-white rounded-2xl shadow-2xl shadow-green-900/40
+                border border-white/10 backdrop-blur-xl">
+              <div className="flex items-start gap-4 p-6">
+                <div className="shrink-0">
+                  <div className="w-12 h-12 flex items-center justify-center
+                      rounded-full bg-white/15 backdrop-blur-md
+                      border border-white/20 shadow-inner">
+                    <CheckCircle size={26} className="text-white drop-shadow-md" />
+                  </div>
+                </div>
+                <div className="flex-1">
+                  <p className="font-semibold text-lg tracking-tight">Vui lòng xác nhận email!</p>
+                  <p className="mt-1 text-white/90 text-sm leading-relaxed">{message}</p>
+                </div>
+                <button 
+                  onClick={() => setToastVisible(false)} 
+                  className="shrink-0 p-2 rounded-full hover:bg-white/15 transition duration-200"
+                >
+                  <X size={20} className="text-white/80 hover:text-white" />
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
         <ErrorNotification
           toastVisible={errorToastVisible}
           setToastVisible={setErrorToastVisible}
@@ -243,10 +274,10 @@ const RegisterPage = () => {
 
         <div className="w-full max-w-5xl flex flex-col">
           <button
-            onClick={() => navigate("/")}
+            onClick={() => navigate("/login")}
             className="group flex items-center gap-2 text-sm font-semibold text-[#1a3a6b] hover:gap-3 transition-all duration-200 mb-4 self-start cursor-pointer"
           >
-            <span className="w-8 h-8 bg-white rounded-full shadow-sm border border-gray-200 flex items-center justify-center group-hover:bg-[#1a3a6b] group-hover:border-[#1a3a6b] transition-all duration-200">
+            <span className="w-8 h-8 bg-white rounded-full hover:cursor-pointer shadow-sm border border-gray-200 flex items-center justify-center group-hover:bg-[#1a3a6b] group-hover:border-[#1a3a6b] transition-all duration-200">
               <ArrowLeft
                 size={15}
                 className="text-[#1a3a6b] group-hover:text-white transition-colors duration-200"

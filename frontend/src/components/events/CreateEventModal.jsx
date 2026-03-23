@@ -100,9 +100,15 @@ const SelectPlanStep = ({ onSelectPlan, onBack }) => {
       }
     }
 
-    getPlansByStatus("Draft", accountId)
-      .then((res) => setPlans(Array.isArray(res.data) ? res.data : []))
-      .catch(() => setPlans([]))
+    getPlansByStatus("PLAN_APPROVED", accountId)
+      .then((res) => {
+        console.log("Dữ liệu kế hoạch đã duyệt (API):", res.data);
+        setPlans(Array.isArray(res.data) ? res.data : []);
+      })
+      .catch((error) => {
+        console.error("Lỗi lấy danh sách kế hoạch đã duyệt:", error);
+        setPlans([]);
+      })
       .finally(() => setLoading(false));
   }, []);
 

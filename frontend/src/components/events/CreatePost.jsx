@@ -1,13 +1,15 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { ArrowLeft, Save, Send, Upload, X, AlertCircle } from "lucide-react";
 import postApi from "../../api/eventPostApi";
+import { getMyEvents } from "../../api/eventApi";
 
 const CreatePost = () => {
   const navigate = useNavigate();
   const { eventId } = useParams();
   const [formData, setFormData] = useState({
     title: "",
+    eventId: eventId || "",
     category: "",
     content: "",
     thumbnail: null,
@@ -16,6 +18,8 @@ const CreatePost = () => {
 
   const [errors, setErrors] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [userEvents, setUserEvents] = useState([]);
+  const [currentAccountId, setCurrentAccountId] = useState("user-test-123");
 
   const categories = [
     "Thông báo",
@@ -31,6 +35,39 @@ const CreatePost = () => {
     { id: "student", label: "Sinh viên" },
     { id: "guest", label: "Vãng lai" },
   ];
+
+  useEffect(() => {
+    const fetchEvents = async () => {
+      let accountId = null;
+      const userData = localStorage.getItem("user");
+      if (userData) {
+        try {
+          const user = JSON.parse(userData);
+          accountId = user.id || user.accountId || user.account?.id || user.userId;
+        } catch (e) {}
+      }
+      if (!accountId) {
+        const accessToken = localStorage.getItem("accessToken");
+        if (accessToken) {
+          try {
+            const payload = JSON.parse(atob(accessToken.split('.')[1]));
+            accountId = payload.accountId || payload.sub || payload.userId || payload.id;
+          } catch (e) {}
+        }
+      }
+
+      if (accountId) {
+        setCurrentAccountId(accountId);
+        try {
+          const res = await getMyEvents(accountId);
+          setUserEvents(res.data || []);
+        } catch (error) {
+          console.error("Lỗi lấy danh sách sự kiện:", error);
+        }
+      }
+    };
+    fetchEvents();
+  }, []);
 
   const mapCategoryToType = (cat) => {
     const map = {
@@ -77,6 +114,7 @@ const CreatePost = () => {
   const validateForm = () => {
     const newErrors = {};
     if (!formData.title.trim()) newErrors.title = "Vui lòng nhập tiêu đề";
+    if (!formData.eventId) newErrors.eventId = "Vui lòng chọn sự kiện";
     if (!formData.category) newErrors.category = "Vui lòng chọn danh mục";
     if (!formData.content.trim()) newErrors.content = "Vui lòng nhập nội dung";
     if (formData.visibility.length === 0)
@@ -89,7 +127,6 @@ const CreatePost = () => {
     if (status === "Published" && !validateForm()) return;
 
     setIsSubmitting(true);
-    const finalEventId = eventId || "ea09a473-868c-4f16-9811-094770e5b7c0";
 
     const payload = {
       title: formData.title.trim(),
@@ -97,9 +134,9 @@ const CreatePost = () => {
       postType: mapCategoryToType(formData.category),
       status: status,
       event: {
-        id: finalEventId,
+        id: formData.eventId,
       },
-      createdByAccountId: "user-test-123",
+      createdByAccountId: currentAccountId,
       isDeleted: false,
     };
 
@@ -157,6 +194,30 @@ const CreatePost = () => {
                 {formData.title.length}/100
               </p>
             </div>
+          </div>
+
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-2">
+              Sự kiện áp dụng *
+            </label>
+            <select
+              name="eventId"
+              value={formData.eventId}
+              onChange={handleInputChange}
+              className={`w-full px-4 py-2.5 border rounded-lg focus:ring-2 focus:ring-blue-500 text-sm ${errors.eventId ? "border-red-300" : "border-gray-300"}`}
+            >
+              <option value="">-- Chọn sự kiện --</option>
+              {userEvents.map((ev) => (
+                <option key={ev.id} value={ev.id}>
+                  {ev.title}
+                </option>
+              ))}
+            </select>
+            {errors.eventId && (
+              <p className="text-xs text-red-500 flex items-center gap-1 mt-1">
+                <AlertCircle size={12} /> {errors.eventId}
+              </p>
+            )}
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
