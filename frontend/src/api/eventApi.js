@@ -83,13 +83,12 @@ const mapPlan = (p) => {
 const mapEvent = (e) => {
   const start = e.startTime ? new Date(e.startTime) : null;
   const end = e.endTime ? new Date(e.endTime) : null;
-
   return {
     id: e.id,
     title: e.title || "",
     description: e.description || "",
-    fullDescription: e.fullDescription || e.description || "",
-    imageUrl: e.coverImage || e.imageUrl || "",
+    fullDescription: e.description || "", 
+    imageUrl: e.coverImage || "", 
     eventDate: start ? start.toLocaleDateString("vi-VN") : "",
     eventTime:
       start && end
@@ -102,14 +101,14 @@ const mapEvent = (e) => {
     status: mapStatus(e.status),
     location: e.location || "",
     eventMode: e.eventMode || "Offline",
-    hasPoints: e.hasPoints || false,
-    fee: e.fee || "free",
-    tags: e.tags || [],
+    luckyDrawId: e.luckyDrawId || null, 
+    
     organizationId: e.organizationId,
+    createdByAccountId: e.createdByAccountId,
+    approvedByAccountId: e.approvedByAccountId,
     faculty: e.faculty || "",
     major: e.major || "",
-    type: e.type || "seminar",
-    target: e.target || "all",
+    type: e.type || "SEMINAR",
     eventTopic: e.eventTopic || "",
     organizerUnit: e.organizerUnit || "",
     agenda: e.agenda || [],

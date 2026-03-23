@@ -4,4 +4,5 @@ import src.main.luckydrawservice.entity.DrawEntry;
 
 public interface DrawEntryService {
     DrawEntry createDrawEntry(String userProfileId, String luckyDrawId);
+    DrawEntry findByLuckyDrawIdAndUserProfileId(String luckyDrawId, String userProfileId);
 }

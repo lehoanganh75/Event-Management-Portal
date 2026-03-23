@@ -122,6 +122,11 @@ public class LuckyDrawServiceImpl implements LuckyDrawService {
     }
 
     @Override
+    public LuckyDraw findById(String luckyDrawId) {
+        return luckyDrawRepository.findById(luckyDrawId).orElse(null);
+    }
+
+    @Override
     @Transactional
     public List<LuckyDraw> getAllLuckyDraws() {
         return luckyDrawRepository.findAll();
@@ -135,53 +140,49 @@ public class LuckyDrawServiceImpl implements LuckyDrawService {
                 .orElseThrow(() -> new ResourceNotFoundException("Lucky Draw not found: " + luckyDrawId));
 
         if (luckyDraw.getStatus() != DrawStatus.ACTIVE) {
-            throw new IllegalStateException("Lucky Draw phải đang ACTIVE");
+            throw new IllegalStateException("Chương trình quay thưởng hiện không khả dụng (đã kết thúc hoặc chưa bắt đầu)");
         }
 
-        // 2. Kiểm tra lượt quay hợp lệ của user
-        DrawEntry entry = (DrawEntry) drawEntryRepository.findByLuckyDrawIdAndUserProfileId(luckyDrawId, userProfileId)
-                .orElseThrow(() -> new IllegalArgumentException("User không có lượt quay hợp lệ"));
+        // 2. Kiểm tra lượt quay: Tìm lượt quay có status VALID
+        DrawEntry entry = drawEntryRepository.findFirstByLuckyDrawIdAndUserProfileIdAndStatus(luckyDrawId, userProfileId, EntryStatus.VALID)
+                .orElseThrow(() -> new IllegalArgumentException("Bạn không có lượt quay hợp lệ cho sự kiện này"));
 
-        if (entry.getStatus() != EntryStatus.INVALID) {
-            throw new IllegalStateException("Lượt quay không hợp lệ: " + entry.getStatus());
-        }
-
-        // 3. Lấy danh sách giải thưởng còn lại (remainingQuantity > 0)
+        // 3. Lấy danh sách giải thưởng thực tế còn quà
         List<Prize> availablePrizes = prizeRepository.findByLuckyDrawIdAndRemainingQuantityGreaterThan(luckyDrawId, 0);
 
-        // 4. Nếu hết giải thưởng → luôn "Chúc may mắn lần sau"
+        // 4. Nếu hết giải thưởng trong hệ thống → Mặc định trúng ô "Chúc may mắn" (giải có tỉ lệ cao nhất hoặc mặc định)
         if (availablePrizes.isEmpty()) {
-            return new DrawResultResponse("Chúc may mắn lần sau", null);
+            entry.setStatus(EntryStatus.USED); // Vẫn đánh dấu đã dùng lượt
+            drawEntryRepository.save(entry);
+            return new DrawResultResponse("Chúc bạn may mắn lần sau!", null);
         }
 
-        Prize winningPrize;
-
-        // Quay ngẫu nhiên theo tỉ lệ phần trăm
+        // 5. Logic quay thưởng theo xác suất (Weighted Random)
         BigDecimal randomPercent = BigDecimal.valueOf(random.nextDouble() * 100);
-
         BigDecimal cumulative = BigDecimal.ZERO;
-        winningPrize = null;
+        Prize winningPrize = null;
 
         for (Prize prize : availablePrizes) {
-            cumulative = cumulative.add(prize.getWinProbabilityPercent());
+            BigDecimal probability = prize.getWinProbabilityPercent() != null ? prize.getWinProbabilityPercent() : BigDecimal.ZERO;
+            cumulative = cumulative.add(probability);
             if (randomPercent.compareTo(cumulative) <= 0) {
                 winningPrize = prize;
                 break;
             }
         }
 
-        // Nếu không trúng (randomPercent > tổng tỉ lệ) → không trúng
+        // 6. Nếu số ngẫu nhiên rơi vào khoảng không có giải (ví dụ tổng % < 100)
         if (winningPrize == null) {
+            entry.setStatus(EntryStatus.USED);
             drawEntryRepository.save(entry);
-            return new DrawResultResponse("Chúc may mắn lần sau", null);
+            return new DrawResultResponse("Chúc bạn may mắn lần sau!", null);
         }
 
-        // 6. Trúng giải → giảm remainingQuantity
+        // 7. Thực hiện trừ số lượng và lưu kết quả
         winningPrize.setRemainingQuantity(winningPrize.getRemainingQuantity() - 1);
         prizeRepository.save(winningPrize);
 
-        // 7. Reset guaranteedWin (vì đã trúng)
-        entry.setStatus(EntryStatus.USED);
+        entry.setStatus(EntryStatus.USED); // Đổi trạng thái lượt quay thành đã dùng
         drawEntryRepository.save(entry);
 
         DrawResult result = new DrawResult();
@@ -190,16 +191,10 @@ public class LuckyDrawServiceImpl implements LuckyDrawService {
         result.setWinnerProfileId(userProfileId);
         result.setDrawTime(LocalDateTime.now());
         result.setClaimed(false);
-
         drawResultRepository.save(result);
 
-        // 9. Cập nhật LuckyDraw nếu hết giải
-        if (availablePrizes.stream().allMatch(p -> p.getRemainingQuantity() == 0)) {
-            luckyDraw.setStatus(DrawStatus.COMPLETED);
-            luckyDrawRepository.save(luckyDraw);
-        }
-
-        System.out.println("Lucky Draw: " + luckyDrawId + "User: " + userProfileId + "trúng giải: " + winningPrize.getName());
+        // 8. Log để kiểm tra
+        System.out.println("User " + userProfileId + " trúng giải: " + winningPrize.getName());
 
         return new DrawResultResponse("Chúc mừng! Bạn đã trúng giải: " + winningPrize.getName(), toPrizeResponse(winningPrize));
     }

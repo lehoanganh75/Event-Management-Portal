@@ -10,8 +10,11 @@ import src.main.eventservice.client.IdentityServiceClient;
 import src.main.eventservice.dto.PlanResponseDto;
 import src.main.eventservice.dto.UserDto;
 import src.main.eventservice.entity.Event;
+import src.main.eventservice.entity.EventRegistration;
 import src.main.eventservice.entity.EventTemplate;
 import src.main.eventservice.entity.enums.EventStatus;
+import src.main.eventservice.entity.enums.RegistrationStatus;
+import src.main.eventservice.repository.EventRegistrationRepository;
 import src.main.eventservice.repository.EventRepository;
 import src.main.eventservice.repository.EventTemplateRepository;
 import src.main.eventservice.service.EventService;
@@ -29,6 +32,7 @@ public class EventServiceImpl implements EventService {
 
     private final EventRepository eventRepository;
     private final EventTemplateRepository eventTemplateRepository;
+    private final EventRegistrationRepository registrationRepository;
     private final IdentityServiceClient identityClient;
 
     @Override
@@ -39,7 +43,6 @@ public class EventServiceImpl implements EventService {
                 EventStatus.ONGOING,
                 EventStatus.COMPLETED,
                 EventStatus.CANCELLED
-
         );
         List<Event> events = eventRepository.findByStatusInAndIsDeletedFalseOrderByStartTimeDesc(eventStatuses);
         events.forEach(this::enrichEventWithRegistrationCount);
@@ -59,40 +62,50 @@ public class EventServiceImpl implements EventService {
         candidates.forEach(this::enrichEventWithRegistrationCount);
 
         return candidates.stream()
-                .sorted(Comparator.comparingDouble(event -> -calculateScore(event, now)))
+                .sorted(Comparator.comparingDouble((Event event) -> -calculateScore(event, now)))
                 .limit(6)
                 .collect(Collectors.toList());
     }
 
+    @Override
+    public Optional<Event> findById(String id) {
+        Optional<Event> eventOptional = eventRepository.findById(id);
+        eventOptional.ifPresent(this::enrichEventWithValidRegistrationCount);
+        return eventOptional;
+    }
+
+    @Override
+    public Optional<Event> getEventById(String id) {
+        return findById(id);
+    }
+
+    private void enrichEventWithValidRegistrationCount(Event event) {
+        List<RegistrationStatus> validStatuses = Arrays.asList(
+                RegistrationStatus.REGISTERED,
+                RegistrationStatus.ATTENDED
+        );
+        long count = registrationRepository.countByEventIdAndStatusIn(event.getId(), validStatuses);
+        event.setRegisteredCount((int) count);
+    }
+
     private double calculateScore(Event event, LocalDateTime now) {
         double score = 0;
-
         score += Math.log(event.getRegisteredCount() + 1) * 10;
 
-        if (event.getFeedbacks() != null) {
-            score += event.getFeedbacks().size() * 0.2;
-        }
-
-        if (event.getPosts() != null) {
-            score += event.getPosts().size() * 0.1;
-        }
+        if (event.getFeedbacks() != null) score += event.getFeedbacks().size() * 0.2;
+        if (event.getPosts() != null) score += event.getPosts().size() * 0.1;
 
         if (event.getStartTime() != null && event.getEndTime() != null
-                && now.isAfter(event.getStartTime())
-                && now.isBefore(event.getEndTime())) {
+                && now.isAfter(event.getStartTime()) && now.isBefore(event.getEndTime())) {
             score += 30;
         }
 
-        if (event.getStartTime() != null
-                && now.isBefore(event.getStartTime())
+        if (event.getStartTime() != null && now.isBefore(event.getStartTime())
                 && event.getStartTime().isBefore(now.plusDays(3))) {
             score += 20;
         }
 
-        if (event.getLuckyDrawId() != null && !event.getLuckyDrawId().isBlank()) {
-            score += 10;
-        }
-
+        if (event.getLuckyDrawId() != null && !event.getLuckyDrawId().isBlank()) score += 10;
         if (event.getRecap() != null) score += 5;
 
         if (event.getMaxParticipants() > 0) {
@@ -104,41 +117,32 @@ public class EventServiceImpl implements EventService {
             long daysDiff = Math.abs(Duration.between(event.getStartTime(), now).toDays());
             score -= daysDiff * 2;
         }
-
         return score;
-    }
-
-    @Override
-    public Optional<Event> getEventById(String id) {
-        return eventRepository.findById(id);
     }
 
     @Override
     public List<Event> getMyEventsByAccountAndMonth(String accountId) {
         LocalDateTime startOfMonth = LocalDateTime.now().withDayOfMonth(1).withHour(0).withMinute(0);
         LocalDateTime endOfMonth = startOfMonth.plusMonths(1);
-
         return eventRepository.findByCreatedByAccountIdAndCreatedAtBetweenAndIsDeletedFalse(
                 accountId, startOfMonth, endOfMonth
         );
     }
 
     @Override
+    @Transactional
     public Event createEvent(Event event) {
         event.setCreatedAt(LocalDateTime.now());
         event.setUpdatedAt(LocalDateTime.now());
         event.setDeleted(false);
         event.setArchived(false);
         event.setFinalized(false);
-
-        if (event.getStatus() == null) {
-            event.setStatus(EventStatus.DRAFT);
-        }
-
+        if (event.getStatus() == null) event.setStatus(EventStatus.DRAFT);
         return eventRepository.save(event);
     }
 
     @Override
+    @Transactional
     public Event saveEvent(Event event) {
         return eventRepository.save(event);
     }
@@ -176,6 +180,7 @@ public class EventServiceImpl implements EventService {
     }
 
     @Override
+    @Transactional
     public void deleteEvent(String id) {
         Event event = eventRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy sự kiện với ID: " + id));
@@ -195,6 +200,14 @@ public class EventServiceImpl implements EventService {
     }
 
     @Override
+    @Transactional
+    public List<Event> getEventsByStatuses(List<EventStatus> statuses) {
+        List<Event> events = eventRepository.findByStatusInAndIsDeletedFalseOrderByStartTimeDesc(statuses);
+        events.forEach(this::enrichEventWithRegistrationCount);
+        return events;
+    }
+
+    @Override
     public List<Event> getAllPlans() {
         List<EventStatus> planStatuses = Arrays.asList(
                 EventStatus.DRAFT,
@@ -207,23 +220,16 @@ public class EventServiceImpl implements EventService {
 
     @Override
     public List<Event> getPlansByStatus(EventStatus status) {
-        if (!isPlanStatus(status)) {
-            throw new IllegalArgumentException("Status không thuộc giai đoạn kế hoạch");
-        }
-        List<EventStatus> planStatuses = Collections.singletonList(status);
-        List<Event> plans = eventRepository.findByStatusInAndIsDeletedFalse(planStatuses);
+        if (!isPlanStatus(status)) throw new IllegalArgumentException("Status không thuộc giai đoạn kế hoạch");
+        List<Event> plans = eventRepository.findByStatusInAndIsDeletedFalse(Collections.singletonList(status));
         plans.forEach(this::enrichEventWithRegistrationCount);
         return plans;
     }
 
     @Override
     public List<Event> getPlansByStatusById(EventStatus status, String accountId) {
-        if (!isPlanStatus(status)) {
-            throw new IllegalArgumentException("Status không thuộc giai đoạn kế hoạch");
-        }
-        List<EventStatus> planStatuses = Collections.singletonList(status);
-        List<Event> plans = eventRepository
-                .findByStatusInAndIsDeletedFalseAndCreatedByAccountId(planStatuses, accountId);
+        if (!isPlanStatus(status)) throw new IllegalArgumentException("Status không thuộc giai đoạn kế hoạch");
+        List<Event> plans = eventRepository.findByStatusInAndIsDeletedFalseAndCreatedByAccountId(Collections.singletonList(status), accountId);
         plans.forEach(this::enrichEventWithRegistrationCount);
         return plans;
     }
@@ -231,256 +237,126 @@ public class EventServiceImpl implements EventService {
     @Transactional
     @Override
     public Event createPlan(Event event) {
-        // Validate bắt buộc
-        if (event.getTitle() == null || event.getTitle().trim().isEmpty()) {
-            throw new IllegalArgumentException("Tiêu đề kế hoạch không được để trống");
-        }
-
-        if (event.getCreatedByAccountId() == null || event.getCreatedByAccountId().trim().isEmpty()) {
-            throw new IllegalArgumentException("Không tìm thấy thông tin người tạo kế hoạch");
-        }
+        if (event.getTitle() == null || event.getTitle().trim().isEmpty()) throw new IllegalArgumentException("Tiêu đề không được trống");
+        if (event.getCreatedByAccountId() == null) throw new IllegalArgumentException("Thiếu người tạo");
 
         event.setCreatedAt(LocalDateTime.now());
         event.setUpdatedAt(LocalDateTime.now());
-        event.setArchived(false);
-        event.setFinalized(false);
         event.setDeleted(false);
-
-        if (event.getStatus() == null) {
-            event.setStatus(EventStatus.DRAFT);
-        }
+        if (event.getStatus() == null) event.setStatus(EventStatus.DRAFT);
 
         if (event.getTemplateId() != null && !event.getTemplateId().trim().isEmpty()) {
-            EventTemplate template = eventTemplateRepository.findById(event.getTemplateId())
-                    .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy template"));
-            template.setUsageCount(template.getUsageCount() + 1);
-            eventTemplateRepository.save(template);
+            eventTemplateRepository.findById(event.getTemplateId()).ifPresent(t -> {
+                t.setUsageCount(t.getUsageCount() + 1);
+                eventTemplateRepository.save(t);
+            });
         }
-
-        log.info("Tạo kế hoạch mới: {} bởi account: {}", event.getTitle(), event.getCreatedByAccountId());
-
         return eventRepository.save(event);
     }
+
     @Transactional
     @Override
     public Event updatePlan(String id, Event planDetails) {
-        Event existingEvent = eventRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Không tìm thấy kế hoạch"));
-
-        if (existingEvent.getStatus() == EventStatus.PLAN_PENDING_APPROVAL ||
-                existingEvent.getStatus() == EventStatus.PLAN_APPROVED) {
-            throw new RuntimeException("Không thể sửa kế hoạch đã được gửi duyệt hoặc đã được duyệt");
+        Event existing = eventRepository.findById(id).orElseThrow(() -> new RuntimeException("Không tìm thấy kế hoạch"));
+        if (existing.getStatus() == EventStatus.PLAN_PENDING_APPROVAL || existing.getStatus() == EventStatus.PLAN_APPROVED) {
+            throw new RuntimeException("Kế hoạch đã gửi duyệt hoặc đã duyệt, không thể sửa");
         }
-
-        existingEvent.setTitle(planDetails.getTitle());
-        existingEvent.setDescription(planDetails.getDescription());
-        existingEvent.setStartTime(planDetails.getStartTime());
-        existingEvent.setEndTime(planDetails.getEndTime());
-        existingEvent.setRegistrationDeadline(planDetails.getRegistrationDeadline());
-        existingEvent.setMaxParticipants(planDetails.getMaxParticipants());
-        existingEvent.setLocation(planDetails.getLocation());
-        existingEvent.setUpdatedAt(LocalDateTime.now());
-
-        return eventRepository.save(existingEvent);
+        existing.setTitle(planDetails.getTitle());
+        existing.setDescription(planDetails.getDescription());
+        existing.setStartTime(planDetails.getStartTime());
+        existing.setEndTime(planDetails.getEndTime());
+        existing.setLocation(planDetails.getLocation());
+        existing.setUpdatedAt(LocalDateTime.now());
+        return eventRepository.save(existing);
     }
 
     @Transactional
     @Override
     public void deletePlan(String id) {
-        Event event = eventRepository.findById(id).orElseThrow();
-        event.setDeleted(true);
-        event.setArchived(true);
-        eventRepository.save(event);
+        deleteEvent(id);
     }
 
     @Transactional
     @Override
     public Event submitPlanForApproval(String id) {
-        Event plan = eventRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Không tìm thấy kế hoạch với ID: " + id));
-
-        if (plan.getStatus() != EventStatus.DRAFT) {
-            throw new RuntimeException("Chỉ có thể gửi duyệt kế hoạch ở trạng thái DRAFT");
-        }
-
+        Event plan = eventRepository.findById(id).orElseThrow();
+        if (plan.getStatus() != EventStatus.DRAFT) throw new RuntimeException("Chỉ có thể gửi duyệt bản DRAFT");
         plan.setStatus(EventStatus.PLAN_PENDING_APPROVAL);
-        plan.setUpdatedAt(LocalDateTime.now());
-
-        log.info("Kế hoạch {} đã được gửi duyệt, cần admin phê duyệt", plan.getTitle());
-        // TODO: Gửi thông báo cho Admin
-
         return eventRepository.save(plan);
     }
 
     @Transactional
     @Override
     public Event approvePlan(String id, String approverId) {
-        Event plan = eventRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Không tìm thấy kế hoạch với ID: " + id));
-
-        if (plan.getStatus() != EventStatus.PLAN_PENDING_APPROVAL) {
-            throw new RuntimeException("Kế hoạch không ở trạng thái chờ duyệt");
-        }
-
+        Event plan = eventRepository.findById(id).orElseThrow();
+        if (plan.getStatus() != EventStatus.PLAN_PENDING_APPROVAL) throw new RuntimeException("Kế hoạch không ở trạng thái chờ duyệt");
         plan.setStatus(EventStatus.PLAN_APPROVED);
         plan.setApprovedByAccountId(approverId);
-        plan.setUpdatedAt(LocalDateTime.now());
-
-        log.info("Admin {} đã phê duyệt kế hoạch {}", approverId, plan.getTitle());
-        // TODO: Gửi thông báo cho BTC
-
         return eventRepository.save(plan);
     }
 
     @Transactional
     @Override
     public Event rejectPlan(String id, String approverId, String reason) {
-        Event plan = eventRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Không tìm thấy kế hoạch với ID: " + id));
-
-        if (plan.getStatus() != EventStatus.PLAN_PENDING_APPROVAL) {
-            throw new RuntimeException("Kế hoạch không ở trạng thái chờ duyệt");
-        }
-
+        Event plan = eventRepository.findById(id).orElseThrow();
         plan.setStatus(EventStatus.CANCELLED);
         plan.setNotes(reason);
-        plan.setUpdatedAt(LocalDateTime.now());
-
-        log.info("Admin {} đã từ chối kế hoạch {} với lý do: {}", approverId, plan.getTitle(), reason);
-
         return eventRepository.save(plan);
     }
 
     @Transactional
     @Override
     public Event createEventFromPlan(String planId, Event eventDetails) {
-        Event plan = eventRepository.findById(planId)
-                .orElseThrow(() -> new RuntimeException("Không tìm thấy kế hoạch với ID: " + planId));
-
-        if (plan.getStatus() != EventStatus.PLAN_APPROVED) {
-            throw new RuntimeException("Chỉ có thể tạo sự kiện từ kế hoạch đã được duyệt");
-        }
+        Event plan = eventRepository.findById(planId).orElseThrow();
+        if (plan.getStatus() != EventStatus.PLAN_APPROVED) throw new RuntimeException("Kế hoạch chưa được duyệt");
 
         Event newEvent = new Event();
-        newEvent.setTitle(eventDetails.getTitle() != null ? eventDetails.getTitle() : plan.getTitle());
-        newEvent.setDescription(eventDetails.getDescription() != null ? eventDetails.getDescription() : plan.getDescription());
-        newEvent.setStartTime(eventDetails.getStartTime() != null ? eventDetails.getStartTime() : plan.getStartTime());
-        newEvent.setEndTime(eventDetails.getEndTime() != null ? eventDetails.getEndTime() : plan.getEndTime());
-        newEvent.setLocation(eventDetails.getLocation() != null ? eventDetails.getLocation() : plan.getLocation());
+        newEvent.setTitle(Optional.ofNullable(eventDetails.getTitle()).orElse(plan.getTitle()));
+        newEvent.setDescription(Optional.ofNullable(eventDetails.getDescription()).orElse(plan.getDescription()));
+        newEvent.setStartTime(Optional.ofNullable(eventDetails.getStartTime()).orElse(plan.getStartTime()));
+        newEvent.setEndTime(Optional.ofNullable(eventDetails.getEndTime()).orElse(plan.getEndTime()));
+        newEvent.setLocation(Optional.ofNullable(eventDetails.getLocation()).orElse(plan.getLocation()));
         newEvent.setMaxParticipants(eventDetails.getMaxParticipants() > 0 ? eventDetails.getMaxParticipants() : plan.getMaxParticipants());
         newEvent.setOrganizerUnit(plan.getOrganizerUnit());
         newEvent.setCreatedByAccountId(eventDetails.getCreatedByAccountId());
-        newEvent.setCreatedAt(LocalDateTime.now());
-        newEvent.setUpdatedAt(LocalDateTime.now());
-        newEvent.setDeleted(false);
-        newEvent.setArchived(false);
         newEvent.setStatus(EventStatus.EVENT_PENDING_APPROVAL);
-
-        log.info("Sự kiện {} được tạo từ kế hoạch {} và đang chờ admin duyệt", newEvent.getTitle(), plan.getTitle());
-
+        newEvent.setCreatedAt(LocalDateTime.now());
         return eventRepository.save(newEvent);
     }
 
     @Transactional
     @Override
     public Event approveEvent(String id, String approverId) {
-        Event event = eventRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Không tìm thấy sự kiện với ID: " + id));
-
-        if (event.getStatus() != EventStatus.EVENT_PENDING_APPROVAL) {
-            throw new RuntimeException("Sự kiện không ở trạng thái chờ duyệt");
-        }
-
+        Event event = eventRepository.findById(id).orElseThrow();
         event.setStatus(EventStatus.PUBLISHED);
         event.setApprovedByAccountId(approverId);
-        event.setUpdatedAt(LocalDateTime.now());
-
-        log.info("Admin {} đã phê duyệt sự kiện {}", approverId, event.getTitle());
-
-        return eventRepository.save(event);
-    }
-
-    @Transactional
-    @Override
-    public Event rejectEvent(String id, String approverId, String reason) {
-        Event event = eventRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Không tìm thấy sự kiện với ID: " + id));
-
-        if (event.getStatus() != EventStatus.EVENT_PENDING_APPROVAL) {
-            throw new RuntimeException("Sự kiện không ở trạng thái chờ duyệt");
-        }
-
-        event.setStatus(EventStatus.CANCELLED);
-        event.setNotes(reason);
-        event.setUpdatedAt(LocalDateTime.now());
-
-        log.info("Admin {} đã từ chối sự kiện {} với lý do: {}", approverId, event.getTitle(), reason);
-
         return eventRepository.save(event);
     }
 
     @Transactional
     @Override
     public Event startEvent(String id) {
-        Event event = eventRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Không tìm thấy sự kiện với ID: " + id));
-
-        if (event.getStatus() != EventStatus.PUBLISHED) {
-            throw new RuntimeException("Chỉ có thể bắt đầu sự kiện ở trạng thái PUBLISHED");
-        }
-
+        Event event = eventRepository.findById(id).orElseThrow();
         event.setStatus(EventStatus.ONGOING);
-        event.setUpdatedAt(LocalDateTime.now());
-
-        log.info("Sự kiện {} đã bắt đầu", event.getTitle());
-
         return eventRepository.save(event);
     }
 
     @Transactional
     @Override
     public Event completeEvent(String id) {
-        Event event = eventRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Không tìm thấy sự kiện với ID: " + id));
-
-        if (event.getStatus() != EventStatus.ONGOING) {
-            throw new RuntimeException("Chỉ có thể kết thúc sự kiện ở trạng thái ONGOING");
-        }
-
+        Event event = eventRepository.findById(id).orElseThrow();
         event.setStatus(EventStatus.COMPLETED);
-        event.setUpdatedAt(LocalDateTime.now());
-
-        log.info("Sự kiện {} đã kết thúc", event.getTitle());
-
         return eventRepository.save(event);
     }
 
     @Transactional
     @Override
     public Event cancelEvent(String id, String reason) {
-        Event event = eventRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Không tìm thấy sự kiện/kế hoạch với ID: " + id));
-
-        EventStatus currentStatus = event.getStatus();
-
-        if (currentStatus == EventStatus.COMPLETED) {
-            throw new RuntimeException("Không thể hủy sự kiện đã kết thúc");
-        }
-
+        Event event = eventRepository.findById(id).orElseThrow();
         event.setStatus(EventStatus.CANCELLED);
-        event.setApprovedByAccountId(null);
-        event.setUpdatedAt(LocalDateTime.now());
-
-        if (reason != null) {
-            event.setNotes(reason);
-        }
-
-        log.info("Đã hủy {} với ID: {}, lý do: {}",
-                isPlanStatus(currentStatus) ? "kế hoạch" : "sự kiện", id, reason);
-
+        if (reason != null) event.setNotes(reason);
         return eventRepository.save(event);
     }
-
 
     private void enrichEventWithRegistrationCount(Event event) {
         long count = eventRepository.countRegistrationsByEventId(event.getId());
@@ -488,163 +364,83 @@ public class EventServiceImpl implements EventService {
     }
 
     private boolean isPlanStatus(EventStatus status) {
-        return status == EventStatus.DRAFT ||
-                status == EventStatus.PLAN_PENDING_APPROVAL ||
-                status == EventStatus.PLAN_APPROVED;
+        return status == EventStatus.DRAFT || status == EventStatus.PLAN_PENDING_APPROVAL || status == EventStatus.PLAN_APPROVED;
     }
 
     private boolean isEventStatus(EventStatus status) {
-        return status == EventStatus.EVENT_PENDING_APPROVAL ||
-                status == EventStatus.PUBLISHED ||
-                status == EventStatus.ONGOING ||
-                status == EventStatus.COMPLETED;
+        return status == EventStatus.EVENT_PENDING_APPROVAL || status == EventStatus.PUBLISHED || status == EventStatus.ONGOING || status == EventStatus.COMPLETED;
     }
-
 
     @Override
     public List<PlanResponseDto> getAllPlansEnriched() {
-        List<EventStatus> planStatuses = Arrays.asList(
-                EventStatus.DRAFT,
-                EventStatus.PLAN_PENDING_APPROVAL,
-                EventStatus.PLAN_APPROVED,
-                EventStatus.CANCELLED
-        );
-
+        List<EventStatus> planStatuses = Arrays.asList(EventStatus.DRAFT, EventStatus.PLAN_PENDING_APPROVAL, EventStatus.PLAN_APPROVED, EventStatus.CANCELLED);
         List<Event> plans = eventRepository.findByStatusInAndIsDeletedFalse(planStatuses);
-
-        if (plans.isEmpty()) {
-            return Collections.emptyList();
-        }
+        if (plans.isEmpty()) return Collections.emptyList();
 
         Set<String> allUserIds = plans.stream()
-                .flatMap(event -> Stream.of(event.getCreatedByAccountId(), event.getApprovedByAccountId()))
-                .filter(id -> id != null && !id.isBlank())
-                .collect(Collectors.toSet());
+                .flatMap(e -> Stream.of(e.getCreatedByAccountId(), e.getApprovedByAccountId()))
+                .filter(id -> id != null && !id.isBlank()).collect(Collectors.toSet());
+
         Map<String, UserDto> userMap = new HashMap<>();
         try {
             if (!allUserIds.isEmpty()) {
-                List<UserDto> userList = identityClient.getUsersByIds(new ArrayList<>(allUserIds));
-
-                userMap = userList.stream()
-                        .collect(Collectors.toMap(
-                                UserDto::getId,
-                                user -> user,
-                                (existing, replacement) -> existing
-                        ));
+                userMap = identityClient.getUsersByIds(new ArrayList<>(allUserIds)).stream()
+                        .collect(Collectors.toMap(UserDto::getId, u -> u, (o, n) -> o));
             }
-        } catch (Exception e) {
-            log.error("Lỗi khi gọi Identity Service: {}", e.getMessage());
-        }
+        } catch (Exception e) { log.error("Identity Service Error: {}", e.getMessage()); }
 
         final Map<String, UserDto> finalUserMap = userMap;
-
-        return plans.stream()
-                .map(event -> {
-                    UserDto creator = finalUserMap.get(event.getCreatedByAccountId());
-                    UserDto approver = finalUserMap.get(event.getApprovedByAccountId());
-                    
-                    return PlanResponseDto.from(event, creator, approver);
-                })
-                .collect(Collectors.toList());
+        return plans.stream().map(e -> PlanResponseDto.from(e, finalUserMap.get(e.getCreatedByAccountId()), finalUserMap.get(e.getApprovedByAccountId()))).collect(Collectors.toList());
     }
+
     @Override
     public List<PlanResponseDto> getPlansByAccountId(String accountId) {
-        List<EventStatus> planStatuses = Arrays.asList(
-                EventStatus.DRAFT,
-                EventStatus.PLAN_PENDING_APPROVAL,
-                EventStatus.PLAN_APPROVED,
-                EventStatus.CANCELLED
-        );
-
-        List<Event> plans = eventRepository
-                .findByStatusInAndIsDeletedFalseAndCreatedByAccountId(planStatuses, accountId);
-
-        return plans.stream()
-                .map(event -> PlanResponseDto.from(event, null, null))
-                .collect(Collectors.toList());
+        List<EventStatus> planStatuses = Arrays.asList(EventStatus.DRAFT, EventStatus.PLAN_PENDING_APPROVAL, EventStatus.PLAN_APPROVED, EventStatus.CANCELLED);
+        return eventRepository.findByStatusInAndIsDeletedFalseAndCreatedByAccountId(planStatuses, accountId).stream()
+                .map(e -> PlanResponseDto.from(e, null, null)).collect(Collectors.toList());
     }
 
     @Override
     public List<PlanResponseDto> getEventsByAccountId(String accountId) {
-        List<EventStatus> eventStatuses = Arrays.asList(
-                EventStatus.EVENT_PENDING_APPROVAL,
-                EventStatus.PUBLISHED,
-                EventStatus.ONGOING,
-                EventStatus.COMPLETED,
-                EventStatus.CANCELLED
-        );
-
-        List<Event> events = eventRepository
-                .findByStatusInAndIsDeletedFalseAndCreatedByAccountId(eventStatuses, accountId);
-
+        List<EventStatus> eventStatuses = Arrays.asList(EventStatus.EVENT_PENDING_APPROVAL, EventStatus.PUBLISHED, EventStatus.ONGOING, EventStatus.COMPLETED, EventStatus.CANCELLED);
+        List<Event> events = eventRepository.findByStatusInAndIsDeletedFalseAndCreatedByAccountId(eventStatuses, accountId);
         events.forEach(this::enrichEventWithRegistrationCount);
-
-        return events.stream()
-                .sorted(Comparator.comparing(Event::getStartTime,
-                        Comparator.nullsLast(Comparator.naturalOrder())).reversed())
-                .map(event -> PlanResponseDto.from(event, null, null))
-                .collect(Collectors.toList());
+        return events.stream().sorted(Comparator.comparing(Event::getStartTime, Comparator.nullsLast(Comparator.naturalOrder())).reversed())
+                .map(e -> PlanResponseDto.from(e, null, null)).collect(Collectors.toList());
     }
 
     @Override
     public List<PlanResponseDto> getEventsByStatus(EventStatus status) {
-        if (!isEventStatus(status) && status != EventStatus.CANCELLED) {
-            throw new IllegalArgumentException("Status không thuộc giai đoạn sự kiện");
-        }
-
         List<Event> events = eventRepository.findByStatusInAndIsDeletedFalse(Collections.singletonList(status));
-
         events.forEach(this::enrichEventWithRegistrationCount);
-
-        return events.stream()
-                .sorted(Comparator.comparing(Event::getStartTime,
-                        Comparator.nullsLast(Comparator.naturalOrder())).reversed())
-                .map(event -> PlanResponseDto.from(event, null, null))
-                .collect(Collectors.toList());
+        return events.stream().sorted(Comparator.comparing(Event::getStartTime, Comparator.nullsLast(Comparator.naturalOrder())).reversed())
+                .map(e -> PlanResponseDto.from(e, null, null)).collect(Collectors.toList());
     }
 
     @Override
     public List<PlanResponseDto> getPlansPendingApproval() {
-        List<Event> plans = eventRepository.findByStatusInAndIsDeletedFalse(
-                Collections.singletonList(EventStatus.PLAN_PENDING_APPROVAL));
-
-        return plans.stream()
-                .map(event -> PlanResponseDto.from(event, null, null))
-                .collect(Collectors.toList());
+        return eventRepository.findByStatusInAndIsDeletedFalse(Collections.singletonList(EventStatus.PLAN_PENDING_APPROVAL)).stream()
+                .map(e -> PlanResponseDto.from(e, null, null)).collect(Collectors.toList());
     }
 
     @Override
     public List<PlanResponseDto> getEventsPendingApproval() {
-        List<Event> events = eventRepository.findByStatusInAndIsDeletedFalse(
-                Collections.singletonList(EventStatus.EVENT_PENDING_APPROVAL));
-
+        List<Event> events = eventRepository.findByStatusInAndIsDeletedFalse(Collections.singletonList(EventStatus.EVENT_PENDING_APPROVAL));
         events.forEach(this::enrichEventWithRegistrationCount);
-
-        return events.stream()
-                .map(event -> PlanResponseDto.from(event, null, null))
-                .collect(Collectors.toList());
+        return events.stream().map(e -> PlanResponseDto.from(e, null, null)).collect(Collectors.toList());
     }
 
     @Override
     @Transactional
     public Event updateEventStatus(String id, EventStatus status, String approverId, String accountId) {
         switch (status) {
-            case PLAN_PENDING_APPROVAL:
-                return submitPlanForApproval(id);
-            case PLAN_APPROVED:
-                return approvePlan(id, approverId);
-            case EVENT_PENDING_APPROVAL:
-                throw new RuntimeException("Vui lòng sử dụng createEventFromPlan để tạo sự kiện từ kế hoạch");
-            case PUBLISHED:
-                return approveEvent(id, approverId);
-            case ONGOING:
-                return startEvent(id);
-            case COMPLETED:
-                return completeEvent(id);
-            case CANCELLED:
-                return cancelEvent(id, null);
-            default:
-                throw new RuntimeException("Không hỗ trợ chuyển trạng thái: " + status);
+            case PLAN_PENDING_APPROVAL: return submitPlanForApproval(id);
+            case PLAN_APPROVED: return approvePlan(id, approverId);
+            case PUBLISHED: return approveEvent(id, approverId);
+            case ONGOING: return startEvent(id);
+            case COMPLETED: return completeEvent(id);
+            case CANCELLED: return cancelEvent(id, null);
+            default: throw new RuntimeException("Trạng thái không hỗ trợ: " + status);
         }
     }
 }

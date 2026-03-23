@@ -27,6 +27,7 @@ public class EventRegistration {
     private boolean checkedIn = false;
     private LocalDateTime checkInTime;
     private String checkInByAccountId;
+    private boolean isDeleted = false;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "event_id", nullable = false)

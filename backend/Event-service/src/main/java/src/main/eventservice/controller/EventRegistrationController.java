@@ -1,17 +1,20 @@
 package src.main.eventservice.controller;
 
 import lombok.RequiredArgsConstructor;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.*;
 import src.main.eventservice.dto.CheckInRequest;
 import src.main.eventservice.dto.CheckInResponse;
 import src.main.eventservice.dto.RegistrationResponseDto;
+import src.main.eventservice.entity.EventRegistration;
 import src.main.eventservice.service.EventRegistrationService;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 @RestController
 @RequestMapping("/api/registrations")
@@ -19,16 +22,21 @@ import java.util.Map;
 public class EventRegistrationController {
     private final EventRegistrationService registrationService;
 
-    @PostMapping("/{eventId}/register")
-    public ResponseEntity<?> register(
+    @GetMapping("/check/{eventId}")
+    public ResponseEntity<Optional<EventRegistration>> findByEventIdAndUserRegistrationId(
             @PathVariable String eventId,
-            @RequestParam String userProfileId) {
-        try {
-            RegistrationResponseDto dto = registrationService.register(eventId, userProfileId);
-            return ResponseEntity.status(HttpStatus.CREATED).body(dto);
-        } catch (RuntimeException e) {
-            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
-        }
+            @AuthenticationPrincipal Jwt jwt) {
+        String userRegistrationId = jwt.getClaimAsString("accountId");
+        return ResponseEntity.ok().body(registrationService.findByEventIdAndUserRegistrationId(eventId, userRegistrationId));
+    }
+
+    @PostMapping("/{eventId}")
+    public ResponseEntity<EventRegistration> registerUserToEvent(
+            @PathVariable String eventId,
+            @AuthenticationPrincipal Jwt jwt) {
+        String userRegistrationId = jwt.getClaimAsString("accountId");
+        EventRegistration result = registrationService.registerUserToEvent(eventId, userRegistrationId);
+        return ResponseEntity.status(HttpStatus.CREATED).body(result);
     }
 
     @GetMapping("/{registrationId}/qr")
@@ -71,24 +79,12 @@ public class EventRegistrationController {
         return ResponseEntity.ok(registrationService.getRegistrationsByUser(userProfileId));
     }
 
-    @GetMapping("/check")
-    public ResponseEntity<Map<String, Boolean>> check(
-            @RequestParam String eventId,
-            @RequestParam String userProfileId) {
-        return ResponseEntity.ok(Map.of(
-                "registered", registrationService.isRegistered(eventId, userProfileId)
-        ));
-    }
+    @PutMapping("/cancel/{eventId}")
+    public ResponseEntity<EventRegistration> cancelRegistration(
+            @PathVariable String eventId,
+            @AuthenticationPrincipal Jwt jwt) {
 
-    @PatchMapping("/cancel")
-    public ResponseEntity<?> cancelRegistration(
-            @RequestParam String eventId,
-            @RequestParam String userProfileId) {
-        try {
-            RegistrationResponseDto dto = registrationService.cancelRegistration(eventId, userProfileId);
-            return ResponseEntity.ok(dto);
-        } catch (RuntimeException e) {
-            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
-        }
+        String userRegistrationId = jwt.getClaimAsString("accountId");
+        return ResponseEntity.ok(registrationService.cancelRegistration(eventId, userRegistrationId));
     }
 }

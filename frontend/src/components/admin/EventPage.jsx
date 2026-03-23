@@ -868,18 +868,18 @@ const EventPage = () => {
                           </button>
                           <button
                             onClick={() => {
+                              // Kiểm tra nếu luckyDrawId đã tồn tại (khác null, undefined hoặc chuỗi rỗng)
+                              console.log("Dữ liệu Event hiện tại:", event.luckyDrawId);
+                              
                               if (event.luckyDrawId) {
-                                alert(
-                                  `Sự kiện "${event.title}" đã được thiết lập vòng quay rồi!`,
-                                );
-                                return;
+                                alert(`Sự kiện "${event.title}" đã được thiết lập vòng quay rồi!`);
+  
+                                return; 
                               }
-                              const titleEncoded = encodeURIComponent(
-                                event.title,
-                              );
-                              navigate(
-                                `/admin/lucky-draw?eventId=${event.id}&title=${titleEncoded}`,
-                              );
+
+                              // Nếu chưa có thì mới điều hướng đi
+                              // const titleEncoded = encodeURIComponent(event.title);
+                              // navigate(`/admin/lucky-draw?eventId=${event.id}&title=${titleEncoded}`);
                             }}
                             title="Thiết lập vòng quay"
                             className={`p-2 rounded-lg transition-colors ${

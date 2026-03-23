@@ -29,4 +29,9 @@ public class DrawEntryServiceImpl implements DrawEntryService {
         drawEntryEntity.setStatus(EntryStatus.VALID);
         return drawEntryRepository.save(drawEntryEntity);
     }
+
+    @Override
+    public DrawEntry findByLuckyDrawIdAndUserProfileId(String luckyDrawId, String userProfileId) {
+        return drawEntryRepository.findByLuckyDrawIdAndUserProfileId(luckyDrawId, userProfileId);
+    }
 }
