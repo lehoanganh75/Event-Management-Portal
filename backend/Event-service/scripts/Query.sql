@@ -45,3 +45,11 @@ FROM event_db.events e
          CROSS JOIN identity_db.accounts u -- Gọi trực tiếp sang database identity
 WHERE u.id LIKE 'USE%' AND e.id LIKE 'EVT%'
   AND RAND() < 0.25;
+
+SELECT id, title, status FROM events WHERE status = 'DRAFT';
+
+SELECT e FROM Event e WHERE e.status IN ["PUBLISHED", "ONGOING", "COMPLETED"] AND e.isDeleted = false ORDER BY e.startTime DESC
+
+SELECT * FROM events
+WHERE status IN ('PUBLISHED', 'ONGOING', 'COMPLETED')
+  AND is_deleted = 0;

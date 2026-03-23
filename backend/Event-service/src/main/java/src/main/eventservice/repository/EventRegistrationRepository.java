@@ -43,4 +43,6 @@ public interface EventRegistrationRepository extends JpaRepository<EventRegistra
             @Param("endTime") LocalDateTime endTime,
             @Param("excludeEventId") String excludeEventId
     );
+
+    long countByEventIdAndStatusIn(String eventId, List<RegistrationStatus> statuses);
 }

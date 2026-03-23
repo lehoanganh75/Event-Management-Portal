@@ -14,6 +14,13 @@ public class DrawResult {
     @GeneratedValue(strategy = GenerationType.UUID)
     private String id;
 
+    @Column(nullable = false)
+    private String winnerProfileId;
+
+    private LocalDateTime drawTime;
+
+    private boolean claimed;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "lucky_draw_id", nullable = false)
     private LuckyDraw luckyDraw;
@@ -21,12 +28,4 @@ public class DrawResult {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "prize_id", nullable = false)
     private Prize prize;
-
-    // user-service -> chỉ lưu ID
-    @Column(nullable = false)
-    private String winnerProfileId;
-
-    private LocalDateTime drawTime;
-
-    private boolean claimed;
 }

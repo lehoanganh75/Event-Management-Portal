@@ -23,6 +23,8 @@ public interface EventService {
 
     void deleteEvent(String id);
 
+    List<Event> getEventsByStatuses(List<EventStatus> statuses);
+
     // Tìm một sự kiện theo ID
     Optional<Event> getEventById(String id);
 
@@ -61,6 +63,4 @@ public interface EventService {
     List<PlanResponseDto> getPlansByAccountId(String accountId);
 
     List<PlanResponseDto> getEventsByAccountId(String accountId);
-
-    List<PlanResponseDto> getEventsByStatus(EventStatus status);
 }

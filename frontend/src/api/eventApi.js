@@ -80,13 +80,12 @@ const mapPlan = (p) => {
 const mapEvent = (e) => {
   const start = e.startTime ? new Date(e.startTime) : null;
   const end = e.endTime ? new Date(e.endTime) : null;
-
   return {
     id: e.id,
     title: e.title || "",
     description: e.description || "",
-    fullDescription: e.fullDescription || e.description || "",
-    imageUrl: e.coverImage || e.imageUrl || "",
+    fullDescription: e.description || "", 
+    imageUrl: e.coverImage || "", 
     eventDate: start ? start.toLocaleDateString("vi-VN") : "",
     eventTime:
       start && end
@@ -99,22 +98,22 @@ const mapEvent = (e) => {
     status: mapStatus(e.status),
     location: e.location || "",
     eventMode: e.eventMode || "Offline",
-    hasPoints: e.hasPoints || false,
-    fee: e.fee || "free",
-    tags: e.tags || [],
+    // Thêm luckyDrawId lấy từ JSON bạn vừa đưa
+    luckyDrawId: e.luckyDrawId || null, 
+    
+    // Các trường khác từ JSON
     organizationId: e.organizationId,
+    createdByAccountId: e.createdByAccountId,
+    approvedByAccountId: e.approvedByAccountId,
     faculty: e.faculty || "",
     major: e.major || "",
-    type: e.type || "seminar",
-    target: e.target || "all",
+    type: e.type || "SEMINAR",
     eventTopic: e.eventTopic || "",
     organizerUnit: e.organizerUnit || "",
-    // Thêm các field cho agenda và speakers nếu có
-    agenda: e.agenda || [],
-    speakers: e.speakers || [],
-    createdByName: e.createdByName || null,
-    approvedByName: e.approvedByName || null,
-    approvedByAccountId: e.approvedByAccountId || null,
+    finalized: e.finalized || false,
+    deleted: e.deleted || false,
+    notes: e.notes || "",
+    additionalInfo: e.additionalInfo || "",
   };
 };
 
@@ -128,8 +127,10 @@ export const getAllEvents = () =>
     };
   });
 
-export const getEventsByStatus = (status) =>
-  api.get("/events/status", { params: { status } }).then((res) => ({
+export const getEventsByStatuses = (statuses) =>
+  api.get("/events/by-statuses", { 
+    params: { statuses: statuses.join(',') } 
+  }).then((res) => ({
     ...res,
     data: Array.isArray(res.data) ? res.data.map(mapEvent) : [],
   }));
@@ -216,8 +217,8 @@ export const checkRegistration = (eventId, userProfileId) =>
 export const registerEvent = (eventId, userProfileId) =>
   api.post(`/events/${eventId}/register`, null, { params: { userProfileId } });
 
-export const cancelRegistration = (eventId, userProfileId) =>
-  api.patch("/registrations/cancel", null, { params: { eventId, userProfileId } });
+export const cancelRegistration = (eventId) =>
+  api.put(`/registrations/cancel/${eventId}`);
 
 export const getEventRegistrations = (eventId) =>
   api.get(`/registrations/event/${eventId}`);

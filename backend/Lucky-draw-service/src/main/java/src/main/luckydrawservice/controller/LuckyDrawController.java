@@ -24,6 +24,11 @@ public class LuckyDrawController {
         return ResponseEntity.ok(luckyDrawService.getAllLuckyDraws());
     }
 
+    @GetMapping("/{luckyDrawId}")
+    public ResponseEntity<LuckyDraw> getLuckyDrawByLuckyDrawId(@PathVariable String luckyDrawId) {
+        return ResponseEntity.ok(luckyDrawService.findById(luckyDrawId));
+    }
+
     @PostMapping
     public ResponseEntity<LuckyDraw> createLuckyDraw(
             @RequestBody LuckyDrawCreateRequest request,
@@ -41,12 +46,11 @@ public class LuckyDrawController {
         return ResponseEntity.ok(luckyDrawService.updateLuckyDraw(id, request, accountId));
     }
 
-
-    @PostMapping("/{luckyDrawId}/perform")
+    @PostMapping("/{luckyDrawId}/spin")
     public ResponseEntity<DrawResultResponse> performLuckyDraw(
             @PathVariable String luckyDrawId,
             @AuthenticationPrincipal Jwt jwt) {
-        String userProfileId = jwt.getClaimAsString("userProfileId");
+        String userProfileId = jwt.getClaimAsString("accountId");
         return ResponseEntity.ok(luckyDrawService.performLuckyDraw(luckyDrawId, userProfileId));
     }
 }
