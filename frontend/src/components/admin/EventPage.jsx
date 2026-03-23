@@ -40,20 +40,23 @@ import {
   approvePlan,
   cancelPlan,
   updateEvent,
+  approveEvent,
+  rejectEvent,
 } from "../../api/eventApi";
 import CreateEventModal from "../events/CreateEventModal";
 import { EventCreator } from "../events/EventCreator";
 import { useNavigate } from "react-router-dom";
+import notificationApi from "../../api/notificationApi";
 
 const STATUS_LABELS = {
   All: "Tất cả trạng thái",
-  PendingApproval: "Chờ duyệt",
-  Published: "Đã đăng",
-  Ongoing: "Đang diễn ra",
-  Completed: "Đã kết thúc",
-  Cancelled: "Đã hủy",
+  EVENT_PENDING_APPROVAL: "Chờ duyệt sự kiện",
+  PLAN_APPROVED: "Kế hoạch đã duyệt",
+  PUBLISHED: "Đã đăng",
+  ONGOING: "Đang diễn ra",
+  COMPLETED: "Đã kết thúc",
+  CANCELLED: "Từ chối",
 };
-
 const EVENT_TYPE_LABELS = {
   WORKSHOP: "Workshop",
   CONFERENCE: "Hội nghị",
@@ -105,16 +108,136 @@ const getArrayDisplay = (arr) => {
   return arr.join(", ");
 };
 
+const getCurrentUser = () => {
+  try {
+    const token = localStorage.getItem("accessToken");
+    if (!token) return null;
+    const payload = JSON.parse(atob(token.split(".")[1]));
+    return {
+      accountId: payload.accountId || payload.userId || payload.sub,
+      name: payload.name || payload.fullName || "Admin",
+      email: payload.email,
+    };
+  } catch {
+    return null;
+  }
+};
+
 const getCurrentAccountId = () => {
   try {
     const token = localStorage.getItem("accessToken");
     if (!token) return null;
     const payload = JSON.parse(atob(token.split(".")[1]));
-    console.log("[getCurrentAccountId] payload:", payload);
     return payload.accountId || payload.userId || payload.sub || null;
   } catch (e) {
     console.error("[getCurrentAccountId] Lỗi decode token:", e);
     return null;
+  }
+};
+
+const sendPlanNotification = async (
+  targetUserId,
+  plan,
+  action,
+  approverName,
+) => {
+  try {
+    const payload = {
+      userProfileId: targetUserId,
+      type: "SYSTEM",
+      title:
+        action === "approve"
+          ? "Kế hoạch đã được phê duyệt"
+          : "Kế hoạch bị từ chối",
+      message:
+        action === "approve"
+          ? `Kế hoạch "${plan.title}" đã được ${approverName} phê duyệt thành công. Bạn có thể tạo sự kiện từ kế hoạch này ngay bây giờ.`
+          : `Kế hoạch "${plan.title}" đã bị ${approverName} từ chối. Vui lòng kiểm tra lại thông tin và gửi lại để được phê duyệt.`,
+      relatedEntityId: plan.id,
+      relatedEntityType: "PLAN",
+      actionUrl: `/manage-plans/${plan.id}`,
+      priority: 2,
+    };
+    await notificationApi.createNotification(payload);
+  } catch (error) {
+    console.error(`Lỗi gửi thông báo kế hoạch:`, error);
+  }
+};
+
+const sendEventNotification = async (
+  targetUserId,
+  event,
+  action,
+  approverName,
+) => {
+  try {
+    const payload = {
+      userProfileId: targetUserId,
+      type: "SYSTEM",
+      title:
+        action === "approve"
+          ? "Sự kiện đã được phê duyệt"
+          : "Sự kiện bị từ chối",
+      message:
+        action === "approve"
+          ? `Sự kiện "${event.title}" đã được ${approverName} phê duyệt thành công. Sự kiện đã sẵn sàng để đăng tải và mở đăng ký.`
+          : `Sự kiện "${event.title}" đã bị ${approverName} từ chối. Vui lòng kiểm tra lại thông tin và gửi lại để được phê duyệt.`,
+      relatedEntityId: event.id,
+      relatedEntityType: "EVENT",
+      actionUrl: `/events/${event.id}`,
+      priority: 2,
+    };
+    await notificationApi.createNotification(payload);
+  } catch (error) {
+    console.error(`Lỗi gửi thông báo sự kiện:`, error);
+  }
+};
+
+const sendNotificationToApprover = async (approverInfo, item, type, action) => {
+  try {
+    const approverPayload = {
+      userProfileId: approverInfo.accountId,
+      type: "SYSTEM",
+      title:
+        action === "approve"
+          ? "Xác nhận phê duyệt thành công"
+          : "Xác nhận từ chối thành công",
+      message:
+        action === "approve"
+          ? `Bạn đã phê duyệt ${type === "plan" ? "kế hoạch" : "sự kiện"} "${item.title}" thành công.`
+          : `Bạn đã từ chối ${type === "plan" ? "kế hoạch" : "sự kiện"} "${item.title}".`,
+      relatedEntityId: item.id,
+      relatedEntityType: type === "plan" ? "PLAN" : "EVENT",
+      actionUrl:
+        type === "plan" ? `/manage-plans/${item.id}` : `/events/${item.id}`,
+      priority: 3,
+    };
+    await notificationApi.createNotification(approverPayload);
+
+    console.log("Người dùng:", item);
+    
+    if (item.createdByAccountId) {
+      const creatorPayload = {
+        userProfileId: item.createdByAccountId,
+        type: "SYSTEM",
+        title:
+          action === "approve"
+            ? `${type === "plan" ? "Kế hoạch" : "Sự kiện"} của bạn đã được phê duyệt`
+            : `${type === "plan" ? "Kế hoạch" : "Sự kiện"} của bạn bị từ chối`,
+        message:
+          action === "approve"
+            ? `${type === "plan" ? "Kế hoạch" : "Sự kiện"} "${item.title}" đã được ${approverInfo.name} phê duyệt thành công.`
+            : `${type === "plan" ? "Kế hoạch" : "Sự kiện"} "${item.title}" đã bị ${approverInfo.name} từ chối. Vui lòng kiểm tra lại thông tin.`,
+        relatedEntityId: item.id,
+        relatedEntityType: type === "plan" ? "PLAN" : "EVENT",
+        actionUrl:
+          type === "plan" ? `/manage-plans/${item.id}` : `/events/${item.id}`,
+        priority: 2,
+      };
+      await notificationApi.createNotification(creatorPayload);
+    }
+  } catch (error) {
+    console.error(`Lỗi gửi thông báo xác nhận:`, error);
   }
 };
 
@@ -195,17 +318,13 @@ const EventPage = () => {
   const fetchEvents = async () => {
     setLoading(true);
     try {
-      const [eventsRes, plansRes] = await Promise.all([
-        getAllEvents().catch(() => ({ data: [] })),
-        getAllPlans().catch(() => ({ data: [] })),
-      ]);
+      const eventsRes = await getAllEvents().catch(() => ({ data: [] }));
 
-      const combined = [...(eventsRes.data || []), ...(plansRes.data || [])];
-      const unique = Array.from(
-        new Map(combined.map((item) => [item.id, item])).values(),
+      const validEvents = (eventsRes.data || []).filter(
+        (event) => event.status !== "Draft" && event.status !== "DRAFT",
       );
 
-      setEvents(unique);
+      setEvents(validEvents);
     } catch (error) {
       console.error(error);
       showToast("Lỗi khi tải danh sách sự kiện", "error");
@@ -226,34 +345,32 @@ const EventPage = () => {
   }, [events]);
 
   const processedEvents = useMemo(() => {
-    return events
-      .filter((event) => {
-        // Bỏ qua bản nháp
-        if (event.status === "Draft" || event.status === "DRAFT") return false;
+    let result = events.filter((event) => {
+      if (event.status === "Draft" || event.status === "DRAFT") return false;
 
-        const matchesSearch =
-          event.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          event.location?.toLowerCase().includes(searchTerm.toLowerCase());
+      const matchesSearch =
+        event.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        event.location?.toLowerCase().includes(searchTerm.toLowerCase());
 
-        const matchesStatus =
-          statusFilter === "All" ||
-          event.status === statusFilter ||
-          event.status?.toUpperCase() === statusFilter.toUpperCase() ||
-          (statusFilter === "PendingApproval" &&
-            event.status === "PENDING_APPROVAL");
+      const matchesStatus =
+        statusFilter === "All" ||
+        event.status === statusFilter ||
+        event.status?.toUpperCase() === statusFilter.toUpperCase();
 
-        const matchesCreator =
-          creatorFilter === "All" || event.createdByName === creatorFilter;
+      const matchesCreator =
+        creatorFilter === "All" || event.createdByName === creatorFilter;
 
-        return matchesSearch && matchesStatus && matchesCreator;
-      })
-      .sort(
-        (a, b) =>
-          new Date(b.createdAt || b.startTime) -
-          new Date(a.createdAt || a.startTime),
-      );
+      return matchesSearch && matchesStatus && matchesCreator;
+    });
+
+    result.sort(
+      (a, b) =>
+        new Date(b.createdAt || b.startTime) -
+        new Date(a.createdAt || a.startTime),
+    );
+
+    return result;
   }, [events, searchTerm, statusFilter, creatorFilter]);
-
   const totalPages = Math.ceil(processedEvents.length / itemsPerPage);
   const currentItems = processedEvents.slice(
     (currentPage - 1) * itemsPerPage,
@@ -278,33 +395,125 @@ const EventPage = () => {
     }
   };
 
-  const handleApprove = async (id) => {
-    const accountId = getCurrentAccountId();
-    if (!accountId) {
+  const handleApprovePlan = async (id) => {
+    const currentUser = getCurrentUser();
+    if (!currentUser) {
       showToast("Không xác định được người dùng!", "error");
       return;
     }
+
+    const plan = events.find((e) => e.id === id);
+    if (!plan) return;
+
     try {
-      await approvePlan(id, accountId, accountId);
-      showToast("Đã phê duyệt sự kiện!", "success");
-      fetchEvents();
+      setLoading(true);
+      await approvePlan(id, currentUser.accountId);
+
+      if (plan.createdByAccountId) {
+        await sendPlanNotification(
+          plan.createdByAccountId,
+          plan,
+          "approve",
+          currentUser.name,
+        );
+      }
+
+      await sendNotificationToApprover(currentUser, plan, "plan", "approve");
+
+      showToast(`Đã phê duyệt kế hoạch "${plan.title}"!`, "success");
+      await fetchEvents();
     } catch (err) {
-      showToast("Lỗi khi phê duyệt!", "error");
+      console.error("Lỗi phê duyệt:", err);
+      showToast("Lỗi khi phê duyệt kế hoạch!", "error");
+    } finally {
+      setLoading(false);
     }
   };
 
-  const handleReject = async (id) => {
-    const accountId = getCurrentAccountId();
-    if (!accountId) {
+  const handleRejectPlan = async (id) => {
+    const currentUser = getCurrentUser();
+    if (!currentUser) {
       showToast("Không xác định được người dùng!", "error");
       return;
     }
+
+    const plan = events.find((e) => e.id === id);
+    if (!plan) return;
+
     try {
-      await cancelPlan(id, accountId);
-      showToast("Đã từ chối sự kiện!", "success");
-      fetchEvents();
+      setLoading(true);
+      await cancelPlan(id, currentUser.accountId);
+
+      if (plan.createdByAccountId) {
+        await sendPlanNotification(
+          plan.createdByAccountId,
+          plan,
+          "reject",
+          currentUser.name,
+        );
+      }
+
+      await sendNotificationToApprover(currentUser, plan, "plan", "reject");
+
+      showToast(`Đã từ chối kế hoạch "${plan.title}"!`, "success");
+      await fetchEvents();
     } catch (err) {
-      showToast("Lỗi khi từ chối!", "error");
+      console.error("Lỗi từ chối:", err);
+      showToast("Lỗi khi từ chối kế hoạch!", "error");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleApproveEvent = async (id) => {
+    const currentUser = getCurrentUser();
+    if (!currentUser) {
+      showToast("Không xác định được người dùng!", "error");
+      return;
+    }
+
+    const event = events.find((e) => e.id === id);
+    if (!event) return;
+
+    try {
+      setLoading(true);
+      await approveEvent(id, currentUser.accountId);
+
+      await sendNotificationToApprover(currentUser, event, "event", "approve");
+
+      showToast(`Đã phê duyệt sự kiện "${event.title}"!`, "success");
+      await fetchEvents();
+    } catch (err) {
+      console.error("Lỗi phê duyệt:", err);
+      showToast("Lỗi khi phê duyệt sự kiện!", "error");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleRejectEvent = async (id) => {
+    const currentUser = getCurrentUser();
+    if (!currentUser) {
+      showToast("Không xác định được người dùng!", "error");
+      return;
+    }
+
+    const event = events.find((e) => e.id === id);
+    if (!event) return;
+
+    try {
+      setLoading(true);
+      await rejectEvent(id, currentUser.accountId);
+
+      await sendNotificationToApprover(currentUser, event, "event", "reject");
+
+      showToast(`Đã từ chối sự kiện "${event.title}"!`, "success");
+      await fetchEvents();
+    } catch (err) {
+      console.error("Lỗi từ chối:", err);
+      showToast("Lỗi khi từ chối sự kiện!", "error");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -363,12 +572,17 @@ const EventPage = () => {
     if (s === "PUBLISHED") return "bg-blue-50 text-blue-700 border-blue-200";
     if (s === "ONGOING")
       return "bg-emerald-50 text-emerald-700 border-emerald-200";
-    if (s === "PENDINGAPPROVAL" || s === "PENDING_APPROVAL")
+    if (s === "PLAN_PENDING_APPROVAL")
+      return "bg-amber-50 text-amber-700 border-amber-200";
+    if (s === "EVENT_PENDING_APPROVAL")
       return "bg-amber-50 text-amber-700 border-amber-200";
     if (s === "COMPLETED")
       return "bg-purple-50 text-purple-700 border-purple-200";
     if (s === "CANCELLED" || s === "REJECTED")
       return "bg-rose-50 text-rose-700 border-rose-200";
+    if (s === "PLAN_APPROVED")
+      return "bg-green-50 text-green-700 border-green-200";
+    if (s === "DRAFT") return "bg-slate-50 text-slate-600 border-slate-200";
     return "bg-slate-50 text-slate-700 border-slate-200";
   };
 
@@ -377,13 +591,19 @@ const EventPage = () => {
     if (statusUpper === "PUBLISHED") return "blue";
     if (statusUpper === "ONGOING" || statusUpper === "COMPLETED")
       return "emerald";
-    if (statusUpper === "PENDINGAPPROVAL" || statusUpper === "PENDING_APPROVAL")
-      return "amber";
+    if (statusUpper === "PLAN_PENDING_APPROVAL") return "amber";
+    if (statusUpper === "EVENT_PENDING_APPROVAL") return "amber";
     if (statusUpper === "CANCELLED" || statusUpper === "REJECTED")
       return "rose";
+    if (statusUpper === "PLAN_APPROVED") return "green";
+    if (statusUpper === "DRAFT") return "slate";
     return "slate";
   };
 
+  const isPendingItem = (status) => {
+    const s = status?.toUpperCase() || "";
+    return s === "PLAN_PENDING_APPROVAL" || s === "EVENT_PENDING_APPROVAL";
+  };
   if (showEventCreator) {
     return (
       <EventCreator
@@ -444,7 +664,7 @@ const EventPage = () => {
           </p>
         </div>
 
-        <button 
+        <button
           onClick={() => setIsCreateOpen(true)}
           className="flex items-center gap-2 bg-blue-600 text-white px-5 py-2.5 rounded-xl font-bold shadow-lg shadow-blue-200 hover:bg-blue-700 transition-all active:scale-95"
         >
@@ -493,7 +713,9 @@ const EventPage = () => {
             >
               <option value="All">Tất cả người tạo</option>
               {uniqueCreators.map((creator, idx) => (
-                <option key={idx} value={creator}>{creator}</option>
+                <option key={idx} value={creator}>
+                  {creator}
+                </option>
               ))}
             </select>
           </div>
@@ -567,7 +789,9 @@ const EventPage = () => {
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-2">
                           <div className="w-7 h-7 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center font-bold text-[10px]">
-                            {event.createdByName ? event.createdByName.charAt(0).toUpperCase() : "U"}
+                            {event.createdByName
+                              ? event.createdByName.charAt(0).toUpperCase()
+                              : "U"}
                           </div>
                           <span className="text-xs font-bold text-slate-700">
                             {event.createdByName || "Không rõ"}
@@ -578,29 +802,38 @@ const EventPage = () => {
                         <span
                           className={`px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-wider border ${getStatusStyle(event.status)}`}
                         >
-                          {STATUS_LABELS[event.status] ||
-                            STATUS_LABELS[
-                              event.status?.charAt(0).toUpperCase() +
-                                event.status?.slice(1).toLowerCase()
-                            ] ||
-                            event.status}
+                          {STATUS_LABELS[event.status] || event.status}
                         </span>
                       </td>
                       <td className="px-6 py-4">
                         <div className="flex items-center justify-center gap-1.5">
-                          {(event.status === "PendingApproval" ||
-                            event.status === "PENDING_APPROVAL" ||
-                            event.status === "PENDINGAPPROVAL") && (
+                          {isPendingItem(event.status) && (
                             <>
                               <button
-                                onClick={() => handleApprove(event.id)}
+                                onClick={() => {
+                                  if (
+                                    event.status === "PLAN_PENDING_APPROVAL"
+                                  ) {
+                                    handleApprovePlan(event.id);
+                                  } else {
+                                    handleApproveEvent(event.id);
+                                  }
+                                }}
                                 title="Phê duyệt"
                                 className="p-2 text-emerald-600 bg-emerald-50 hover:bg-emerald-100 rounded-lg transition-colors"
                               >
                                 <CheckCircle size={18} />
                               </button>
                               <button
-                                onClick={() => handleReject(event.id)}
+                                onClick={() => {
+                                  if (
+                                    event.status === "PLAN_PENDING_APPROVAL"
+                                  ) {
+                                    handleRejectPlan(event.id);
+                                  } else {
+                                    handleRejectEvent(event.id);
+                                  }
+                                }}
                                 title="Từ chối"
                                 className="p-2 text-rose-600 bg-rose-50 hover:bg-rose-100 rounded-lg transition-colors"
                               >
@@ -635,25 +868,24 @@ const EventPage = () => {
                           </button>
                           <button
                             onClick={() => {
-                              // Kiểm tra nếu luckyDrawId đã tồn tại (khác null, undefined hoặc chuỗi rỗng)
-                              console.log("Dữ liệu Event hiện tại:", event);
-                              
                               if (event.luckyDrawId) {
-                                alert(`Sự kiện "${event.title}" đã được thiết lập vòng quay rồi!`);
-                                // Nếu bạn muốn vẫn cho phép sang xem/sửa thì bỏ qua return, 
-                                // còn nếu muốn chặn hoàn toàn thì thêm return;
-                                return; 
+                                alert(
+                                  `Sự kiện "${event.title}" đã được thiết lập vòng quay rồi!`,
+                                );
+                                return;
                               }
-
-                              // Nếu chưa có thì mới điều hướng đi
-                              const titleEncoded = encodeURIComponent(event.title);
-                              navigate(`/admin/lucky-draw?eventId=${event.id}&title=${titleEncoded}`);
+                              const titleEncoded = encodeURIComponent(
+                                event.title,
+                              );
+                              navigate(
+                                `/admin/lucky-draw?eventId=${event.id}&title=${titleEncoded}`,
+                              );
                             }}
                             title="Thiết lập vòng quay"
                             className={`p-2 rounded-lg transition-colors ${
-                              event.luckyDrawId 
-                                ? "text-gray-400 bg-gray-100 cursor-not-allowed" // Style khi đã có vòng quay
-                                : "text-purple-600 bg-purple-50 hover:bg-purple-100" // Style khi chưa có
+                              event.luckyDrawId
+                                ? "text-gray-400 bg-gray-100 cursor-not-allowed"
+                                : "text-purple-600 bg-purple-50 hover:bg-purple-100"
                             }`}
                           >
                             <Award size={18} />
@@ -973,48 +1205,6 @@ const EventPage = () => {
                           </div>
                         </div>
                       </Section>
-
-                      {(selectedEvent?.recipients?.length > 0 ||
-                        selectedEvent?.customRecipients?.length > 0) && (
-                        <Section
-                          title="Nơi nhận thông báo"
-                          icon={Mail}
-                          color="amber"
-                        >
-                          <div className="space-y-4">
-                            {selectedEvent?.recipients?.length > 0 && (
-                              <div>
-                                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">
-                                  Nơi nhận chính
-                                </p>
-                                <div className="flex flex-wrap gap-2">
-                                  {selectedEvent.recipients.map((r, i) => (
-                                    <Badge key={i} color="blue">
-                                      {r}
-                                    </Badge>
-                                  ))}
-                                </div>
-                              </div>
-                            )}
-                            {selectedEvent?.customRecipients?.length > 0 && (
-                              <div>
-                                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">
-                                  Nơi nhận khác
-                                </p>
-                                <div className="flex flex-wrap gap-2">
-                                  {selectedEvent.customRecipients.map(
-                                    (r, i) => (
-                                      <Badge key={i} color="purple">
-                                        {r}
-                                      </Badge>
-                                    ),
-                                  )}
-                                </div>
-                              </div>
-                            )}
-                          </div>
-                        </Section>
-                      )}
 
                       <Section
                         title="Thành phần tham gia"
@@ -1403,3 +1593,4 @@ const EventPage = () => {
 };
 
 export default EventPage;
+

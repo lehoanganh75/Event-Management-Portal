@@ -13,6 +13,7 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/admin/accounts")
 @RequiredArgsConstructor
+@CrossOrigin(origins = "http://localhost:5173")
 //@PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
 public class AdminUserController {
 

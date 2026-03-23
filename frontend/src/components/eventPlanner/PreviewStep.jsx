@@ -193,8 +193,8 @@ export const PreviewStep = ({
         </div>
 
         <div className="lg:col-span-3">
-          <div className="bg-slate-200/50 rounded-3xl p-8 border border-slate-200 overflow-hidden shadow-inner flex justify-center">
-            <div className="scale-[0.75] origin-top transform-gpu">
+          <div className="bg-slate-200/50 rounded-3xl p-8 border border-slate-200 overflow-auto shadow-inner flex justify-center">
+            <div className="origin-top transform-gpu">
               <DocumentContent data={data} />
             </div>
           </div>
@@ -214,7 +214,7 @@ export const PreviewStep = ({
             </div>
             <button
               onClick={() => setIsFullscreen(false)}
-              className="bg-white/10 p-2 rounded-full hover:bg-rose-500 transition-all"
+              className="bg-white/10 p-2 rounded-full hover:bg-rose-500 transition-all hover:cursor-pointer"
             >
               <X size={28} />
             </button>

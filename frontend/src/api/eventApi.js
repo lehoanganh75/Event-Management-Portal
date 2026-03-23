@@ -1,7 +1,7 @@
 import axios from "axios";
 
 const api = axios.create({
-  baseURL: import.meta.env.VITE_EVENT_API_URL 
+  baseURL: import.meta.env.VITE_EVENT_API_URL || "http://localhost:8081",
 });
 
 api.interceptors.request.use(
@@ -14,14 +14,12 @@ api.interceptors.request.use(
   },
   (error) => {
     return Promise.reject(error);
-  }
+  },
 );
 
 const mapStatus = (status) => {
   if (!status) return "DRAFT";
-  const s = status.charAt(0).toUpperCase() + status.slice(1).toLowerCase();
-  if (s === "PENDING_APPROVAL") return "PENDING_APPROVAL";
-  return s;
+  return status;
 };
 
 const mapPlan = (p) => {
@@ -67,13 +65,18 @@ const mapPlan = (p) => {
     organizerUnit: p.organizerUnit || "",
     participants: Array.isArray(p.participants) ? p.participants : [],
     recipients: Array.isArray(p.recipients) ? p.recipients : [],
-    customRecipients: Array.isArray(p.customRecipients) ? p.customRecipients : [],
+    customRecipients: Array.isArray(p.customRecipients)
+      ? p.customRecipients
+      : [],
     presenters: Array.isArray(p.presenters) ? p.presenters : [],
-    organizingCommittee: Array.isArray(p.organizingCommittee) ? p.organizingCommittee : [],
+    organizingCommittee: Array.isArray(p.organizingCommittee)
+      ? p.organizingCommittee
+      : [],
     attendees: Array.isArray(p.attendees) ? p.attendees : [],
     createdByName: p.createdByName || null,
     approvedByName: p.approvedByName || null,
     approvedByAccountId: p.approvedByAccountId || null,
+    createdByAccountId: p.createdByAccountId || null,
   };
 };
 
@@ -114,6 +117,7 @@ const mapEvent = (e) => {
     createdByName: e.createdByName || null,
     approvedByName: e.approvedByName || null,
     approvedByAccountId: e.approvedByAccountId || null,
+    createdByAccountId: e.createdByAccountId || null,
   };
 };
 
@@ -128,10 +132,14 @@ export const getAllEvents = () =>
   });
 
 export const getEventsByStatus = (status) =>
-  api.get("/events/status", { params: { status: status ? status.toUpperCase() : status } }).then((res) => ({
-    ...res,
-    data: Array.isArray(res.data) ? res.data.map(mapEvent) : [],
-  }));
+  api
+    .get("/events/status", {
+      params: { status: status ? status.toUpperCase() : status },
+    })
+    .then((res) => ({
+      ...res,
+      data: Array.isArray(res.data) ? res.data.map(mapEvent) : [],
+    }));
 
 export const getTotalParticipants = () =>
   api.get("/events").then((res) => {
@@ -149,12 +157,15 @@ export const getEventById = (id) =>
     data: res.data ? mapEvent(res.data) : null,
   }));
 
-
-export const getMyPlans = (accountId) =>
-  api.get("/events/plans/my", { params: { accountId } }).then((res) => ({
-    ...res,
-    data: Array.isArray(res.data) ? res.data.map(mapPlan) : [],
-  }));
+export const getMyPlans = async (accountId) => {
+  try {
+    const response = await api.get("/events/plans/my");
+    return response;
+  } catch (error) {
+    console.error("Error fetching my plans:", error);
+    return { data: [] };
+  }
+};
 
 export const getAllPlans = () =>
   api.get("/events/plans").then((res) => ({
@@ -163,40 +174,143 @@ export const getAllPlans = () =>
   }));
 
 export const getPlanById = (id) =>
-  api.get(`/events/${id}`).then((res) => ({
+  api.get(`/events/plans/${id}`).then((res) => ({
     ...res,
     data: res.data ? mapPlan(res.data) : null,
   }));
 
-export const createPlan = (planData) =>
-  api.post("/events/plans", planData).then((res) => ({
+export const createPlan = (planData, submit = false) => {
+  return api
+    .post(`/events/plans?submit=${submit}`, planData)
+    .then((res) => {
+      return {
+        ...res,
+        data: res.data ? mapPlan(res.data) : null,
+      };
+    })
+    .catch((error) => {
+      console.error("❌ CreatePlan error details:", {
+        status: error.response?.status,
+        statusText: error.response?.statusText,
+        data: error.response?.data,
+        headers: error.response?.headers,
+        message: error.message,
+      });
+
+      if (error.response?.data) {
+        console.error(
+          "❌ Server error message:",
+          error.response.data.message || error.response.data,
+        );
+        console.error(
+          "❌ Full server response:",
+          JSON.stringify(error.response.data, null, 2),
+        );
+      }
+
+      throw error;
+    });
+};
+
+export const updatePlan = (id, planData) => {
+  const cleanData = {
+    title: planData.title,
+    description: planData.description,
+    coverImage: planData.coverImage,
+    startTime: planData.startTime,
+    endTime: planData.endTime,
+    registrationDeadline: planData.registrationDeadline,
+    maxParticipants: planData.maxParticipants,
+    type: planData.type,
+    location: planData.location,
+    eventMode: planData.eventMode,
+    eventTopic: planData.eventTopic,
+    faculty: planData.faculty,
+    major: planData.major,
+    organizerUnit: planData.organizerUnit,
+    notes: planData.notes,
+    additionalInfo: planData.additionalInfo,
+    hasLuckyDraw: planData.hasLuckyDraw,
+    participants: planData.participants,
+    recipients: planData.recipients,
+    customRecipients: planData.customRecipients,
+    presenters: planData.presenters,
+    organizingCommittee: planData.organizingCommittee,
+    attendees: planData.attendees,
+    customFieldsJson: planData.customFieldsJson,
+  };
+
+  Object.keys(cleanData).forEach((key) => {
+    if (cleanData[key] === undefined || cleanData[key] === null) {
+      delete cleanData[key];
+    }
+  });
+
+  return api.put(`/events/plans/${id}`, cleanData).then((res) => ({
     ...res,
     data: res.data ? mapPlan(res.data) : null,
   }));
-
-export const updatePlan = (id, planData) =>
-  api.put(`/events/plans/${id}`, planData).then((res) => ({
-    ...res,
-    data: res.data ? mapPlan(res.data) : null,
-  }));
-
-export const deletePlan = (id) => api.delete(`/events/${id}`);
+};
+export const deletePlan = (planId) => {
+  console.log("🗑️ Xóa kế hoạch:", planId);
+  return api.delete(`/events/plans/${planId}`);
+};
 
 export const getPlansByStatus = (status, accountId) =>
-  api.get(`/events/plans/${status ? status.toUpperCase() : status}`, { 
-    params: accountId ? { accountId } : {} 
-  }).then((res) => ({
-    ...res,
-    data: Array.isArray(res.data) ? res.data.map(mapPlan) : [],
-  }));
+  api
+    .get(`/events/plans/status/${status ? status.toUpperCase() : status}`, {
+      params: accountId ? { accountId } : {},
+    })
+    .then((res) => ({
+      ...res,
+      data: Array.isArray(res.data) ? res.data.map(mapPlan) : [],
+    }));
 
-export const deleteEvent = (id) => api.delete(`/events/${id}`);
+export const deleteEvent = (id) => {
+  console.log("🗑️ Xóa sự kiện:", id);
+  return api.put(`/events/delete/${id}`);
+};
 
-export const updateEvent = (id, eventData) => api.put(`/events/${id}`, eventData);
+export const updateEvent = (id, eventData) =>
+  api.put(`/events/update/${id}`, eventData);
 
-export const cancelPlan = (id, accountId) => api.patch(`/events/${id}/reject`, null, { params: { accountId } });
+export const submitPlanForApproval = (id) =>
+  api.post(`/events/plans/${id}/submit`);
 
-export const approvePlan = (id, approverId, accountId) => api.patch(`/events/${id}/approve`, null, { params: { approverId, accountId } });
+export const approvePlan = (id) =>
+  api.patch(`/events/admin/plans/${id}/approve`);
+
+export const cancelPlan = async (planId, reason = "") => {
+  try {
+    const response = await api.patch(
+      `/events/admin/plans/${planId}/reject?reason=${encodeURIComponent(reason)}`,
+      {},
+    );
+    return response;
+  } catch (error) {
+    console.error(
+      "❌ Cancel plan error:",
+      error.response?.data || error.message,
+    );
+    throw error;
+  }
+};
+
+export const createEventFromPlan = (planId, eventData, submit = false) =>
+  api
+    .post(`/events/plans/${planId}/create-event?submit=${submit}`, eventData)
+    .then((res) => ({
+      ...res,
+      data: res.data ? mapEvent(res.data) : null,
+    }));
+
+export const submitEventForApproval = (id) => api.post(`/events/${id}/submit`);
+
+export const approveEvent = (id) =>
+  api.patch(`/events/admin/events/${id}/approve`);
+
+export const rejectEvent = (id, reason) =>
+  api.patch(`/events/admin/events/${id}/reject`, null, { params: { reason } });
 
 export const createEvent = (eventData) =>
   api.post("/events", eventData).then((res) => ({
@@ -211,7 +325,9 @@ export const registerEvent = (eventId, userProfileId) =>
   api.post(`/events/${eventId}/register`, null, { params: { userProfileId } });
 
 export const cancelRegistration = (eventId, userProfileId) =>
-  api.patch("/registrations/cancel", null, { params: { eventId, userProfileId } });
+  api.patch("/registrations/cancel", null, {
+    params: { eventId, userProfileId },
+  });
 
 export const getEventRegistrations = (eventId) =>
   api.get(`/registrations/event/${eventId}`);
@@ -222,8 +338,7 @@ export const getUserRegistrations = (userProfileId) =>
 export const getRegistrationQR = (registrationId) =>
   api.get(`/registrations/${registrationId}/qr`);
 
-export const checkInQR = (qrToken) =>
-  api.post("/check-in", { qrToken });
+export const checkInQR = (qrToken) => api.post("/check-in", { qrToken });
 
 export const getAttendedEvents = (userProfileId) =>
   api.get(`/registrations/user/${userProfileId}`).then((res) => ({
@@ -231,20 +346,29 @@ export const getAttendedEvents = (userProfileId) =>
     data: Array.isArray(res.data) ? res.data : [],
   }));
 
-  export const getFeaturedEvents = () =>
+export const getFeaturedEvents = () =>
   api.get("/events/featured").then((res) => ({
     ...res,
     data: Array.isArray(res.data) ? res.data.map(mapEvent) : [],
   }));
-
-  export const getMyEvents = async (accountId) => {
+export const getMyEvents = async (accountId) => {
   try {
-    const response = await axios.get(`${API_BASE_URL}/events`, {
-      params: { createdByAccountId: accountId }
+    const response = await api.get("/events/my-events", {
+      params: { accountId: accountId },
     });
     return response;
   } catch (error) {
-    console.error('Error fetching my events:', error);
-    return { data: [] };
+    console.error("Error fetching my events:", error);
+    try {
+      const fallbackResponse = await api.get("/events");
+      const allEvents = fallbackResponse.data || [];
+      const myEvents = allEvents.filter(
+        (event) => event.createdByAccountId === accountId,
+      );
+      return { data: myEvents };
+    } catch (fallbackError) {
+      console.error("Fallback also failed:", fallbackError);
+      return { data: [] };
+    }
   }
 };

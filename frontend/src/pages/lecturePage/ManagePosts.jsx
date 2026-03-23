@@ -18,7 +18,6 @@ import {
   Calendar,
   X
 } from "lucide-react";
-import { getMyEvents } from "../../api/eventApi";
 
 const PostManagement = ({ eventId, eventTitle }) => {
   const [posts, setPosts] = useState([]);

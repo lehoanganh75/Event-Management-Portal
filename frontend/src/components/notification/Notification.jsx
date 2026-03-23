@@ -1,11 +1,58 @@
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { 
-  Clock, Check, MoreVertical, Loader2, Bell, BellOff, 
-  Trash2, RefreshCw, Inbox, ChevronRight, Eye 
+import {
+  Clock,
+  Check,
+  MoreVertical,
+  Loader2,
+  Bell,
+  BellOff,
+  Trash2,
+  RefreshCw,
+  Inbox,
+  ChevronRight,
+  Eye,
 } from "lucide-react";
 import notificationApi from "../../api/notificationApi";
 import Header from "../../components/common/Header";
+
+// Định nghĩa constants bên ngoài component để tái sử dụng
+const NOTIFICATION_TYPES = {
+  // Người dùng
+  REGISTRATION_CONFIRMED: { label: "Xác nhận đăng ký", color: "green", icon: "✅" },
+  CHECKIN_REMINDER: { label: "Nhắc nhở điểm danh", color: "yellow", icon: "⏰" },
+  CHECKIN_SUCCESS: { label: "Điểm danh thành công", color: "emerald", icon: "📝" },
+  EVENT_STARTING_SOON: { label: "Sự kiện sắp diễn ra", color: "blue", icon: "🎉" },
+  EVENT_CANCELLED: { label: "Sự kiện bị hủy", color: "red", icon: "❌" },
+  EVENT_RESCHEDULED: { label: "Sự kiện thay đổi lịch", color: "orange", icon: "📅" },
+  PARTICIPATION_APPROVED: { label: "Được duyệt tham gia", color: "green", icon: "✅" },
+  PARTICIPATION_REJECTED: { label: "Bị từ chối tham gia", color: "red", icon: "❌" },
+  
+  // Admin/BTC
+  EVENT_SUBMITTED: { label: "Gửi phê duyệt sự kiện", color: "purple", icon: "📝" },
+  NEW_REGISTRATION: { label: "Đăng ký mới", color: "indigo", icon: "👥" },
+  CHECKIN_NOTIFICATION: { label: "Thông báo điểm danh", color: "cyan", icon: "📌" },
+  EVENT_FULL: { label: "Sự kiện đã đủ số lượng", color: "orange", icon: "⚠️" },
+  APPROVAL_REMINDER: { label: "Nhắc nhở phê duyệt", color: "amber", icon: "⏰" },
+  
+  // Superadmin
+  EVENT_APPROVED: { label: "Phê duyệt sự kiện", color: "green", icon: "✅" },
+  EVENT_REJECTED: { label: "Từ chối sự kiện", color: "red", icon: "❌" },
+  USER_REPORT: { label: "Báo cáo vi phạm", color: "red", icon: "🚨" },
+  ESCALATION_REQUEST: { label: "Yêu cầu can thiệp", color: "orange", icon: "⚠️" },
+  
+  // Hệ thống
+  SYSTEM: { label: "Hệ thống", color: "slate", icon: "⚙️" },
+  MAINTENANCE: { label: "Bảo trì hệ thống", color: "slate", icon: "🔧" },
+  POLICY_UPDATE: { label: "Cập nhật chính sách", color: "blue", icon: "📜" },
+  
+  // Mặc định
+  ORDER: { label: "Đơn hàng", color: "orange", icon: "🛒" },
+  PAYMENT: { label: "Thanh toán", color: "green", icon: "💳" },
+  MESSAGE: { label: "Tin nhắn", color: "blue", icon: "💬" },
+  PROMOTION: { label: "Khuyến mãi", color: "pink", icon: "🎁" },
+  REMINDER: { label: "Nhắc nhở", color: "yellow", icon: "⏰" },
+};
 
 const NotificationPage = () => {
   const { userId: urlUserId } = useParams();
@@ -13,11 +60,16 @@ const NotificationPage = () => {
 
   const decodeJWT = (token) => {
     try {
-      const base64Url = token.split('.')[1];
-      const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-      const jsonPayload = decodeURIComponent(atob(base64).split('').map(function(c) {
-        return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
-      }).join(''));
+      const base64Url = token.split(".")[1];
+      const base64 = base64Url.replace(/-/g, "+").replace(/_/g, "/");
+      const jsonPayload = decodeURIComponent(
+        atob(base64)
+          .split("")
+          .map(function (c) {
+            return "%" + ("00" + c.charCodeAt(0).toString(16)).slice(-2);
+          })
+          .join(""),
+      );
       return JSON.parse(jsonPayload);
     } catch (error) {
       console.error("Error decoding JWT:", error);
@@ -27,7 +79,7 @@ const NotificationPage = () => {
 
   const getCurrentUserId = () => {
     if (urlUserId) return urlUserId;
-    
+
     let accountId = localStorage.getItem("userId");
     if (accountId) return accountId;
 
@@ -62,8 +114,8 @@ const NotificationPage = () => {
         console.error("Error parsing user data:", error);
       }
     }
-    
-    return "fb9808bb-e091-4906-9298-58dc111f02b9";
+
+    return null;
   };
 
   const currentUserId = getCurrentUserId();
@@ -86,10 +138,17 @@ const NotificationPage = () => {
     } else {
       setIsLoading(true);
     }
-    
+
     notificationApi
       .getNotificationsByUser(currentUserId)
       .then((res) => {
+        console.log("📦 Notifications received:", res.data);
+        // Debug: Kiểm tra type của từng notification
+        if (res.data && res.data.length > 0) {
+          res.data.forEach(n => {
+            console.log(`- Type: ${n.type}, Title: ${n.title}`);
+          });
+        }
         setNotifications(res.data || []);
       })
       .catch((err) => {
@@ -109,7 +168,7 @@ const NotificationPage = () => {
     try {
       await notificationApi.markAsRead(id);
       setNotifications(
-        notifications.map((n) => (n.id === id ? { ...n, read: true } : n))
+        notifications.map((n) => (n.id === id ? { ...n, read: true } : n)),
       );
     } catch (err) {
       console.error("Error updating status:", err);
@@ -119,9 +178,7 @@ const NotificationPage = () => {
   const handleMarkAllAsRead = async () => {
     try {
       await notificationApi.markAllAsRead(currentUserId);
-      setNotifications(
-        notifications.map((n) => ({ ...n, read: true }))
-      );
+      setNotifications(notifications.map((n) => ({ ...n, read: true })));
     } catch (err) {
       console.error("Error marking all as read:", err);
     }
@@ -131,7 +188,7 @@ const NotificationPage = () => {
     if (!notification.read) {
       handleMarkAsRead(notification.id);
     }
-    
+
     if (notification.actionUrl) {
       navigate(notification.actionUrl);
     }
@@ -140,7 +197,7 @@ const NotificationPage = () => {
   const handleDelete = async (id) => {
     try {
       await notificationApi.deleteNotification(id);
-      setNotifications(notifications.filter(n => n.id !== id));
+      setNotifications(notifications.filter((n) => n.id !== id));
     } catch (err) {
       console.error("Error deleting notification:", err);
     }
@@ -167,7 +224,7 @@ const NotificationPage = () => {
     if (diffInMinutes < 60) return `${diffInMinutes} phút trước`;
     if (diffInHours < 24) return `${diffInHours} giờ trước`;
     if (diffInDays < 7) return `${diffInDays} ngày trước`;
-    
+
     return date.toLocaleDateString("vi-VN", {
       day: "2-digit",
       month: "2-digit",
@@ -179,8 +236,8 @@ const NotificationPage = () => {
     const handleClickOutside = () => {
       setOpenDropdownId(null);
     };
-    document.addEventListener('click', handleClickOutside);
-    return () => document.removeEventListener('click', handleClickOutside);
+    document.addEventListener("click", handleClickOutside);
+    return () => document.removeEventListener("click", handleClickOutside);
   }, []);
 
   const filteredNotifications = notifications.filter((n) => {
@@ -189,6 +246,39 @@ const NotificationPage = () => {
   });
 
   const unreadCount = notifications.filter((n) => !n.read).length;
+
+  const getNotificationTypeInfo = (type) => {
+    const upperType = type?.toUpperCase() || "";
+    const info = NOTIFICATION_TYPES[upperType];
+    if (info) return info;
+    
+    console.warn(`Unknown notification type: ${type}`);
+    return { label: type || "Thông báo", color: "slate", icon: "📢" };
+  };
+
+  const getNotificationTypeColor = (type) => {
+    const info = getNotificationTypeInfo(type);
+    const colorMap = {
+      green: "bg-green-100 text-green-700",
+      emerald: "bg-emerald-100 text-emerald-700",
+      yellow: "bg-yellow-100 text-yellow-700",
+      amber: "bg-amber-100 text-amber-700",
+      orange: "bg-orange-100 text-orange-700",
+      red: "bg-red-100 text-red-700",
+      blue: "bg-blue-100 text-blue-700",
+      indigo: "bg-indigo-100 text-indigo-700",
+      purple: "bg-purple-100 text-purple-700",
+      pink: "bg-pink-100 text-pink-700",
+      cyan: "bg-cyan-100 text-cyan-700",
+      slate: "bg-slate-100 text-slate-700",
+    };
+    return colorMap[info.color] || "bg-slate-100 text-slate-600";
+  };
+
+  const formatType = (type) => {
+    const info = getNotificationTypeInfo(type);
+    return info.icon ? `${info.icon} ${info.label}` : info.label;
+  };
 
   if (isLoading) {
     return (
@@ -204,37 +294,11 @@ const NotificationPage = () => {
     );
   }
 
-  const getNotificationTypeColor = (type) => {
-    const types = {
-      'SYSTEM': 'bg-purple-100 text-purple-700',
-      'ORDER': 'bg-orange-100 text-orange-700',
-      'PAYMENT': 'bg-green-100 text-green-700',
-      'MESSAGE': 'bg-blue-100 text-blue-700',
-      'PROMOTION': 'bg-pink-100 text-pink-700',
-      'REMINDER': 'bg-yellow-100 text-yellow-700'
-    };
-    return types[type] || 'bg-slate-100 text-slate-600';
-  };
-
-  const formatType = (type) => {
-    if (!type) return 'Thông báo';
-    const typeMap = {
-      'SYSTEM': 'Hệ thống',
-      'ORDER': 'Đơn hàng',
-      'PAYMENT': 'Thanh toán',
-      'MESSAGE': 'Tin nhắn',
-      'PROMOTION': 'Khuyến mãi',
-      'REMINDER': 'Nhắc nhở'
-    };
-    return typeMap[type] || type;
-  };
-
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-white">
       <Header />
-      
+
       <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Header Section */}
         <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6 mb-6">
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
             <div className="flex items-center gap-4">
@@ -255,7 +319,7 @@ const NotificationPage = () => {
                 </p>
               </div>
             </div>
-            
+
             <div className="flex items-center gap-2">
               <button
                 onClick={() => fetchData(true)}
@@ -263,9 +327,12 @@ const NotificationPage = () => {
                 className="p-2.5 text-slate-500 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-all duration-200 disabled:opacity-50"
                 title="Làm mới"
               >
-                <RefreshCw size={18} className={isRefreshing ? "animate-spin" : ""} />
+                <RefreshCw
+                  size={18}
+                  className={isRefreshing ? "animate-spin" : ""}
+                />
               </button>
-              
+
               {unreadCount > 0 && (
                 <button
                   onClick={handleMarkAllAsRead}
@@ -279,7 +346,6 @@ const NotificationPage = () => {
           </div>
         </div>
 
-        {/* Tabs */}
         <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden mb-6">
           <div className="flex border-b border-slate-100">
             <button
@@ -293,11 +359,13 @@ const NotificationPage = () => {
               <div className="flex items-center justify-center gap-2">
                 <Inbox size={18} />
                 <span>Tất cả</span>
-                <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${
-                  activeTab === "all" 
-                    ? "bg-blue-100 text-blue-600" 
-                    : "bg-slate-100 text-slate-500"
-                }`}>
+                <span
+                  className={`px-2 py-0.5 rounded-full text-xs font-semibold ${
+                    activeTab === "all"
+                      ? "bg-blue-100 text-blue-600"
+                      : "bg-slate-100 text-slate-500"
+                  }`}
+                >
                   {notifications.length}
                 </span>
               </div>
@@ -305,7 +373,7 @@ const NotificationPage = () => {
                 <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-gradient-to-r from-blue-500 to-blue-600" />
               )}
             </button>
-            
+
             <button
               onClick={() => setActiveTab("unread")}
               className={`flex-1 px-6 py-4 text-sm font-medium transition-all duration-200 relative ${
@@ -317,11 +385,13 @@ const NotificationPage = () => {
               <div className="flex items-center justify-center gap-2">
                 <Eye size={18} />
                 <span>Chưa đọc</span>
-                <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${
-                  activeTab === "unread" 
-                    ? "bg-red-100 text-red-600" 
-                    : "bg-slate-100 text-slate-500"
-                }`}>
+                <span
+                  className={`px-2 py-0.5 rounded-full text-xs font-semibold ${
+                    activeTab === "unread"
+                      ? "bg-red-100 text-red-600"
+                      : "bg-slate-100 text-slate-500"
+                  }`}
+                >
                   {unreadCount}
                 </span>
               </div>
@@ -332,7 +402,6 @@ const NotificationPage = () => {
           </div>
         </div>
 
-        {/* Notifications List */}
         <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
           {filteredNotifications.length > 0 ? (
             <div className="divide-y divide-slate-100">
@@ -346,7 +415,6 @@ const NotificationPage = () => {
                 >
                   <div className="p-6">
                     <div className="flex items-start gap-4">
-                      {/* Status Indicator */}
                       <div className="flex-shrink-0 pt-1">
                         {!notification.read ? (
                           <div className="w-3 h-3 bg-gradient-to-r from-blue-500 to-blue-600 rounded-full shadow-md animate-pulse" />
@@ -355,29 +423,32 @@ const NotificationPage = () => {
                         )}
                       </div>
 
-                      {/* Content */}
                       <div className="flex-1 min-w-0">
                         <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
                           <div className="flex-1">
                             <div className="flex items-center gap-2 flex-wrap mb-2">
-                              <h3 className={`text-base ${!notification.read ? "font-semibold text-slate-900" : "font-medium text-slate-700"}`}>
+                              <h3
+                                className={`text-base ${!notification.read ? "font-semibold text-slate-900" : "font-medium text-slate-700"}`}
+                              >
                                 {notification.title}
                               </h3>
-                              <span className={`px-2.5 py-0.5 rounded-full text-xs font-medium ${getNotificationTypeColor(notification.type)}`}>
+                              <span
+                                className={`px-2.5 py-0.5 rounded-full text-xs font-medium ${getNotificationTypeColor(notification.type)}`}
+                              >
                                 {formatType(notification.type)}
                               </span>
                             </div>
-                            
+
                             <p className="text-sm text-slate-600 leading-relaxed mb-3">
                               {notification.message}
                             </p>
-                            
+
                             <div className="flex items-center gap-3 flex-wrap">
                               <span className="inline-flex items-center gap-1.5 text-xs text-slate-400">
                                 <Clock size={12} />
                                 {formatTime(notification.createdAt)}
                               </span>
-                              
+
                               {notification.actionUrl && (
                                 <button
                                   onClick={(e) => {
@@ -393,26 +464,29 @@ const NotificationPage = () => {
                             </div>
                           </div>
 
-                          {/* Actions Dropdown */}
                           <div className="flex-shrink-0">
                             <div className="relative">
                               <button
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  setOpenDropdownId(openDropdownId === notification.id ? null : notification.id);
+                                  setOpenDropdownId(
+                                    openDropdownId === notification.id
+                                      ? null
+                                      : notification.id,
+                                  );
                                 }}
                                 className={`p-2 rounded-lg transition-all duration-200 ${
-                                  openDropdownId === notification.id 
-                                    ? "bg-slate-200 text-slate-800" 
+                                  openDropdownId === notification.id
+                                    ? "bg-slate-200 text-slate-800"
                                     : "text-slate-400 hover:text-slate-700 hover:bg-slate-100 opacity-0 group-hover:opacity-100"
                                 }`}
                               >
                                 <MoreVertical size={18} />
                               </button>
-                              
+
                               {openDropdownId === notification.id && (
                                 <div className="absolute right-0 mt-2 w-48 bg-white rounded-xl shadow-xl border border-slate-100 z-10 py-1 overflow-hidden animate-in fade-in zoom-in-95 duration-200">
-                                  <button 
+                                  <button
                                     onClick={(e) => {
                                       e.stopPropagation();
                                       if (!notification.read) {
@@ -426,8 +500,8 @@ const NotificationPage = () => {
                                     <Eye size={14} />
                                     Đánh dấu đã đọc
                                   </button>
-                                  
-                                  <button 
+
+                                  <button
                                     onClick={(e) => {
                                       e.stopPropagation();
                                       handleDelete(notification.id);
@@ -455,13 +529,13 @@ const NotificationPage = () => {
                 <BellOff size={48} className="text-slate-400" />
               </div>
               <p className="text-slate-500 font-medium mb-2">
-                {activeTab === "unread" 
-                  ? "Không có thông báo chưa đọc" 
+                {activeTab === "unread"
+                  ? "Không có thông báo chưa đọc"
                   : "Không có thông báo nào"}
               </p>
               <p className="text-sm text-slate-400">
-                {activeTab === "unread" 
-                  ? "Tất cả thông báo đã được đọc" 
+                {activeTab === "unread"
+                  ? "Tất cả thông báo đã được đọc"
                   : "Hãy quay lại sau để xem thông báo mới"}
               </p>
             </div>

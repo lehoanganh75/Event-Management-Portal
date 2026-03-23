@@ -7,10 +7,11 @@ import {
   QrCode,
   BarChart3,
   ArrowLeft,
+  CheckCircle,
+  X,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import logo_iuh from "../../assets/images/logo_iuh.png";
-import Notification from "../notification/Notification";
 import ErrorNotification from "../notification/ErrorNotification";
 import axios from "axios";
 import Header from "../common/Header";
@@ -29,8 +30,11 @@ const LoginPage = () => {
 
   useEffect(() => {
     let timer;
+    if (toastVisible) {
+      timer = setTimeout(() => setToastVisible(false), 3000);
+    }
     return () => clearTimeout(timer);
-  }, []);
+  }, [toastVisible]);
 
   const handleChange = (e) => {
     const { id, value } = e.target;
@@ -146,7 +150,7 @@ const LoginPage = () => {
         <div className="w-full max-w-5xl flex flex-col">
           <button
             onClick={() => navigate("/")}
-            className="group flex items-center gap-2 text-sm font-semibold text-[#1a3a6b] hover:gap-3 transition-all duration-200 mb-6"
+            className="group flex hover:cursor-pointer items-center gap-2 text-sm font-semibold text-[#1a3a6b] hover:gap-3 transition-all duration-200 mb-6"
           >
             <span className="w-8 h-8 bg-white rounded-full shadow-sm border border-gray-200 flex items-center justify-center group-hover:bg-[#1a3a6b] group-hover:border-[#1a3a6b] transition-all duration-200">
               <ArrowLeft
@@ -159,12 +163,34 @@ const LoginPage = () => {
             </span>
           </button>
 
-          <Notification
-            toastVisible={toastVisible}
-            setToastVisible={setToastVisible}
-            notification="Thành công"
-            message={message}
-          />
+          {toastVisible && (
+            <div className="fixed top-6 right-6 z-50 transform transition-all duration-500 ease-out translate-x-0 opacity-100 scale-100">
+              <div className="relative overflow-hidden w-full max-w-xl
+                  bg-linear-to-r from-emerald-600 via-green-600 to-teal-600
+                  text-white rounded-2xl shadow-2xl shadow-green-900/40
+                  border border-white/10 backdrop-blur-xl">
+                <div className="flex items-start gap-4 p-6">
+                  <div className="shrink-0">
+                    <div className="w-12 h-12 flex items-center justify-center
+                        rounded-full bg-white/15 backdrop-blur-md
+                        border border-white/20 shadow-inner">
+                      <CheckCircle size={26} className="text-white drop-shadow-md" />
+                    </div>
+                  </div>
+                  <div className="flex-1">
+                    <p className="font-semibold text-lg tracking-tight">Thành công</p>
+                    <p className="mt-1 text-white/90 text-sm leading-relaxed">{message}</p>
+                  </div>
+                  <button 
+                    onClick={() => setToastVisible(false)} 
+                    className="shrink-0 p-2 rounded-full hover:bg-white/15 transition duration-200"
+                  >
+                    <X size={20} className="text-white/80 hover:text-white" />
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
           <ErrorNotification
             toastVisible={errorToastVisible}
             setToastVisible={setErrorToastVisible}

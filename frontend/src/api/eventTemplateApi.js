@@ -4,8 +4,13 @@ const API_URL = import.meta.env.VITE_EVENT_API_URL || "http://localhost:8081/api
 
 export const eventTemplateApi = {
   getAllTemplates: (organizationId, searchTerm, page, size) => {
-    return axios.get(`${API_URL}/templates`, {
-      params: { organizationId, searchTerm, page, size }
+    return axios.get(`${API_URL}/templates/all`, {
+      params: { 
+        organizationId, 
+        search: searchTerm,
+        page, 
+        size 
+      }
     }).then(res => res.data);
   },
   getAllTemplatesGlobal: (search, page, size) => {

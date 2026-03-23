@@ -14,7 +14,6 @@ import EventFeed from "../components/events/EventFeed";
 import MyEvents from "../pages/lecturePage/MyEvents";
 import ProfileUser from "../pages/lecturePage/ProfileUser";
 import PlansPage from "../pages/lecturePage/ManagePlans";
-import CreateEvent from "../components/events/CreateEvent";
 import QuestionReviewPage from "../../src/components/events/Questionreviewpage";
 import PollManagerPage from "../../src/components/events/Pollmanagerpage";
 import MyEventsPage from "../components/user/MyEventsPage";
@@ -35,6 +34,7 @@ import AdminPostManagement from "../components/admin/AdminPostManagement";
 
 import NotificationUserPage from "../components/notification/Notification";
 import AdminNotifications from "../components/admin/AdminNotifications";
+import LecturerNotifications from "../pages/lecturePage/LecturerNotifications";
 
 const AppRouter = () => {
   return (
@@ -57,7 +57,6 @@ const AppRouter = () => {
         <Route path="events">
           <Route path="feed" element={<EventFeed />} />
           <Route path="my-events" element={<MyEvents />} />
-          <Route path="create" element={<CreateEvent />} />
           <Route path=":id" element={<EventDetail />} />
           <Route path="questions" element={<QuestionReviewPage />} />
           <Route path="polls" element={<PollManagerPage />} />
@@ -69,6 +68,7 @@ const AppRouter = () => {
         </Route>
 
         <Route path="attendance" element={<AttendancePage />} />
+        <Route path="notifications" element={<LecturerNotifications />} />
         <Route path="plans" element={<PlansPage />} />
         <Route path="profile" element={<ProfileUser />} />
       </Route>

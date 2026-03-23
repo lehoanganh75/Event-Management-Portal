@@ -11,6 +11,7 @@ import {
   ChevronDown,
   Bell,
   Check,
+  X,
   Clock,
   ChevronRight,
   Calendar,
@@ -60,6 +61,7 @@ const Header = () => {
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [isMarkingAll, setIsMarkingAll] = useState(false);
+  const [logoutToastVisible, setLogoutToastVisible] = useState(false);
   const menuRef = useRef(null);
   const notificationRef = useRef(null);
   const isScrollingRef = useRef(false);
@@ -128,6 +130,14 @@ const Header = () => {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
+  useEffect(() => {
+    let timer;
+    if (logoutToastVisible) {
+      timer = setTimeout(() => setLogoutToastVisible(false), 3000);
+    }
+    return () => clearTimeout(timer);
+  }, [logoutToastVisible]);
+
   const fetchUnreadCount = async (userId) => {
     if (!userId) return;
     try {
@@ -162,8 +172,9 @@ const Header = () => {
     }
   };
 
+
   const handleMarkAllAsRead = async () => {
-    const userId = getUserId();
+    const userId = getCurrentUserId();
     if (!userId) return;
     
     setIsMarkingAll(true);
@@ -341,7 +352,7 @@ const Header = () => {
     if (!currentUser?.roles) return null;
     if (currentUser.roles.some((r) => ["ADMIN", "SUPER_ADMIN"].includes(r)))
       return "/admin";
-    if (currentUser.roles.includes("ORGANIZER")) return "/lecturer/dashboard";
+    if (currentUser.roles.includes("ORGANIZER")) return "/lecturer";
     return null;
   };
 
@@ -354,7 +365,7 @@ const Header = () => {
 
   const getNavClass = (section) => {
     const base =
-      "px-4 py-2 rounded-lg text-sm font-bold transition-all duration-200";
+      "px-4 py-2 rounded-lg text-sm font-bold transition-all duration-200 hover:cursor-pointer";
     return `${base} ${
       activeSection === section
         ? "text-blue-600 bg-blue-50"
@@ -425,7 +436,10 @@ const Header = () => {
       setCurrentUser(null);
       setIsMenuOpen(false);
       setIsLogoutModalOpen(false);
-      navigate("/login");
+      setLogoutToastVisible(true);
+      setTimeout(() => {
+        navigate("/");
+      }, 1500);
     }
   };
 
@@ -759,11 +773,11 @@ const Header = () => {
               ) : (
                 <button
                   onClick={() => navigate("/login")}
-                  className="group flex items-center gap-2 bg-gradient-to-r from-[#1a479a] to-blue-600 text-white px-5 py-2.5 rounded-xl text-[13px] font-bold hover:shadow-lg hover:shadow-blue-200 transition-all active:scale-95 uppercase tracking-wide"
+                  className="group flex items-center gap-2 bg-gradient-to-r hover:cursor-pointer from-[#1a479a] to-blue-600 text-white px-5 py-2.5 rounded-xl text-[13px] font-bold hover:shadow-lg hover:shadow-blue-200 transition-all active:scale-95 uppercase tracking-wide"
                 >
                   <LogIn
                     size={16}
-                    className="group-hover:translate-x-1 transition-transform"
+                    className="group-hover:translate-x-1 transition-transform "
                   />
                   Đăng nhập
                 </button>
@@ -816,6 +830,34 @@ const Header = () => {
           </div>
         )}
       </AnimatePresence>
+      {logoutToastVisible && (
+        <div className="fixed top-6 right-6 z-[200] transform transition-all duration-500 ease-out translate-x-0 opacity-100 scale-100">
+          <div className="relative overflow-hidden w-full max-w-xl
+              bg-linear-to-r from-emerald-600 via-green-600 to-teal-600
+              text-white rounded-2xl shadow-2xl shadow-green-900/40
+              border border-white/10 backdrop-blur-xl">
+            <div className="flex items-start gap-4 p-6">
+              <div className="shrink-0">
+                <div className="w-12 h-12 flex items-center justify-center
+                    rounded-full bg-white/15 backdrop-blur-md
+                    border border-white/20 shadow-inner">
+                  <CheckCircle size={26} className="text-white drop-shadow-md" />
+                </div>
+              </div>
+              <div className="flex-1">
+                <p className="font-semibold text-lg tracking-tight">Thành công</p>
+                <p className="mt-1 text-white/90 text-sm leading-relaxed">Đăng xuất thành công!</p>
+              </div>
+              <button 
+                onClick={() => setLogoutToastVisible(false)} 
+                className="shrink-0 p-2 rounded-full hover:bg-white/15 transition duration-200"
+              >
+                <X size={20} className="text-white/80 hover:text-white" />
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 };
