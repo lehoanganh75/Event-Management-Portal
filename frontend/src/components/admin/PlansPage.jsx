@@ -21,19 +21,15 @@ import { getAllPlans, approvePlan, cancelPlan } from "../../api/eventApi";
 import notificationApi from "../../api/notificationApi";
 
 const STATUS_LABELS = {
-  Draft: {
-    label: "Bản nháp",
-    color: "bg-slate-50 text-slate-600 border-slate-200",
-  },
   DRAFT: {
     label: "Bản nháp",
     color: "bg-slate-50 text-slate-600 border-slate-200",
   },
-  Plan_pending_approval: {
+  PLAN_PENDING_APPROVAL: {
     label: "Chờ duyệt kế hoạch",
     color: "bg-amber-50 text-amber-700 border-amber-200",
   },
-  PLAN_PENDING_APPROVAL: {
+  PENDING_APPROVAL: {
     label: "Chờ duyệt kế hoạch",
     color: "bg-amber-50 text-amber-700 border-amber-200",
   },
@@ -41,9 +37,25 @@ const STATUS_LABELS = {
     label: "Kế hoạch đã duyệt",
     color: "bg-blue-50 text-blue-700 border-blue-200",
   },
-  PUBLISHED: {
+  APPROVED: {
     label: "Đã duyệt",
     color: "bg-blue-50 text-blue-700 border-blue-200",
+  },
+  EVENT_PENDING_APPROVAL: {
+    label: "Chờ duyệt sự kiện",
+    color: "bg-orange-50 text-orange-700 border-orange-200",
+  },
+  PUBLISHED: {
+    label: "Đã xuất bản",
+    color: "bg-emerald-50 text-emerald-700 border-emerald-200",
+  },
+  ONGOING: {
+    label: "Đang diễn ra",
+    color: "bg-indigo-50 text-indigo-700 border-indigo-200",
+  },
+  COMPLETED: {
+    label: "Đã kết thúc",
+    color: "bg-gray-50 text-gray-700 border-gray-200",
   },
   CANCELLED: {
     label: "Đã hủy",
@@ -114,9 +126,19 @@ const PlansPage = () => {
     try {
       const res = await getAllPlans();
       const plansData = res.data || [];
+      console.log(
+        "Fetched plans:",
+        plansData.map((p) => ({
+          id: p.id,
+          title: p.title,
+          status: p.status,
+          statusUpper: p.status?.toUpperCase(),
+        })),
+      );
       setPlans(plansData);
     } catch (e) {
       showToast("Lỗi tải dữ liệu!", "error");
+      console.error("Fetch error:", e);
     } finally {
       setLoading(false);
     }
@@ -273,8 +295,9 @@ const PlansPage = () => {
         p.status?.toUpperCase() === "PUBLISHED",
     ).length,
     draft: plans.filter((p) => p.status?.toUpperCase() === "DRAFT").length,
+    rejected: plans.filter((p) => p.status?.toUpperCase() === "REJECTED")
+      .length,
   };
-
   return (
     <div className="space-y-6 bg-slate-50/50 min-h-screen p-6">
       <AnimatePresence>
@@ -403,9 +426,10 @@ const PlansPage = () => {
                       ? creatorName.charAt(0).toUpperCase()
                       : "?";
                   const avatarColor = getAvatarColor(creatorName);
+                  const currentStatus = plan.status?.toUpperCase() || "";
                   const isPending =
-                    plan.status === "Plan_pending_approval" ||
-                    plan.status === "PLAN_PENDING_APPROVAL";
+                    currentStatus === "PLAN_PENDING_APPROVAL" ||
+                    currentStatus === "PENDING_APPROVAL";
 
                   return (
                     <tr

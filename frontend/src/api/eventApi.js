@@ -18,8 +18,23 @@ api.interceptors.request.use(
 );
 
 const mapStatus = (status) => {
-  if (!status) return "DRAFT";
-  return status;
+    if (!status) return "DRAFT";
+    
+    const statusMap = {
+        "DRAFT": "DRAFT",
+        "PLAN_PENDING_APPROVAL": "PENDING_APPROVAL",
+        "PLAN_APPROVED": "APPROVED",
+        "PLAN_REJECTED": "REJECTED",
+        "EVENT_PENDING_APPROVAL": "PENDING_APPROVAL",
+        "EVENT_APPROVED": "APPROVED",
+        "EVENT_REJECTED": "REJECTED",
+        "PUBLISHED": "PUBLISHED",
+        "ONGOING": "ONGOING",
+        "COMPLETED": "COMPLETED",
+        "CANCELLED": "CANCELLED"
+    };
+    
+    return statusMap[status] || status;
 };
 
 const mapPlan = (p) => {
@@ -81,42 +96,83 @@ const mapPlan = (p) => {
 };
 
 const mapEvent = (e) => {
+  if (!e) return null;
+  
   const start = e.startTime ? new Date(e.startTime) : null;
   const end = e.endTime ? new Date(e.endTime) : null;
+  const registrationDeadline = e.registrationDeadline ? new Date(e.registrationDeadline) : null;
+  const createdAt = e.createdAt ? new Date(e.createdAt) : null;
+  const updatedAt = e.updatedAt ? new Date(e.updatedAt) : null;
+  
   return {
+    // ID
     id: e.id,
+    templateId: e.templateId || null,
+    
+    // Thông tin cơ bản
     title: e.title || "",
     description: e.description || "",
-    fullDescription: e.description || "", 
-    imageUrl: e.coverImage || "", 
-    eventDate: start ? start.toLocaleDateString("vi-VN") : "",
-    eventTime:
-      start && end
-        ? `${start.toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" })} - ${end.toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" })}`
-        : "",
-    registeredCount: e.registeredCount || 0,
+    fullDescription: e.description || "",
+    coverImage: e.coverImage || "",
+    eventTopic: e.eventTopic || "",
+    
+    // Thời gian
     startTime: start,
     endTime: end,
-    maxParticipants: e.maxParticipants || 100,
-    status: mapStatus(e.status),
+    registrationDeadline: registrationDeadline,
+    registrationDeadlineFormatted: registrationDeadline 
+      ? registrationDeadline.toLocaleDateString("vi-VN") 
+      : "",
+    eventDate: start ? start.toLocaleDateString("vi-VN") : "",
+    eventTime: start && end
+      ? `${start.toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" })} - ${end.toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" })}`
+      : "",
+    
+    // Địa điểm & hình thức
     location: e.location || "",
     eventMode: e.eventMode || "Offline",
-    luckyDrawId: e.luckyDrawId || null, 
     
+    // Số lượng
+    maxParticipants: e.maxParticipants || 100,
+    registeredCount: e.registeredCount || 0,
+    
+    // Status
+    status: mapStatus(e.status),
+    type: e.type || "SEMINAR",
+    
+    // Organization & phân khoa
     organizationId: e.organizationId,
-    createdByAccountId: e.createdByAccountId,
-    approvedByAccountId: e.approvedByAccountId,
     faculty: e.faculty || "",
     major: e.major || "",
-    type: e.type || "SEMINAR",
-    eventTopic: e.eventTopic || "",
     organizerUnit: e.organizerUnit || "",
-    agenda: e.agenda || [],
-    speakers: e.speakers || [],
+    
+    // Người tạo/duyệt
+    createdByAccountId: e.createdByAccountId,
     createdByName: e.createdByName || null,
+    approvedByAccountId: e.approvedByAccountId,
     approvedByName: e.approvedByName || null,
-    approvedByAccountId: e.approvedByAccountId || null,
-    createdByAccountId: e.createdByAccountId || null,
+    
+    // Lucky draw
+    luckyDrawId: e.luckyDrawId || null,
+    
+    // Dữ liệu bổ sung
+    agenda: Array.isArray(e.agenda) ? e.agenda : [],
+    speakers: Array.isArray(e.speakers) ? e.speakers : [],
+    participants: Array.isArray(e.participants) ? e.participants : [],
+    notes: e.notes || null,
+    additionalInfo: e.additionalInfo || null,
+    customFieldsJson: e.customFieldsJson || null,
+    
+    // Flags
+    finalized: e.finalized || false,
+    archived: e.archived || false,
+    deleted: e.deleted || false,
+    
+    // Timestamps
+    createdAt: createdAt,
+    updatedAt: updatedAt,
+    createdAtFormatted: createdAt ? createdAt.toLocaleString("vi-VN") : "",
+    updatedAtFormatted: updatedAt ? updatedAt.toLocaleString("vi-VN") : "",
   };
 };
 
@@ -130,15 +186,29 @@ export const getAllEvents = () =>
     };
   });
 
-export const getEventsByStatus = (status) =>
-  api
-    .get("/events/status", {
-      params: { status: status ? status.toUpperCase() : status },
+
+export const getEventsByStatus = (status) => {
+  if (!status || status === "all") {
+    return Promise.resolve({ data: [] });
+  }
+
+  const statusUpper = status.toUpperCase();
+
+  return api
+    .get("/events/by-statuses", {
+      params: { 
+        statuses: statusUpper 
+      },
     })
     .then((res) => ({
       ...res,
       data: Array.isArray(res.data) ? res.data.map(mapEvent) : [],
-    }));
+    }))
+    .catch((err) => {
+      console.error(`Lỗi tải sự kiện status ${status}:`, err);
+      return { data: [] };
+    });
+};
 
 export const getTotalParticipants = () =>
   api.get("/events").then((res) => {
@@ -350,6 +420,7 @@ export const getFeaturedEvents = () =>
     ...res,
     data: Array.isArray(res.data) ? res.data.map(mapEvent) : [],
   }));
+
 export const getMyEvents = async (accountId) => {
   try {
     const response = await api.get("/events/my-events", {

@@ -18,6 +18,8 @@ public interface EventService {
 
     List<Event> getFeaturedEvents();
 
+    Optional<Event> findById(String id);
+
     Optional<Event> getEventById(String id);
 
     List<Event> getMyEventsByAccountAndMonth(String accountId);
@@ -69,6 +71,8 @@ public interface EventService {
     List<PlanResponseDto> getAllPlansEnriched();
 
     List<PlanResponseDto> getPlansByAccountId(String accountId);
+
+    List<PlanResponseDto> getEventsByAccountId(String accountId);
 
     List<PlanResponseDto> getEventsByStatus(EventStatus status);
 
