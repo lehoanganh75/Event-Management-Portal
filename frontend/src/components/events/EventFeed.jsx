@@ -406,7 +406,6 @@ function FilterModal({ isOpen, onClose, filters, setFilters }) {
   );
 }
 
-/* ─── EVENT CARD ─── */
 function EventCard({ item, onClick }) {
   const availableSlots = item.maxParticipants - item.registeredCount;
   const availabilityPercent = (availableSlots / item.maxParticipants) * 100;
@@ -418,15 +417,17 @@ function EventCard({ item, onClick }) {
     >
       {/* Mobile: stacked layout, md+: side-by-side */}
       <div className="flex flex-col sm:flex-row">
-        {/* Image */}
-        <div className="sm:w-48 md:w-56 shrink-0">
-          <img
-            src={item.imageUrl}
-            alt={item.title}
-            className="w-full h-44 sm:h-full object-cover"
-          />
-        </div>
-
+<div className="sm:w-48 md:w-56 shrink-0">
+  <img
+    src={item.imageUrl || item.coverImage || "https://www.cvent.com/sites/default/files/image/2023-11/Business_Travel_Trends_Bleisure_Event-Cvent_CONNECT_2023.jpg"}  
+    alt={item.title || "Sự kiện"}
+    className="w-full h-44 sm:h-full object-cover"
+    onError={(e) => {
+      e.target.onerror = null;
+      e.target.src = "/images/default-event.jpg";
+    }}
+  />
+</div>
         {/* Content */}
         <div className="flex-1 p-4">
           {/* Badges row */}
@@ -549,28 +550,44 @@ export function EventFeed() {
   const handleEventClick = (eventId) => navigate(`/events/${eventId}`);
 
   useEffect(() => {
-    // 1. Cập nhật bộ lọc tự động nếu URL có tham số
-    const statusFromUrl = searchParams.get("status") || "all";
-    setFilters((prev) => {
-      if (prev.status !== statusFromUrl) {
-        return { ...prev, status: statusFromUrl };
-      }
-      return prev;
-    });
+    setIsLoading(true);
 
-    // 2. Tự động cuộn xuống phần id="su-kien"
-    if (location.search) {
-      setTimeout(() => {
-        const el = document.getElementById("su-kien");
-        if (el) {
-          const yOffset = -120; // Bù khoảng không gian của sticky header
-          const y =
-            el.getBoundingClientRect().top + window.pageYOffset + yOffset;
-          window.scrollTo({ top: y, behavior: "smooth" });
+    const loadEvents = async () => {
+      try {
+        let events = [];
+
+        if (filters.status === "all") {
+          const [publishedRes, ongoingRes, completedRes] = await Promise.all([
+            getEventsByStatus("PUBLISHED"),
+            getEventsByStatus("ONGOING"),
+            getEventsByStatus("COMPLETED"),
+          ]);
+
+          events = [
+            ...(publishedRes.data || []),
+            ...(ongoingRes.data || []),
+            ...(completedRes.data || []),
+          ];
+        } else {
+          const res = await getEventsByStatus(filters.status);
+          events = res.data || [];
         }
-      }, 100);
-    }
-  }, [location.search]);
+
+        const uniqueEvents = Array.from(
+          new Map(events.map((item) => [item.id, item])).values(),
+        );
+
+        setPosts(uniqueEvents);
+      } catch (err) {
+        console.error("Lỗi tải sự kiện:", err);
+        setPosts([]);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadEvents();
+  }, [filters.status]);
 
   useEffect(() => {
     setIsLoading(true);
