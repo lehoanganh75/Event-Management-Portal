@@ -119,7 +119,7 @@ const RegisterPage = () => {
     if (!validateForm()) return;
 
     try {
-      const API = "http://192.168.0.105:8082/api/auth/register";
+      const API = `${import.meta.env.VITE_AUTH_API_URL}/auth/register`;
       const response = await axios.post(API, {
         username: formData.username.trim(),
         password: formData.password.trim(),
