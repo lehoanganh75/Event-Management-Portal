@@ -46,7 +46,7 @@ public class SecurityConfig {
                         .requestMatchers("/api/admin/**").permitAll()
                         .requestMatchers("/api/profiles/**").permitAll()
                         .anyRequest().authenticated()
-                )
+                );
                 // .oauth2ResourceServer(oauth2 -> oauth2
                 //         .jwt(jwtConfigurer -> jwtConfigurer.decoder(jwtDecoder()))
                 // );
