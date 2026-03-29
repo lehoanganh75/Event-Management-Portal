@@ -8,13 +8,12 @@ import src.main.eventservice.entity.Event;
 import src.main.eventservice.entity.enums.EventStatus;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 public interface EventService {
 
     List<Event> getAllEvents();
-
-    Page<Event> getAllEvents(PageRequest pageable);
 
     List<Event> getFeaturedEvents();
 
@@ -30,7 +29,10 @@ public interface EventService {
 
     List<Event> getEventsByStatuses(List<EventStatus> statuses);
 
+    @Transactional
     Event saveEvent(Event event);
+
+    Page<Event> getAllEvents(PageRequest pageable);
 
     Event updateEvent(String id, Event eventDetails);
 
@@ -66,8 +68,6 @@ public interface EventService {
 
     Event cancelEvent(String id, String reason);
 
-    Event updateEventStatus(String id, EventStatus status, String approverId, String accountId);
-
     List<PlanResponseDto> getAllPlansEnriched();
 
     List<PlanResponseDto> getPlansByAccountId(String accountId);
@@ -79,4 +79,7 @@ public interface EventService {
     List<PlanResponseDto> getPlansPendingApproval();
 
     List<PlanResponseDto> getEventsPendingApproval();
+
+    @Transactional
+    Event updateEventStatus(String id, EventStatus status, String approverId, String accountId);
 }

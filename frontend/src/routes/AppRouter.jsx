@@ -17,6 +17,7 @@ import PlansPage from "../pages/lecturePage/ManagePlans";
 import QuestionReviewPage from "../../src/components/events/Questionreviewpage";
 import PollManagerPage from "../../src/components/events/Pollmanagerpage";
 import MyEventsPage from "../components/user/MyEventsPage";
+import DashboardLecture from "../pages/lecturePage/Dashboard";
 
 import ManagePosts from "../pages/lecturePage/ManagePosts";
 import CreatePost from "../components/events/CreatePost";
@@ -51,11 +52,11 @@ const AppRouter = () => {
       <Route path="/notifications/:userId" element={<NotificationUserPage />} />
       
       <Route path="/lecturer" element={<LecturerLayout />}>
-        <Route index element={<Navigate to="events/feed" replace />} />
+        <Route index element={<Navigate to="events/dashboard" replace />} />
 
         {/* Events Routes */}
         <Route path="events">
-          <Route path="feed" element={<EventFeed />} />
+          <Route path="dashboard" element={<DashboardLecture />} />
           <Route path="my-events" element={<MyEvents />} />
           <Route path=":id" element={<EventDetail />} />
           <Route path="questions" element={<QuestionReviewPage />} />

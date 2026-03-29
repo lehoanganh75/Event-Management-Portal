@@ -290,7 +290,11 @@ export const ManualInputStep = ({
     eventType: externalFormData?.eventType || "",
     eventTypeOther: externalFormData?.eventTypeOther || "",
     eventTitle: externalFormData?.eventTitle || externalFormData?.title || "",
-    eventTopic: externalFormData?.eventTopic || "",
+    eventTopic:
+      externalFormData?.eventTopic ||
+      (externalFormData?.themes?.length > 0
+        ? externalFormData.themes.join(", ")
+        : ""),
     eventPurpose: externalFormData?.description || "",
     eventMode: externalFormData?.eventMode || "OFFLINE",
     startTime: externalFormData?.startTime || "",
@@ -331,10 +335,11 @@ export const ManualInputStep = ({
   const addTheme = () => {
     const trimmed = newTheme.trim();
     if (trimmed && !formData.themes.includes(trimmed)) {
+      const newThemes = [...formData.themes, trimmed];
       setFormData((prev) => ({
         ...prev,
-        themes: [...prev.themes, trimmed],
-        eventTopic: [...(prev.themes || []), trimmed].join(", "),
+        themes: newThemes,
+        eventTopic: newThemes.join(", "),
       }));
     }
     setNewTheme("");
@@ -342,15 +347,26 @@ export const ManualInputStep = ({
   };
 
   const removeTheme = (theme) => {
-    setFormData((prev) => {
-      const newThemes = prev.themes.filter((t) => t !== theme);
-      return {
-        ...prev,
-        themes: newThemes,
-        eventTopic: newThemes.join(", "),
-      };
-    });
+    const newThemes = formData.themes.filter((t) => t !== theme);
+    setFormData((prev) => ({
+      ...prev,
+      themes: newThemes,
+      eventTopic: newThemes.join(", "),
+    }));
   };
+
+  useEffect(() => {
+    if (externalFormData?.themes && externalFormData.themes.length > 0) {
+      const topicsFromThemes = externalFormData.themes.join(", ");
+      if (formData.eventTopic !== topicsFromThemes) {
+        setFormData((prev) => ({
+          ...prev,
+          eventTopic: topicsFromThemes,
+          themes: externalFormData.themes,
+        }));
+      }
+    }
+  }, [externalFormData?.themes]);
 
   const validateForm = () => {
     const e = {};
@@ -358,11 +374,15 @@ export const ManualInputStep = ({
     if (formData.eventType === "OTHER" && !formData.eventTypeOther.trim())
       e.eventType = "Vui lòng nhập loại sự kiện khác";
     if (!formData.eventTitle.trim()) e.eventTitle = "Vui lòng nhập tên sự kiện";
-    if (!formData.eventPurpose.trim()) e.eventPurpose = "Vui lòng nhập mục đích tổ chức";
+    if (!formData.eventPurpose.trim())
+      e.eventPurpose = "Vui lòng nhập mục đích tổ chức";
     if (!formData.faculty) e.faculty = "Vui lòng chọn khoa";
     if (!formData.startTime) e.startTime = "Vui lòng chọn thời gian bắt đầu";
     if (!formData.endTime) e.endTime = "Vui lòng chọn thời gian kết thúc";
-    else if (formData.startTime && new Date(formData.endTime) <= new Date(formData.startTime)) {
+    else if (
+      formData.startTime &&
+      new Date(formData.endTime) <= new Date(formData.startTime)
+    ) {
       e.endTime = "Thời gian kết thúc phải sau thời gian bắt đầu";
     }
     if (
@@ -373,7 +393,10 @@ export const ManualInputStep = ({
       e.registrationDeadline = "Hạn đăng ký phải trước thời gian bắt đầu";
     }
     if (!formData.location.trim()) e.location = "Vui lòng nhập địa điểm";
-    if (formData.recipients.length === 0 && formData.customRecipients.length === 0)
+    if (
+      formData.recipients.length === 0 &&
+      formData.customRecipients.length === 0
+    )
       e.recipients = "Vui lòng chọn ít nhất một nơi nhận";
     if (formData.participants.length === 0)
       e.participants = "Vui lòng chọn ít nhất một đối tượng";
@@ -727,13 +750,18 @@ export const ManualInputStep = ({
                       error={!!errors.participants}
                       onChange={() => toggleParticipant(type)}
                     />
-                  )
+                  ),
                 )}
 
                 {formData.participants
                   .filter(
                     (p) =>
-                      !["Sinh viên", "Giảng viên", "Cán bộ", "Khách mời"].includes(p)
+                      ![
+                        "Sinh viên",
+                        "Giảng viên",
+                        "Cán bộ",
+                        "Khách mời",
+                      ].includes(p),
                   )
                   .map((customP) => (
                     <div

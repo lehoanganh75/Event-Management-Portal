@@ -298,6 +298,13 @@ export const ManualInputStep = ({
     "OTHER",
   ]);
 
+  const DEFAULT_TARGET_TYPES = [
+    "Sinh viên",
+    "Giảng viên",
+    "Cán bộ",
+    "Khách mời",
+  ];
+
   const [formData, setFormData] = useState(() => ({
     eventType: externalFormData?.eventType || "",
     eventTypeOther: externalFormData?.eventTypeOther || "",
@@ -333,6 +340,12 @@ export const ManualInputStep = ({
   const [newTheme, setNewTheme] = useState("");
   const [showAddTheme, setShowAddTheme] = useState(false);
 
+  const [targetObjects, setTargetObjects] = useState(
+    formData.targetObjects || [],
+  );
+  const [showAddTargetObject, setShowAddTargetObject] = useState(false);
+  const [newTargetObject, setNewTargetObject] = useState("");
+
   const nowStr = new Date().toISOString().slice(0, 16);
   const khoaOrganizers = [
     "Khoa Công nghệ thông tin",
@@ -341,6 +354,51 @@ export const ManualInputStep = ({
   ];
 
   const isKhoa = khoaOrganizers.includes(formData.faculty);
+
+  const toggleTargetObject = (type) => {
+    const exists = targetObjects.find((obj) => obj.type === type);
+    if (exists) {
+      setTargetObjects(targetObjects.filter((obj) => obj.type !== type));
+    } else {
+      setTargetObjects([
+        ...targetObjects,
+        {
+          type: type,
+          typeName: type,
+          fullName: "",
+          email: "",
+          // Các field khác có thể thêm sau
+        },
+      ]);
+    }
+  };
+
+  const addCustomTargetObject = () => {
+    if (
+      newTargetObject.trim() &&
+      !targetObjects.find((obj) => obj.type === newTargetObject.trim())
+    ) {
+      setTargetObjects([
+        ...targetObjects,
+        {
+          type: newTargetObject.trim(),
+          typeName: newTargetObject.trim(),
+          fullName: "",
+          email: "",
+        },
+      ]);
+      setNewTargetObject("");
+      setShowAddTargetObject(false);
+    }
+  };
+
+  const removeCustomTargetObject = (type) => {
+    setTargetObjects(targetObjects.filter((obj) => obj.type !== type));
+  };
+
+  useEffect(() => {
+    setFormData((prev) => ({ ...prev, targetObjects }));
+  }, [targetObjects]);
 
   const addTheme = () => {
     const trimmed = newTheme.trim();
@@ -370,11 +428,15 @@ export const ManualInputStep = ({
     const e = {};
     if (!formData.eventType) e.eventType = "Vui lòng chọn loại sự kiện";
     if (!formData.eventTitle) e.eventTitle = "Vui lòng nhập tên sự kiện";
-    if (!formData.eventPurpose) e.eventPurpose = "Vui lòng nhập mục đích tổ chức";
+    if (!formData.eventPurpose)
+      e.eventPurpose = "Vui lòng nhập mục đích tổ chức";
     if (!formData.faculty) e.faculty = "Vui lòng chọn khoa";
     if (!formData.startTime) e.startTime = "Vui lòng chọn thời gian bắt đầu";
     if (!formData.endTime) e.endTime = "Vui lòng chọn thời gian kết thúc";
-    else if (formData.startTime && new Date(formData.endTime) <= new Date(formData.startTime)) {
+    else if (
+      formData.startTime &&
+      new Date(formData.endTime) <= new Date(formData.startTime)
+    ) {
       e.endTime = "Thời gian kết thúc phải sau thời gian bắt đầu";
     }
     if (
@@ -385,7 +447,10 @@ export const ManualInputStep = ({
       e.registrationDeadline = "Hạn đăng ký phải trước thời gian bắt đầu";
     }
     if (!formData.location) e.location = "Vui lòng nhập địa điểm";
-    if (formData.recipients.length === 0 && formData.customRecipients.length === 0)
+    if (
+      formData.recipients.length === 0 &&
+      formData.customRecipients.length === 0
+    )
       e.recipients = "Vui lòng chọn ít nhất một nơi nhận";
     if (formData.participants.length === 0)
       e.participants = "Vui lòng chọn ít nhất một đối tượng";
@@ -760,31 +825,22 @@ export const ManualInputStep = ({
                   gap: 8,
                 }}
               >
-                {["Sinh viên", "Giảng viên", "Cán bộ", "Khách mời"].map(
-                  (type) => (
-                    <Pill
-                      key={type}
-                      label={type}
-                      checked={formData.participants.includes(type)}
-                      error={!!errors.participants}
-                      onChange={() => toggleParticipant(type)}
-                    />
-                  ),
-                )}
+                {DEFAULT_TARGET_TYPES.map((type) => (
+                  <Pill
+                    key={type}
+                    label={type}
+                    checked={targetObjects.some((obj) => obj.type === type)}
+                    error={!!errors.participants}
+                    onChange={() => toggleTargetObject(type)}
+                  />
+                ))}
 
-                {formData.participants
-                  .filter(
-                    (p) =>
-                      ![
-                        "Sinh viên",
-                        "Giảng viên",
-                        "Cán bộ",
-                        "Khách mời",
-                      ].includes(p),
-                  )
-                  .map((customP) => (
+                {/* Các loại tùy chỉnh */}
+                {targetObjects
+                  .filter((obj) => !DEFAULT_TARGET_TYPES.includes(obj.type))
+                  .map((obj) => (
                     <div
-                      key={customP}
+                      key={obj.type}
                       style={{
                         display: "flex",
                         alignItems: "center",
@@ -799,9 +855,9 @@ export const ManualInputStep = ({
                         cursor: "default",
                       }}
                     >
-                      {customP}
+                      {obj.typeName || obj.type}
                       <button
-                        onClick={() => removeCustomParticipant(customP)}
+                        onClick={() => removeCustomTargetObject(obj.type)}
                         style={{
                           border: "none",
                           background: "none",
@@ -816,7 +872,8 @@ export const ManualInputStep = ({
                     </div>
                   ))}
 
-                {showAddParticipant ? (
+                {/* Input thêm mới */}
+                {showAddTargetObject ? (
                   <div
                     style={{
                       display: "flex",
@@ -828,10 +885,10 @@ export const ManualInputStep = ({
                     <input
                       type="text"
                       placeholder="Nhập đối tượng khác..."
-                      value={newParticipant}
-                      onChange={(e) => setNewParticipant(e.target.value)}
+                      value={newTargetObject}
+                      onChange={(e) => setNewTargetObject(e.target.value)}
                       onKeyDown={(e) =>
-                        e.key === "Enter" && addCustomParticipant()
+                        e.key === "Enter" && addCustomTargetObject()
                       }
                       autoFocus
                       style={{
@@ -844,7 +901,7 @@ export const ManualInputStep = ({
                       }}
                     />
                     <button
-                      onClick={addCustomParticipant}
+                      onClick={addCustomTargetObject}
                       style={{
                         padding: "8px 16px",
                         background: "#2563eb",
@@ -860,8 +917,8 @@ export const ManualInputStep = ({
                     </button>
                     <button
                       onClick={() => {
-                        setShowAddParticipant(false);
-                        setNewParticipant("");
+                        setShowAddTargetObject(false);
+                        setNewTargetObject("");
                       }}
                       style={{
                         padding: "8px 12px",
@@ -879,7 +936,7 @@ export const ManualInputStep = ({
                   </div>
                 ) : (
                   <button
-                    onClick={() => setShowAddParticipant(true)}
+                    onClick={() => setShowAddTargetObject(true)}
                     style={{
                       display: "flex",
                       alignItems: "center",

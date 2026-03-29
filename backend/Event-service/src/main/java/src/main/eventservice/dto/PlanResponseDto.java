@@ -2,8 +2,13 @@ package src.main.eventservice.dto;
 
 import lombok.Data;
 import src.main.eventservice.entity.Event;
+import src.main.eventservice.entity.EventOrganizer;
+import src.main.eventservice.entity.EventParticipant;
+import src.main.eventservice.entity.EventPresenter;
 
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 @Data
 public class PlanResponseDto {
@@ -40,8 +45,14 @@ public class PlanResponseDto {
     private String createdByName;
     private String createdByAvatar;
     private String approvedByName;
-
     private String approvedByAccountId;
+
+    private List<Map<String, Object>> targetObjects;
+    private List<EventPresenter> presentersList;
+    private List<EventOrganizer> organizersList;
+    private List<EventParticipant> participantsList;
+
+
 
     public static PlanResponseDto from(Event event, UserDto creator, UserDto approver) {
         PlanResponseDto dto = new PlanResponseDto();
@@ -68,15 +79,26 @@ public class PlanResponseDto {
         dto.setApprovedByAccountId(event.getApprovedByAccountId());
         dto.setCreatedByAccountId(event.getCreatedByAccountId());
 
+        if (event.getRecipients() != null) {
+            List<String> recipientNames = event.getRecipients().stream()
+                    .map(r -> (String) r.get("name"))
+                    .filter(name -> name != null)
+                    .collect(Collectors.toList());
+            dto.setRecipients(recipientNames);
+        }
+
+
+        dto.setTargetObjects(event.getTargetObjects());
+        dto.setPresentersList(event.getPresenters());
+        dto.setOrganizersList(event.getOrganizers());
+        dto.setParticipantsList(event.getParticipants());
+
         if (approver != null) {
             dto.setApprovedByName(approver.getFullName());
         }
         if (creator != null) {
             dto.setCreatedByName(creator.getFullName());
             dto.setCreatedByAvatar(creator.getAvatarUrl());
-        }
-        if (approver != null) {
-            dto.setApprovedByName(approver.getFullName());
         }
         return dto;
     }

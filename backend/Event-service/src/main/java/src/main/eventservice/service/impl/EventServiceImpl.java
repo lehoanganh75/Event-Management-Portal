@@ -10,10 +10,12 @@ import src.main.eventservice.client.IdentityServiceClient;
 import src.main.eventservice.dto.PlanResponseDto;
 import src.main.eventservice.dto.UserDto;
 import src.main.eventservice.entity.Event;
+import src.main.eventservice.entity.EventOrganizer;
+import src.main.eventservice.entity.EventParticipant;
+import src.main.eventservice.entity.EventPresenter;
 import src.main.eventservice.entity.enums.EventStatus;
-import src.main.eventservice.repository.EventRegistrationRepository;
-import src.main.eventservice.repository.EventRepository;
-import src.main.eventservice.repository.EventTemplateRepository;
+import src.main.eventservice.entity.enums.ParticipationStatus;
+import src.main.eventservice.repository.*;
 import src.main.eventservice.service.EventService;
 
 import java.time.Duration;
@@ -29,8 +31,10 @@ public class EventServiceImpl implements EventService {
 
     private final EventRepository eventRepository;
     private final EventTemplateRepository eventTemplateRepository;
-    private final EventRegistrationRepository registrationRepository;
     private final IdentityServiceClient identityClient;
+    private final EventPresenterRepository presenterRepository;
+    private final EventOrganizerRepository organizerRepository;
+    private final EventParticipantRepository participantRepository;
 
     @Override
     public List<Event> getAllEvents() {
@@ -42,7 +46,19 @@ public class EventServiceImpl implements EventService {
                 EventStatus.CANCELLED
         );
         List<Event> events = eventRepository.findByStatusInAndIsDeletedFalseOrderByStartTimeDesc(statuses);
-        events.forEach(this::enrichEventWithRegistrationCount);
+
+        for (Event event : events) {
+            List<EventPresenter> presenters = presenterRepository.findByEventId(event.getId());
+            List<EventOrganizer> organizers = organizerRepository.findByEventId(event.getId());
+            List<EventParticipant> participants = participantRepository.findByEventId(event.getId());
+
+            event.setPresenters(presenters);
+            event.setOrganizers(organizers);
+            event.setParticipants(participants);
+
+            enrichEventWithRegistrationCount(event);
+        }
+
         return events;
     }
 
@@ -73,7 +89,19 @@ public class EventServiceImpl implements EventService {
 
     @Override
     public Optional<Event> getEventById(String id) {
-        return findById(id);
+        Optional<Event> eventOpt = eventRepository.findById(id);
+        eventOpt.ifPresent(event -> {
+            List<EventPresenter> presenters = presenterRepository.findByEventId(event.getId());
+            List<EventOrganizer> organizers = organizerRepository.findByEventId(event.getId());
+            List<EventParticipant> participants = participantRepository.findByEventId(event.getId());
+
+            event.setPresenters(presenters);
+            event.setOrganizers(organizers);
+            event.setParticipants(participants);
+
+            enrichEventWithRegistrationCount(event);
+        });
+        return eventOpt;
     }
 
     private void enrichEventWithRegistrationCount(Event event) {
@@ -127,11 +155,24 @@ public class EventServiceImpl implements EventService {
         event.setArchived(false);
         event.setFinalized(false);
         if (event.getStatus() == null) event.setStatus(EventStatus.DRAFT);
-        return eventRepository.save(event);
+
+        Event savedEvent = eventRepository.save(event);
+
+        if (event.getTargetObjects() != null && !event.getTargetObjects().isEmpty()) {
+            savedEvent.setTargetObjects(event.getTargetObjects());
+            savedEvent = eventRepository.save(savedEvent);
+        }
+
+        if (event.getRecipients() != null && !event.getRecipients().isEmpty()) {
+            savedEvent.setRecipients(event.getRecipients());
+            savedEvent = eventRepository.save(savedEvent);
+        }
+
+        return savedEvent;
     }
 
-    @Override
     @Transactional
+    @Override
     public Event saveEvent(Event event) {
         return eventRepository.save(event);
     }
@@ -163,10 +204,20 @@ public class EventServiceImpl implements EventService {
             existing.setNotes(eventDetails.getNotes());
             existing.setAdditionalInfo(eventDetails.getAdditionalInfo());
             existing.setCustomFieldsJson(eventDetails.getCustomFieldsJson());
+
+            if (eventDetails.getTargetObjects() != null) {
+                existing.setTargetObjects(eventDetails.getTargetObjects());
+            }
+
+            if (eventDetails.getRecipients() != null) {
+                existing.setRecipients(eventDetails.getRecipients());
+            }
+
             existing.setUpdatedAt(LocalDateTime.now());
             return eventRepository.save(existing);
         }).orElseThrow(() -> new RuntimeException("Không tìm thấy sự kiện với ID: " + id));
     }
+
 
     @Override
     @Transactional
@@ -240,7 +291,65 @@ public class EventServiceImpl implements EventService {
                 eventTemplateRepository.save(t);
             });
         }
-        return eventRepository.save(event);
+
+        // ===== LƯU EVENT TRƯỚC =====
+        Event savedEvent = eventRepository.save(event);
+
+        // ===== THÊM LOG VÀ LƯU CÁC BẢNG CON =====
+        log.info("========== CREATE PLAN DEBUG ==========");
+        log.info("Saved event ID: {}", savedEvent.getId());
+
+        // Lưu presenters
+        if (event.getPresenters() != null && !event.getPresenters().isEmpty()) {
+            for (EventPresenter presenter : event.getPresenters()) {
+                log.info("Before set - Presenter event is null? {}", presenter.getEvent() == null);
+                presenter.setEvent(savedEvent);
+                log.info("After set - Presenter event ID: {}", presenter.getEvent().getId());
+                presenter.setAssignedAt(LocalDateTime.now());
+                presenterRepository.save(presenter);
+            }
+            log.info("Đã lưu {} presenters", event.getPresenters().size());
+        }
+
+        // Lưu organizers
+        if (event.getOrganizers() != null && !event.getOrganizers().isEmpty()) {
+            for (EventOrganizer organizer : event.getOrganizers()) {
+                log.info("Before set - Organizer event is null? {}", organizer.getEvent() == null);
+                organizer.setEvent(savedEvent);
+                log.info("After set - Organizer event ID: {}", organizer.getEvent().getId());
+                organizer.setAssignedAt(LocalDateTime.now());
+                organizerRepository.save(organizer);
+            }
+            log.info("Đã lưu {} organizers", event.getOrganizers().size());
+        }
+
+        // Lưu participants
+        if (event.getParticipants() != null && !event.getParticipants().isEmpty()) {
+            for (EventParticipant participant : event.getParticipants()) {
+                log.info("Before set - Participant event is null? {}", participant.getEvent() == null);
+                participant.setEvent(savedEvent);
+                log.info("After set - Participant event ID: {}", participant.getEvent().getId());
+                participant.setRegisteredAt(LocalDateTime.now());
+                participant.setStatus(ParticipationStatus.REGISTERED);
+                participantRepository.save(participant);
+            }
+            log.info("Đã lưu {} participants", event.getParticipants().size());
+        }
+
+        // Lưu targetObjects và recipients (JSON fields)
+        if (event.getTargetObjects() != null && !event.getTargetObjects().isEmpty()) {
+            savedEvent.setTargetObjects(event.getTargetObjects());
+            savedEvent = eventRepository.save(savedEvent);
+        }
+
+        if (event.getRecipients() != null && !event.getRecipients().isEmpty()) {
+            savedEvent.setRecipients(event.getRecipients());
+            savedEvent = eventRepository.save(savedEvent);
+        }
+
+        log.info("=======================================");
+
+        return savedEvent;
     }
 
     @Transactional
@@ -259,6 +368,15 @@ public class EventServiceImpl implements EventService {
         existing.setStartTime(planDetails.getStartTime());
         existing.setEndTime(planDetails.getEndTime());
         existing.setLocation(planDetails.getLocation());
+
+        if (planDetails.getTargetObjects() != null) {
+            existing.setTargetObjects(planDetails.getTargetObjects());
+        }
+
+        if (planDetails.getRecipients() != null) {
+            existing.setRecipients(planDetails.getRecipients());
+        }
+
         existing.setUpdatedAt(LocalDateTime.now());
         return eventRepository.save(existing);
     }
@@ -318,6 +436,15 @@ public class EventServiceImpl implements EventService {
         newEvent.setCreatedByAccountId(eventDetails.getCreatedByAccountId());
         newEvent.setStatus(EventStatus.EVENT_PENDING_APPROVAL);
         newEvent.setCreatedAt(LocalDateTime.now());
+
+        if (plan.getTargetObjects() != null) {
+            newEvent.setTargetObjects(plan.getTargetObjects());
+        }
+
+        if (plan.getRecipients() != null) {
+            newEvent.setRecipients(plan.getRecipients());
+        }
+
         return eventRepository.save(newEvent);
     }
 
@@ -406,11 +533,48 @@ public class EventServiceImpl implements EventService {
                 EventStatus.DRAFT, EventStatus.PLAN_PENDING_APPROVAL,
                 EventStatus.PLAN_APPROVED, EventStatus.CANCELLED);
 
-        return eventRepository.findByStatusInAndIsDeletedFalseAndCreatedByAccountId(statuses, accountId)
-                .stream()
-                .map(e -> PlanResponseDto.from(e, null, null))
+        List<Event> plans = eventRepository.findByStatusInAndIsDeletedFalseAndCreatedByAccountId(statuses, accountId);
+
+        for (Event plan : plans) {
+            List<EventPresenter> presenters = presenterRepository.findByEventId(plan.getId());
+            plan.setPresenters(presenters);
+
+            List<EventOrganizer> organizers = organizerRepository.findByEventId(plan.getId());
+            plan.setOrganizers(organizers);
+
+            List<EventParticipant> participants = participantRepository.findByEventId(plan.getId());
+            plan.setParticipants(participants);
+
+            enrichEventWithRegistrationCount(plan);
+
+            log.info("Plan {} - presenters: {}, organizers: {}, participants: {}, targetObjects: {}",
+                    plan.getId(), presenters.size(), organizers.size(), participants.size(), plan.getTargetObjects());
+        }
+        
+        Set<String> userIds = plans.stream()
+                .flatMap(e -> Stream.of(e.getCreatedByAccountId(), e.getApprovedByAccountId()))
+                .filter(Objects::nonNull)
+                .filter(id -> !id.isBlank())
+                .collect(Collectors.toSet());
+
+        Map<String, UserDto> userMap = Collections.emptyMap();
+        try {
+            if (!userIds.isEmpty()) {
+                userMap = identityClient.getUsersByIds(new ArrayList<>(userIds)).stream()
+                        .collect(Collectors.toMap(UserDto::getId, u -> u, (o, n) -> o));
+            }
+        } catch (Exception e) {
+            log.error("Lỗi khi gọi Identity Service", e);
+        }
+
+        Map<String, UserDto> finalUserMap = userMap;
+        return plans.stream()
+                .map(e -> PlanResponseDto.from(e,
+                        finalUserMap.get(e.getCreatedByAccountId()),
+                        finalUserMap.get(e.getApprovedByAccountId())))
                 .collect(Collectors.toList());
     }
+
 
     @Override
     public List<PlanResponseDto> getEventsByAccountId(String accountId) {
@@ -419,11 +583,42 @@ public class EventServiceImpl implements EventService {
                 EventStatus.ONGOING, EventStatus.COMPLETED, EventStatus.CANCELLED);
 
         List<Event> events = eventRepository.findByStatusInAndIsDeletedFalseAndCreatedByAccountId(statuses, accountId);
-        events.forEach(this::enrichEventWithRegistrationCount);
 
+        for (Event event : events) {
+            List<EventPresenter> presenters = presenterRepository.findByEventId(event.getId());
+            event.setPresenters(presenters);
+
+            List<EventOrganizer> organizers = organizerRepository.findByEventId(event.getId());
+            event.setOrganizers(organizers);
+
+            List<EventParticipant> participants = participantRepository.findByEventId(event.getId());
+            event.setParticipants(participants);
+
+            enrichEventWithRegistrationCount(event);
+        }
+
+        Set<String> userIds = events.stream()
+                .flatMap(e -> Stream.of(e.getCreatedByAccountId(), e.getApprovedByAccountId()))
+                .filter(Objects::nonNull)
+                .filter(id -> !id.isBlank())
+                .collect(Collectors.toSet());
+
+        Map<String, UserDto> userMap = Collections.emptyMap();
+        try {
+            if (!userIds.isEmpty()) {
+                userMap = identityClient.getUsersByIds(new ArrayList<>(userIds)).stream()
+                        .collect(Collectors.toMap(UserDto::getId, u -> u, (o, n) -> o));
+            }
+        } catch (Exception e) {
+            log.error("Lỗi khi gọi Identity Service", e);
+        }
+
+        Map<String, UserDto> finalUserMap = userMap;
         return events.stream()
                 .sorted(Comparator.comparing(Event::getStartTime, Comparator.nullsLast(Comparator.naturalOrder())).reversed())
-                .map(e -> PlanResponseDto.from(e, null, null))
+                .map(e -> PlanResponseDto.from(e,
+                        finalUserMap.get(e.getCreatedByAccountId()),
+                        finalUserMap.get(e.getApprovedByAccountId())))
                 .collect(Collectors.toList());
     }
 
@@ -458,8 +653,8 @@ public class EventServiceImpl implements EventService {
                 .collect(Collectors.toList());
     }
 
-    @Override
     @Transactional
+    @Override
     public Event updateEventStatus(String id, EventStatus status, String approverId, String accountId) {
         return switch (status) {
             case PLAN_PENDING_APPROVAL -> submitPlanForApproval(id);

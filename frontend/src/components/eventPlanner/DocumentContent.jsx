@@ -12,9 +12,18 @@ const eventTypeVi = {
   OTHER: "Khác",
 };
 
-const formatPerson = (p) =>
-  [p.title, p.name].filter(Boolean).join(" ") +
-  (p.org || p.dept ? ` - ${p.org || p.dept}` : "");
+const formatPerson = (p) => {
+  if (!p) return "";
+
+  const title = p.title || "";
+  const name = p.name || p.fullName || "";
+  const role = p.role === "MEMBER" ? "" : p.role;
+  const department = p.department || "";
+  const organization = p.organization || p.org || "";
+
+  const parts = [title, name, role, department, organization].filter(Boolean);
+  return parts.join(" - ");
+};
 
 export const DocumentContent = ({ isModal = false, data = {} }) => {
   const {
@@ -178,10 +187,7 @@ export const DocumentContent = ({ isModal = false, data = {} }) => {
             </p>
             <ul className="ml-6 space-y-1">
               {organizers.map((p, i) => (
-                <li key={i}>
-                  - {formatPerson(p)}
-                  {p.email ? ` - ${p.email}` : ""}
-                </li>
+                <li key={i}>- {formatPerson(p)}</li>
               ))}
             </ul>
           </div>

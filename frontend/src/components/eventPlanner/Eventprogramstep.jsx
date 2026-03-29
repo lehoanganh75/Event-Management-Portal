@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   ArrowLeft,
   Plus,
@@ -19,13 +19,9 @@ import {
   UserCheck,
   Upload,
   Image,
-  Clock,
-  MapPin,
-  FileText,
-  Info,
-  Check,
   GripVertical,
   Edit2,
+  Info,
 } from "lucide-react";
 import axios from "axios";
 
@@ -275,11 +271,8 @@ function PeopleSearch({ onSelect, accentColor = "blue" }) {
 
     try {
       const token = localStorage.getItem("accessToken");
-      console.log("🔑 Token:", token);
-      console.log("🔑 Token exists:", !!token);
-
       if (!token) {
-        console.error("❌ No token found in localStorage");
+        console.error("No token found");
         setRes([]);
         setDone(true);
         setLoading(false);
@@ -288,11 +281,6 @@ function PeopleSearch({ onSelect, accentColor = "blue" }) {
 
       const IDENTITY_SERVICE_URL =
         import.meta.env.VITE_IDENTITY_API_URL || "http://localhost:8082";
-      console.log("🔍 Searching for:", q);
-      console.log(
-        "🔍 URL:",
-        `${IDENTITY_SERVICE_URL}/api/profiles/search?keyword=${encodeURIComponent(q)}`,
-      );
 
       const response = await axios.get(
         `${IDENTITY_SERVICE_URL}/api/profiles/search?keyword=${encodeURIComponent(q)}`,
@@ -303,17 +291,11 @@ function PeopleSearch({ onSelect, accentColor = "blue" }) {
         },
       );
 
-      console.log("✅ Search response:", response.data);
       const users = response.data || [];
       setRes(users);
       setDone(true);
     } catch (error) {
-      console.error("❌ Lỗi tìm kiếm người dùng:", {
-        status: error.response?.status,
-        statusText: error.response?.statusText,
-        data: error.response?.data,
-        message: error.message,
-      });
+      console.error("Lỗi tìm kiếm:", error);
       setRes([]);
       setDone(true);
     } finally {
@@ -322,10 +304,10 @@ function PeopleSearch({ onSelect, accentColor = "blue" }) {
   };
 
   const pick = (u) => {
-    console.log("📝 Selected user:", u);
     onSelect({
       id: u.id,
       name: u.fullName,
+      fullName: u.fullName, 
       email: u.account?.email || "",
       dept: u.majorName || "",
       avatar:
@@ -491,6 +473,7 @@ function PeopleSearch({ onSelect, accentColor = "blue" }) {
     </div>
   );
 }
+
 function ManualForm({ onAdd, onCancel, roleLabel }) {
   const [d, setD] = useState({
     name: "",
@@ -519,6 +502,7 @@ function ManualForm({ onAdd, onCancel, roleLabel }) {
     onAdd({
       id: `m_${Date.now()}`,
       name: d.name.trim(),
+      fullName: d.name.trim(),
       title: d.title.trim(),
       org: d.org.trim(),
       role: finalRole,
@@ -801,7 +785,11 @@ function PeopleBody({
 
   const add = (p) => {
     if (!people.find((x) => x.id === p.id)) {
-      onAdd(p);
+      const personWithFullName = {
+        ...p,
+        fullName: p.fullName || p.name || "",
+      };
+      onAdd(personWithFullName);
       setMode(null);
     }
   };
@@ -1215,7 +1203,11 @@ function ProgramItems({ items, presenters, onChange }) {
       return;
     }
     if (editingId) {
-      onChange(items.map(item => item.id === editingId ? { ...item, ...ni } : item));
+      onChange(
+        items.map((item) =>
+          item.id === editingId ? { ...item, ...ni } : item,
+        ),
+      );
     } else {
       onChange([...items, { id: `item_${Date.now()}`, ...ni }]);
     }
@@ -1246,7 +1238,6 @@ function ProgramItems({ items, presenters, onChange }) {
   const handleDragStart = (e, index) => {
     setDraggedIdx(index);
     e.dataTransfer.effectAllowed = "move";
-    // For Firefox compatibility
     e.dataTransfer.setData("text/html", e.target.parentNode);
   };
 
@@ -1311,7 +1302,11 @@ function ProgramItems({ items, presenters, onChange }) {
                 cursor: "grab",
               }}
             >
-              <GripVertical size={18} color="#cbd5e1" style={{ cursor: "grab" }} />
+              <GripVertical
+                size={18}
+                color="#cbd5e1"
+                style={{ cursor: "grab" }}
+              />
               <div
                 style={{
                   width: 36,
@@ -1370,8 +1365,12 @@ function ProgramItems({ items, presenters, onChange }) {
                     borderRadius: 8,
                     display: "flex",
                   }}
-                  onMouseEnter={(e) => (e.currentTarget.style.color = "#3b82f6")}
-                  onMouseLeave={(e) => (e.currentTarget.style.color = "#cbd5e1")}
+                  onMouseEnter={(e) =>
+                    (e.currentTarget.style.color = "#3b82f6")
+                  }
+                  onMouseLeave={(e) =>
+                    (e.currentTarget.style.color = "#cbd5e1")
+                  }
                 >
                   <Edit2 size={16} />
                 </button>
@@ -1386,8 +1385,12 @@ function ProgramItems({ items, presenters, onChange }) {
                     borderRadius: 8,
                     display: "flex",
                   }}
-                  onMouseEnter={(e) => (e.currentTarget.style.color = "#ef4444")}
-                  onMouseLeave={(e) => (e.currentTarget.style.color = "#cbd5e1")}
+                  onMouseEnter={(e) =>
+                    (e.currentTarget.style.color = "#ef4444")
+                  }
+                  onMouseLeave={(e) =>
+                    (e.currentTarget.style.color = "#cbd5e1")
+                  }
                 >
                   <X size={16} />
                 </button>
@@ -1518,7 +1521,7 @@ function ProgramItems({ items, presenters, onChange }) {
                   fontFamily: fi,
                 }}
               >
-                {editingId ? <Check size={14} /> : <Plus size={14} />} 
+                {editingId ? <Check size={14} /> : <Plus size={14} />}
                 {editingId ? "Lưu thay đổi" : "Thêm vào chương trình"}
               </button>
               <button
@@ -1601,6 +1604,9 @@ function EventSummary({ formData }) {
       minute: "2-digit",
     });
   };
+
+  // Lấy targetObjects từ formData
+  const targetObjects = formData?.targetObjects || [];
 
   return (
     <div
@@ -1747,25 +1753,6 @@ function EventSummary({ formData }) {
               fontWeight: 600,
             }}
           >
-            ĐỐI TƯỢNG THAM GIA
-          </p>
-          <p
-            style={{ fontSize: 14, color: "#111", fontWeight: 500, margin: 0 }}
-          >
-            {formData?.participants?.length > 0
-              ? formData.participants.join(", ")
-              : "Chưa chọn"}
-          </p>
-        </div>
-        <div>
-          <p
-            style={{
-              fontSize: 11,
-              color: "#94a3b8",
-              margin: "0 0 4px",
-              fontWeight: 600,
-            }}
-          >
             SỐ LƯỢNG TỐI ĐA
           </p>
           <p
@@ -1795,6 +1782,27 @@ function EventSummary({ formData }) {
               : "Chưa chọn"}
           </p>
         </div>
+        <div>
+          <p
+            style={{
+              fontSize: 11,
+              color: "#94a3b8",
+              margin: "0 0 4px",
+              fontWeight: 600,
+            }}
+          >
+            ĐỐI TƯỢNG THAM GIA DỰ KIẾN
+          </p>
+          <p
+            style={{ fontSize: 14, color: "#111", fontWeight: 500, margin: 0 }}
+          >
+            {targetObjects.length > 0
+              ? targetObjects
+                  .map((obj) => obj.name || obj.fullName || obj.typeName)
+                  .join(", ")
+              : "Chưa có"}
+          </p>
+        </div>
       </div>
 
       <div style={{ marginTop: 16 }}>
@@ -1817,7 +1825,6 @@ function EventSummary({ formData }) {
     </div>
   );
 }
-
 export const EventProgramStep = ({
   onBack,
   onNext,
@@ -1841,17 +1848,122 @@ export const EventProgramStep = ({
   const [coverImage, setCoverImage] = useState(
     externalFormData?.coverImage || "",
   );
+
+  const [targetObjects, setTargetObjects] = useState(
+    externalFormData?.targetObjects || [],
+  );
   const [isUploading, setIsUploading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [currentUser, setCurrentUser] = useState(null);
 
-  const meAdded = organizers.some((o) => o.id === "ME");
+  useEffect(() => {
+    const getUserInfo = () => {
+      const userData = localStorage.getItem("user");
 
-  const addTo = (list, setter) => (p) => {
-    if (!list.find((x) => x.id === p.id)) setter([...list, p]);
-  };
+      if (userData) {
+        try {
+          const user = JSON.parse(userData);
+
+          const accountId = user.id || user.accountId || user.userId;
+          if (accountId) {
+            let displayName = user.fullName || user.username;
+
+            setCurrentUser({
+              id: accountId,
+              name: displayName || "Tôi",
+              fullName: displayName || "Tôi",
+              email: user.email || "",
+              title: user.title || "",
+              org: user.department || user.faculty || user.majorName || "",
+              department: user.department || user.faculty || "",
+              isMe: true,
+              avatar: (displayName || "T").charAt(0).toUpperCase(),
+            });
+            return;
+          }
+        } catch (error) {
+          console.error("Lỗi parse user data:", error);
+        }
+      }
+
+      const accessToken = localStorage.getItem("accessToken");
+      if (accessToken) {
+        try {
+          const base64Url = accessToken.split(".")[1];
+          const base64 = base64Url.replace(/-/g, "+").replace(/_/g, "/");
+          const payload = JSON.parse(atob(base64));
+
+          let displayName =
+            payload.fullName || payload.name || payload.username;
+
+          setCurrentUser({
+            id: payload.accountId || payload.sub || payload.userId,
+            name: displayName || "Tôi",
+            fullName: displayName || "Tôi",
+            email: payload.email || "",
+            title: payload.title || "",
+            org: payload.department || payload.faculty || "",
+            department: payload.department || payload.faculty || "",
+            isMe: true,
+            avatar: (displayName || "T").charAt(0).toUpperCase(),
+          });
+        } catch (e) {
+          console.error("Lỗi decode token:", e);
+        }
+      }
+    };
+
+    getUserInfo();
+  }, []);
+
+  const meAdded = organizers.some(
+    (o) => o.id === currentUser?.id || o.id === "ME",
+  );
+
+ const addTo = (list, setter) => (p) => {
+  console.log("🔍 Adding person - raw data:", p);  // THÊM LOG NÀY
+  if (!list.find((x) => x.id === p.id)) {
+    const newPerson = {
+      ...p,
+      fullName: p.fullName || p.name || "",
+      name: p.name || p.fullName || "",
+    };
+    console.log("✅ Person after mapping:", newPerson);  // THÊM LOG NÀY
+    setter([...list, newPerson]);
+  }
+};
 
   const removeFrom = (list, setter) => (id) =>
     setter(list.filter((p) => p.id !== id));
+
+  const handleAddMe = () => {
+    if (currentUser && !meAdded) {
+      const userData = localStorage.getItem("user");
+      let realName = "Tôi";
+      if (userData) {
+        try {
+          const user = JSON.parse(userData);
+          realName = user.fullName || user.username || "Tôi";
+        } catch (e) {}
+      }
+
+      setOrganizers([
+        ...organizers,
+        {
+          id: currentUser.id,
+          name: realName,
+          fullName: realName,
+          title: currentUser.title || "",
+          role: "MEMBER",
+          department: currentUser.org || "",
+          organization: currentUser.org || "",
+          isMe: true,
+          isManual: false,
+          avatar: (realName || "T").charAt(0).toUpperCase(),
+        },
+      ]);
+    }
+  };
 
   const handleImageUpload = (e) => {
     const file = e.target.files[0];
@@ -2091,11 +2203,9 @@ export const EventProgramStep = ({
             people={organizers}
             onAdd={addTo(organizers, setOrganizers)}
             onRemove={removeFrom(organizers, setOrganizers)}
-            showAddMe
+            showAddMe={!!currentUser}
             meAdded={meAdded}
-            onAddMe={() => {
-              if (!meAdded) setOrganizers([...organizers, CURRENT_USER]);
-            }}
+            onAddMe={handleAddMe}
             accentColor="emerald"
             roleLabel="thành viên BTC"
           />

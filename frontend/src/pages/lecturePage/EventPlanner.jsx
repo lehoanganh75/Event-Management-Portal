@@ -32,9 +32,12 @@ const INITIAL_FORM_DATA = {
   customRecipients: [],
   participants: [],
   notes: "",
+
   presenters: [],
   organizers: [],
   attendees: [],
+  targetObjects: [],
+
   customFields: [],
   hasLuckyDraw: false,
 };
@@ -153,6 +156,8 @@ export const EventPlanner = ({
         participants: [],
         presenters: [],
         organizers: [],
+        attendees: [],
+        targetObjects: [],
         themes: [],
         faculty: "",
         major: "",
@@ -189,6 +194,8 @@ export const EventPlanner = ({
         participants: configData.participants || [],
         presenters: configData.presenters || [],
         organizers: configData.organizers || [],
+        attendees: configData.attendees || [],
+        targetObjects: configData.targetObjects || [],
         themes: template.themes || [],
         faculty: template.faculty || "",
         major: template.major || "",
@@ -250,49 +257,21 @@ export const EventPlanner = ({
     }
   };
 
-  // const handleUpdate = async (e) => {
-  //   e.preventDefault();
-
-  //   if (selectedPlan.startTime && selectedPlan.endTime) {
-  //     const start = new Date(selectedPlan.startTime);
-  //     const end = new Date(selectedPlan.endTime);
-  //     if (end <= start) {
-  //       showToast("Thời gian kết thúc phải sau thời gian bắt đầu!", "error");
-  //       return;
-  //     }
-  //   }
-
-  //   if (selectedPlan.registrationDeadline && selectedPlan.startTime) {
-  //     const deadline = new Date(selectedPlan.registrationDeadline);
-  //     const start = new Date(selectedPlan.startTime);
-  //     if (deadline >= start) {
-  //       showToast("Hạn đăng ký phải trước thời gian bắt đầu!", "error");
-  //       return;
-  //     }
-  //   }
-
-  //   try {
-  //     const response = await updatePlan(selectedPlan.id, selectedPlan);
-
-  //     if (response.status >= 200 && response.status < 300) {
-  //       setPlans(
-  //         plans.map((p) =>
-  //           p.id === selectedPlan.id
-  //             ? { ...selectedPlan, updatedAt: new Date() }
-  //             : p,
-  //         ),
-  //       );
-  //       closeModal();
-  //       showToast("Cập nhật kế hoạch thành công", "success");
-  //     } else {
-  //       throw new Error("Update failed");
-  //     }
-  //   } catch (error) {
-  //     const errorMsg =
-  //       error.response?.data?.message || "Lỗi khi cập nhật dữ liệu";
-  //     showToast(errorMsg, "error");
-  //   }
-  // };
+  const removeEmptyFields = (obj, keepFields = []) => {
+    const cleaned = {};
+    for (const key in obj) {
+      if (keepFields.includes(key)) {
+        cleaned[key] = obj[key];
+      } else if (
+        obj[key] !== "" &&
+        obj[key] !== null &&
+        obj[key] !== undefined
+      ) {
+        cleaned[key] = obj[key];
+      }
+    }
+    return cleaned;
+  };
 
   const handleSave = async () => {
     if (!currentAccountId) {
@@ -347,6 +326,76 @@ export const EventPlanner = ({
       const location = (formData.location || "Chưa xác định").trim();
       const eventMode = (formData.eventMode || "OFFLINE").toUpperCase();
 
+      const formattedPresenters = Array.isArray(formData.presenters)
+        ? formData.presenters.map((p) => {
+            return {
+              fullName: p.fullName || p.name || "",
+              email: p.email || "",
+              position: p.position || p.title || "",
+            };
+          })
+        : [];
+
+      const formattedOrganizers = Array.isArray(formData.organizers)
+        ? formData.organizers.map((o) => ({
+            fullName: o.fullName || "",
+            email: o.email || "",
+            position: o.position || "",
+            role: o.role || "MEMBER",
+          }))
+        : [];
+
+      const formattedParticipants = Array.isArray(formData.attendees)
+        ? formData.attendees
+            .map((a) => {
+              const participant = {
+                fullName: a.fullName || a.name || "",
+                email: a.email || "",
+                title: a.title || "",
+                position: a.position || "",
+                department: a.department || "",
+                organization: a.organization || "",
+                code: a.studentId || a.code || "",
+                notes: a.notes || "",
+              };
+              return removeEmptyFields(participant, ["email"]);
+            })
+            .filter((p) => p.fullName)
+        : [];
+
+      const formattedTargetObjects = Array.isArray(formData.targetObjects)
+        ? formData.targetObjects.map((obj) => ({
+            type: obj.type || "OTHER",
+            typeName: obj.typeName || "Khác",
+          }))
+        : [];
+
+      const formattedRecipients = Array.isArray(formData.recipients)
+        ? formData.recipients.map((r) => {
+            if (typeof r === "string") {
+              return {
+                name: r,
+                type: "DEPARTMENT",
+                email: "",
+              };
+            }
+            return r;
+          })
+        : [];
+
+      const formattedCustomRecipients = Array.isArray(formData.customRecipients)
+        ? formData.customRecipients.map((r) => {
+            if (typeof r === "string") {
+              return {
+                name: r,
+                type: "CUSTOM",
+                email: "",
+              };
+            }
+            return r;
+          })
+        : [];
+
       const payload = {
         organizationId: formData.organizationId || "org-it",
         title: trimmedTitle,
@@ -367,26 +416,10 @@ export const EventPlanner = ({
         hasLuckyDraw: formData.hasLuckyDraw || false,
         finalized: false,
         archived: false,
-        participants: Array.isArray(formData.participants)
-          ? formData.participants
-          : [],
         faculty: formData.faculty || "",
         major: formData.major || "",
-        recipients: Array.isArray(formData.recipients)
-          ? formData.recipients
-          : [],
-        customRecipients: Array.isArray(formData.customRecipients)
-          ? formData.customRecipients
-          : [],
-        presenters: Array.isArray(formData.presenters)
-          ? formData.presenters.map((p) => (typeof p === "string" ? p : p.name))
-          : [],
-        organizingCommittee: Array.isArray(formData.organizers)
-          ? formData.organizers.map((p) => (typeof p === "string" ? p : p.name))
-          : [],
-        attendees: Array.isArray(formData.attendees)
-          ? formData.attendees.map((p) => (typeof p === "string" ? p : p.name))
-          : [],
+        recipients: formattedRecipients,
+        customRecipients: formattedCustomRecipients,
         notes: (formData.notes || "").trim(),
         templateId:
           formData.templateId === "0" || !formData.templateId
@@ -401,6 +434,12 @@ export const EventPlanner = ({
           formData.customFields?.length > 0
             ? JSON.stringify(formData.customFields)
             : null,
+
+        presenters: formattedPresenters,
+        organizers: formattedOrganizers,
+        participants: formattedParticipants,
+        targetObjects: formattedTargetObjects,
+
         createdByAccountId: currentAccountId,
       };
 
@@ -410,15 +449,16 @@ export const EventPlanner = ({
       if (planId) {
         await sendPlanNotification(currentAccountId, planId, trimmedTitle);
 
-        if (formData.recipients && formData.recipients.length > 0) {
-          const notificationPromises = formData.recipients.map((recipient) => {
-            const targetId = recipient.id || recipient.accountId || recipient;
+        if (formattedRecipients && formattedRecipients.length > 0) {
+          const notificationPromises = formattedRecipients.map((recipient) => {
+            const targetId =
+              recipient.id || recipient.accountId || recipient.name;
             return sendPlanNotification(targetId, planId, trimmedTitle);
           });
 
           await Promise.all(notificationPromises);
           console.log(
-            `✅ Đã gửi thông báo đến ${formData.recipients.length} người nhận.`,
+            `✅ Đã gửi thông báo đến ${formattedRecipients.length} người nhận.`,
           );
         }
       }
@@ -426,8 +466,6 @@ export const EventPlanner = ({
       toast.success("✅ Lưu kế hoạch thành công!");
       onBack();
     } catch (err) {
-      console.error("🔴 Server trả về lỗi:", err.response?.data);
-
       let errorMessage = "Kiểm tra lại định dạng dữ liệu";
 
       if (err.response?.data) {

@@ -561,7 +561,7 @@ const RECIPIENT_OPTIONS = [
 ];
 const PARTICIPANT_OPTIONS = ["Sinh viên", "Giảng viên", "Cán bộ", "Khách mời"];
 
-export const PlanReviewStep = ({
+export const EventReviewStep = ({
   onBack,
   onNext,
   formData: externalFormData,
@@ -571,18 +571,24 @@ export const PlanReviewStep = ({
     ...externalFormData,
     presenters: Array.isArray(externalFormData?.presenters)
       ? externalFormData.presenters.map((p) =>
-          typeof p === "object" ? p.name : p,
+          typeof p === "object" ? p.name || p.fullName : p,
         )
       : [],
     organizers: Array.isArray(externalFormData?.organizers)
-      ? externalFormData.organizers.map((p) =>
-          typeof p === "object" ? p.name : p,
+      ? externalFormData.organizers.map((o) =>
+          typeof o === "object" ? o.name || o.fullName : o,
         )
       : [],
     attendees: Array.isArray(externalFormData?.attendees)
-      ? externalFormData.attendees.map((p) =>
-          typeof p === "object" ? p.name : p,
+      ? externalFormData.attendees.map((a) =>
+          typeof a === "object" ? a.name || a.fullName : a,
         )
+      : [],
+    targetObjects: Array.isArray(externalFormData?.targetObjects)
+      ? externalFormData.targetObjects
+      : [],
+    programItems: Array.isArray(externalFormData?.programItems)
+      ? externalFormData.programItems
       : [],
     participants: Array.isArray(externalFormData?.participants)
       ? externalFormData.participants
@@ -594,6 +600,17 @@ export const PlanReviewStep = ({
       ? externalFormData.customRecipients
       : [],
   });
+
+  console.log("=".repeat(80));
+  console.log("📋 EventReviewStep - Form Data:");
+  console.log("  - targetObjects:", data.targetObjects);
+  console.log("  - targetObjects length:", data.targetObjects?.length || 0);
+  console.log("  - participants:", data.participants);
+  console.log("  - presenters:", data.presenters);
+  console.log("  - organizers:", data.organizers);
+  console.log("  - recipients:", data.recipients);
+  console.log("  - attendees:", data.attendees);
+  console.log("=".repeat(80));
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const set = (key, val) => setData((prev) => ({ ...prev, [key]: val }));
@@ -667,10 +684,6 @@ export const PlanReviewStep = ({
               adminRoles.includes(role.toUpperCase()),
             ) && account.id !== currentUser.accountId,
         );
-        console.log(
-          "Found admin accounts:",
-          adminAccounts.map((a) => ({ id: a.id, name: a.name })),
-        );
       } catch (err) {
         console.error("Lỗi lấy danh sách accounts:", err);
       }
@@ -688,14 +701,8 @@ export const PlanReviewStep = ({
             actionUrl: `/admin/events/${eventId}`,
             priority: 3,
           });
-          console.log(
-            `✅ Đã gửi thông báo đến admin: ${admin.name || admin.id}`,
-          );
         } catch (e) {
-          console.error(
-            `❌ Lỗi gửi thông báo admin ${admin.id}:`,
-            e.response?.data || e.message,
-          );
+          console.error(`Lỗi gửi thông báo admin ${admin.id}:`, e);
         }
       }
       await notificationApi.createNotification({
@@ -708,8 +715,6 @@ export const PlanReviewStep = ({
         actionUrl: `/my-events`,
         priority: 2,
       });
-
-      console.log(`✅ Đã gửi thông báo đến người tạo: ${currentUser.name}`);
     } catch (error) {
       console.error("Lỗi tổng thể gửi thông báo:", error);
     }
@@ -747,18 +752,22 @@ export const PlanReviewStep = ({
           ? data.customRecipients
           : [],
         presenters: data.presenters.map((p) =>
-          typeof p === "string" ? p : p.name,
+          typeof p === "string" ? p : p.name || p.fullName,
         ),
-        organizingCommittee: data.organizers.map((p) =>
-          typeof p === "string" ? p : p.name,
+        organizingCommittee: data.organizers.map((o) =>
+          typeof o === "string" ? o : o.name || o.fullName,
         ),
-        attendees: data.attendees.map((p) =>
-          typeof p === "string" ? p : p.name,
+        attendees: data.attendees.map((a) =>
+          typeof a === "string" ? a : a.name || a.fullName,
         ),
+        targetObjects: Array.isArray(data.targetObjects)
+          ? data.targetObjects
+          : [],
+        programItems: Array.isArray(data.programItems) ? data.programItems : [],
         notes: (data.notes || "").trim(),
         coverImage: data.coverImage || "",
         createdByAccountId: currentUser.accountId,
-        status: "EVENT_PENDING_APPROVAL", // THÊM TRẠNG THÁI CHO SỰ KIỆN MỚI TẠO
+        status: "EVENT_PENDING_APPROVAL",
       };
 
       Object.keys(payload).forEach((key) => {
@@ -771,10 +780,7 @@ export const PlanReviewStep = ({
         }
       });
 
-      console.log("📤 Submit event payload:", payload);
       const response = await createEvent(payload);
-      console.log("✅ Response:", response);
-
       const createdEvent = response.data;
       const eventId = createdEvent?.id;
       const eventTitle = payload.title;
@@ -784,7 +790,6 @@ export const PlanReviewStep = ({
       }
 
       toast.success("✅ Gửi phê duyệt thành công! Đã gửi thông báo đến admin.");
-
       if (onBack) onBack();
     } catch (err) {
       console.error("❌ Lỗi:", err);
@@ -807,6 +812,29 @@ export const PlanReviewStep = ({
       toast.error(`❌ Lỗi khi gửi phê duyệt: ${errorMessage}`);
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const getRecipientDisplay = (r) => {
+    if (typeof r === "string") return r;
+    return r?.name || "";
+  };
+
+  const isRecipientChecked = (opt) => {
+    return data.recipients.some((r) => getRecipientDisplay(r) === opt);
+  };
+
+  const toggleRecipient = (opt) => {
+    if (isRecipientChecked(opt)) {
+      set(
+        "recipients",
+        data.recipients.filter((r) => getRecipientDisplay(r) !== opt),
+      );
+    } else {
+      set("recipients", [
+        ...data.recipients,
+        { name: opt, type: "DEPARTMENT" },
+      ]);
     }
   };
 
@@ -1000,66 +1028,154 @@ export const PlanReviewStep = ({
             padding: "24px 28px",
           }}
         >
-          <Section title="Đối tượng & Quy mô">
-            <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-              <div>
-                <p
+          <Section>
+            <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
+              {/* Đối tượng tham gia dự kiến */}
+              {data.targetObjects && data.targetObjects.length > 0 && (
+                <div>
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 8,
+                      marginBottom: 12,
+                    }}
+                  >
+                    <Users size={14} color="#f59e0b" />
+                    <span
+                      style={{
+                        fontSize: 12,
+                        fontWeight: 600,
+                        color: "#b45309",
+                        textTransform: "uppercase",
+                        letterSpacing: "0.05em",
+                      }}
+                    >
+                      Đối tượng tham gia dự kiến
+                    </span>
+                    <div
+                      style={{ flex: 1, height: 1, background: "#fef3c7" }}
+                    />
+                  </div>
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
+                    {data.targetObjects.map((obj, idx) => (
+                      <div
+                        key={idx}
+                        style={{
+                          display: "inline-flex",
+                          alignItems: "center",
+                          gap: 8,
+                          padding: "8px 16px",
+                          background:
+                            "linear-gradient(135deg, #fef3c7 0%, #fffbeb 100%)",
+                          borderRadius: 40,
+                          border: "1px solid #fed7aa",
+                          boxShadow: "0 1px 2px rgba(0,0,0,0.02)",
+                        }}
+                      >
+                        <Users size={12} color="#d97706" />
+                        <span
+                          style={{
+                            fontSize: 13,
+                            fontWeight: 600,
+                            color: "#b45309",
+                          }}
+                        >
+                          {obj.typeName || obj.type || obj.fullName || obj.name}
+                        </span>
+                        {obj.quantity && (
+                          <span
+                            style={{
+                              fontSize: 11,
+                              fontWeight: 500,
+                              color: "#d97706",
+                              background: "#fff",
+                              padding: "2px 8px",
+                              borderRadius: 20,
+                              marginLeft: 4,
+                            }}
+                          >
+                            {obj.quantity} người
+                          </span>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Số lượng tối đa */}
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  padding: "16px 20px",
+                  background: "#f8fafc",
+                  borderRadius: 14,
+                  border: "1px solid #e2e8f0",
+                }}
+              >
+                <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                  <div
+                    style={{
+                      width: 40,
+                      height: 40,
+                      borderRadius: 12,
+                      background: "#eef2ff",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                    }}
+                  >
+                    <Users size={20} color="#2563eb" />
+                  </div>
+                  <div>
+                    <p
+                      style={{
+                        fontSize: 12,
+                        fontWeight: 500,
+                        color: "#64748b",
+                        margin: 0,
+                      }}
+                    >
+                      Số lượng tối đa
+                    </p>
+                    <p
+                      style={{
+                        fontSize: 20,
+                        fontWeight: 800,
+                        color: "#0f172a",
+                        margin: 0,
+                        lineHeight: 1.2,
+                      }}
+                    >
+                      {data.maxParticipants || 0}
+                      <span
+                        style={{
+                          fontSize: 14,
+                          fontWeight: 500,
+                          color: "#94a3b8",
+                          marginLeft: 4,
+                        }}
+                      >
+                        người
+                      </span>
+                    </p>
+                  </div>
+                </div>
+                <div
                   style={{
+                    padding: "6px 12px",
+                    background: "#e6f7e6",
+                    borderRadius: 20,
                     fontSize: 11,
                     fontWeight: 600,
-                    color: "#94a3b8",
-                    margin: "0 0 10px",
-                    textTransform: "uppercase",
-                    letterSpacing: "0.06em",
+                    color: "#10b981",
                   }}
                 >
-                  Đối tượng tham gia
-                </p>
-                <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-                  {PARTICIPANT_OPTIONS.map((opt) => (
-                    <PillToggle
-                      key={opt}
-                      label={opt}
-                      checked={data.participants.includes(opt)}
-                      onChange={() =>
-                        set(
-                          "participants",
-                          data.participants.includes(opt)
-                            ? data.participants.filter((x) => x !== opt)
-                            : [...data.participants, opt],
-                        )
-                      }
-                    />
-                  ))}
-                  {data.participants
-                    .filter((p) => !PARTICIPANT_OPTIONS.includes(p))
-                    .map((p, i) => (
-                      <PillToggle
-                        key={i}
-                        label={p}
-                        checked={true}
-                        onChange={() =>
-                          set(
-                            "participants",
-                            data.participants.filter((x) => x !== p),
-                          )
-                        }
-                      />
-                    ))}
+                  {data.maxParticipants > 0 ? "Còn chỗ" : "Hết chỗ"}
                 </div>
-              </div>
-              <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                <Users size={14} color="#64748b" />
-                <span
-                  style={{ fontSize: 13, color: "#64748b", fontWeight: 500 }}
-                >
-                  Số lượng tối đa:
-                </span>
-                <span
-                  style={{ fontSize: 14, fontWeight: 700, color: "#1e293b" }}
-                >
-                  {data.maxParticipants || 0} người
-                </span>
               </div>
             </div>
           </Section>
@@ -1115,26 +1231,19 @@ export const PlanReviewStep = ({
                     <PillToggle
                       key={opt}
                       label={opt}
-                      checked={data.recipients.includes(opt)}
-                      onChange={() =>
-                        set(
-                          "recipients",
-                          data.recipients.includes(opt)
-                            ? data.recipients.filter((x) => x !== opt)
-                            : [...data.recipients, opt],
-                        )
-                      }
+                      checked={isRecipientChecked(opt)}
+                      onChange={() => toggleRecipient(opt)}
                     />
                   ))}
                   {(data.customRecipients || []).map((r, i) => (
                     <PillToggle
                       key={i}
-                      label={r}
+                      label={typeof r === "string" ? r : r.name}
                       checked={true}
                       onChange={() =>
                         set(
                           "customRecipients",
-                          data.customRecipients.filter((x) => x !== r),
+                          data.customRecipients.filter((_, idx) => idx !== i),
                         )
                       }
                     />
@@ -1253,6 +1362,44 @@ export const PlanReviewStep = ({
             </div>
           </Section>
         </div>
+
+        {data.programItems && data.programItems.length > 0 && (
+          <div
+            style={{
+              background: "#fff",
+              border: "1.5px solid #e2e8f0",
+              borderRadius: 16,
+              padding: "24px 28px",
+            }}
+          >
+            <Section title="Chương trình sự kiện">
+              <div
+                style={{ display: "flex", flexDirection: "column", gap: 12 }}
+              >
+                {data.programItems.map((item, idx) => (
+                  <div key={idx}>
+                    <p
+                      style={{
+                        fontSize: 14,
+                        fontWeight: 600,
+                        color: "#1e293b",
+                      }}
+                    >
+                      {idx + 1}. {item.title}
+                    </p>
+                    {item.notes && (
+                      <p
+                        style={{ fontSize: 12, color: "#64748b", marginTop: 4 }}
+                      >
+                        {item.notes}
+                      </p>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </Section>
+          </div>
+        )}
 
         {data.notes && (
           <div
@@ -1375,4 +1522,4 @@ export const PlanReviewStep = ({
   );
 };
 
-export default PlanReviewStep;
+export default EventReviewStep;
