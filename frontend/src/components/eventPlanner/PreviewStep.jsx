@@ -75,6 +75,10 @@ export const PreviewStep = ({
           participants: data.participants || [],
           presenters: data.presenters || [],
           organizers: data.organizers || [],
+          attendees: data.attendees || [],
+          targetObjects: data.targetObjects || [],
+          recipients: data.recipients || [],
+          customFields: data.customFields || [],
         }),
         usageCount: 0,
         isPublic: false,
@@ -94,13 +98,15 @@ export const PreviewStep = ({
       toast.success(
         data.templateId
           ? `Đã tạo bản mẫu mới "${templateName}" thành công!`
-          : `Đã lưu bản mẫu "${templateName}" thành công!`
+          : `Đã lưu bản mẫu "${templateName}" thành công!`,
       );
 
       setShowTemplateModal(false);
       setTemplateName("");
     } catch (err) {
-      toast.error("Lưu bản mẫu thất bại: " + (err.message || "Lỗi không xác định"));
+      toast.error(
+        "Lưu bản mẫu thất bại: " + (err.message || "Lỗi không xác định"),
+      );
       console.error(err);
     } finally {
       setSavingTemplate(false);

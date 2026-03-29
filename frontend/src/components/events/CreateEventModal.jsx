@@ -75,12 +75,13 @@ const SelectPlanStep = ({ onSelectPlan, onBack }) => {
 
   useEffect(() => {
     let accountId = null;
-    
+
     const userData = localStorage.getItem("user");
     if (userData) {
       try {
         const user = JSON.parse(userData);
-        accountId = user.id || user.accountId || user.account?.id || user.userId;
+        accountId =
+          user.id || user.accountId || user.account?.id || user.userId;
       } catch (error) {
         console.error("Lỗi parse user data:", error);
       }
@@ -90,10 +91,11 @@ const SelectPlanStep = ({ onSelectPlan, onBack }) => {
       const accessToken = localStorage.getItem("accessToken");
       if (accessToken) {
         try {
-          const base64Url = accessToken.split('.')[1];
-          const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+          const base64Url = accessToken.split(".")[1];
+          const base64 = base64Url.replace(/-/g, "+").replace(/_/g, "/");
           const payload = JSON.parse(atob(base64));
-          accountId = payload.accountId || payload.sub || payload.userId || payload.id;
+          accountId =
+            payload.accountId || payload.sub || payload.userId || payload.id;
         } catch (e) {
           console.error("Lỗi decode token:", e);
         }
@@ -254,48 +256,111 @@ const toPersonObject = (nameOrObj, index) => {
   };
 };
 
-const mapPlanToPrefill = (plan) => ({
-  planId: plan.id,
-  organizationId: plan.organizationId || "",
-  title: plan.title || "",
-  eventTitle: plan.title || "",
-  description: plan.description || "",
-  eventPurpose: plan.description || "",
-  eventTopic: plan.eventTopic || "",
-  themes: plan.eventTopic ? [plan.eventTopic] : [],
-  eventType: plan.type || "",
-  eventMode: plan.eventMode || "OFFLINE",
-  location: plan.location || "",
-  startTime: formatForInput(plan.startTime),
-  endTime: formatForInput(plan.endTime),
-  registrationDeadline: formatForInput(plan.registrationDeadline),
-  maxParticipants: plan.maxParticipants || 50,
-  faculty: plan.faculty || "",
-  major: plan.major || "",
-  participants: Array.isArray(plan.participants) ? plan.participants : [],
-  recipients: Array.isArray(plan.recipients) ? plan.recipients : [],
-  customRecipients: Array.isArray(plan.customRecipients)
-    ? plan.customRecipients
-    : [],
-  presenters: Array.isArray(plan.presenters)
-    ? plan.presenters.map(toPersonObject)
-    : [],
-  organizers: Array.isArray(plan.organizingCommittee)
-    ? plan.organizingCommittee.map(toPersonObject)
-    : [],
-  attendees: Array.isArray(plan.attendees)
-    ? plan.attendees.map(toPersonObject)
-    : [],
-  programItems: [],
-  customFields: [],
-  notes: plan.notes || "",
-  additionalInfo: plan.additionalInfo || "",
-  coverImage: plan.coverImage || "",
-  templateId: plan.templateId || null,
-  hasLuckyDraw: plan.hasLuckyDraw || false,
-  mode: "event",
-  _selectedPlanId: plan.id,
-});
+const mapPlanToPrefill = (plan) => {
+  console.log("🔍 Mapping plan to prefill:", plan);
+
+  const presentersData = plan.presentersList || plan.presenters || [];
+  const organizersData = plan.organizersList || plan.organizers || [];
+  const attendeesData = plan.participantsList || plan.attendees || [];
+  const targetObjectsData = plan.targetObjects || [];
+
+  console.log("  - presentersData:", presentersData);
+  console.log("  - organizersData:", organizersData);
+  console.log("  - attendeesData:", attendeesData);
+  console.log("  - targetObjectsData:", targetObjectsData);
+
+  const prefillData = {
+    planId: plan.id,
+    organizationId: plan.organizationId || "",
+    title: plan.title || "",
+    eventTitle: plan.title || "",
+    description: plan.description || "",
+    eventPurpose: plan.description || "",
+    eventTopic: plan.eventTopic || "",
+    themes: plan.eventTopic ? [plan.eventTopic] : [],
+    eventType: plan.type || "",
+    eventMode: plan.eventMode || "OFFLINE",
+    location: plan.location || "",
+    startTime: formatForInput(plan.startTime),
+    endTime: formatForInput(plan.endTime),
+    registrationDeadline: formatForInput(plan.registrationDeadline),
+    maxParticipants: plan.maxParticipants || 50,
+    faculty: plan.faculty || "",
+    major: plan.major || "",
+    participants: Array.isArray(plan.participants) ? plan.participants : [],
+    recipients: Array.isArray(plan.recipients) ? plan.recipients : [],
+    customRecipients: Array.isArray(plan.customRecipients)
+      ? plan.customRecipients
+      : [],
+
+    // SỬA: Lấy dữ liệu từ đúng field
+    presenters: presentersData.map((p, idx) => {
+      if (typeof p === "object") {
+        return {
+          id: p.id || `plan_person_${idx}_${Date.now()}`,
+          name: p.fullName || p.name || "",
+          fullName: p.fullName || p.name || "",
+          title: p.title || "",
+          org: p.department || p.organization || "",
+          avatar: (p.fullName || p.name || "").charAt(0).toUpperCase() || "?",
+          isManual: true,
+        };
+      }
+      return toPersonObject(p, idx);
+    }),
+
+    organizers: organizersData.map((o, idx) => {
+      if (typeof o === "object") {
+        return {
+          id: o.id || `plan_org_${idx}_${Date.now()}`,
+          name: o.fullName || o.name || "",
+          fullName: o.fullName || o.name || "",
+          title: o.title || "",
+          org: o.department || o.organization || "",
+          role: o.role || "MEMBER",
+          avatar: (o.fullName || o.name || "").charAt(0).toUpperCase() || "?",
+          isManual: true,
+        };
+      }
+      return toPersonObject(o, idx);
+    }),
+
+    attendees: attendeesData.map((a, idx) => {
+      if (typeof a === "object") {
+        return {
+          id: a.id || `plan_att_${idx}_${Date.now()}`,
+          name: a.fullName || a.name || "",
+          fullName: a.fullName || a.name || "",
+          title: a.title || "",
+          org: a.department || a.organization || "",
+          avatar: (a.fullName || a.name || "").charAt(0).toUpperCase() || "?",
+          isManual: true,
+        };
+      }
+      return toPersonObject(a, idx);
+    }),
+
+    targetObjects: targetObjectsData,
+
+    programItems: plan.programItems || [],
+    customFields: plan.customFields || [],
+    notes: plan.notes || "",
+    additionalInfo: plan.additionalInfo || "",
+    coverImage: plan.coverImage || "",
+    templateId: plan.templateId || null,
+    hasLuckyDraw: plan.hasLuckyDraw || false,
+    mode: "event",
+    _selectedPlanId: plan.id,
+  };
+
+  console.log("📦 Prefill data:", prefillData);
+  console.log("  - targetObjects in prefill:", prefillData.targetObjects);
+  console.log("  - presenters in prefill:", prefillData.presenters);
+  console.log("  - organizers in prefill:", prefillData.organizers);
+  console.log("  - attendees in prefill:", prefillData.attendees);
+
+  return prefillData;
+};
 
 const CreateEventModal = ({
   isOpen,

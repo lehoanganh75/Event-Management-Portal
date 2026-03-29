@@ -2,16 +2,20 @@ package src.main.eventservice.entity;
 
 import com.fasterxml.jackson.annotation.JsonFormat;
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonManagedReference;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.annotations.UpdateTimestamp;
+import org.hibernate.type.SqlTypes;
 import src.main.eventservice.entity.enums.EventStatus;
 import src.main.eventservice.entity.enums.EventType;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 @Entity
 @Table(name = "events")
@@ -76,6 +80,11 @@ public class Event {
     @JsonIgnore
     private List<EventRegistration> registrations;
 
+    @OneToMany(mappedBy = "event", orphanRemoval = true)
+    @JsonIgnore
+    @JsonManagedReference
+    private List<EventParticipant> participants = new ArrayList<>();
+
     private String organizerUnit;
 
     @OneToOne(mappedBy = "event", cascade = CascadeType.ALL, orphanRemoval = true)
@@ -85,6 +94,24 @@ public class Event {
     @OneToMany(mappedBy = "event", cascade = CascadeType.ALL, orphanRemoval = true)
     @JsonIgnore
     private List<EventSession> session;
+
+    @OneToMany(mappedBy = "event", orphanRemoval = true)
+    @JsonIgnore
+    @JsonManagedReference
+    private List<EventOrganizer> organizers = new ArrayList<>();
+
+    @OneToMany(mappedBy = "event", orphanRemoval = true)
+    @JsonIgnore
+    @JsonManagedReference
+    private List<EventPresenter> presenters = new ArrayList<>();
+
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(columnDefinition = "JSON")
+    private List<Map<String, Object>> recipients;
+
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(columnDefinition = "JSON")
+    private List<Map<String, Object>> targetObjects;
 
     @CreationTimestamp
     private LocalDateTime createdAt;

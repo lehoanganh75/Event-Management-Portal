@@ -25,13 +25,8 @@ public interface EventPostRepository extends JpaRepository<EventPost, String> {
 
     Optional<EventPost> findByIdAndIsDeletedFalse(String id);
 
-    List<EventPost> findByCreatedByAccountId(String accountId);
-
     // Tìm posts theo accountId và sắp xếp theo thời gian
     List<EventPost> findByCreatedByAccountIdOrderByCreatedAtDesc(String accountId);
-
-    // Tìm posts theo accountId và status
-    List<EventPost> findByCreatedByAccountIdAndStatus(String accountId, PostStatus status);
 
     // Tìm posts theo accountId với điều kiện eventId (nếu cần)
     List<EventPost> findByCreatedByAccountIdAndEventId(String accountId, String eventId);

@@ -129,14 +129,18 @@ const getCurrentUser = () => {
 
 const sendEventSubmissionNotification = async (event, user) => {
   try {
-    const IDENTITY_SERVICE_URL = import.meta.env.VITE_IDENTITY_API_URL || "http://localhost:8082";
+    const IDENTITY_SERVICE_URL =
+      import.meta.env.VITE_IDENTITY_API_URL || "http://localhost:8082";
     const token = localStorage.getItem("accessToken");
 
     let allAccounts = [];
     try {
-      const accountsResponse = await fetch(`${IDENTITY_SERVICE_URL}/api/admin/accounts`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const accountsResponse = await fetch(
+        `${IDENTITY_SERVICE_URL}/api/admin/accounts`,
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        },
+      );
       const data = await accountsResponse.json();
       allAccounts = data || [];
     } catch (err) {
@@ -145,7 +149,7 @@ const sendEventSubmissionNotification = async (event, user) => {
 
     const adminRoles = ["ADMIN", "SUPER_ADMIN"];
     const adminAccounts = allAccounts.filter((account) =>
-      account.roles?.some((role) => adminRoles.includes(role.toUpperCase()))
+      account.roles?.some((role) => adminRoles.includes(role.toUpperCase())),
     );
 
     for (const admin of adminAccounts) {
@@ -307,6 +311,7 @@ const MyEvents = () => {
         );
 
         setEvents(uniqueEvents);
+
       } else {
         showToast("Không tìm thấy thông tin tài khoản", "error");
         setEvents([]);
@@ -327,23 +332,23 @@ const MyEvents = () => {
     setSubmittingId(eventId);
     try {
       const eventToSubmit = events.find((e) => e.id === eventId);
-      
+
       if (eventToSubmit.status?.toUpperCase() !== "DRAFT") {
         showToast(
           `Không thể gửi duyệt. Sự kiện đang ở trạng thái: ${STATUS_LABELS[eventToSubmit.status] || eventToSubmit.status}`,
-          "error"
+          "error",
         );
         setSubmittingId(null);
         return;
       }
 
       await submitEventForApproval(eventId);
-      
+
       const currentUser = getCurrentUser();
       if (currentUser) {
         await sendEventSubmissionNotification(eventToSubmit, currentUser);
       }
-      
+
       showToast("Đã gửi yêu cầu phê duyệt sự kiện thành công", "success");
       await fetchEvents();
     } catch (error) {
@@ -453,9 +458,18 @@ const MyEvents = () => {
     const statusUpper = status?.toUpperCase?.() || "";
     if (statusUpper === "PUBLISHED")
       return "bg-blue-50 text-blue-600 border border-blue-100";
-    if (statusUpper === "ONGOING" || statusUpper === "COMPLETED" || statusUpper === "PLAN_APPROVED")
+    if (
+      statusUpper === "ONGOING" ||
+      statusUpper === "COMPLETED" ||
+      statusUpper === "PLAN_APPROVED"
+    )
       return "bg-emerald-50 text-emerald-600 border border-emerald-100";
-    if (statusUpper === "PENDINGAPPROVAL" || statusUpper === "PENDING_APPROVAL" || statusUpper === "PLAN_PENDING_APPROVAL" || statusUpper === "EVENT_PENDING_APPROVAL")
+    if (
+      statusUpper === "PENDINGAPPROVAL" ||
+      statusUpper === "PENDING_APPROVAL" ||
+      statusUpper === "PLAN_PENDING_APPROVAL" ||
+      statusUpper === "EVENT_PENDING_APPROVAL"
+    )
       return "bg-amber-50 text-amber-600 border border-amber-100";
     if (statusUpper === "CANCELLED" || statusUpper === "REJECTED")
       return "bg-rose-50 text-rose-600 border border-rose-100";
@@ -467,9 +481,18 @@ const MyEvents = () => {
   const getStatusColorName = (status) => {
     const statusUpper = status?.toUpperCase?.() || "";
     if (statusUpper === "PUBLISHED") return "blue";
-    if (statusUpper === "ONGOING" || statusUpper === "COMPLETED" || statusUpper === "PLAN_APPROVED")
+    if (
+      statusUpper === "ONGOING" ||
+      statusUpper === "COMPLETED" ||
+      statusUpper === "PLAN_APPROVED"
+    )
       return "emerald";
-    if (statusUpper === "PENDINGAPPROVAL" || statusUpper === "PENDING_APPROVAL" || statusUpper === "PLAN_PENDING_APPROVAL" || statusUpper === "EVENT_PENDING_APPROVAL")
+    if (
+      statusUpper === "PENDINGAPPROVAL" ||
+      statusUpper === "PENDING_APPROVAL" ||
+      statusUpper === "PLAN_PENDING_APPROVAL" ||
+      statusUpper === "EVENT_PENDING_APPROVAL"
+    )
       return "amber";
     if (statusUpper === "CANCELLED" || statusUpper === "REJECTED")
       return "rose";
@@ -816,17 +839,19 @@ const MyEvents = () => {
                       <td className="px-6 py-5">
                         <div className="flex items-center gap-2">
                           {event.approvedByName ? (
-                            <>
-                              <span className="text-xs font-bold text-slate-700 line-clamp-1">
-                                {event.approvedByName}
-                              </span>
-                            </>
+                            <span
+                              className="text-xs font-bold text-slate-700 truncate max-w-[120px] block"
+                              title={event.approvedByName}
+                            >
+                              {event.approvedByName}
+                            </span>
                           ) : event.approvedByAccountId ? (
-                            <>
-                              <span className="text-xs font-bold text-slate-700 line-clamp-1">
-                                Admin
-                              </span>
-                            </>
+                            <span
+                              className="text-xs font-bold text-slate-700 truncate max-w-[120px] block cursor-help"
+                              title={`ID: ${event.approvedByAccountId}`}
+                            >
+                              {event.approvedByAccountId.substring(0, 8)}...
+                            </span>
                           ) : (
                             <span className="text-xs font-medium text-slate-400 italic">
                               Chưa duyệt
@@ -835,15 +860,21 @@ const MyEvents = () => {
                         </div>
                       </td>
                       <td className="px-6 py-5 text-center">
-                        <span
-                          className={`px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-wider ${getStatusStyle(event.status)}`}
-                        >
-                          {STATUS_LABELS[event.status] ||
-                            STATUS_LABELS[
-                              event.status?.toUpperCase?.()
-                            ] ||
-                            event.status}
-                        </span>
+                        <div className="group relative inline-block">
+                          <span
+                            className={`px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-wider whitespace-nowrap ${getStatusStyle(event.status)}`}
+                          >
+                            {STATUS_LABELS[event.status] ||
+                              STATUS_LABELS[event.status?.toUpperCase?.()] ||
+                              event.status}
+                          </span>
+                          <div className="invisible group-hover:visible absolute z-10 bg-slate-800 text-white text-xs rounded-lg px-3 py-1.5 whitespace-nowrap -top-8 left-1/2 transform -translate-x-1/2">
+                            {STATUS_LABELS[event.status] ||
+                              STATUS_LABELS[event.status?.toUpperCase?.()] ||
+                              event.status}
+                            <div className="absolute -bottom-1 left-1/2 transform -translate-x-1/2 w-2 h-2 bg-slate-800 rotate-45"></div>
+                          </div>
+                        </div>
                       </td>
                       <td className="px-6 py-5 text-center">
                         <div className="flex justify-center gap-1">
@@ -861,7 +892,8 @@ const MyEvents = () => {
                           >
                             <Edit2 size={18} />
                           </button>
-                          {(event.status === "DRAFT" || event.status === "BẢN NHÁP") && (
+                          {(event.status === "DRAFT" ||
+                            event.status === "BẢN NHÁP") && (
                             <button
                               onClick={() => handleSubmitForApproval(event.id)}
                               disabled={submittingId === event.id}
@@ -1101,7 +1133,9 @@ const MyEvents = () => {
                                 )}
                               >
                                 {STATUS_LABELS[selectedEvent?.status] ||
-                                  STATUS_LABELS[selectedEvent?.status?.toUpperCase?.()] ||
+                                  STATUS_LABELS[
+                                    selectedEvent?.status?.toUpperCase?.()
+                                  ] ||
                                   selectedEvent?.status}
                               </Badge>
                             }
@@ -1354,7 +1388,9 @@ const MyEvents = () => {
                           selectedEvent?.status === "BẢN NHÁP") && (
                           <button
                             type="button"
-                            onClick={() => handleSubmitForApproval(selectedEvent.id)}
+                            onClick={() =>
+                              handleSubmitForApproval(selectedEvent.id)
+                            }
                             disabled={submittingId === selectedEvent.id}
                             className="flex items-center gap-2 bg-emerald-600 text-white px-6 py-2.5 rounded-xl font-bold shadow-lg hover:bg-emerald-700 transition-all disabled:opacity-50"
                           >

@@ -38,7 +38,6 @@ public class EventTemplateServiceImpl implements EventTemplateService {
         Event event = new Event();
 
         event.setTitle(template.getDefaultTitle() != null ? template.getDefaultTitle() : "Untitled Event");
-        event.setDescription(template.getDefaultDescription());
         event.setCoverImage(template.getDefaultCoverImage());
         event.setLocation(template.getDefaultLocation());
         event.setEventMode(template.getDefaultEventMode());
@@ -104,7 +103,6 @@ public class EventTemplateServiceImpl implements EventTemplateService {
         template.setCustomTemplateType(details.getCustomTemplateType());
         template.setDescription(details.getDescription());
         template.setDefaultTitle(details.getDefaultTitle());
-        template.setDefaultDescription(details.getDefaultDescription());
         template.setDefaultCoverImage(details.getDefaultCoverImage());
         template.setDefaultLocation(details.getDefaultLocation());
         template.setDefaultEventMode(details.getDefaultEventMode());

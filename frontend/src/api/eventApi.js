@@ -18,23 +18,23 @@ api.interceptors.request.use(
 );
 
 const mapStatus = (status) => {
-    if (!status) return "DRAFT";
-    
-    const statusMap = {
-        "DRAFT": "DRAFT",
-        "PLAN_PENDING_APPROVAL": "PENDING_APPROVAL",
-        "PLAN_APPROVED": "APPROVED",
-        "PLAN_REJECTED": "REJECTED",
-        "EVENT_PENDING_APPROVAL": "PENDING_APPROVAL",
-        "EVENT_APPROVED": "APPROVED",
-        "EVENT_REJECTED": "REJECTED",
-        "PUBLISHED": "PUBLISHED",
-        "ONGOING": "ONGOING",
-        "COMPLETED": "COMPLETED",
-        "CANCELLED": "CANCELLED"
-    };
-    
-    return statusMap[status] || status;
+  if (!status) return "DRAFT";
+
+  const statusMap = {
+    DRAFT: "DRAFT",
+    PLAN_PENDING_APPROVAL: "PENDING_APPROVAL",
+    PLAN_APPROVED: "APPROVED",
+    PLAN_REJECTED: "REJECTED",
+    EVENT_PENDING_APPROVAL: "PENDING_APPROVAL",
+    EVENT_APPROVED: "APPROVED",
+    EVENT_REJECTED: "REJECTED",
+    PUBLISHED: "PUBLISHED",
+    ONGOING: "ONGOING",
+    COMPLETED: "COMPLETED",
+    CANCELLED: "CANCELLED",
+  };
+
+  return statusMap[status] || status;
 };
 
 const mapPlan = (p) => {
@@ -83,92 +83,120 @@ const mapPlan = (p) => {
     customRecipients: Array.isArray(p.customRecipients)
       ? p.customRecipients
       : [],
-    presenters: Array.isArray(p.presenters) ? p.presenters : [],
-    organizingCommittee: Array.isArray(p.organizingCommittee)
-      ? p.organizingCommittee
-      : [],
-    attendees: Array.isArray(p.attendees) ? p.attendees : [],
+
+    presenters: Array.isArray(p.presentersList)
+      ? p.presentersList.map((pr) => ({
+          fullName: pr.fullName,
+          email: pr.email,
+          title: pr.title,
+          position: pr.position,
+          department: pr.department,
+        }))
+      : Array.isArray(p.presenters)
+        ? p.presenters
+        : [],
+
+    organizers: Array.isArray(p.organizersList)
+      ? p.organizersList.map((org) => ({
+          fullName: org.fullName,
+          email: org.email,
+          title: org.title,
+          position: org.position,
+          department: org.department,
+          role: org.role,
+        }))
+      : Array.isArray(p.organizers)
+        ? p.organizers
+        : [],
+
+    attendees: Array.isArray(p.participantsList)
+      ? p.participantsList.map((part) => ({
+          fullName: part.fullName,
+          email: part.email,
+          title: part.title,
+          position: part.position,
+          department: part.department,
+          organization: part.organization,
+          code: part.code,
+          notes: part.notes,
+        }))
+      : Array.isArray(p.attendees)
+        ? p.attendees
+        : [],
+
+    targetObjects: Array.isArray(p.targetObjects) ? p.targetObjects : [],
+    programItems: Array.isArray(p.programItems) ? p.programItems : [],
+    customFields: Array.isArray(p.customFields) ? p.customFields : [],
     createdByName: p.createdByName || null,
     approvedByName: p.approvedByName || null,
     approvedByAccountId: p.approvedByAccountId || null,
     createdByAccountId: p.createdByAccountId || null,
   };
 };
-
 const mapEvent = (e) => {
   if (!e) return null;
-  
+
   const start = e.startTime ? new Date(e.startTime) : null;
   const end = e.endTime ? new Date(e.endTime) : null;
-  const registrationDeadline = e.registrationDeadline ? new Date(e.registrationDeadline) : null;
+  const registrationDeadline = e.registrationDeadline
+    ? new Date(e.registrationDeadline)
+    : null;
   const createdAt = e.createdAt ? new Date(e.createdAt) : null;
   const updatedAt = e.updatedAt ? new Date(e.updatedAt) : null;
-  
+
   return {
-    // ID
     id: e.id,
     templateId: e.templateId || null,
-    
-    // Thông tin cơ bản
     title: e.title || "",
     description: e.description || "",
     fullDescription: e.description || "",
     coverImage: e.coverImage || "",
     eventTopic: e.eventTopic || "",
-    
-    // Thời gian
     startTime: start,
     endTime: end,
     registrationDeadline: registrationDeadline,
-    registrationDeadlineFormatted: registrationDeadline 
-      ? registrationDeadline.toLocaleDateString("vi-VN") 
+    registrationDeadlineFormatted: registrationDeadline
+      ? registrationDeadline.toLocaleDateString("vi-VN")
       : "",
     eventDate: start ? start.toLocaleDateString("vi-VN") : "",
-    eventTime: start && end
-      ? `${start.toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" })} - ${end.toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" })}`
-      : "",
-    
-    // Địa điểm & hình thức
+    eventTime:
+      start && end
+        ? `${start.toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" })} - ${end.toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" })}`
+        : "",
     location: e.location || "",
     eventMode: e.eventMode || "Offline",
-    
-    // Số lượng
     maxParticipants: e.maxParticipants || 100,
     registeredCount: e.registeredCount || 0,
-    
-    // Status
     status: mapStatus(e.status),
     type: e.type || "SEMINAR",
-    
-    // Organization & phân khoa
     organizationId: e.organizationId,
     faculty: e.faculty || "",
     major: e.major || "",
     organizerUnit: e.organizerUnit || "",
-    
-    // Người tạo/duyệt
     createdByAccountId: e.createdByAccountId,
     createdByName: e.createdByName || null,
     approvedByAccountId: e.approvedByAccountId,
     approvedByName: e.approvedByName || null,
-    
-    // Lucky draw
     luckyDrawId: e.luckyDrawId || null,
-    
-    // Dữ liệu bổ sung
     agenda: Array.isArray(e.agenda) ? e.agenda : [],
     speakers: Array.isArray(e.speakers) ? e.speakers : [],
     participants: Array.isArray(e.participants) ? e.participants : [],
+    recipients: Array.isArray(e.recipients) ? e.recipients : [],
+    customRecipients: Array.isArray(e.customRecipients)
+      ? e.customRecipients
+      : [],
+    presenters: Array.isArray(e.presenters) ? e.presenters : [],
+    organizers: Array.isArray(e.organizers) ? e.organizers : [],
+    attendees: Array.isArray(e.attendees) ? e.attendees : [],
+    targetObjects: Array.isArray(e.targetObjects) ? e.targetObjects : [],
+    programItems: Array.isArray(e.programItems) ? e.programItems : [],
+    customFields: Array.isArray(e.customFields) ? e.customFields : [],
     notes: e.notes || null,
     additionalInfo: e.additionalInfo || null,
     customFieldsJson: e.customFieldsJson || null,
-    
-    // Flags
     finalized: e.finalized || false,
     archived: e.archived || false,
     deleted: e.deleted || false,
-    
-    // Timestamps
     createdAt: createdAt,
     updatedAt: updatedAt,
     createdAtFormatted: createdAt ? createdAt.toLocaleString("vi-VN") : "",
@@ -186,7 +214,6 @@ export const getAllEvents = () =>
     };
   });
 
-
 export const getEventsByStatus = (status) => {
   if (!status || status === "all") {
     return Promise.resolve({ data: [] });
@@ -196,8 +223,8 @@ export const getEventsByStatus = (status) => {
 
   return api
     .get("/events/by-statuses", {
-      params: { 
-        statuses: statusUpper 
+      params: {
+        statuses: statusUpper,
       },
     })
     .then((res) => ({
@@ -249,8 +276,19 @@ export const getPlanById = (id) =>
   }));
 
 export const createPlan = (planData, submit = false) => {
+  const payload = {
+    ...planData,
+    presenters: planData.presenters || [],
+    organizers: planData.organizers || [],
+    attendees: planData.attendees || [],
+    targetObjects: planData.targetObjects || [],
+    recipients: planData.recipients || [],
+    programItems: planData.programItems || [],
+    customFields: planData.customFields || [],
+  };
+
   return api
-    .post(`/events/plans?submit=${submit}`, planData)
+    .post(`/events/plans?submit=${submit}`, payload)
     .then((res) => {
       return {
         ...res,
@@ -306,6 +344,9 @@ export const updatePlan = (id, planData) => {
     presenters: planData.presenters,
     organizingCommittee: planData.organizingCommittee,
     attendees: planData.attendees,
+    targetObjects: planData.targetObjects,
+    programItems: planData.programItems,
+    customFields: planData.customFields,
     customFieldsJson: planData.customFieldsJson,
   };
 
@@ -320,6 +361,7 @@ export const updatePlan = (id, planData) => {
     data: res.data ? mapPlan(res.data) : null,
   }));
 };
+
 export const deletePlan = (planId) => {
   console.log("🗑️ Xóa kế hoạch:", planId);
   return api.delete(`/events/plans/${planId}`);
