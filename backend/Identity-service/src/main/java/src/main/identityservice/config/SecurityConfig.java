@@ -43,12 +43,14 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                         .requestMatchers("/api/auth/**").permitAll()
-                        .requestMatchers("/api/profiles/**").authenticated()
-                        .anyRequest().authenticated()
+                        .requestMatchers("/api/admin/**").permitAll()
+                        .requestMatchers("/api/profiles/**").permitAll()
+                        .anyRequest().permitAll()
+                        // .anyRequest().authenticated()
                 )
-                .oauth2ResourceServer(oauth2 -> oauth2
-                        .jwt(jwtConfigurer -> jwtConfigurer.decoder(jwtDecoder()))
-                );
+                 .oauth2ResourceServer(oauth2 -> oauth2
+                         .jwt(jwtConfigurer -> jwtConfigurer.decoder(jwtDecoder()))
+                 );
         return http.build();
     }
 
@@ -67,7 +69,9 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-        configuration.setAllowedOrigins(List.of("http://localhost:5173"));
+        configuration.setAllowedOrigins(List.of(
+            "http://localhost:5173"
+        ));
 
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
         configuration.setAllowedHeaders(List.of("*"));

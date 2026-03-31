@@ -16,4 +16,8 @@ public class RegistrationResponseDto {
     private String qrTokenExpiry;
     private boolean checkedIn;
     private String checkInTime;
+
+    private String eventStartTime;
+    private String eventEndTime;
+    private String eventLocation;
 }

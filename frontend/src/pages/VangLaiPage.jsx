@@ -1,7 +1,16 @@
 import { useLocation, useNavigate } from "react-router-dom";
 import { EventFeed } from "../components/events/EventFeed";
 import Layout from "../components/layout/Layout";
-import { Award, TrendingUp, Users, X, Calendar, MapPin, Clock, UserCheck } from "lucide-react";
+import {
+  Award,
+  TrendingUp,
+  Users,
+  X,
+  Calendar,
+  MapPin,
+  Clock,
+  UserCheck,
+} from "lucide-react";
 import React, { useState, useEffect } from "react";
 import { getFeaturedEvents } from "../api/eventApi";
 import axios from "axios";
@@ -13,6 +22,7 @@ const VangLaiPage = () => {
   const [totalParticipants, setTotalParticipants] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [userRole, setUserRole] = useState("");
 
   useEffect(() => {
     const loadData = async () => {
@@ -54,6 +64,23 @@ const VangLaiPage = () => {
 
     loadData();
   }, []);
+
+  useEffect(() => {
+    const token = localStorage.getItem("token");
+    if (token) {
+      try {
+        const decoded = JSON.parse(atob(token.split(".")[1]));
+        const role = decoded.role || decoded.roles?.[0] || "";
+        setUserRole(role);
+      } catch (e) {
+        console.error("Không decode được JWT");
+      }
+    }
+  }, []);
+
+  const isAllowedToCreate = userRole?.some?.((r) =>
+    ["ADMIN", "ORGANIZER", "super_admin"].includes(r.toUpperCase()),
+  );
 
   const openModal = (type) => {
     if (type !== "login" && type !== "register") return;
@@ -128,12 +155,14 @@ const VangLaiPage = () => {
                 >
                   Khám phá sự kiện
                 </button>
-                <button
-                  onClick={() => openModal("register")}
-                  className="px-8 py-3.5 bg-white/10 border-2 border-white/30 text-white rounded-xl font-black uppercase text-sm hover:bg-white hover:text-[#245bb5] transition-all transform hover:-translate-y-1"
-                >
-                  Tạo sự kiện mới
-                </button>
+                {isAllowedToCreate && (
+                  <button
+                    onClick={() => openModal("register")}
+                    className="px-8 py-3.5 bg-white/10 border-2 border-white/30 text-white rounded-xl font-black uppercase text-sm hover:bg-white hover:text-[#245bb5] transition-all transform hover:-translate-y-1"
+                  >
+                    Tạo sự kiện mới
+                  </button>
+                )}
               </div>
 
               <div className="flex gap-10 pt-6 border-t border-white/10">
@@ -190,19 +219,23 @@ const VangLaiPage = () => {
                       </button>
                     </div>
                   ) : featuredEvents.length > 0 ? (
-                    featuredEvents.map((event) => (
+                    featuredEvents.slice(0, 3).map((event) => (
                       <div
                         key={event.id}
                         onClick={() => handleEventClick(event)}
                         className="bg-white rounded-3xl p-4 flex gap-4 text-gray-800 shadow-2xl transform hover:scale-105 transition-all cursor-pointer hover:shadow-2xl hover:border-2 hover:border-blue-400 group"
                       >
                         <img
-                          src={event.imageUrl}
-                          alt={event.title}
+                          src={
+                            event.imageUrl ||
+                            event.coverImage ||
+                            "https://www.cvent.com/sites/default/files/image/2023-11/Business_Travel_Trends_Bleisure_Event-Cvent_CONNECT_2023.jpg"
+                          }
+                          alt={event.title || "Sự kiện"}
                           className="w-20 h-20 rounded-2xl object-cover shadow-md group-hover:shadow-lg transition-all"
                           onError={(e) => {
                             e.target.onerror = null;
-                            e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(event.title)}&background=1a479a&color=fff&size=80&length=2&font-size=0.40&bold=true`;
+                            e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(event.title || "Event")}&background=1a479a&color=fff&size=80&length=2&font-size=0.40&bold=true`;
                           }}
                         />
                         <div className="flex flex-col justify-center flex-1">
@@ -216,10 +249,11 @@ const VangLaiPage = () => {
                             {event.title}
                           </div>
                           <div className="text-[11px] text-gray-500 mt-1 flex items-center gap-1">
-                            <MapPin size={12} /> {event.location || "Đang cập nhật"}
+                            <MapPin size={12} />{" "}
+                            {event.location || "Đang cập nhật"}
                           </div>
-                          <div className="mt-2 text-xs text-blue-600 font-semibold opacity-0 group-hover:opacity-100 transition-opacity">
-                            Xem chi tiết →
+                          <div className="mt-3 w-fit flex items-center gap-1 px-3 py-1.5 rounded-lg bg-blue-50 text-blue-700 text-[11px] font-bold opacity-0 translate-y-2 group-hover:opacity-100 group-hover:translate-y-0 transition-all duration-300">
+                            Xem chi tiết
                           </div>
                         </div>
                       </div>

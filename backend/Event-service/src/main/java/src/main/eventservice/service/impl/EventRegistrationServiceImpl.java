@@ -25,6 +25,7 @@ import java.util.stream.Collectors;
 @Service
 @RequiredArgsConstructor
 public class EventRegistrationServiceImpl implements EventRegistrationService {
+
     private final EventRegistrationRepository registrationRepository;
     private final EventRepository eventRepository;
     private final QRTokenUtil qrTokenUtil;
@@ -39,6 +40,35 @@ public class EventRegistrationServiceImpl implements EventRegistrationService {
     public EventRegistration registerUserToEvent(String eventId, String userRegistrationId) {
         Event event = eventRepository.findById(eventId)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy sự kiện"));
+
+        if (event.getStatus() != EventStatus.PUBLISHED
+                && event.getStatus() != EventStatus.ONGOING) {
+            throw new RuntimeException("Sự kiện không mở đăng ký");
+        }
+
+        if (event.getRegistrationDeadline() != null
+                && LocalDateTime.now().isAfter(event.getRegistrationDeadline())) {
+            throw new RuntimeException("Đã hết hạn đăng ký");
+        }
+
+        long registeredCount = registrationRepository
+                .findByEventIdAndStatus(eventId, RegistrationStatus.REGISTERED).size();
+
+        if (event.getMaxParticipants() > 0 && registeredCount >= event.getMaxParticipants()) {
+            throw new RuntimeException("Sự kiện đã đủ số lượng tham gia");
+        }
+
+        List<EventRegistration> conflicts = registrationRepository.findConflictingRegistrations(
+                userRegistrationId, event.getStartTime(), event.getEndTime(), eventId
+        );
+
+        if (!conflicts.isEmpty()) {
+            Event conflictEvent = conflicts.get(0).getEvent();
+            throw new RuntimeException(
+                    "Bạn đã đăng ký sự kiện '" + conflictEvent.getTitle()
+                            + "' trùng thời gian với sự kiện này"
+            );
+        }
 
         Optional<EventRegistration> existingReg = registrationRepository
                 .findByEventIdAndUserRegistrationId(eventId, userRegistrationId);
@@ -61,23 +91,21 @@ public class EventRegistrationServiceImpl implements EventRegistrationService {
         registration.setRegisteredAt(LocalDateTime.now());
         registration.setCheckedIn(false);
 
-        // 4. Tạo QR Token mới
         String qrToken = qrTokenUtil.generateQRToken(
                 userRegistrationId, eventId, event.getEndTime()
         );
+
         registration.setQrToken(qrToken);
         registration.setQrTokenExpiry(qrTokenUtil.getExpiryFromToken(qrToken));
 
         return registrationRepository.save(registration);
     }
 
-    // ✅ 2. LẤY QR CỦA REGISTRATION
     @Override
     public RegistrationResponseDto getRegistrationWithQR(String registrationId) {
         EventRegistration registration = registrationRepository.findById(registrationId)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy đăng ký"));
 
-        // Regenerate token nếu hết hạn
         if (!qrTokenUtil.isTokenValid(registration.getQrToken())) {
             String newToken = qrTokenUtil.generateQRToken(
                     registration.getUserRegistrationId(),
@@ -92,12 +120,11 @@ public class EventRegistrationServiceImpl implements EventRegistrationService {
         return toDto(registration);
     }
 
-    // ✅ 3. CHECK-IN BẰNG QR
     @Transactional
     @Override
     public CheckInResponse checkIn(CheckInRequest request) {
-        // Validate token
         Claims claims;
+
         try {
             claims = qrTokenUtil.verifyQRToken(request.getQrToken());
         } catch (ExpiredJwtException e) {
@@ -115,7 +142,6 @@ public class EventRegistrationServiceImpl implements EventRegistrationService {
         String userId = claims.get("userId", String.class);
         String eventId = claims.get("eventId", String.class);
 
-        // Tìm registration
         EventRegistration registration = registrationRepository
                 .findByEventIdAndUserRegistrationId(eventId, userId)
                 .orElse(null);
@@ -127,7 +153,6 @@ public class EventRegistrationServiceImpl implements EventRegistrationService {
                     .build();
         }
 
-        // Kiểm tra token khớp DB
         if (!request.getQrToken().equals(registration.getQrToken())) {
             return CheckInResponse.builder()
                     .success(false)
@@ -135,16 +160,13 @@ public class EventRegistrationServiceImpl implements EventRegistrationService {
                     .build();
         }
 
-        // Kiểm tra đã check-in chưa
         if (registration.isCheckedIn()) {
             return CheckInResponse.builder()
                     .success(false)
-                    .message("User đã check-in trước đó lúc "
-                            + registration.getCheckInTime())
+                    .message("User đã check-in trước đó lúc " + registration.getCheckInTime())
                     .build();
         }
 
-        // Kiểm tra thời gian check-in (cho phép trước 30 phút)
         Event event = registration.getEvent();
         LocalDateTime now = LocalDateTime.now();
         LocalDateTime checkInOpen = event.getStartTime().minusMinutes(30);
@@ -153,8 +175,7 @@ public class EventRegistrationServiceImpl implements EventRegistrationService {
         if (now.isBefore(checkInOpen)) {
             return CheckInResponse.builder()
                     .success(false)
-                    .message("Chưa đến giờ check-in. Mở check-in lúc "
-                            + checkInOpen)
+                    .message("Chưa đến giờ check-in. Mở check-in lúc " + checkInOpen)
                     .build();
         }
 
@@ -169,6 +190,7 @@ public class EventRegistrationServiceImpl implements EventRegistrationService {
         registration.setCheckInTime(now);
         registration.setCheckInByAccountId(request.getAdminAccountId());
         registration.setStatus(RegistrationStatus.ATTENDED);
+
         registrationRepository.save(registration);
 
         return CheckInResponse.builder()
@@ -198,6 +220,7 @@ public class EventRegistrationServiceImpl implements EventRegistrationService {
         registration.setCheckInTime(LocalDateTime.now());
         registration.setCheckInByAccountId(adminAccountId);
         registration.setStatus(RegistrationStatus.ATTENDED);
+
         registrationRepository.save(registration);
 
         return CheckInResponse.builder()
@@ -227,6 +250,9 @@ public class EventRegistrationServiceImpl implements EventRegistrationService {
                 .id(r.getId())
                 .eventId(r.getEvent().getId())
                 .eventTitle(r.getEvent().getTitle())
+                .eventStartTime(r.getEvent().getStartTime() != null ? r.getEvent().getStartTime().toString() : null)
+                .eventEndTime(r.getEvent().getEndTime() != null ? r.getEvent().getEndTime().toString() : null)
+                .eventLocation(r.getEvent().getLocation())
                 .userProfileId(r.getUserRegistrationId())
                 .status(r.getStatus() != null ? r.getStatus().name() : null)
                 .registeredAt(r.getRegisteredAt() != null ? r.getRegisteredAt().toString() : null)

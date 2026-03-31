@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useCallback, memo } from "react";
 import {
   Eye,
   EyeOff,
@@ -7,13 +7,63 @@ import {
   Users,
   QrCode,
   BarChart3,
+  CheckCircle,
+  X,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import logo_iuh from "../../assets/images/logo_iuh.png";
-import Notification from "../notification/Notification";
 import ErrorNotification from "../notification/ErrorNotification";
 import axios from "axios";
 import Header from "../common/Header";
+
+const InputField = memo(({
+  id,
+  label,
+  type = "text",
+  value,
+  placeholder,
+  error,
+  rightElement,
+  onChange
+}) => (
+  <div className="space-y-1.5">
+    <label className="block text-sm font-medium text-gray-700">{label}</label>
+    <div className="relative">
+      <input
+        id={id}
+        type={type}
+        value={value}
+        onChange={onChange}
+        placeholder={placeholder}
+        className={`w-full px-4 py-2.5 border rounded-xl text-sm outline-none transition-all placeholder:text-gray-300 ${
+          rightElement ? "pr-11" : ""
+        } ${
+          error
+            ? "border-red-300 bg-red-50 focus:ring-2 focus:ring-red-100"
+            : "border-gray-200 bg-gray-50 focus:bg-white focus:border-[#1a3a6b] focus:ring-2 focus:ring-[#1a3a6b]/10"
+        }`}
+      />
+      {rightElement && (
+        <div className="absolute right-3 top-1/2 -translate-y-1/2">
+          {rightElement}
+        </div>
+      )}
+    </div>
+    {error && (
+      <div className="space-y-0.5">
+        {Array.isArray(error) ? (
+          error.map((e, idx) => (
+            <p key={`${e}-${idx}`} className="text-xs text-red-500">
+              {e}
+            </p>
+          ))
+        ) : (
+          <p className="text-xs text-red-500">{error}</p>
+        )}
+      </div>
+    )}
+  </div>
+));
 
 const RegisterPage = () => {
   const navigate = useNavigate();
@@ -36,7 +86,15 @@ const RegisterPage = () => {
 
   const [errors, setErrors] = useState({});
 
-  const validatePassword = (password) => {
+  useEffect(() => {
+    let timer;
+    if (toastVisible) {
+      timer = setTimeout(() => setToastVisible(false), 3000);
+    }
+    return () => clearTimeout(timer);
+  }, [toastVisible]);
+
+  const validatePassword = useCallback((password) => {
     const trimmed = password.trim();
     const errs = [];
     if (!trimmed)
@@ -47,9 +105,9 @@ const RegisterPage = () => {
     if (!/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?`~]/.test(trimmed))
       errs.push("Ít nhất 1 ký tự đặc biệt");
     return { isValid: errs.length === 0, errors: errs };
-  };
+  }, []);
 
-  const validateForm = () => {
+  const validateForm = useCallback(() => {
     const newErrors = {};
     const d = {
       fullName: formData.fullName.trim(),
@@ -97,20 +155,22 @@ const RegisterPage = () => {
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
-  };
+  }, [formData, validatePassword]);
 
-  const handleChange = (e) => {
+  const handleChange = useCallback((e) => {
     const { id, value } = e.target;
     setFormData((prev) => ({ ...prev, [id]: value }));
-    if (errors[id]) setErrors((prev) => ({ ...prev, [id]: "" }));
-  };
+    if (errors[id]) {
+      setErrors((prev) => ({ ...prev, [id]: "" }));
+    }
+  }, [errors]);
 
   const handleRegister = async (e) => {
     e.preventDefault();
     if (!validateForm()) return;
 
     try {
-      const API = "http://192.168.0.105:8082/api/auth/register";
+      const API = `${import.meta.env.VITE_AUTH_API_URL}/auth/register`;
       const response = await axios.post(API, {
         username: formData.username.trim(),
         password: formData.password.trim(),
@@ -153,54 +213,6 @@ const RegisterPage = () => {
     }
   };
 
-  const InputField = ({
-    id,
-    label,
-    type = "text",
-    value,
-    placeholder,
-    error,
-    rightElement,
-  }) => (
-    <div className="space-y-1.5">
-      <label className="block text-sm font-medium text-gray-700">{label}</label>
-      <div className="relative">
-        <input
-          id={id}
-          type={type}
-          value={value}
-          onChange={handleChange}
-          placeholder={placeholder}
-          className={`w-full px-4 py-2.5 border rounded-xl text-sm outline-none transition-all placeholder:text-gray-300 ${
-            rightElement ? "pr-11" : ""
-          } ${
-            error
-              ? "border-red-300 bg-red-50 focus:ring-2 focus:ring-red-100"
-              : "border-gray-200 bg-gray-50 focus:bg-white focus:border-[#1a3a6b] focus:ring-2 focus:ring-[#1a3a6b]/10"
-          }`}
-        />
-        {rightElement && (
-          <div className="absolute right-3 top-1/2 -translate-y-1/2">
-            {rightElement}
-          </div>
-        )}
-      </div>
-      {error && (
-        <div className="space-y-0.5">
-          {Array.isArray(error) ? (
-            error.map((e, i) => (
-              <p key={i} className="text-xs text-red-500">
-                {e}
-              </p>
-            ))
-          ) : (
-            <p className="text-xs text-red-500">{error}</p>
-          )}
-        </div>
-      )}
-    </div>
-  );
-
   const features = [
     {
       icon: CalendarCheck,
@@ -228,12 +240,45 @@ const RegisterPage = () => {
     <div>
       <Header />
       <div className="min-h-screen bg-[#eef2f7] flex items-center justify-center p-4 font-sans">
-        <Notification
-          toastVisible={toastVisible}
-          setToastVisible={setToastVisible}
-          notification="Vui lòng xác nhận email!"
-          message={message}
-        />
+        {toastVisible && (
+          <div className="fixed top-6 right-6 z-50 transform transition-all duration-500 ease-out translate-x-0 opacity-100 scale-100">
+            <div
+              className="relative overflow-hidden w-full max-w-xl
+                bg-linear-to-r from-emerald-600 via-green-600 to-teal-600
+                text-white rounded-2xl shadow-2xl shadow-green-900/40
+                border border-white/10 backdrop-blur-xl"
+            >
+              <div className="flex items-start gap-4 p-6">
+                <div className="shrink-0">
+                  <div
+                    className="w-12 h-12 flex items-center justify-center
+                      rounded-full bg-white/15 backdrop-blur-md
+                      border border-white/20 shadow-inner"
+                  >
+                    <CheckCircle
+                      size={26}
+                      className="text-white drop-shadow-md"
+                    />
+                  </div>
+                </div>
+                <div className="flex-1">
+                  <p className="font-semibold text-lg tracking-tight">
+                    Vui lòng xác nhận email!
+                  </p>
+                  <p className="mt-1 text-white/90 text-sm leading-relaxed">
+                    {message}
+                  </p>
+                </div>
+                <button
+                  onClick={() => setToastVisible(false)}
+                  className="shrink-0 p-2 rounded-full hover:bg-white/15 transition duration-200"
+                >
+                  <X size={20} className="text-white/80 hover:text-white" />
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
         <ErrorNotification
           toastVisible={errorToastVisible}
           setToastVisible={setErrorToastVisible}
@@ -243,10 +288,10 @@ const RegisterPage = () => {
 
         <div className="w-full max-w-5xl flex flex-col">
           <button
-            onClick={() => navigate("/")}
+            onClick={() => navigate("/login")}
             className="group flex items-center gap-2 text-sm font-semibold text-[#1a3a6b] hover:gap-3 transition-all duration-200 mb-4 self-start cursor-pointer"
           >
-            <span className="w-8 h-8 bg-white rounded-full shadow-sm border border-gray-200 flex items-center justify-center group-hover:bg-[#1a3a6b] group-hover:border-[#1a3a6b] transition-all duration-200">
+            <span className="w-8 h-8 bg-white rounded-full hover:cursor-pointer shadow-sm border border-gray-200 flex items-center justify-center group-hover:bg-[#1a3a6b] group-hover:border-[#1a3a6b] transition-all duration-200">
               <ArrowLeft
                 size={15}
                 className="text-[#1a3a6b] group-hover:text-white transition-colors duration-200"
@@ -356,6 +401,7 @@ const RegisterPage = () => {
                     value={formData.fullName}
                     placeholder="Nhập họ và tên"
                     error={errors.fullName}
+                    onChange={handleChange}
                   />
                   <InputField
                     id="email"
@@ -364,6 +410,7 @@ const RegisterPage = () => {
                     value={formData.email}
                     placeholder="Nhập địa chỉ email"
                     error={errors.email}
+                    onChange={handleChange}
                   />
                 </div>
 
@@ -373,6 +420,7 @@ const RegisterPage = () => {
                   value={formData.username}
                   placeholder="Nhập tên đăng nhập"
                   error={errors.username}
+                  onChange={handleChange}
                 />
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -383,6 +431,7 @@ const RegisterPage = () => {
                     value={formData.password}
                     placeholder="Nhập mật khẩu"
                     error={errors.password}
+                    onChange={handleChange}
                     rightElement={
                       <button
                         type="button"
@@ -404,6 +453,7 @@ const RegisterPage = () => {
                     value={formData.confirmPassword}
                     placeholder="Nhập lại mật khẩu"
                     error={errors.confirmPassword}
+                    onChange={handleChange}
                     rightElement={
                       <button
                         type="button"

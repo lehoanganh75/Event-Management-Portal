@@ -12,9 +12,18 @@ const eventTypeVi = {
   OTHER: "Khác",
 };
 
-const formatPerson = (p) =>
-  [p.title, p.name].filter(Boolean).join(" ") +
-  (p.org || p.dept ? ` - ${p.org || p.dept}` : "");
+const formatPerson = (p) => {
+  if (!p) return "";
+
+  const title = p.title || "";
+  const name = p.name || p.fullName || "";
+  const role = p.role === "MEMBER" ? "" : p.role;
+  const department = p.department || "";
+  const organization = p.organization || p.org || "";
+
+  const parts = [title, name, role, department, organization].filter(Boolean);
+  return parts.join(" - ");
+};
 
 export const DocumentContent = ({ isModal = false, data = {} }) => {
   const {
@@ -41,14 +50,12 @@ export const DocumentContent = ({ isModal = false, data = {} }) => {
   } = data;
 
   const allRecipients = [...recipients, ...customRecipients];
-  const displayOrganizer = major
-    ? `${faculty} – ${major}`
-    : faculty;
+  const displayOrganizer = major ? `${faculty} – ${major}` : faculty;
   const today = new Date();
 
   return (
     <div
-      style={{ width: "794px", minHeight: "1123px" }}
+      style={{ width: "794px", minHeight: "1800px" }}
       className={`bg-white font-serif text-black leading-relaxed text-[14px] ${
         isModal
           ? "px-20 py-16 my-8 shadow-2xl rounded"
@@ -95,7 +102,8 @@ export const DocumentContent = ({ isModal = false, data = {} }) => {
         <div>
           <p className="font-black uppercase text-[13px] mb-1">1. MỤC ĐÍCH</p>
           <p className="ml-6 text-justify">
-            - {eventPurpose ||
+            -{" "}
+            {eventPurpose ||
               "Tổ chức sự kiện nhằm nâng cao kiến thức và kỹ năng thực tế cho người tham dự."}
           </p>
         </div>
@@ -105,11 +113,17 @@ export const DocumentContent = ({ isModal = false, data = {} }) => {
             2. THỜI GIAN VÀ ĐỊA ĐIỂM
           </p>
           <p className="ml-6">- Thời gian bắt đầu: {formatDate(startTime)}</p>
-          {endTime && <p className="ml-6">- Thời gian kết thúc: {formatDate(endTime)}</p>}
-          {registrationDeadline && (
-            <p className="ml-6">- Hạn chót đăng ký: {formatDate(registrationDeadline)}</p>
+          {endTime && (
+            <p className="ml-6">- Thời gian kết thúc: {formatDate(endTime)}</p>
           )}
-          <p className="ml-6">- Địa điểm: {location || "...................."}</p>
+          {registrationDeadline && (
+            <p className="ml-6">
+              - Hạn chót đăng ký: {formatDate(registrationDeadline)}
+            </p>
+          )}
+          <p className="ml-6">
+            - Địa điểm: {location || "...................."}
+          </p>
         </div>
 
         <div>
@@ -159,7 +173,8 @@ export const DocumentContent = ({ isModal = false, data = {} }) => {
             <>
               <p className="ml-6">Phần 1. Trình bày AI</p>
               <p className="ml-8">
-                Người chia sẻ: {presenters[0]?.name || "Bùi Thanh Hùng"} - Giảng viên - Khoa Công Nghệ Thông Tin
+                Người chia sẻ: {presenters[0]?.name || "Bùi Thanh Hùng"} - Giảng
+                viên - Khoa Công Nghệ Thông Tin
               </p>
             </>
           )}
@@ -172,10 +187,7 @@ export const DocumentContent = ({ isModal = false, data = {} }) => {
             </p>
             <ul className="ml-6 space-y-1">
               {organizers.map((p, i) => (
-                <li key={i}>
-                  - {formatPerson(p)}
-                  {p.email ? ` - ${p.email}` : ""}
-                </li>
+                <li key={i}>- {formatPerson(p)}</li>
               ))}
             </ul>
           </div>

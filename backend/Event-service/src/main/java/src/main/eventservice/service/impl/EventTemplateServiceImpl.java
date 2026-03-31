@@ -38,7 +38,6 @@ public class EventTemplateServiceImpl implements EventTemplateService {
         Event event = new Event();
 
         event.setTitle(template.getDefaultTitle() != null ? template.getDefaultTitle() : "Untitled Event");
-        event.setDescription(template.getDefaultDescription());
         event.setCoverImage(template.getDefaultCoverImage());
         event.setLocation(template.getDefaultLocation());
         event.setEventMode(template.getDefaultEventMode());
@@ -104,7 +103,6 @@ public class EventTemplateServiceImpl implements EventTemplateService {
         template.setCustomTemplateType(details.getCustomTemplateType());
         template.setDescription(details.getDescription());
         template.setDefaultTitle(details.getDefaultTitle());
-        template.setDefaultDescription(details.getDefaultDescription());
         template.setDefaultCoverImage(details.getDefaultCoverImage());
         template.setDefaultLocation(details.getDefaultLocation());
         template.setDefaultEventMode(details.getDefaultEventMode());
@@ -132,5 +130,21 @@ public class EventTemplateServiceImpl implements EventTemplateService {
     public EventTemplate getTemplateById(String id) {
         return templateRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy bản mẫu với ID: " + id));
+    }
+
+    @Override
+    public Page<EventTemplate> getAllTemplatesGlobal(String search, Pageable pageable) {
+        String searchKeyword = (search == null) ? "" : search;
+
+        Sort sort = Sort.by(Sort.Direction.DESC, "usageCount")
+                .and(Sort.by(Sort.Direction.DESC, "createdAt"));
+
+        Pageable sorted = PageRequest.of(
+                pageable.getPageNumber(),
+                pageable.getPageSize(),
+                sort
+        );
+
+        return templateRepository.findByTemplateNameContainingIgnoreCase(searchKeyword, sorted);
     }
 }

@@ -75,6 +75,10 @@ export const PreviewStep = ({
           participants: data.participants || [],
           presenters: data.presenters || [],
           organizers: data.organizers || [],
+          attendees: data.attendees || [],
+          targetObjects: data.targetObjects || [],
+          recipients: data.recipients || [],
+          customFields: data.customFields || [],
         }),
         usageCount: 0,
         isPublic: false,
@@ -94,13 +98,15 @@ export const PreviewStep = ({
       toast.success(
         data.templateId
           ? `Đã tạo bản mẫu mới "${templateName}" thành công!`
-          : `Đã lưu bản mẫu "${templateName}" thành công!`
+          : `Đã lưu bản mẫu "${templateName}" thành công!`,
       );
 
       setShowTemplateModal(false);
       setTemplateName("");
     } catch (err) {
-      toast.error("Lưu bản mẫu thất bại: " + (err.message || "Lỗi không xác định"));
+      toast.error(
+        "Lưu bản mẫu thất bại: " + (err.message || "Lỗi không xác định"),
+      );
       console.error(err);
     } finally {
       setSavingTemplate(false);
@@ -193,8 +199,8 @@ export const PreviewStep = ({
         </div>
 
         <div className="lg:col-span-3">
-          <div className="bg-slate-200/50 rounded-3xl p-8 border border-slate-200 overflow-hidden shadow-inner flex justify-center">
-            <div className="scale-[0.75] origin-top transform-gpu">
+          <div className="bg-slate-200/50 rounded-3xl p-8 border border-slate-200 overflow-auto shadow-inner flex justify-center">
+            <div className="origin-top transform-gpu">
               <DocumentContent data={data} />
             </div>
           </div>
@@ -214,7 +220,7 @@ export const PreviewStep = ({
             </div>
             <button
               onClick={() => setIsFullscreen(false)}
-              className="bg-white/10 p-2 rounded-full hover:bg-rose-500 transition-all"
+              className="bg-white/10 p-2 rounded-full hover:bg-rose-500 transition-all hover:cursor-pointer"
             >
               <X size={28} />
             </button>

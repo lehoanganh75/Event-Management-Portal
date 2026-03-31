@@ -21,4 +21,6 @@ public interface EventTemplateService {
     Page<EventTemplate> getAllTemplates(String orgId, String search, Pageable pageable);
 
     EventTemplate getTemplateById(String id);
+
+    Page<EventTemplate> getAllTemplatesGlobal(String search, Pageable pageable);
 }

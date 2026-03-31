@@ -8,14 +8,18 @@ import src.main.eventservice.entity.Event;
 import src.main.eventservice.entity.enums.EventStatus;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 public interface EventService {
+
     List<Event> getAllEvents();
 
     List<Event> getFeaturedEvents();
 
     Optional<Event> findById(String id);
+
+    Optional<Event> getEventById(String id);
 
     List<Event> getMyEventsByAccountAndMonth(String accountId);
 
@@ -25,42 +29,57 @@ public interface EventService {
 
     List<Event> getEventsByStatuses(List<EventStatus> statuses);
 
-    // Tìm một sự kiện theo ID
-    Optional<Event> getEventById(String id);
-
-    // Lưu hoặc cập nhật sự kiện
+    @Transactional
     Event saveEvent(Event event);
 
-    @Transactional
-        // Đảm bảo tính toàn vẹn dữ liệu khi update
+    Page<Event> getAllEvents(PageRequest pageable);
+
     Event updateEvent(String id, Event eventDetails);
 
     void updateLuckyDrawId(String id, String luckyDrawId);
 
-    // Plans
     List<Event> getAllPlans();
 
     List<Event> getPlansByStatus(EventStatus status);
 
     List<Event> getPlansByStatusById(EventStatus status, String accountId);
 
-    @Transactional
     Event createPlan(Event event);
 
-    @Transactional
     Event updatePlan(String id, Event planDetails);
 
-    @Transactional
     void deletePlan(String id);
 
-    @Transactional
-    Event updateEventStatus(String id, EventStatus status, String approverId, String accountId);
+    Event submitPlanForApproval(String id);
 
-    Page<Event> getAllEvents(PageRequest pageable);
+    Event approvePlan(String id, String approverId);
+
+    Event rejectPlan(String id, String approverId, String reason);
+  
+    Event createEventFromPlan(String planId, Event eventDetails);
+
+    Event approveEvent(String id, String approverId);
+
+    Event rejectEvent(String id, String approverId, String reason);
+  
+    Event startEvent(String id);
+
+    Event completeEvent(String id);
+
+    Event cancelEvent(String id, String reason);
 
     List<PlanResponseDto> getAllPlansEnriched();
 
     List<PlanResponseDto> getPlansByAccountId(String accountId);
 
     List<PlanResponseDto> getEventsByAccountId(String accountId);
+
+    List<PlanResponseDto> getEventsByStatus(EventStatus status);
+
+    List<PlanResponseDto> getPlansPendingApproval();
+
+    List<PlanResponseDto> getEventsPendingApproval();
+
+    @Transactional
+    Event updateEventStatus(String id, EventStatus status, String approverId, String accountId);
 }

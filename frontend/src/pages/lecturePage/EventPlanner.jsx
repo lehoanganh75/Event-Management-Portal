@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react"; // Thêm useEffect
+import React, { useState, useEffect } from "react";
 import { toast } from "react-toastify";
 import { ArrowLeft, BookOpen, PlusCircle, ChevronRight } from "lucide-react";
 import { TemplateSelectionStep } from "../../components/eventPlanner/TemplateSelectionStep";
@@ -6,6 +6,8 @@ import { ManualInputStep } from "../../components/eventPlanner/ManualInputStep";
 import { EventProgramStep } from "../../components/eventPlanner/Eventprogramstep";
 import { PreviewStep } from "../../components/eventPlanner/PreviewStep";
 import { createPlan } from "../../api/eventApi";
+import notificationApi from "../../api/notificationApi";
+import axios from "axios";
 
 const INITIAL_FORM_DATA = {
   title: "",
@@ -30,10 +32,13 @@ const INITIAL_FORM_DATA = {
   customRecipients: [],
   participants: [],
   notes: "",
+
   presenters: [],
   organizers: [],
   attendees: [],
-  customFields: [], 
+  targetObjects: [],
+
+  customFields: [],
   hasLuckyDraw: false,
 };
 
@@ -45,22 +50,29 @@ export const EventPlanner = ({
   const [step, setStep] = useState(initialStep);
   const [selectedTemplate, setSelectedTemplate] = useState(null);
   const [isSaving, setIsSaving] = useState(false);
-  const [currentAccountId, setCurrentAccountId] = useState(null); 
+  const [currentAccountId, setCurrentAccountId] = useState(null);
+  const [currentUserInfo, setCurrentUserInfo] = useState(null);
   const [formData, setFormData] = useState({
     ...INITIAL_FORM_DATA,
     ...initialFormData,
   });
 
   useEffect(() => {
-    const getAccountId = () => {
+    const getUserInfo = () => {
       const userData = localStorage.getItem("user");
       if (userData) {
         try {
           const user = JSON.parse(userData);
-          const accountId = user.id || user.accountId || user.account?.id || user.userId;
+          const accountId =
+            user.id || user.accountId || user.account?.id || user.userId;
           if (accountId) {
             setCurrentAccountId(accountId);
-            console.log("📋 Account ID từ user data:", accountId);
+            setCurrentUserInfo({
+              id: accountId,
+              name: user.fullName || user.name || user.username || "Người dùng",
+              email: user.email || "",
+              role: user.role || "USER",
+            });
             return;
           }
         } catch (error) {
@@ -71,13 +83,23 @@ export const EventPlanner = ({
       const accessToken = localStorage.getItem("accessToken");
       if (accessToken) {
         try {
-          const base64Url = accessToken.split('.')[1];
-          const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+          const base64Url = accessToken.split(".")[1];
+          const base64 = base64Url.replace(/-/g, "+").replace(/_/g, "/");
           const payload = JSON.parse(atob(base64));
-          const accountId = payload.accountId || payload.sub || payload.userId || payload.id;
+          const accountId =
+            payload.accountId || payload.sub || payload.userId || payload.id;
           if (accountId) {
             setCurrentAccountId(accountId);
-            console.log("📋 Account ID từ token:", accountId);
+            setCurrentUserInfo({
+              id: accountId,
+              name:
+                payload.fullName ||
+                payload.name ||
+                payload.username ||
+                "Người dùng",
+              email: payload.email || "",
+              role: payload.role || "USER",
+            });
           }
         } catch (e) {
           console.error("Lỗi decode token:", e);
@@ -85,7 +107,7 @@ export const EventPlanner = ({
       }
     };
 
-    getAccountId();
+    getUserInfo();
   }, []);
 
   const resetForm = () => {
@@ -134,6 +156,8 @@ export const EventPlanner = ({
         participants: [],
         presenters: [],
         organizers: [],
+        attendees: [],
+        targetObjects: [],
         themes: [],
         faculty: "",
         major: "",
@@ -170,6 +194,8 @@ export const EventPlanner = ({
         participants: configData.participants || [],
         presenters: configData.presenters || [],
         organizers: configData.organizers || [],
+        attendees: configData.attendees || [],
+        targetObjects: configData.targetObjects || [],
         themes: template.themes || [],
         faculty: template.faculty || "",
         major: template.major || "",
@@ -177,9 +203,81 @@ export const EventPlanner = ({
     }
   };
 
+  const getCurrentUser = () => {
+    try {
+      const accessToken = localStorage.getItem("accessToken");
+      if (accessToken) {
+        const base64Url = accessToken.split(".")[1];
+        const base64 = base64Url.replace(/-/g, "+").replace(/_/g, "/");
+        const payload = JSON.parse(atob(base64));
+        return {
+          accountId:
+            payload.accountId || payload.sub || payload.userId || payload.id,
+          name: payload.name || payload.fullName || "Người dùng",
+          email: payload.email,
+        };
+      }
+    } catch (e) {
+      console.error("Lỗi decode token:", e);
+    }
+
+    try {
+      const userData = localStorage.getItem("user");
+      if (userData) {
+        const user = JSON.parse(userData);
+        return {
+          accountId:
+            user.id || user.accountId || user.account?.id || user.userId,
+          name: user.fullName || user.name || "Người dùng",
+          email: user.email,
+        };
+      }
+    } catch (error) {
+      console.error("Lỗi parse user data:", error);
+    }
+
+    return null;
+  };
+
+  const sendPlanNotification = async (targetUserId, planId, planTitle) => {
+    try {
+      const payload = {
+        userProfileId: targetUserId,
+        type: "SYSTEM",
+        title: "Kế hoạch mới đã được tạo! 🎉",
+        message: `Kế hoạch "${planTitle}" đã được khởi tạo và đang chờ bạn xem xét.`,
+        relatedEntityId: planId,
+        relatedEntityType: "PLAN",
+        actionUrl: `/manage-plans/${planId}`,
+        priority: 2,
+      };
+      await notificationApi.createNotification(payload);
+    } catch (error) {
+      console.warn(`⚠️ Lỗi gửi thông báo cho ${targetUserId}:`, error.message);
+    }
+  };
+
+  const removeEmptyFields = (obj, keepFields = []) => {
+    const cleaned = {};
+    for (const key in obj) {
+      if (keepFields.includes(key)) {
+        cleaned[key] = obj[key];
+      } else if (
+        obj[key] !== "" &&
+        obj[key] !== null &&
+        obj[key] !== undefined
+      ) {
+        cleaned[key] = obj[key];
+      }
+    }
+    return cleaned;
+  };
+
   const handleSave = async () => {
     if (!currentAccountId) {
-      toast.error("Không tìm thấy thông tin tài khoản. Vui lòng đăng nhập lại!");
+      toast.error(
+        "Không tìm thấy thông tin tài khoản. Vui lòng đăng nhập lại!",
+      );
       return;
     }
 
@@ -189,15 +287,29 @@ export const EventPlanner = ({
     if (!trimmedTitle) errors.push("Tiêu đề sự kiện là bắt buộc");
     if (!formData.startTime) errors.push("Thời gian bắt đầu là bắt buộc");
     if (!formData.endTime) errors.push("Thời gian kết thúc là bắt buộc");
+    if (!formData.location || !formData.location.trim())
+      errors.push("Địa điểm là bắt buộc");
+    if (!formData.eventMode) errors.push("Hình thức sự kiện là bắt buộc");
+    if (!formData.maxParticipants || formData.maxParticipants <= 0) {
+      errors.push("Số lượng người tham gia tối đa phải lớn hơn 0");
+    }
 
     if (formData.endTime && formData.startTime) {
-      if (new Date(formData.endTime) <= new Date(formData.startTime)) {
+      const startDate = new Date(formData.startTime);
+      const endDate = new Date(formData.endTime);
+
+      if (isNaN(startDate.getTime()))
+        errors.push("Thời gian bắt đầu không hợp lệ");
+      if (isNaN(endDate.getTime()))
+        errors.push("Thời gian kết thúc không hợp lệ");
+
+      if (endDate <= startDate) {
         errors.push("Thời gian kết thúc phải sau thời gian bắt đầu");
       }
     }
 
     if (errors.length > 0) {
-      toast.warning("Vui lòng sửa lỗi:\n• " + errors.join("\n• "));
+      toast.warning("Vui lòng sửa các lỗi sau:\n• " + errors.join("\n• "));
       return;
     }
 
@@ -209,9 +321,80 @@ export const EventPlanner = ({
         return isNaN(date.getTime()) ? null : date.toISOString();
       };
 
-      const now = new Date().toISOString();
-
       const eventType = formData.eventType || formData.type || "WORKSHOP";
+      const maxParticipants = Number(formData.maxParticipants) || 50;
+      const location = (formData.location || "Chưa xác định").trim();
+      const eventMode = (formData.eventMode || "OFFLINE").toUpperCase();
+
+      const formattedPresenters = Array.isArray(formData.presenters)
+        ? formData.presenters.map((p) => {
+            return {
+              fullName: p.fullName || p.name || "",
+              email: p.email || "",
+              position: p.position || p.title || "",
+            };
+          })
+        : [];
+
+      const formattedOrganizers = Array.isArray(formData.organizers)
+        ? formData.organizers.map((o) => ({
+            fullName: o.fullName || "",
+            email: o.email || "",
+            position: o.position || "",
+            role: o.role || "MEMBER",
+          }))
+        : [];
+
+      const formattedParticipants = Array.isArray(formData.attendees)
+        ? formData.attendees
+            .map((a) => {
+              const participant = {
+                fullName: a.fullName || a.name || "",
+                email: a.email || "",
+                title: a.title || "",
+                position: a.position || "",
+                department: a.department || "",
+                organization: a.organization || "",
+                code: a.studentId || a.code || "",
+                notes: a.notes || "",
+              };
+              return removeEmptyFields(participant, ["email"]);
+            })
+            .filter((p) => p.fullName)
+        : [];
+
+      const formattedTargetObjects = Array.isArray(formData.targetObjects)
+        ? formData.targetObjects.map((obj) => ({
+            type: obj.type || "OTHER",
+            typeName: obj.typeName || "Khác",
+          }))
+        : [];
+
+      const formattedRecipients = Array.isArray(formData.recipients)
+        ? formData.recipients.map((r) => {
+            if (typeof r === "string") {
+              return {
+                name: r,
+                type: "DEPARTMENT",
+                email: "",
+              };
+            }
+            return r;
+          })
+        : [];
+
+      const formattedCustomRecipients = Array.isArray(formData.customRecipients)
+        ? formData.customRecipients.map((r) => {
+            if (typeof r === "string") {
+              return {
+                name: r,
+                type: "CUSTOM",
+                email: "",
+              };
+            }
+            return r;
+          })
+        : [];
 
       const payload = {
         organizationId: formData.organizationId || "org-it",
@@ -221,98 +404,94 @@ export const EventPlanner = ({
           formData.description ||
           ""
         ).trim(),
-
         eventTopic: (formData.eventTopic || "").trim(),
-        location: (formData.location || "Chưa xác định").trim(),
-        eventMode: (formData.eventMode || "OFFLINE").toUpperCase(),
-
+        location: location,
+        eventMode: eventMode,
         type: eventType,
-
         startTime: toISO(formData.startTime),
         endTime: toISO(formData.endTime),
         registrationDeadline: toISO(formData.registrationDeadline),
-
-        maxParticipants: Number(formData.maxParticipants) || 50,
-
-        status: "Draft",
-
+        maxParticipants: maxParticipants,
+        status: "DRAFT",
         hasLuckyDraw: formData.hasLuckyDraw || false,
         finalized: false,
         archived: false,
-
-        participants: Array.isArray(formData.participants)
-          ? formData.participants
-          : [],
         faculty: formData.faculty || "",
         major: formData.major || "",
-        recipients: Array.isArray(formData.recipients)
-          ? formData.recipients
-          : [],
-        customRecipients: Array.isArray(formData.customRecipients)
-          ? formData.customRecipients
-          : [],
-        presenters: Array.isArray(formData.presenters)
-          ? formData.presenters.map((p) => (typeof p === "string" ? p : p.name))
-          : [],
-        organizingCommittee: Array.isArray(formData.organizers)
-          ? formData.organizers.map((p) => (typeof p === "string" ? p : p.name))
-          : [],
-        attendees: Array.isArray(formData.attendees)
-          ? formData.attendees.map((p) => (typeof p === "string" ? p : p.name))
-          : [],
-
+        recipients: formattedRecipients,
+        customRecipients: formattedCustomRecipients,
         notes: (formData.notes || "").trim(),
         templateId:
           formData.templateId === "0" || !formData.templateId
             ? null
             : formData.templateId,
-
         programItems: (formData.programItems || []).map((item) => ({
           title: item.title,
           notes:
             `${item.presenter || ""} ${item.presenterTitle ? `(${item.presenterTitle})` : ""}`.trim(),
         })),
-
         customFieldsJson:
           formData.customFields?.length > 0
             ? JSON.stringify(formData.customFields)
             : null,
 
-        // THÊM createdByAccountId VÀO PAYLOAD
+        presenters: formattedPresenters,
+        organizers: formattedOrganizers,
+        participants: formattedParticipants,
+        targetObjects: formattedTargetObjects,
+
         createdByAccountId: currentAccountId,
       };
 
-      console.log("📤 Payload gửi đi:", payload);
+      const response = await createPlan(payload, false);
+      const planId = response.data?.id || response.data?.planId;
 
-      await createPlan(payload);
+      if (planId) {
+        await sendPlanNotification(currentAccountId, planId, trimmedTitle);
+
+        if (formattedRecipients && formattedRecipients.length > 0) {
+          const notificationPromises = formattedRecipients.map((recipient) => {
+            const targetId =
+              recipient.id || recipient.accountId || recipient.name;
+            return sendPlanNotification(targetId, planId, trimmedTitle);
+          });
+
+          await Promise.all(notificationPromises);
+          console.log(
+            `✅ Đã gửi thông báo đến ${formattedRecipients.length} người nhận.`,
+          );
+        }
+      }
+
       toast.success("✅ Lưu kế hoạch thành công!");
       onBack();
     } catch (err) {
-      console.error("🔴 Server trả về lỗi:", err.response?.data);
+      let errorMessage = "Kiểm tra lại định dạng dữ liệu";
 
       if (err.response?.data) {
-        console.error(
-          "Chi tiết lỗi:",
-          JSON.stringify(err.response.data, null, 2),
-        );
+        const errorData = err.response.data;
+
+        if (errorData.message) {
+          errorMessage = errorData.message;
+        } else if (errorData.error) {
+          errorMessage = errorData.error;
+        } else if (errorData.errors && Array.isArray(errorData.errors)) {
+          errorMessage = errorData.errors
+            .map((e) => e.defaultMessage || e.field)
+            .join("\n• ");
+        } else if (typeof errorData === "string") {
+          errorMessage = errorData;
+        } else {
+          errorMessage = JSON.stringify(errorData, null, 2);
+        }
       }
 
-      const data = err.response?.data;
-      let errorMsg = "Kiểm tra lại định dạng dữ liệu";
-
-      if (data && typeof data === "object" && !data.timestamp) {
-        errorMsg = Object.entries(data)
-          .map(([field, msg]) => `${field}: ${msg}`)
-          .join("\n• ");
-      } else {
-        errorMsg = data?.message || data?.error || errorMsg;
-      }
-      toast.error(`❌ Lỗi khi lưu:\n\n${errorMsg}`);
+      toast.error(`❌ Lỗi khi lưu:\n\n${errorMessage}`);
     } finally {
       setIsSaving(false);
     }
   };
-  
+
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col">
       <div className="bg-white border-b px-6 py-4 flex items-center justify-between sticky top-0 z-20 shadow-sm">

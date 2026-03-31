@@ -3,7 +3,7 @@ import { ArrowLeft, Mail, CheckCircle, AlertCircle } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import logo_iuh from "../../assets/images/logo_iuh.png";
 import axios from "axios";
-import HeaderAdmin from "../header/HeaderAdmin";
+import HeaderAdmin from "../common/HeaderAdmin";
 import Header from "../common/Header";
 
 const ForgotPassword = () => {

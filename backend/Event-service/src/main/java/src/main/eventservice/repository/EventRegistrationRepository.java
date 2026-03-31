@@ -21,9 +21,6 @@ public interface EventRegistrationRepository extends JpaRepository<EventRegistra
     // Đổi từ findByEventIdAndUserProfileId thành findByEventIdAndUserRegistrationId
     Optional<EventRegistration> findByEventIdAndUserRegistrationId(String eventId, String userRegistrationId);
 
-    // Đổi từ existsByEventIdAndUserProfileId thành existsByEventIdAndUserRegistrationId
-    boolean existsByEventIdAndUserRegistrationId(String eventId, String userRegistrationId);
-
     List<EventRegistration> findByEventIdAndStatus(String eventId, RegistrationStatus status);
     Optional<EventRegistration> findByQrToken(String qrToken);
 

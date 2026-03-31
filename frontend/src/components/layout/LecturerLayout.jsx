@@ -41,7 +41,7 @@ const LecturerLayout = () => {
   const sidebars = [
     {
       name: "Bảng tin sự kiện",
-      path: "/lecturer/events/feed",
+      path: "/lecturer/events/dashboard", // Cập nhật đường dẫn để khớp với route thực tế
       icon: LayoutDashboard,
     },
     {

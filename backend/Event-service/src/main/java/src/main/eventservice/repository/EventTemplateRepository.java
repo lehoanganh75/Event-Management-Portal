@@ -15,4 +15,6 @@ public interface EventTemplateRepository extends JpaRepository<EventTemplate, St
             String templateName,
             Pageable pageable
     );
+
+    Page<EventTemplate> findByTemplateNameContainingIgnoreCase(String templateName, Pageable pageable);
 }

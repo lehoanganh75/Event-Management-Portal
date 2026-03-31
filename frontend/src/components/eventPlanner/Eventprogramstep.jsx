@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   ArrowLeft,
   Plus,
@@ -19,59 +19,11 @@ import {
   UserCheck,
   Upload,
   Image,
-  Clock,
-  MapPin,
-  FileText,
+  GripVertical,
+  Edit2,
   Info,
-  Check,
 } from "lucide-react";
-
-const MOCK_USERS = [
-  {
-    id: "GV001",
-    name: "TS. Nguyễn Văn An",
-    email: "nguyenvanan@uni.edu.vn",
-    dept: "Khoa CNTT",
-    avatar: "NA",
-  },
-  {
-    id: "GV002",
-    name: "ThS. Trần Thị Bình",
-    email: "tranthibinh@uni.edu.vn",
-    dept: "Khoa CNTT",
-    avatar: "TB",
-  },
-  {
-    id: "GV003",
-    name: "PGS. Lê Minh Cường",
-    email: "leminhcuong@uni.edu.vn",
-    dept: "Khoa Kế toán",
-    avatar: "LC",
-  },
-  {
-    id: "GV004",
-    name: "TS. Phạm Thị Dung",
-    email: "phamthidung@uni.edu.vn",
-    dept: "Khoa QTKD",
-    avatar: "PD",
-  },
-  {
-    id: "GV005",
-    name: "ThS. Hoàng Văn Em",
-    email: "hoangvanem@uni.edu.vn",
-    dept: "Phòng Đào tạo",
-    avatar: "HE",
-  },
-];
-
-const CURRENT_USER = {
-  id: "ME",
-  name: "Bạn (Tôi)",
-  email: "me@uni.edu.vn",
-  dept: "Khoa CNTT",
-  avatar: "TÔI",
-  isMe: true,
-};
+import axios from "axios";
 
 const FIELD_TYPES = [
   { value: "short_text", label: "Văn bản ngắn", icon: Type },
@@ -92,7 +44,14 @@ const ROLE_OPTIONS = [
   { value: "Khác", label: "Khác" },
 ];
 
-const AVATAR_BG = ["#3b82f6", "#10b981", "#8b5cf6", "#f43f5e", "#f59e0b", "#06b6d4"];
+const AVATAR_BG = [
+  "#3b82f6",
+  "#10b981",
+  "#8b5cf6",
+  "#f43f5e",
+  "#f59e0b",
+  "#06b6d4",
+];
 const fi = "'Inter','Segoe UI',sans-serif";
 
 function Avatar({ initials, idx = 0, size = 36 }) {
@@ -201,10 +160,30 @@ function Sel({ children, style, ...p }) {
 
 function Card({ title, icon: Icon, accentColor, badge, children }) {
   const colors = {
-    blue: { icon: "#2563eb", border: "#dbeafe", header: "#eff6ff", dot: "#2563eb" },
-    emerald: { icon: "#10b981", border: "#d1fae5", header: "#f0fdf8", dot: "#10b981" },
-    purple: { icon: "#8b5cf6", border: "#ede9fe", header: "#faf5ff", dot: "#8b5cf6" },
-    slate: { icon: "#64748b", border: "#e2e8f0", header: "#f8fafc", dot: "#64748b" },
+    blue: {
+      icon: "#2563eb",
+      border: "#dbeafe",
+      header: "#eff6ff",
+      dot: "#2563eb",
+    },
+    emerald: {
+      icon: "#10b981",
+      border: "#d1fae5",
+      header: "#f0fdf8",
+      dot: "#10b981",
+    },
+    purple: {
+      icon: "#8b5cf6",
+      border: "#ede9fe",
+      header: "#faf5ff",
+      dot: "#8b5cf6",
+    },
+    slate: {
+      icon: "#64748b",
+      border: "#e2e8f0",
+      header: "#f8fafc",
+      dot: "#64748b",
+    },
   };
   const c = colors[accentColor] || colors.slate;
   return (
@@ -275,26 +254,74 @@ function Card({ title, icon: Icon, accentColor, badge, children }) {
 function PeopleSearch({ onSelect, accentColor = "blue" }) {
   const [q, setQ] = useState("");
   const [res, setRes] = useState([]);
+  const [loading, setLoading] = useState(false);
   const [done, setDone] = useState(false);
   const colors = { blue: "#2563eb", emerald: "#10b981", purple: "#8b5cf6" };
   const ac = colors[accentColor] || colors.blue;
 
-  const search = () => {
-    if (!q.trim()) return;
-    const ql = q.toLowerCase();
-    setRes(
-      MOCK_USERS.filter(
-        (u) =>
-          u.name.toLowerCase().includes(ql) ||
-          u.email.toLowerCase().includes(ql) ||
-          u.id.toLowerCase().includes(ql)
-      )
-    );
-    setDone(true);
+  const search = async () => {
+    if (!q.trim()) {
+      setRes([]);
+      setDone(true);
+      return;
+    }
+
+    setLoading(true);
+    setDone(false);
+
+    try {
+      const token = localStorage.getItem("accessToken");
+      if (!token) {
+        console.error("No token found");
+        setRes([]);
+        setDone(true);
+        setLoading(false);
+        return;
+      }
+
+      const IDENTITY_SERVICE_URL =
+        import.meta.env.VITE_IDENTITY_API_URL || "http://localhost:8082";
+
+      const response = await axios.get(
+        `${IDENTITY_SERVICE_URL}/api/profiles/search?keyword=${encodeURIComponent(q)}`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        },
+      );
+
+      const users = response.data || [];
+      setRes(users);
+      setDone(true);
+    } catch (error) {
+      console.error("Lỗi tìm kiếm:", error);
+      setRes([]);
+      setDone(true);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const pick = (u) => {
-    onSelect(u);
+    onSelect({
+      id: u.id,
+      name: u.fullName,
+      fullName: u.fullName, 
+      email: u.account?.email || "",
+      dept: u.majorName || "",
+      avatar:
+        (u.fullName || "")
+          .split(" ")
+          .map((w) => w[0])
+          .slice(-2)
+          .join("")
+          .toUpperCase() || "NG",
+      title: "",
+      role: u.account?.roles?.[0] || "MEMBER",
+      loginCode: u.loginCode,
+      phone: u.phone,
+    });
     setQ("");
     setRes([]);
     setDone(false);
@@ -320,6 +347,7 @@ function PeopleSearch({ onSelect, accentColor = "blue" }) {
             onChange={(e) => {
               setQ(e.target.value);
               setDone(false);
+              if (!e.target.value) setRes([]);
             }}
             onKeyDown={(e) => e.key === "Enter" && search()}
             style={{ paddingLeft: 38, fontSize: 13 }}
@@ -327,6 +355,7 @@ function PeopleSearch({ onSelect, accentColor = "blue" }) {
         </div>
         <button
           onClick={search}
+          disabled={loading}
           style={{
             display: "flex",
             alignItems: "center",
@@ -338,17 +367,18 @@ function PeopleSearch({ onSelect, accentColor = "blue" }) {
             borderRadius: 9,
             fontSize: 13,
             fontWeight: 600,
-            cursor: "pointer",
+            cursor: loading ? "not-allowed" : "pointer",
             fontFamily: fi,
             flexShrink: 0,
             transition: "opacity .15s",
+            opacity: loading ? 0.7 : 1,
           }}
-          onMouseEnter={(e) => (e.currentTarget.style.opacity = "0.85")}
-          onMouseLeave={(e) => (e.currentTarget.style.opacity = "1")}
         >
-          <Search size={13} /> Tìm
+          {loading ? "..." : <Search size={13} />}
+          {loading ? "Đang tìm..." : "Tìm"}
         </button>
       </div>
+
       {done && (
         <div
           style={{
@@ -357,7 +387,19 @@ function PeopleSearch({ onSelect, accentColor = "blue" }) {
             overflow: "hidden",
           }}
         >
-          {res.length === 0 ? (
+          {loading ? (
+            <p
+              style={{
+                padding: 16,
+                textAlign: "center",
+                fontSize: 13,
+                color: "#aaa",
+                margin: 0,
+              }}
+            >
+              Đang tìm kiếm...
+            </p>
+          ) : res.length === 0 ? (
             <p
               style={{
                 padding: 16,
@@ -380,13 +422,22 @@ function PeopleSearch({ onSelect, accentColor = "blue" }) {
                   gap: 12,
                   padding: "12px 16px",
                   cursor: "pointer",
-                  borderBottom: i < res.length - 1 ? "1px solid #f0f0f0" : "none",
+                  borderBottom:
+                    i < res.length - 1 ? "1px solid #f0f0f0" : "none",
                   transition: "background .12s",
                 }}
-                onMouseEnter={(e) => (e.currentTarget.style.background = "#f8fbff")}
-                onMouseLeave={(e) => (e.currentTarget.style.background = "#fff")}
+                onMouseEnter={(e) =>
+                  (e.currentTarget.style.background = "#f8fbff")
+                }
+                onMouseLeave={(e) =>
+                  (e.currentTarget.style.background = "#fff")
+                }
               >
-                <Avatar initials={u.avatar} idx={i} size={36} />
+                <Avatar
+                  initials={u.fullName?.charAt(0) || "?"}
+                  idx={i}
+                  size={36}
+                />
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <p
                     style={{
@@ -396,10 +447,10 @@ function PeopleSearch({ onSelect, accentColor = "blue" }) {
                       margin: 0,
                     }}
                   >
-                    {u.name}
+                    {u.fullName}
                   </p>
                   <p style={{ fontSize: 12, color: "#aaa", margin: 0 }}>
-                    {u.id} · {u.email}
+                    {u.loginCode} · {u.account?.email}
                   </p>
                 </div>
                 <span
@@ -412,7 +463,7 @@ function PeopleSearch({ onSelect, accentColor = "blue" }) {
                     whiteSpace: "nowrap",
                   }}
                 >
-                  {u.dept}
+                  {u.majorName || "Chưa có"}
                 </span>
               </div>
             ))
@@ -424,7 +475,13 @@ function PeopleSearch({ onSelect, accentColor = "blue" }) {
 }
 
 function ManualForm({ onAdd, onCancel, roleLabel }) {
-  const [d, setD] = useState({ name: "", title: "", org: "", role: "", customRole: "" });
+  const [d, setD] = useState({
+    name: "",
+    title: "",
+    org: "",
+    role: "",
+    customRole: "",
+  });
   const [err, setErr] = useState({ name: false, role: false });
 
   const go = () => {
@@ -439,11 +496,13 @@ function ManualForm({ onAdd, onCancel, roleLabel }) {
     }
     if (hasError) return;
 
-    const finalRole = d.role === "Khác" ? d.customRole.trim() || "Khác" : d.role;
+    const finalRole =
+      d.role === "Khác" ? d.customRole.trim() || "Khác" : d.role;
 
     onAdd({
       id: `m_${Date.now()}`,
       name: d.name.trim(),
+      fullName: d.name.trim(),
       title: d.title.trim(),
       org: d.org.trim(),
       role: finalRole,
@@ -612,7 +671,13 @@ function PersonCard({ person, idx, onRemove, accentBg, accentBorder }) {
         padding: "12px 14px",
         border: `1.5px solid ${person.isMe ? "#ddd6fe" : accentBorder}`,
         borderRadius: 11,
-        background: h ? (person.isMe ? "#f0eeff" : accentBg) : person.isMe ? "#f5f3ff" : "#fff",
+        background: h
+          ? person.isMe
+            ? "#f0eeff"
+            : accentBg
+          : person.isMe
+            ? "#f5f3ff"
+            : "#fff",
         transition: "all .15s",
       }}
     >
@@ -685,18 +750,46 @@ function PersonCard({ person, idx, onRemove, accentBg, accentBorder }) {
   );
 }
 
-function PeopleBody({ people, onAdd, onRemove, showAddMe, meAdded, onAddMe, accentColor, roleLabel }) {
+function PeopleBody({
+  people,
+  onAdd,
+  onRemove,
+  showAddMe,
+  meAdded,
+  onAddMe,
+  accentColor,
+  roleLabel,
+}) {
   const [mode, setMode] = useState(null);
   const acs = {
-    blue: { color: "#2563eb", bg: "#eff6ff", border: "#bfdbfe", hbg: "#dbeafe" },
-    emerald: { color: "#10b981", bg: "#f0fdf8", border: "#a7f3d0", hbg: "#d1fae5" },
-    purple: { color: "#8b5cf6", bg: "#faf5ff", border: "#ddd6fe", hbg: "#ede9fe" },
+    blue: {
+      color: "#2563eb",
+      bg: "#eff6ff",
+      border: "#bfdbfe",
+      hbg: "#dbeafe",
+    },
+    emerald: {
+      color: "#10b981",
+      bg: "#f0fdf8",
+      border: "#a7f3d0",
+      hbg: "#d1fae5",
+    },
+    purple: {
+      color: "#8b5cf6",
+      bg: "#faf5ff",
+      border: "#ddd6fe",
+      hbg: "#ede9fe",
+    },
   };
   const ac = acs[accentColor] || acs.blue;
 
   const add = (p) => {
     if (!people.find((x) => x.id === p.id)) {
-      onAdd(p);
+      const personWithFullName = {
+        ...p,
+        fullName: p.fullName || p.name || "",
+      };
+      onAdd(personWithFullName);
       setMode(null);
     }
   };
@@ -732,7 +825,9 @@ function PeopleBody({ people, onAdd, onRemove, showAddMe, meAdded, onAddMe, acce
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
       {people.length > 0 && (
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+        <div
+          style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}
+        >
           {people.map((p, i) => (
             <PersonCard
               key={p.id}
@@ -816,7 +911,11 @@ function PeopleBody({ people, onAdd, onRemove, showAddMe, meAdded, onAddMe, acce
       )}
 
       {mode === "manual" && (
-        <ManualForm onAdd={add} onCancel={() => setMode(null)} roleLabel={roleLabel} />
+        <ManualForm
+          onAdd={add}
+          onCancel={() => setMode(null)}
+          roleLabel={roleLabel}
+        />
       )}
     </div>
   );
@@ -824,7 +923,11 @@ function PeopleBody({ people, onAdd, onRemove, showAddMe, meAdded, onAddMe, acce
 
 function CustomFields({ fields, onChange }) {
   const [show, setShow] = useState(false);
-  const [nf, setNf] = useState({ name: "", type: "short_text", description: "" });
+  const [nf, setNf] = useState({
+    name: "",
+    type: "short_text",
+    description: "",
+  });
   const [err, setErr] = useState(false);
 
   const add = () => {
@@ -859,10 +962,14 @@ function CustomFields({ fields, onChange }) {
       </p>
 
       {fields.length > 0 && (
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+        <div
+          style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}
+        >
           {fields.map((f) => {
-            const TI = FIELD_TYPES.find((t) => t.value === f.type)?.icon || HelpCircle;
-            const tl = FIELD_TYPES.find((t) => t.value === f.type)?.label || f.type;
+            const TI =
+              FIELD_TYPES.find((t) => t.value === f.type)?.icon || HelpCircle;
+            const tl =
+              FIELD_TYPES.find((t) => t.value === f.type)?.label || f.type;
             return (
               <div
                 key={f.id}
@@ -892,7 +999,14 @@ function CustomFields({ fields, onChange }) {
                   <TI size={13} color="#94a3b8" />
                 </div>
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <p style={{ fontSize: 14, fontWeight: 600, color: "#111", margin: "0 0 2px" }}>
+                  <p
+                    style={{
+                      fontSize: 14,
+                      fontWeight: 600,
+                      color: "#111",
+                      margin: "0 0 2px",
+                    }}
+                  >
                     {f.name}
                   </p>
                   <p style={{ fontSize: 12, color: "#aaa", margin: 0 }}>
@@ -911,7 +1025,9 @@ function CustomFields({ fields, onChange }) {
                     borderRadius: 5,
                     display: "flex",
                   }}
-                  onMouseEnter={(e) => (e.currentTarget.style.color = "#ef4444")}
+                  onMouseEnter={(e) =>
+                    (e.currentTarget.style.color = "#ef4444")
+                  }
                   onMouseLeave={(e) => (e.currentTarget.style.color = "#ccc")}
                 >
                   <X size={14} />
@@ -965,7 +1081,10 @@ function CustomFields({ fields, onChange }) {
             </div>
             <div>
               {lbl("Loại trường")}
-              <Sel value={nf.type} onChange={(e) => setNf({ ...nf, type: e.target.value })}>
+              <Sel
+                value={nf.type}
+                onChange={(e) => setNf({ ...nf, type: e.target.value })}
+              >
                 {FIELD_TYPES.map((t) => (
                   <option key={t.value} value={t.value}>
                     {t.label}
@@ -999,8 +1118,12 @@ function CustomFields({ fields, onChange }) {
                 cursor: "pointer",
                 fontFamily: fi,
               }}
-              onMouseEnter={(e) => (e.currentTarget.style.background = "#1d4ed8")}
-              onMouseLeave={(e) => (e.currentTarget.style.background = "#2563eb")}
+              onMouseEnter={(e) =>
+                (e.currentTarget.style.background = "#1d4ed8")
+              }
+              onMouseLeave={(e) =>
+                (e.currentTarget.style.background = "#2563eb")
+              }
             >
               <Plus size={14} /> Thêm trường
             </button>
@@ -1065,18 +1188,73 @@ function CustomFields({ fields, onChange }) {
 
 function ProgramItems({ items, presenters, onChange }) {
   const [show, setShow] = useState(false);
-  const [ni, setNi] = useState({ title: "", presenter: "", presenterTitle: "" });
+  const [ni, setNi] = useState({
+    title: "",
+    presenter: "",
+    presenterTitle: "",
+  });
   const [err, setErr] = useState(false);
+  const [editingId, setEditingId] = useState(null);
+  const [draggedIdx, setDraggedIdx] = useState(null);
 
-  const add = () => {
+  const addOrUpdate = () => {
     if (!ni.title.trim()) {
       setErr(true);
       return;
     }
-    onChange([...items, { id: `item_${Date.now()}`, ...ni }]);
+    if (editingId) {
+      onChange(
+        items.map((item) =>
+          item.id === editingId ? { ...item, ...ni } : item,
+        ),
+      );
+    } else {
+      onChange([...items, { id: `item_${Date.now()}`, ...ni }]);
+    }
     setNi({ title: "", presenter: "", presenterTitle: "" });
     setErr(false);
     setShow(false);
+    setEditingId(null);
+  };
+
+  const handleEdit = (item) => {
+    setNi({
+      title: item.title,
+      presenter: item.presenter || "",
+      presenterTitle: item.presenterTitle || "",
+    });
+    setEditingId(item.id);
+    setShow(true);
+    setErr(false);
+  };
+
+  const cancelEdit = () => {
+    setShow(false);
+    setErr(false);
+    setEditingId(null);
+    setNi({ title: "", presenter: "", presenterTitle: "" });
+  };
+
+  const handleDragStart = (e, index) => {
+    setDraggedIdx(index);
+    e.dataTransfer.effectAllowed = "move";
+    e.dataTransfer.setData("text/html", e.target.parentNode);
+  };
+
+  const handleDragOver = (e, index) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "move";
+  };
+
+  const handleDrop = (e, index) => {
+    e.preventDefault();
+    if (draggedIdx === null || draggedIdx === index) return;
+    const newItems = [...items];
+    const draggedItem = newItems[draggedIdx];
+    newItems.splice(draggedIdx, 1);
+    newItems.splice(index, 0, draggedItem);
+    onChange(newItems);
+    setDraggedIdx(null);
   };
 
   const handlePresenterSelect = (e) => {
@@ -1108,16 +1286,27 @@ function ProgramItems({ items, presenters, onChange }) {
           {items.map((item, idx) => (
             <div
               key={item.id || idx}
+              draggable
+              onDragStart={(e) => handleDragStart(e, idx)}
+              onDragOver={(e) => handleDragOver(e, idx)}
+              onDrop={(e) => handleDrop(e, idx)}
               style={{
                 display: "flex",
                 alignItems: "center",
-                gap: 16,
-                padding: "14px 18px",
-                background: "#f8fafc",
-                border: "1px solid #e2e8f0",
+                gap: 12,
+                padding: "12px 16px",
+                background: draggedIdx === idx ? "#e2e8f0" : "#f8fafc",
+                border: "1px solid",
+                borderColor: draggedIdx === idx ? "#94a3b8" : "#e2e8f0",
                 borderRadius: 12,
+                cursor: "grab",
               }}
             >
+              <GripVertical
+                size={18}
+                color="#cbd5e1"
+                style={{ cursor: "grab" }}
+              />
               <div
                 style={{
                   width: 36,
@@ -1137,32 +1326,75 @@ function ProgramItems({ items, presenters, onChange }) {
                 {idx + 1}
               </div>
               <div style={{ flex: 1, minWidth: 0 }}>
-                <p style={{ fontSize: 14, fontWeight: 700, color: "#1e293b", margin: "0 0 2px" }}>
+                <p
+                  style={{
+                    fontSize: 14,
+                    fontWeight: 700,
+                    color: "#1e293b",
+                    margin: "0 0 2px",
+                  }}
+                >
                   {item.title}
                 </p>
                 {item.presenter && (
-                  <p style={{ fontSize: 12, color: "#64748b", margin: 0, display: "flex", alignItems: "center", gap: 4 }}>
+                  <p
+                    style={{
+                      fontSize: 12,
+                      color: "#64748b",
+                      margin: 0,
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 4,
+                    }}
+                  >
                     <Mic size={12} />
-                    {item.presenter} {item.presenterTitle ? `· ${item.presenterTitle}` : ""}
+                    {item.presenter}{" "}
+                    {item.presenterTitle ? `· ${item.presenterTitle}` : ""}
                   </p>
                 )}
               </div>
-              <button
-                onClick={() => onChange(items.filter((_, i) => i !== idx))}
-                style={{
-                  border: "none",
-                  background: "none",
-                  cursor: "pointer",
-                  color: "#cbd5e1",
-                  padding: 6,
-                  borderRadius: 8,
-                  display: "flex",
-                }}
-                onMouseEnter={(e) => (e.currentTarget.style.color = "#ef4444")}
-                onMouseLeave={(e) => (e.currentTarget.style.color = "#cbd5e1")}
-              >
-                <X size={16} />
-              </button>
+              <div style={{ display: "flex", gap: 4 }}>
+                <button
+                  onClick={() => handleEdit(item)}
+                  style={{
+                    border: "none",
+                    background: "none",
+                    cursor: "pointer",
+                    color: "#cbd5e1",
+                    padding: 6,
+                    borderRadius: 8,
+                    display: "flex",
+                  }}
+                  onMouseEnter={(e) =>
+                    (e.currentTarget.style.color = "#3b82f6")
+                  }
+                  onMouseLeave={(e) =>
+                    (e.currentTarget.style.color = "#cbd5e1")
+                  }
+                >
+                  <Edit2 size={16} />
+                </button>
+                <button
+                  onClick={() => onChange(items.filter((_, i) => i !== idx))}
+                  style={{
+                    border: "none",
+                    background: "none",
+                    cursor: "pointer",
+                    color: "#cbd5e1",
+                    padding: 6,
+                    borderRadius: 8,
+                    display: "flex",
+                  }}
+                  onMouseEnter={(e) =>
+                    (e.currentTarget.style.color = "#ef4444")
+                  }
+                  onMouseLeave={(e) =>
+                    (e.currentTarget.style.color = "#cbd5e1")
+                  }
+                >
+                  <X size={16} />
+                </button>
+              </div>
             </div>
           ))}
         </div>
@@ -1179,7 +1411,15 @@ function ProgramItems({ items, presenters, onChange }) {
         >
           <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
             <div>
-              <label style={{ fontSize: 12, fontWeight: 600, color: "#64748b", display: "block", marginBottom: 6 }}>
+              <label
+                style={{
+                  fontSize: 12,
+                  fontWeight: 600,
+                  color: "#64748b",
+                  display: "block",
+                  marginBottom: 6,
+                }}
+              >
                 Tên phần / Nội dung *
               </label>
               <Inp
@@ -1193,9 +1433,23 @@ function ProgramItems({ items, presenters, onChange }) {
               />
             </div>
 
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "1fr 1fr",
+                gap: 12,
+              }}
+            >
               <div>
-                <label style={{ fontSize: 12, fontWeight: 600, color: "#64748b", display: "block", marginBottom: 6 }}>
+                <label
+                  style={{
+                    fontSize: 12,
+                    fontWeight: 600,
+                    color: "#64748b",
+                    display: "block",
+                    marginBottom: 6,
+                  }}
+                >
                   Người trình bày
                 </label>
                 <Sel onChange={handlePresenterSelect}>
@@ -1209,7 +1463,15 @@ function ProgramItems({ items, presenters, onChange }) {
                 </Sel>
               </div>
               <div>
-                <label style={{ fontSize: 12, fontWeight: 600, color: "#64748b", display: "block", marginBottom: 6 }}>
+                <label
+                  style={{
+                    fontSize: 12,
+                    fontWeight: 600,
+                    color: "#64748b",
+                    display: "block",
+                    marginBottom: 6,
+                  }}
+                >
                   Tên người trình bày (nếu không chọn)
                 </label>
                 <Inp
@@ -1221,19 +1483,29 @@ function ProgramItems({ items, presenters, onChange }) {
             </div>
 
             <div>
-              <label style={{ fontSize: 12, fontWeight: 600, color: "#64748b", display: "block", marginBottom: 6 }}>
+              <label
+                style={{
+                  fontSize: 12,
+                  fontWeight: 600,
+                  color: "#64748b",
+                  display: "block",
+                  marginBottom: 6,
+                }}
+              >
                 Chức danh / Đơn vị người chia sẻ
               </label>
               <Inp
                 placeholder="Giảng viên - Khoa CNTT..."
                 value={ni.presenterTitle}
-                onChange={(e) => setNi({ ...ni, presenterTitle: e.target.value })}
+                onChange={(e) =>
+                  setNi({ ...ni, presenterTitle: e.target.value })
+                }
               />
             </div>
 
             <div style={{ display: "flex", gap: 8, marginTop: 4 }}>
               <button
-                onClick={add}
+                onClick={addOrUpdate}
                 style={{
                   display: "flex",
                   alignItems: "center",
@@ -1249,13 +1521,11 @@ function ProgramItems({ items, presenters, onChange }) {
                   fontFamily: fi,
                 }}
               >
-                <Plus size={14} /> Thêm vào chương trình
+                {editingId ? <Check size={14} /> : <Plus size={14} />}
+                {editingId ? "Lưu thay đổi" : "Thêm vào chương trình"}
               </button>
               <button
-                onClick={() => {
-                  setShow(false);
-                  setErr(false);
-                }}
+                onClick={cancelEdit}
                 style={{
                   padding: "10px 20px",
                   background: "#fff",
@@ -1335,6 +1605,9 @@ function EventSummary({ formData }) {
     });
   };
 
+  // Lấy targetObjects từ formData
+  const targetObjects = formData?.targetObjects || [];
+
   return (
     <div
       style={{
@@ -1360,97 +1633,198 @@ function EventSummary({ formData }) {
         Tổng quan sự kiện
       </h3>
 
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 20 }}>
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(3, 1fr)",
+          gap: 20,
+        }}
+      >
         <div>
-          <p style={{ fontSize: 11, color: "#94a3b8", margin: "0 0 4px", fontWeight: 600 }}>
+          <p
+            style={{
+              fontSize: 11,
+              color: "#94a3b8",
+              margin: "0 0 4px",
+              fontWeight: 600,
+            }}
+          >
             LOẠI SỰ KIỆN
           </p>
-          <p style={{ fontSize: 14, color: "#111", fontWeight: 500, margin: 0 }}>
-            {eventTypeLabels[formData?.eventType] || formData?.eventType || "Chưa chọn"}
+          <p
+            style={{ fontSize: 14, color: "#111", fontWeight: 500, margin: 0 }}
+          >
+            {eventTypeLabels[formData?.eventType] ||
+              formData?.eventType ||
+              "Chưa chọn"}
           </p>
         </div>
         <div>
-          <p style={{ fontSize: 11, color: "#94a3b8", margin: "0 0 4px", fontWeight: 600 }}>
+          <p
+            style={{
+              fontSize: 11,
+              color: "#94a3b8",
+              margin: "0 0 4px",
+              fontWeight: 600,
+            }}
+          >
             TÊN SỰ KIỆN
           </p>
-          <p style={{ fontSize: 14, color: "#111", fontWeight: 500, margin: 0 }}>
+          <p
+            style={{ fontSize: 14, color: "#111", fontWeight: 500, margin: 0 }}
+          >
             {formData?.eventTitle || formData?.title || "Chưa nhập"}
           </p>
         </div>
         <div>
-          <p style={{ fontSize: 11, color: "#94a3b8", margin: "0 0 4px", fontWeight: 600 }}>
+          <p
+            style={{
+              fontSize: 11,
+              color: "#94a3b8",
+              margin: "0 0 4px",
+              fontWeight: 600,
+            }}
+          >
             ĐỊA ĐIỂM
           </p>
-          <p style={{ fontSize: 14, color: "#111", fontWeight: 500, margin: 0 }}>
+          <p
+            style={{ fontSize: 14, color: "#111", fontWeight: 500, margin: 0 }}
+          >
             {formData?.location || "Chưa nhập"}
           </p>
         </div>
         <div>
-          <p style={{ fontSize: 11, color: "#94a3b8", margin: "0 0 4px", fontWeight: 600 }}>
+          <p
+            style={{
+              fontSize: 11,
+              color: "#94a3b8",
+              margin: "0 0 4px",
+              fontWeight: 600,
+            }}
+          >
             THỜI GIAN BẮT ĐẦU
           </p>
-          <p style={{ fontSize: 14, color: "#111", fontWeight: 500, margin: 0 }}>
+          <p
+            style={{ fontSize: 14, color: "#111", fontWeight: 500, margin: 0 }}
+          >
             {formatDate(formData?.startTime)}
           </p>
         </div>
         <div>
-          <p style={{ fontSize: 11, color: "#94a3b8", margin: "0 0 4px", fontWeight: 600 }}>
+          <p
+            style={{
+              fontSize: 11,
+              color: "#94a3b8",
+              margin: "0 0 4px",
+              fontWeight: 600,
+            }}
+          >
             THỜI GIAN KẾT THÚC
           </p>
-          <p style={{ fontSize: 14, color: "#111", fontWeight: 500, margin: 0 }}>
+          <p
+            style={{ fontSize: 14, color: "#111", fontWeight: 500, margin: 0 }}
+          >
             {formatDate(formData?.endTime)}
           </p>
         </div>
         <div>
-          <p style={{ fontSize: 11, color: "#94a3b8", margin: "0 0 4px", fontWeight: 600 }}>
+          <p
+            style={{
+              fontSize: 11,
+              color: "#94a3b8",
+              margin: "0 0 4px",
+              fontWeight: 600,
+            }}
+          >
             HẠN ĐĂNG KÝ
           </p>
-          <p style={{ fontSize: 14, color: "#111", fontWeight: 500, margin: 0 }}>
+          <p
+            style={{ fontSize: 14, color: "#111", fontWeight: 500, margin: 0 }}
+          >
             {formatDate(formData?.registrationDeadline)}
           </p>
         </div>
         <div>
-          <p style={{ fontSize: 11, color: "#94a3b8", margin: "0 0 4px", fontWeight: 600 }}>
-            ĐỐI TƯỢNG THAM GIA
-          </p>
-          <p style={{ fontSize: 14, color: "#111", fontWeight: 500, margin: 0 }}>
-            {formData?.participants?.length > 0 
-              ? formData.participants.join(", ") 
-              : "Chưa chọn"}
-          </p>
-        </div>
-        <div>
-          <p style={{ fontSize: 11, color: "#94a3b8", margin: "0 0 4px", fontWeight: 600 }}>
+          <p
+            style={{
+              fontSize: 11,
+              color: "#94a3b8",
+              margin: "0 0 4px",
+              fontWeight: 600,
+            }}
+          >
             SỐ LƯỢNG TỐI ĐA
           </p>
-          <p style={{ fontSize: 14, color: "#111", fontWeight: 500, margin: 0 }}>
+          <p
+            style={{ fontSize: 14, color: "#111", fontWeight: 500, margin: 0 }}
+          >
             {formData?.maxParticipants || 0} người
           </p>
         </div>
         <div>
-          <p style={{ fontSize: 11, color: "#94a3b8", margin: "0 0 4px", fontWeight: 600 }}>
+          <p
+            style={{
+              fontSize: 11,
+              color: "#94a3b8",
+              margin: "0 0 4px",
+              fontWeight: 600,
+            }}
+          >
             ĐƠN VỊ TỔ CHỨC
           </p>
-          <p style={{ fontSize: 14, color: "#111", fontWeight: 500, margin: 0 }}>
-            {formData?.faculty 
-              ? (formData?.major ? `${formData.faculty} – ${formData.major}` : formData.faculty)
+          <p
+            style={{ fontSize: 14, color: "#111", fontWeight: 500, margin: 0 }}
+          >
+            {formData?.faculty
+              ? formData?.major
+                ? `${formData.faculty} – ${formData.major}`
+                : formData.faculty
               : "Chưa chọn"}
+          </p>
+        </div>
+        <div>
+          <p
+            style={{
+              fontSize: 11,
+              color: "#94a3b8",
+              margin: "0 0 4px",
+              fontWeight: 600,
+            }}
+          >
+            ĐỐI TƯỢNG THAM GIA DỰ KIẾN
+          </p>
+          <p
+            style={{ fontSize: 14, color: "#111", fontWeight: 500, margin: 0 }}
+          >
+            {targetObjects.length > 0
+              ? targetObjects
+                  .map((obj) => obj.name || obj.fullName || obj.typeName)
+                  .join(", ")
+              : "Chưa có"}
           </p>
         </div>
       </div>
 
       <div style={{ marginTop: 16 }}>
-        <p style={{ fontSize: 11, color: "#94a3b8", margin: "0 0 4px", fontWeight: 600 }}>
+        <p
+          style={{
+            fontSize: 11,
+            color: "#94a3b8",
+            margin: "0 0 4px",
+            fontWeight: 600,
+          }}
+        >
           MỤC ĐÍCH SỰ KIỆN
         </p>
-        <p style={{ fontSize: 14, color: "#334155", margin: 0, lineHeight: 1.6 }}>
+        <p
+          style={{ fontSize: 14, color: "#334155", margin: 0, lineHeight: 1.6 }}
+        >
           {formData?.eventPurpose || formData?.description || "Chưa nhập"}
         </p>
       </div>
     </div>
   );
 }
-
 export const EventProgramStep = ({
   onBack,
   onNext,
@@ -1458,22 +1832,138 @@ export const EventProgramStep = ({
   setFormData: setExternalFormData,
   mode = "event",
 }) => {
-  const [presenters, setPresenters] = useState(externalFormData?.presenters || []);
-  const [organizers, setOrganizers] = useState(externalFormData?.organizers || []);
+  const [presenters, setPresenters] = useState(
+    externalFormData?.presenters || [],
+  );
+  const [organizers, setOrganizers] = useState(
+    externalFormData?.organizers || [],
+  );
   const [attendees, setAttendees] = useState(externalFormData?.attendees || []);
-  const [programItems, setProgramItems] = useState(externalFormData?.programItems || []);
-  const [customFields, setCustomFields] = useState(externalFormData?.customFields || []);
-  const [coverImage, setCoverImage] = useState(externalFormData?.coverImage || "");
+  const [programItems, setProgramItems] = useState(
+    externalFormData?.programItems || [],
+  );
+  const [customFields, setCustomFields] = useState(
+    externalFormData?.customFields || [],
+  );
+  const [coverImage, setCoverImage] = useState(
+    externalFormData?.coverImage || "",
+  );
+
+  const [targetObjects, setTargetObjects] = useState(
+    externalFormData?.targetObjects || [],
+  );
   const [isUploading, setIsUploading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [currentUser, setCurrentUser] = useState(null);
 
-  const meAdded = organizers.some((o) => o.id === "ME");
+  useEffect(() => {
+    const getUserInfo = () => {
+      const userData = localStorage.getItem("user");
 
-  const addTo = (list, setter) => (p) => {
-    if (!list.find((x) => x.id === p.id)) setter([...list, p]);
+      if (userData) {
+        try {
+          const user = JSON.parse(userData);
+
+          const accountId = user.id || user.accountId || user.userId;
+          if (accountId) {
+            let displayName = user.fullName || user.username;
+
+            setCurrentUser({
+              id: accountId,
+              name: displayName || "Tôi",
+              fullName: displayName || "Tôi",
+              email: user.email || "",
+              title: user.title || "",
+              org: user.department || user.faculty || user.majorName || "",
+              department: user.department || user.faculty || "",
+              isMe: true,
+              avatar: (displayName || "T").charAt(0).toUpperCase(),
+            });
+            return;
+          }
+        } catch (error) {
+          console.error("Lỗi parse user data:", error);
+        }
+      }
+
+      const accessToken = localStorage.getItem("accessToken");
+      if (accessToken) {
+        try {
+          const base64Url = accessToken.split(".")[1];
+          const base64 = base64Url.replace(/-/g, "+").replace(/_/g, "/");
+          const payload = JSON.parse(atob(base64));
+
+          let displayName =
+            payload.fullName || payload.name || payload.username;
+
+          setCurrentUser({
+            id: payload.accountId || payload.sub || payload.userId,
+            name: displayName || "Tôi",
+            fullName: displayName || "Tôi",
+            email: payload.email || "",
+            title: payload.title || "",
+            org: payload.department || payload.faculty || "",
+            department: payload.department || payload.faculty || "",
+            isMe: true,
+            avatar: (displayName || "T").charAt(0).toUpperCase(),
+          });
+        } catch (e) {
+          console.error("Lỗi decode token:", e);
+        }
+      }
+    };
+
+    getUserInfo();
+  }, []);
+
+  const meAdded = organizers.some(
+    (o) => o.id === currentUser?.id || o.id === "ME",
+  );
+
+ const addTo = (list, setter) => (p) => {
+  console.log("🔍 Adding person - raw data:", p);  // THÊM LOG NÀY
+  if (!list.find((x) => x.id === p.id)) {
+    const newPerson = {
+      ...p,
+      fullName: p.fullName || p.name || "",
+      name: p.name || p.fullName || "",
+    };
+    console.log("✅ Person after mapping:", newPerson);  // THÊM LOG NÀY
+    setter([...list, newPerson]);
+  }
+};
+
+  const removeFrom = (list, setter) => (id) =>
+    setter(list.filter((p) => p.id !== id));
+
+  const handleAddMe = () => {
+    if (currentUser && !meAdded) {
+      const userData = localStorage.getItem("user");
+      let realName = "Tôi";
+      if (userData) {
+        try {
+          const user = JSON.parse(userData);
+          realName = user.fullName || user.username || "Tôi";
+        } catch (e) {}
+      }
+
+      setOrganizers([
+        ...organizers,
+        {
+          id: currentUser.id,
+          name: realName,
+          fullName: realName,
+          title: currentUser.title || "",
+          role: "MEMBER",
+          department: currentUser.org || "",
+          organization: currentUser.org || "",
+          isMe: true,
+          isManual: false,
+          avatar: (realName || "T").charAt(0).toUpperCase(),
+        },
+      ]);
+    }
   };
-
-  const removeFrom = (list, setter) => (id) => setter(list.filter((p) => p.id !== id));
 
   const handleImageUpload = (e) => {
     const file = e.target.files[0];
@@ -1490,7 +1980,7 @@ export const EventProgramStep = ({
 
   const handleSubmit = () => {
     setIsSubmitting(true);
-    
+
     const fullEventData = {
       ...externalFormData,
       presenters,
@@ -1537,10 +2027,12 @@ export const EventProgramStep = ({
             letterSpacing: "-0.02em",
           }}
         >
-          {mode === "event" ? "Hoàn thiện và gửi phê duyệt" : "Hoàn thiện kế hoạch"}
+          {mode === "event"
+            ? "Hoàn thiện và gửi phê duyệt"
+            : "Hoàn thiện kế hoạch"}
         </h2>
         <p style={{ fontSize: 14, color: "#888", margin: 0 }}>
-          {mode === "event" 
+          {mode === "event"
             ? "Kiểm tra lại thông tin và gửi yêu cầu phê duyệt sự kiện"
             : "Kiểm tra lại thông tin và hoàn tất tạo kế hoạch"}
         </p>
@@ -1549,7 +2041,12 @@ export const EventProgramStep = ({
       <EventSummary formData={externalFormData} />
 
       <div style={{ marginBottom: 24 }}>
-        <Card title="Nội dung chương trình" icon={AlignJustify} accentColor="blue" badge={programItems.length}>
+        <Card
+          title="Nội dung chương trình"
+          icon={AlignJustify}
+          accentColor="blue"
+          badge={programItems.length}
+        >
           <ProgramItems
             items={programItems}
             presenters={presenters}
@@ -1589,7 +2086,9 @@ export const EventProgramStep = ({
                 width: 240,
                 height: 135,
                 borderRadius: 12,
-                background: coverImage ? `url(${coverImage}) center/cover` : "#f1f5f9",
+                background: coverImage
+                  ? `url(${coverImage}) center/cover`
+                  : "#f1f5f9",
                 border: "1.5px dashed #cbd5e1",
                 display: "flex",
                 alignItems: "center",
@@ -1601,9 +2100,17 @@ export const EventProgramStep = ({
             </div>
 
             <div style={{ flex: 1 }}>
-              <p style={{ fontSize: 13, color: "#64748b", margin: "0 0 12px", lineHeight: 1.6 }}>
-                Ảnh bìa sẽ hiển thị ở trang chi tiết sự kiện, giúp thu hút người tham gia. 
-                Nên sử dụng ảnh có tỷ lệ 16:9, kích thước tối thiểu 1200x675px.
+              <p
+                style={{
+                  fontSize: 13,
+                  color: "#64748b",
+                  margin: "0 0 12px",
+                  lineHeight: 1.6,
+                }}
+              >
+                Ảnh bìa sẽ hiển thị ở trang chi tiết sự kiện, giúp thu hút người
+                tham gia. Nên sử dụng ảnh có tỷ lệ 16:9, kích thước tối thiểu
+                1200x675px.
               </p>
 
               <div style={{ display: "flex", gap: 12 }}>
@@ -1622,8 +2129,12 @@ export const EventProgramStep = ({
                     fontFamily: fi,
                     transition: "background .15s",
                   }}
-                  onMouseEnter={(e) => (e.currentTarget.style.background = "#7c3aed")}
-                  onMouseLeave={(e) => (e.currentTarget.style.background = "#8b5cf6")}
+                  onMouseEnter={(e) =>
+                    (e.currentTarget.style.background = "#7c3aed")
+                  }
+                  onMouseLeave={(e) =>
+                    (e.currentTarget.style.background = "#8b5cf6")
+                  }
                 >
                   <Upload size={14} />
                   {isUploading ? "Đang tải..." : "Chọn ảnh"}
@@ -1659,8 +2170,20 @@ export const EventProgramStep = ({
         </div>
       )}
 
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20, marginBottom: 20 }}>
-        <Card title="Người trình bày" icon={Mic} accentColor="blue" badge={presenters.length}>
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "1fr 1fr",
+          gap: 20,
+          marginBottom: 20,
+        }}
+      >
+        <Card
+          title="Người trình bày"
+          icon={Mic}
+          accentColor="blue"
+          badge={presenters.length}
+        >
           <PeopleBody
             people={presenters}
             onAdd={addTo(presenters, setPresenters)}
@@ -1670,24 +2193,39 @@ export const EventProgramStep = ({
           />
         </Card>
 
-        <Card title="Ban tổ chức" icon={Users} accentColor="emerald" badge={organizers.length}>
+        <Card
+          title="Ban tổ chức"
+          icon={Users}
+          accentColor="emerald"
+          badge={organizers.length}
+        >
           <PeopleBody
             people={organizers}
             onAdd={addTo(organizers, setOrganizers)}
             onRemove={removeFrom(organizers, setOrganizers)}
-            showAddMe
+            showAddMe={!!currentUser}
             meAdded={meAdded}
-            onAddMe={() => {
-              if (!meAdded) setOrganizers([...organizers, CURRENT_USER]);
-            }}
+            onAddMe={handleAddMe}
             accentColor="emerald"
             roleLabel="thành viên BTC"
           />
         </Card>
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20, marginBottom: 32 }}>
-        <Card title="Người tham dự" icon={UserPlus} accentColor="purple" badge={attendees.length}>
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "1fr 1fr",
+          gap: 20,
+          marginBottom: 32,
+        }}
+      >
+        <Card
+          title="Người tham dự"
+          icon={UserPlus}
+          accentColor="purple"
+          badge={attendees.length}
+        >
           <PeopleBody
             people={attendees}
             onAdd={addTo(attendees, setAttendees)}
@@ -1697,7 +2235,12 @@ export const EventProgramStep = ({
           />
         </Card>
 
-        <Card title="Thông tin bổ sung" icon={Settings} accentColor="slate" badge={customFields.length}>
+        <Card
+          title="Thông tin bổ sung"
+          icon={Settings}
+          accentColor="slate"
+          badge={customFields.length}
+        >
           <CustomFields fields={customFields} onChange={setCustomFields} />
         </Card>
       </div>
@@ -1757,28 +2300,30 @@ export const EventProgramStep = ({
             cursor: isSubmitting ? "not-allowed" : "pointer",
             fontFamily: fi,
             transition: "background .15s",
-            boxShadow: mode === "event" 
-              ? "0 2px 10px rgba(16,185,129,0.25)"
-              : "0 2px 10px rgba(37,99,235,0.25)",
+            boxShadow:
+              mode === "event"
+                ? "0 2px 10px rgba(16,185,129,0.25)"
+                : "0 2px 10px rgba(37,99,235,0.25)",
             opacity: isSubmitting ? 0.7 : 1,
           }}
           onMouseEnter={(e) => {
             if (!isSubmitting) {
-              e.currentTarget.style.background = mode === "event" ? "#059669" : "#1d4ed8";
+              e.currentTarget.style.background =
+                mode === "event" ? "#059669" : "#1d4ed8";
             }
           }}
           onMouseLeave={(e) => {
             if (!isSubmitting) {
-              e.currentTarget.style.background = mode === "event" ? "#10b981" : "#2563eb";
+              e.currentTarget.style.background =
+                mode === "event" ? "#10b981" : "#2563eb";
             }
           }}
         >
-          {isSubmitting 
-            ? "Đang xử lý..." 
-            : mode === "event" 
-              ? "Gửi phê duyệt" 
-              : "Hoàn tất kế hoạch"
-          } 
+          {isSubmitting
+            ? "Đang xử lý..."
+            : mode === "event"
+              ? "Gửi phê duyệt"
+              : "Hoàn tất kế hoạch"}
           {!isSubmitting && <ArrowRight size={16} />}
         </button>
       </div>

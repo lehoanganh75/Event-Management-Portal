@@ -33,8 +33,6 @@ public class EventTemplate {
     private String description;
 
     private String defaultTitle;
-    @Column(columnDefinition = "TEXT")
-    private String defaultDescription;
     private String defaultCoverImage;
     private String defaultLocation;
     private String defaultEventMode;

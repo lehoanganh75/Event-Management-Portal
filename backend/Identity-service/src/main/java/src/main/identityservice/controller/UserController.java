@@ -6,11 +6,13 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.*;
-import src.main.identityservice.entity.ApprovalStatus;
+import src.main.identityservice.dto.UserDto;
 import src.main.identityservice.entity.User;
 import src.main.identityservice.service.UserService;
 
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/profiles")
@@ -42,7 +44,6 @@ public class UserController {
         return ResponseEntity.ok(roles);
     }
 
-    // 2. Cập nhật hồ sơ cá nhân
     @PutMapping("/me")
     public ResponseEntity<User> updateMyProfile(
             @AuthenticationPrincipal Jwt jwt,
@@ -56,7 +57,6 @@ public class UserController {
         return ResponseEntity.ok(userService.updateProfile(accountId, updatedProfile));
     }
 
-    // 3. Dành cho admin: Phê duyệt hoặc từ chối hồ sơ người dùng
     @PreAuthorize("hasRole('ADMIN')")
     @PutMapping("/{accountId}/approval")
     public ResponseEntity<User> updateApprovalStatus(
@@ -64,5 +64,16 @@ public class UserController {
             @RequestParam String status) {
         String accountId = jwt.getClaimAsString("accountId");
         return ResponseEntity.ok(userService.updateApprovalStatus(accountId));
+    }
+
+    @GetMapping("/search")
+    public ResponseEntity<List<User>> searchUsers(@RequestParam(required = false) String keyword) {
+        List<User> users = userService.searchUsers(keyword);
+        return ResponseEntity.ok(users);
+    }
+
+    @GetMapping("/batch")
+    public ResponseEntity<List<UserDto>> getUsersByIds(@RequestParam List<String> ids) {
+        return ResponseEntity.ok(userService.getUsersByIds(ids));
     }
 }
