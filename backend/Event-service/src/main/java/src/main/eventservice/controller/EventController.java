@@ -218,6 +218,7 @@ public class EventController {
                     .body(Map.of("error", e.getMessage()));
         }
     }
+
     @PutMapping("/plans/{id}")
     public ResponseEntity<?> updatePlan(@PathVariable String id, @RequestBody Event planDetails) {
         try {

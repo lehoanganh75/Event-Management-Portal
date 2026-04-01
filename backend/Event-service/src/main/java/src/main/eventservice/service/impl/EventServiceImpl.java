@@ -550,7 +550,7 @@ public class EventServiceImpl implements EventService {
             log.info("Plan {} - presenters: {}, organizers: {}, participants: {}, targetObjects: {}",
                     plan.getId(), presenters.size(), organizers.size(), participants.size(), plan.getTargetObjects());
         }
-        
+
         Set<String> userIds = plans.stream()
                 .flatMap(e -> Stream.of(e.getCreatedByAccountId(), e.getApprovedByAccountId()))
                 .filter(Objects::nonNull)

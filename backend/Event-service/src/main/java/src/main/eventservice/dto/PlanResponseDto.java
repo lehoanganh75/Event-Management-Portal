@@ -53,7 +53,6 @@ public class PlanResponseDto {
     private List<EventParticipant> participantsList;
 
 
-
     public static PlanResponseDto from(Event event, UserDto creator, UserDto approver) {
         PlanResponseDto dto = new PlanResponseDto();
         dto.setId(event.getId());

@@ -22,18 +22,19 @@ public interface EventRegistrationRepository extends JpaRepository<EventRegistra
     Optional<EventRegistration> findByEventIdAndUserRegistrationId(String eventId, String userRegistrationId);
 
     List<EventRegistration> findByEventIdAndStatus(String eventId, RegistrationStatus status);
+
     Optional<EventRegistration> findByQrToken(String qrToken);
 
     @Query("""
-        SELECT r FROM EventRegistration r
-        JOIN r.event e
-        WHERE r.userRegistrationId = :userId
-        AND r.status = src.main.eventservice.entity.enums.RegistrationStatus.REGISTERED
-        AND e.isDeleted = false
-        AND e.startTime < :endTime
-        AND e.endTime > :startTime
-        AND e.id != :excludeEventId
-    """)
+                SELECT r FROM EventRegistration r
+                JOIN r.event e
+                WHERE r.userRegistrationId = :userId
+                AND r.status = src.main.eventservice.entity.enums.RegistrationStatus.REGISTERED
+                AND e.isDeleted = false
+                AND e.startTime < :endTime
+                AND e.endTime > :startTime
+                AND e.id != :excludeEventId
+            """)
     List<EventRegistration> findConflictingRegistrations(
             @Param("userId") String userId,
             @Param("startTime") LocalDateTime startTime,

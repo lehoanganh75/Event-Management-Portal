@@ -81,9 +81,9 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-       configuration.setAllowedOrigins(List.of(
-            "http://localhost:5173", 
-            "https://event-management-portal-plum.vercel.app"
+        configuration.setAllowedOrigins(List.of(
+                "http://localhost:5173",
+                "https://event-management-portal-plum.vercel.app"
         ));
 
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));

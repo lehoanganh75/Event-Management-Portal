@@ -11,11 +11,9 @@ import src.main.identityservice.entity.User;
 import src.main.identityservice.service.UserService;
 
 import java.util.List;
-import java.util.Map;
-import java.util.stream.Collectors;
 
 @RestController
-@RequestMapping("/api/profiles")
+@RequestMapping("/profiles")
 @RequiredArgsConstructor
 public class UserController {
     private final UserService userService;

@@ -67,7 +67,7 @@ services:
     ports:
       - "8081:8081"
     environment:
-      SPRING_DATASOURCE_URL: jdbc:mariadb://mariadb:3309/analytics_db?createDatabaseIfNotExist=true
+      SPRING_DATASOURCE_URL: jdbc:mariadb://mariadb:3306/analytics_db?createDatabaseIfNotExist=true
       SPRING_DATASOURCE_USERNAME: root
       SPRING_DATASOURCE_PASSWORD: root
       SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
@@ -85,7 +85,7 @@ services:
     ports:
       - "8082:8082"
     environment:
-      SPRING_DATASOURCE_URL: jdbc:mariadb://mariadb:3309/event_db?createDatabaseIfNotExist=true
+      SPRING_DATASOURCE_URL: jdbc:mariadb://mariadb:3306/event_db?createDatabaseIfNotExist=true
       SPRING_DATASOURCE_USERNAME: root
       SPRING_DATASOURCE_PASSWORD: root
       SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
@@ -102,16 +102,15 @@ services:
     restart: always
     ports:
       - "8083:8083"
+    env_file:
+      - ./Identity-service/.env
     environment:
-      SPRING_DATASOURCE_URL: jdbc:mariadb://mariadb:3309/identity_db?createDatabaseIfNotExist=true
+      SPRING_DATASOURCE_URL: jdbc:mariadb://mariadb:3306/identity_db?createDatabaseIfNotExist=true
       SPRING_DATASOURCE_USERNAME: root
       SPRING_DATASOURCE_PASSWORD: root
-      SPRING_REDIS_HOST: redis
       SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
-      SPRING_PROFILES_ACTIVE: prod
     depends_on:
       - mariadb
-      - redis
       - kafka
     networks:
       - micro-network
@@ -123,7 +122,7 @@ services:
     ports:
       - "8084:8084"
     environment:
-      SPRING_DATASOURCE_URL: jdbc:mariadb://mariadb:3309/lucky_draw_db?createDatabaseIfNotExist=true
+      SPRING_DATASOURCE_URL: jdbc:mariadb://mariadb:3306/lucky_draw_db?createDatabaseIfNotExist=true
       SPRING_DATASOURCE_USERNAME: root
       SPRING_DATASOURCE_PASSWORD: root
       SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
@@ -147,6 +146,33 @@ services:
     depends_on:
       - mongodb # SỬA LẠI: Đổi sang mongodb
       - kafka
+    networks:
+      - micro-network
+
+# ========================
+# KONG API GATEWAY
+# ========================
+  kong:
+    image: kong:3.6
+    container_name: kong-server
+    restart: always
+    ports:
+      - "8000:8000"
+      - "8001:8001"
+    environment:
+      KONG_DATABASE: "off"
+      KONG_DECLARATIVE_CONFIG: /kong/kong.yml
+      KONG_PROXY_ACCESS_LOG: /dev/stdout
+      KONG_ADMIN_ACCESS_LOG: /dev/stdout
+      KONG_ADMIN_LISTEN: 0.0.0.0:8001
+    volumes:
+      - ./kong/kong.yml:/kong/kong.yml
+    depends_on:
+      - analytics-service
+      - event-service
+      - identity-service
+      - lucky-draw-service
+      - notification-service
     networks:
       - micro-network
 
