@@ -55,13 +55,13 @@ public interface EventService {
     Event approvePlan(String id, String approverId);
 
     Event rejectPlan(String id, String approverId, String reason);
-  
+
     Event createEventFromPlan(String planId, Event eventDetails);
 
     Event approveEvent(String id, String approverId);
 
     Event rejectEvent(String id, String approverId, String reason);
-  
+
     Event startEvent(String id);
 
     Event completeEvent(String id);
