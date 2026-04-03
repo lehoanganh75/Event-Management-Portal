@@ -64,39 +64,38 @@ const UserProfile = () => {
   };
 
   useEffect(() => {
-    const fetchProfile = async () => {
-      const token = localStorage.getItem("accessToken");
-      if (!token) { navigate("/login"); return; }
+    // Thay thế đoạn fetchProfile cũ
+const fetchProfile = async () => {
+  const token = localStorage.getItem("accessToken");
+  if (!token) { navigate("/login"); return; }
 
-      try {
-        const decoded = jwtDecode(token);
-        setAccountInfo({
-          email: decoded.email || "Chưa có email",
-          roles: decoded.role || decoded.roles || [],
-          accountId: decoded.accountId || "",
-        });
+  try {
+    const decoded = jwtDecode(token);
+    setAccountInfo({
+      email: decoded.email || "Chưa có email",
+      roles: decoded.role || decoded.roles || [],
+      accountId: decoded.accountId || "",
+    });
 
-        const response = await axios.get(
-          `${import.meta.env.VITE_AUTH_API_URL}/profiles/me`,
-          { headers: { Authorization: `Bearer ${token}` } }
-        );
+    // Sử dụng authApi - Sạch và gọn
+    const response = await authApi.getMyProfile();
 
-        setProfile(response.data);
-        setFormData({
-          fullName: response.data.fullName || "",
-          dateOfBirth: response.data.dateOfBirth || "",
-          gender: response.data.gender || "",
-          majorName: response.data.majorName || "",
-        });
-      } catch (err) {
-        if (err.response?.status === 401) {
-          localStorage.clear();
-          navigate("/login?sessionExpired=true");
-        }
-      } finally {
-        setLoading(false);
-      }
-    };
+    setProfile(response.data);
+    setFormData({
+      fullName: response.data.fullName || "",
+      dateOfBirth: response.data.dateOfBirth || "",
+      gender: response.data.gender || "",
+      majorName: response.data.majorName || "",
+    });
+  } catch (err) {
+    if (err.response?.status === 401) {
+      localStorage.clear();
+      navigate("/login?sessionExpired=true");
+    }
+  } finally {
+    setLoading(false);
+  }
+};
 
     fetchProfile();
   }, [navigate]);
@@ -106,7 +105,7 @@ const UserProfile = () => {
     setIsSaving(true);
     try {
       const response = await axios.put(
-        `${import.meta.env.VITE_AUTH_API_URL}/profiles/me`,
+        `${import.meta.env.VITE_AUTH_API_URL || API_URL}/profiles/me`,
         formData,
         { headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" } }
       );

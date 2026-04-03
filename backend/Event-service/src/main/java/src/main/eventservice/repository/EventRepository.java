@@ -1,10 +1,9 @@
 package src.main.eventservice.repository;
 
-import jakarta.transaction.Transactional;
+import aj.org.objectweb.asm.commons.Remapper;
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
-import org.springframework.data.domain.Pageable;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 import src.main.eventservice.entity.Event;
@@ -19,22 +18,20 @@ public interface EventRepository extends JpaRepository<Event, String> {
 
     Optional<Event> findById(String id);
 
+    @EntityGraph(attributePaths = {"presenters", "organizers", "participants"})
     List<Event> findByCreatedByAccountIdAndCreatedAtBetweenAndIsDeletedFalse(
-            String accountId,
-            LocalDateTime startDate,
-            LocalDateTime endDate);
+            String accountId, LocalDateTime start, LocalDateTime end);
 
     List<Event> findByStatusInAndIsDeletedFalse(List<EventStatus> statuses);
 
+    @EntityGraph(attributePaths = {"presenters", "organizers", "participants"})
     List<Event> findByStatusInAndIsDeletedFalseAndCreatedByAccountId(
-            List<EventStatus> statuses, String createdByAccountId);
+            List<EventStatus> statuses, String accountId);
 
     List<Event> findByStatusInAndIsDeletedFalseOrderByStartTimeDesc(List<EventStatus> statuses);
 
     @Query("SELECT COUNT(r) FROM EventRegistration r WHERE r.event.id = :eventId")
     long countRegistrationsByEventId(@Param("eventId") String eventId);
 
-    @Deprecated
-    List<Event> findByStatusInAndDeletedIsNullAndCreatedByAccountId(List<String> statuses, String accountId);
-
+    Optional<Event> findByIdAndIsDeletedFalse(String id);
 }

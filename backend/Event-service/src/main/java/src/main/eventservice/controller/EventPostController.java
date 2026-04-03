@@ -17,7 +17,7 @@ import src.main.eventservice.service.EventPostService;
 import java.util.List;
 
 @RestController
-@RequestMapping("/api/posts")
+@RequestMapping("/posts")
 @RequiredArgsConstructor
 public class EventPostController {
     private final EventPostService eventPostService;

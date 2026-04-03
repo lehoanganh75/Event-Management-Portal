@@ -35,7 +35,7 @@ public class EventParticipantServiceImpl implements EventParticipantService {
 
         participant.setEvent(event);
         participant.setStatus(ParticipationStatus.REGISTERED);
-        participant.setRegisteredAt(LocalDateTime.now());
+//        participant.setRegisteredAt(LocalDateTime.now());
         return participantRepository.save(participant);
     }
 
@@ -67,7 +67,7 @@ public class EventParticipantServiceImpl implements EventParticipantService {
         participant.setCheckedIn(true);
         participant.setAttendedAt(LocalDateTime.now());
         participant.setStatus(ParticipationStatus.ATTENDED);
-        participant.setCheckedInBy(checkedInBy);
+//        participant.setCheckedInBy(checkedInBy);
         participantRepository.save(participant);
     }
 

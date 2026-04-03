@@ -9,7 +9,7 @@ import src.main.luckydrawservice.entity.DrawEntry;
 import src.main.luckydrawservice.service.DrawEntryService;
 
 @RestController
-@RequestMapping("/api/draw-entries")
+@RequestMapping("/draw-entries")
 @RequiredArgsConstructor
 public class DrawEntryController {
     private final DrawEntryService drawEntryService;

@@ -13,33 +13,36 @@ import java.util.Optional;
 
 @Repository
 public interface EventRegistrationRepository extends JpaRepository<EventRegistration, String> {
+
     List<EventRegistration> findByEventId(String eventId);
 
-    // Đổi từ findByUserProfileId thành findByUserRegistrationId
-    List<EventRegistration> findByUserRegistrationId(String userRegistrationId);
+    // SỬA: Đổi từ userRegistrationId thành participantAccountId cho khớp Entity
+    List<EventRegistration> findByParticipantAccountId(String participantAccountId);
 
-    // Đổi từ findByEventIdAndUserProfileId thành findByEventIdAndUserRegistrationId
-    Optional<EventRegistration> findByEventIdAndUserRegistrationId(String eventId, String userRegistrationId);
+    // SỬA: Đổi tên hàm tìm kiếm theo cặp Event và Participant
+    Optional<EventRegistration> findByEventIdAndParticipantAccountId(String eventId, String participantAccountId);
 
     List<EventRegistration> findByEventIdAndStatus(String eventId, RegistrationStatus status);
 
     Optional<EventRegistration> findByQrToken(String qrToken);
 
+    // SỬA: Cập nhật lại Query JPQL cho khớp với tên trường mới
     @Query("""
-                SELECT r FROM EventRegistration r
-                JOIN r.event e
-                WHERE r.userRegistrationId = :userId
-                AND r.status = src.main.eventservice.entity.enums.RegistrationStatus.REGISTERED
-                AND e.isDeleted = false
-                AND e.startTime < :endTime
-                AND e.endTime > :startTime
-                AND e.id != :excludeEventId
-            """)
+        SELECT r FROM EventRegistration r 
+        JOIN r.event e 
+        WHERE r.participantAccountId = :userId 
+        AND r.status = :status 
+        AND e.isDeleted = false 
+        AND e.startTime < :endTime 
+        AND e.endTime > :startTime 
+        AND e.id != :excludeEventId
+    """)
     List<EventRegistration> findConflictingRegistrations(
             @Param("userId") String userId,
             @Param("startTime") LocalDateTime startTime,
             @Param("endTime") LocalDateTime endTime,
-            @Param("excludeEventId") String excludeEventId
+            @Param("excludeEventId") String excludeEventId,
+            @Param("status") RegistrationStatus status // Thêm tham số này
     );
 
     long countByEventIdAndStatusIn(String eventId, List<RegistrationStatus> statuses);

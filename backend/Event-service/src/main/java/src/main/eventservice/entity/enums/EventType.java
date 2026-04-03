@@ -8,5 +8,6 @@ public enum EventType {
     CONFERENCE,
     WEBINAR,
     CONCERT,
+    FESTIVAL,
     OTHER
 }

@@ -1,6 +1,7 @@
 package src.main.eventservice.entity;
 
 import com.fasterxml.jackson.annotation.JsonBackReference;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
 import lombok.*;
@@ -16,38 +17,56 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-@JsonIgnoreProperties({"event", "hibernateLazyInitializer", "handler"})
 public class EventParticipant {
-
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
     private String id;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "event_id", nullable = false)
-    @JsonBackReference
-    private Event event;
+    // Liên kết với đơn đăng ký (nếu có)
+    private String registrationId;
 
+    // --- Identification ---
+    private String participantAccountId; // ID tài khoản nếu là người trong hệ thống
+
+    @Column(nullable = false)
     private String fullName;
+
+    @Column(nullable = false)
     private String email;
 
-    private String title;
-    private String position;
-    private String department;
-    private String organization;
+    private String studentCode; // Mã số sinh viên (Dành riêng cho IUH)
 
-    private String code;
+    // Mã tra cứu nhanh hoặc nội dung mã QR
+    @Column(unique = true)
+    private String participantCode;
 
+    // --- Professional Info (Dành cho khách mời/diễn giả) ---
+    private String title;      // VD: TS, ThS, Ông, Bà
+    private String position;   // Chức vụ
+    private String department; // Khoa/Phòng ban
+    private String organization; // Công ty/Tổ chức bên ngoài
+
+    // --- Status & Attendance ---
     @Enumerated(EnumType.STRING)
-    private ParticipationStatus status;
+    private ParticipationStatus status; // INVITED, CONFIRMED, ATTENDED, ABSENT
 
-    private LocalDateTime registeredAt;
-    private LocalDateTime attendedAt;
+    private boolean checkedIn = false;
+    private LocalDateTime attendedAt; // Thời điểm quét mã vào cổng
+    private String checkedInByAccountId; // ID của Staff thực hiện check-in
 
-    private boolean checkedIn;
-    private String checkedInBy;
+    // --- Metadata ---
+    @Column(columnDefinition = "TEXT")
     private String notes;
 
+    private boolean isDeleted = false; // Cờ đánh dấu đã xóa (soft delete)
+
     @CreationTimestamp
+    @Column(updatable = false)
     private LocalDateTime createdAt;
+
+    // --- Relationships ---
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "event_id", nullable = false)
+    @JsonIgnore
+    private Event event;
 }

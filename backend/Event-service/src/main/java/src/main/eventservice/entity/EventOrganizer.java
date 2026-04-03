@@ -16,9 +16,7 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-@JsonIgnoreProperties({"event", "hibernateLazyInitializer", "handler"})
 public class EventOrganizer {
-
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
     private String id;
@@ -28,14 +26,15 @@ public class EventOrganizer {
     @JsonBackReference
     private Event event;
 
-    private String fullName;
-    private String email;
-
-    private String position;
-    private String department;
+    private String accountId;      // ID người dùng (từ Identity Service)
+    private String fullName;       // Tên hiển thị trong ban tổ chức
+    private String email;          // Email liên hệ
+    private String position;       // Chức vụ trong sự kiện (vd: Trưởng ban)
 
     @Enumerated(EnumType.STRING)
-    private OrganizerRole role;
+    private OrganizerRole role;    // LEADER, COORDINATOR, MEMBER, ADVISOR
+
+    private boolean isDeleted = false; // Cờ đánh dấu đã xóa (soft delete)
 
     @CreationTimestamp
     private LocalDateTime assignedAt;

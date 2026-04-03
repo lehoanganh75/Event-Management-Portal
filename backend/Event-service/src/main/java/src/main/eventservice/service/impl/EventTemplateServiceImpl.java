@@ -4,6 +4,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.*;
 import org.springframework.stereotype.Service;
 import src.main.eventservice.entity.Event;
+import src.main.eventservice.entity.EventOrganizer;
 import src.main.eventservice.entity.EventTemplate;
 import src.main.eventservice.entity.enums.EventStatus;
 import src.main.eventservice.repository.EventRepository;
@@ -43,10 +44,13 @@ public class EventTemplateServiceImpl implements EventTemplateService {
         event.setEventMode(template.getDefaultEventMode());
         event.setMaxParticipants(template.getDefaultMaxParticipants() > 0 ? template.getDefaultMaxParticipants() : 100);
 
-        event.setFaculty(template.getFaculty());
-        event.setMajor(template.getMajor());
+//        event.setFaculty(template.getFaculty());
+//        event.setMajor(template.getMajor());
 
-        event.setOrganizationId(template.getOrganizationId());
+        EventOrganizer eventOrganizer = new EventOrganizer();
+//        eventOrganizer.setId(template.getOrganizationId());
+//        event.setEventOrganizer(eventOrganizer);
+
         event.setCreatedByAccountId(accountId);
 
         event.setStatus(EventStatus.DRAFT);

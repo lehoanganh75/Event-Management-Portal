@@ -8,6 +8,7 @@ public class UserDto {
     private String id;
     private String fullName;
     private String avatarUrl;
+    private String email;
 
     public static UserDto from(User user) {
         if (user == null) return null;
@@ -16,6 +17,7 @@ public class UserDto {
         dto.setId(user.getId());
         dto.setFullName(user.getFullName());
         dto.setAvatarUrl(user.getAvatarUrl());
+        dto.setEmail(user.getAccount().getEmail());
         return dto;
     }
 }

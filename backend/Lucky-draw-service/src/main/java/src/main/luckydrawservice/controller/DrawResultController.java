@@ -6,7 +6,7 @@ import org.springframework.web.bind.annotation.RestController;
 import src.main.luckydrawservice.service.DrawResultService;
 
 @RestController
-@RequestMapping("/api/draw-results")
+@RequestMapping("/draw-results")
 @RequiredArgsConstructor
 public class DrawResultController {
 }

@@ -1,80 +1,19 @@
 import React, { useState } from "react";
-import { ArrowLeft, Eye, EyeOff, CheckCircle, AlertCircle } from "lucide-react";
+import { ArrowLeft, Eye, EyeOff, CheckCircle, AlertCircle, Loader2 } from "lucide-react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import logo_iuh from "../../assets/images/logo_iuh.png";
-import axios from "axios";
+// SỬA: Import authApi từ file gộp trung tâm
+import { authApi } from "../../api/authApi";
 import Header from "../common/Header";
 
-const ResetPassword = () => {
-  const [searchParams] = useSearchParams();
-  const token = searchParams.get("token");
-  const navigate = useNavigate();
-
-  const [formData, setFormData] = useState({ newPassword: "", confirmPassword: "" });
-  const [errors, setErrors] = useState({});
-  const [status, setStatus] = useState({ type: "", message: "" });
-  const [loading, setLoading] = useState(false);
-  const [showNew, setShowNew] = useState(false);
-  const [showConfirm, setShowConfirm] = useState(false);
-
-  const validatePassword = (password) => {
-    const errs = [];
-    if (!password.trim()) return ["Mật khẩu không được để trống"];
-    if (password.length < 8) errs.push("Ít nhất 8 ký tự");
-    if (!/[A-Z]/.test(password)) errs.push("Ít nhất 1 chữ hoa");
-    if (!/[a-z]/.test(password)) errs.push("Ít nhất 1 chữ thường");
-    if (!/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?`~]/.test(password)) errs.push("Ít nhất 1 ký tự đặc biệt");
-    return errs;
-  };
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    const newErrs = {};
-
-    const pwErrs = validatePassword(formData.newPassword);
-    if (pwErrs.length > 0) newErrs.newPassword = pwErrs;
-
-    if (!formData.confirmPassword.trim()) {
-      newErrs.confirmPassword = ["Vui lòng xác nhận mật khẩu"];
-    } else if (formData.newPassword !== formData.confirmPassword) {
-      newErrs.confirmPassword = ["Mật khẩu xác nhận không khớp"];
-    }
-
-    if (Object.keys(newErrs).length > 0) {
-      setErrors(newErrs);
-      return;
-    }
-
-    setLoading(true);
-    setStatus({ type: "", message: "" });
-
-    try {
-      await axios.post(`${import.meta.env.VITE_AUTH_API_URL || "http://localhost:8082/api"}/auth/reset-password`, null, {
-        params: { token, newPassword: formData.newPassword },
-      });
-      setStatus({ type: "success", message: "Đặt lại mật khẩu thành công! Đang chuyển hướng..." });
-      setTimeout(() => navigate("/login"), 2000);
-    } catch (error) {
-      setStatus({
-        type: "error",
-        message: error.response?.data?.message || "Liên kết không hợp lệ hoặc đã hết hạn.",
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const PasswordInput = ({ id, label, value, show, onToggle, error }) => (
+const PasswordInput = ({ id, label, value, show, onToggle, error, onChange }) => (
     <div className="space-y-1.5">
       <label className="block text-sm font-medium text-gray-700">{label}</label>
       <div className="relative">
         <input
           type={show ? "text" : "password"}
           value={value}
-          onChange={(e) => {
-            setFormData((prev) => ({ ...prev, [id]: e.target.value }));
-            if (errors[id]) setErrors((prev) => ({ ...prev, [id]: "" }));
-          }}
+          onChange={onChange}
           placeholder="Nhập mật khẩu..."
           className={`w-full px-4 py-2.5 pr-11 border rounded-lg text-sm outline-none transition-all placeholder:text-gray-300 ${
             error
@@ -100,6 +39,64 @@ const ResetPassword = () => {
       )}
     </div>
   );
+
+const ResetPassword = () => {
+  const [searchParams] = useSearchParams();
+  const token = searchParams.get("token");
+  const navigate = useNavigate();
+
+  const [formData, setFormData] = useState({ newPassword: "", confirmPassword: "" });
+  const [errors, setErrors] = useState({});
+  const [status, setStatus] = useState({ type: "", message: "" });
+  const [loading, setLoading] = useState(false);
+  const [showNew, setShowNew] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
+
+  const validatePassword = (password) => {
+    const errs = [];
+    if (!password.trim()) return ["Mật khẩu không được để trống"];
+    if (password.length < 8) errs.push("Ít nhất 8 ký tự");
+    if (!/[A-Z]/.test(password)) errs.push("Ít nhất 1 chữ hoa");
+    if (!/[!@#$%^&*()]/.test(password)) errs.push("Ít nhất 1 ký tự đặc biệt");
+    return errs;
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    const newErrs = {};
+
+    const pwErrs = validatePassword(formData.newPassword);
+    if (pwErrs.length > 0) newErrs.newPassword = pwErrs;
+
+    if (formData.newPassword !== formData.confirmPassword) {
+      newErrs.confirmPassword = ["Mật khẩu xác nhận không khớp"];
+    }
+
+    if (Object.keys(newErrs).length > 0) {
+      setErrors(newErrs);
+      return;
+    }
+
+    setLoading(true);
+    setStatus({ type: "", message: "" });
+
+    try {
+      // SỬ DỤNG authApi: AxiosClient tự động xử lý URL Gateway và tham số
+      // Giả định authApi.resetPassword đã được định nghĩa với (token, newPassword)
+      await authApi.resetPassword(token, formData.newPassword);
+
+      setStatus({ type: "success", message: "Mật khẩu của bạn đã được cập nhật thành công! Đang chuyển hướng..." });
+      setTimeout(() => navigate("/login"), 2500);
+    } catch (error) {
+      console.error("Reset password error:", error);
+      setStatus({
+        type: "error",
+        message: error.response?.data?.message || "Liên kết không hợp lệ hoặc đã hết hạn. Vui lòng yêu cầu lại.",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <div>
@@ -163,6 +160,12 @@ const ResetPassword = () => {
                 show={showNew}
                 onToggle={() => setShowNew(!showNew)}
                 error={errors.newPassword}
+                onChange={(e) => {
+                  setFormData(prev => ({ ...prev, newPassword: e.target.value }));
+                  if (errors.newPassword) {
+                    setErrors(prev => ({ ...prev, newPassword: "" }));
+                  }
+                }}
               />
 
               <PasswordInput
@@ -172,6 +175,12 @@ const ResetPassword = () => {
                 show={showConfirm}
                 onToggle={() => setShowConfirm(!showConfirm)}
                 error={errors.confirmPassword}
+                onChange={(e) => {
+                  setFormData(prev => ({ ...prev, confirmPassword: e.target.value }));
+                  if (errors.confirmPassword) {
+                    setErrors(prev => ({ ...prev, confirmPassword: "" }));
+                  }
+                }}
               />
 
               <button

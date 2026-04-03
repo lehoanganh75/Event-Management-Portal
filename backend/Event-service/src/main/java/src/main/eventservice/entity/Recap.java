@@ -1,41 +1,68 @@
 package src.main.eventservice.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.annotations.UpdateTimestamp;
+import org.hibernate.type.SqlTypes;
 import src.main.eventservice.entity.enums.RecapStatus;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Entity
 @Table(name = "recaps")
 @Getter
 @Setter
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
 public class Recap {
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
     private String id;
 
-    @OneToOne(cascade = CascadeType.ALL)
-    @JoinColumn(name = "event_id", nullable = false)
-    private Event event;
+    // --- Identification ---
+    private String authorAccountId; // Người viết bài tổng kết
 
+    // --- Content ---
+    @Column(nullable = false)
     private String title;
 
-    @Column(length = 200)
+    @Column(columnDefinition = "TEXT")
     private String content;
 
-    @Enumerated(EnumType.STRING)
-    private RecapStatus status;
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(columnDefinition = "JSON")
+    private List<String> imageUrls; // Album ảnh sự kiện (Google Drive hoặc S3 link)
 
-    private int viewCount;
-    private int likeCount;
+    private String videoHighlightUrl; // Link YouTube/Vimeo của video recap
+
+    // --- Classification & Metrics ---
+    @Enumerated(EnumType.STRING)
+    @Builder.Default
+    private RecapStatus status = RecapStatus.DRAFT;
+
+    private int viewCount = 0;
+    private int likeCount = 0;
+
+    // --- Timestamps ---
+    private LocalDateTime publishedAt;
 
     @CreationTimestamp
+    @Column(updatable = false)
     private LocalDateTime createdAt;
+
     @UpdateTimestamp
     private LocalDateTime updatedAt;
 
-    private boolean isDeleted;
+    private boolean isDeleted = false;
+
+    // --- Relationships ---
+    @OneToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "event_id", nullable = false)
+    @JsonIgnore
+    private Event event;
 }

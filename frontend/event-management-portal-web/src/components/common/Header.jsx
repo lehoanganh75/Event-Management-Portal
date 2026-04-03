@@ -1,29 +1,14 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import {
-  LogIn,
-  User,
-  LogOut,
-  Mail,
-  Globe,
-  Settings,
-  ShieldCheck,
-  ChevronDown,
-  Bell,
-  Check,
-  X,
-  Clock,
-  ChevronRight,
-  Calendar,
-  AlertCircle,
-  CheckCircle,
-  XCircle,
-  Info
+  LogIn, User, LogOut, Mail, Globe, Settings, ShieldCheck,
+  ChevronDown, Bell, Check, X, Clock, ChevronRight,
+  Calendar, AlertCircle, CheckCircle, XCircle, Info
 } from "lucide-react";
 import logo_iuh from "../../assets/images/logo_iuh.png";
-import axios from "axios";
-import { motion, AnimatePresence } from "framer-motion";
-import notificationApi from "../../api/notificationApi";
+import { motion, AnimatePresence } from "framer-motion"; // Giữ lại 1 dòng này
+import { authApi } from "../../api/authApi"; 
+import { notificationApi } from "../../api/notificationApi";
 
 const roleMap = {
   SUPER_ADMIN: "Quản Trị Viên Cao Cấp",
@@ -33,21 +18,6 @@ const roleMap = {
   EVENT_PARTICIPANT: "Người Tham Gia Sự Kiện",
   GUEST: "Khách",
 };
-
-const api = axios.create({
-  baseURL: import.meta.env.VITE_AUTH_API_URL || "http://localhost:8082/api",
-});
-
-api.interceptors.request.use(
-  (config) => {
-    const token = localStorage.getItem("accessToken");
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
-    }
-    return config;
-  },
-  (error) => Promise.reject(error),
-);
 
 const Header = () => {
   const navigate = useNavigate();
@@ -62,6 +32,7 @@ const Header = () => {
   const [unreadCount, setUnreadCount] = useState(0);
   const [isMarkingAll, setIsMarkingAll] = useState(false);
   const [logoutToastVisible, setLogoutToastVisible] = useState(false);
+  
   const menuRef = useRef(null);
   const notificationRef = useRef(null);
   const isScrollingRef = useRef(false);
@@ -70,53 +41,23 @@ const Header = () => {
   const lockActiveRef = useRef(false);
   const lockTimerRef = useRef(null);
 
- const decodeJWT = (token) => {
-    try {
-      const base64Url = token.split('.')[1];
-      const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-      const jsonPayload = decodeURIComponent(atob(base64).split('').map(function(c) {
-        return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
-      }).join(''));
-      return JSON.parse(jsonPayload);
-    } catch (error) {
-      console.error("Error decoding JWT:", error);
-      return null;
+  // 1. Helper lấy ID an toàn từ dữ liệu user đã lưu trong localStorage
+  const getUserId = () => {
+    const userData = localStorage.getItem("user");
+    if (userData) {
+      const user = JSON.parse(userData);
+      return user.id || user.accountId || user.userId;
     }
-  };
-
-  const getCurrentUserId = () => {
-    
-    let accountId = localStorage.getItem("userId");
-    if (accountId) return accountId;
-
-    const accessToken = localStorage.getItem("accessToken");
-    if (accessToken) {
-      try {
-        const decoded = decodeJWT(accessToken);
-        if (decoded?.accountId) {
-          localStorage.setItem("userId", decoded.accountId);
-          return decoded.accountId;
-        }
-        if (decoded?.sub || decoded?.id) {
-          const id = decoded.sub || decoded.id;
-          localStorage.setItem("userId", id);
-          return id;
-        }
-      } catch (error) {
-        console.error("Error decoding token:", error);
-      }
-    }
+    return null;
   };
   
-  useEffect(() => {
-    if (currentUser) {
-      const userId = getCurrentUserId();
-      if (userId) {
-        fetchUnreadCount(userId);
-        fetchRecentNotifications(userId);
-        const interval = setInterval(() => fetchUnreadCount(userId), 30000);
-        return () => clearInterval(interval);
-      }
+ useEffect(() => {
+    const userId = getUserId();
+    if (currentUser && userId) {
+      fetchUnreadCount(userId);
+      fetchRecentNotifications(userId);
+      const interval = setInterval(() => fetchUnreadCount(userId), 30000);
+      return () => clearInterval(interval);
     }
   }, [currentUser]);
 
@@ -138,57 +79,47 @@ const Header = () => {
     return () => clearTimeout(timer);
   }, [logoutToastVisible]);
 
+  // 2. Fetch thông báo sử dụng notificationApi đã gộp
   const fetchUnreadCount = async (userId) => {
     if (!userId) return;
     try {
-      const response = await notificationApi.getUnreadCount(userId);
+      const response = await notificationApi.get.unreadCount(userId);
       setUnreadCount(response.data);
     } catch (error) {
-      console.error("Error fetching unread count:", error);
-      setUnreadCount(0);
+      console.error("Error unread count:", error);
     }
   };
 
   const fetchRecentNotifications = async (userId) => {
     if (!userId) return;
     try {
-      const response = await notificationApi.getRecentNotifications(userId, 5);
+      // Dùng hàm recent đã định nghĩa trong notificationApi
+      const response = await notificationApi.get.recent(userId, 5);
       setNotifications(response.data || []);
     } catch (error) {
-      console.error("Error fetching notifications:", error);
       setNotifications([]);
     }
   };
 
+  // 3. Xử lý đánh dấu đã đọc
   const handleMarkAsRead = async (id) => {
     try {
-      await notificationApi.markAsRead(id);
-      setNotifications(
-        notifications.map((n) => (n.id === id ? { ...n, read: true } : n))
-      );
-      setUnreadCount((prev) => Math.max(0, prev - 1));
-    } catch (error) {
-      console.error("Error marking as read:", error);
-    }
+      await notificationApi.actions.markAsRead(id);
+      setNotifications(prev => prev.map((n) => (n.id === id ? { ...n, read: true } : n)));
+      setUnreadCount(prev => Math.max(0, prev - 1));
+    } catch (error) { console.error(error); }
   };
 
-
   const handleMarkAllAsRead = async () => {
-    const userId = getCurrentUserId();
+    const userId = getUserId();
     if (!userId) return;
-    
     setIsMarkingAll(true);
     try {
-      await notificationApi.markAllAsRead(userId);
-      setNotifications(
-        notifications.map((n) => ({ ...n, read: true }))
-      );
+      await notificationApi.actions.markAllRead(userId);
+      setNotifications(prev => prev.map((n) => ({ ...n, read: true })));
       setUnreadCount(0);
-    } catch (error) {
-      console.error("Error marking all as read:", error);
-    } finally {
-      setIsMarkingAll(false);
-    }
+    } catch (error) { console.error(error); } 
+    finally { setIsMarkingAll(false); }
   };
 
   const handleViewAll = () => {
@@ -295,16 +226,11 @@ const Header = () => {
     };
   }, [location.pathname, checkActiveSection]);
 
+  // Cập nhật User từ localStorage khi location thay đổi (Login xong chuyển trang)
   useEffect(() => {
     const userData = localStorage.getItem("user");
     if (userData) {
-      try {
-        const parsedUser = JSON.parse(userData);
-        setCurrentUser(parsedUser);
-      } catch (error) {
-        console.error("Error parsing user data:", error);
-        localStorage.removeItem("user");
-      }
+      setCurrentUser(JSON.parse(userData));
     } else {
       setCurrentUser(null);
     }
@@ -420,26 +346,23 @@ const Header = () => {
     }, 1500);
   };
 
+  // 4. Logout sử dụng authApi và xử lý sạch sẽ
   const handleLogout = async () => {
     try {
-      const API_LOGOUT = `${import.meta.env.VITE_AUTH_API_URL}/auth/logout`;
       const refreshToken = localStorage.getItem("refreshToken");
       if (refreshToken) {
-        await axios.post(API_LOGOUT, null, {
-          params: { refreshToken },
-        });
+        // Gọi API logout từ authApi (centralized)
+        await authApi.logout(refreshToken); 
       }
     } catch (error) {
-      console.error("Error during logout:", error);
+      console.error("Logout Error:", error);
     } finally {
       localStorage.clear();
       setCurrentUser(null);
       setIsMenuOpen(false);
       setIsLogoutModalOpen(false);
       setLogoutToastVisible(true);
-      setTimeout(() => {
-        navigate("/");
-      }, 1500);
+      setTimeout(() => navigate("/"), 1500);
     }
   };
 

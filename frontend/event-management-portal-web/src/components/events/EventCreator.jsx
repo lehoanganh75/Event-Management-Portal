@@ -3,7 +3,6 @@ import { toast } from "react-toastify";
 import ManualInputStep from "./ManualInputStep";
 import EventReviewStep from "../../components/events/EventReviewstep";
 import { EventProgramStep } from "../../components/eventPlanner/Eventprogramstep";
-import { createEvent } from "../../api/eventApi";
 
 export const EventCreator = ({
   onBack,

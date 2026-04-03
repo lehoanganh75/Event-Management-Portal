@@ -17,14 +17,14 @@ public class RegistrationVerificationToken {
     private String id;
 
     @Column(nullable = false, unique = true)
-    private String token;  // UUID hoặc mã 6 số
-
-    @OneToOne
-    @JoinColumn(name = "account_id", nullable = false)
-    private Account account;
+    private String token;
 
     @Column(nullable = false)
     private LocalDateTime expiryDate;
 
     private boolean used = false;
+
+    @OneToOne
+    @JoinColumn(name = "account_id", nullable = false)
+    private Account account;
 }

@@ -2,7 +2,6 @@ package src.main.identityservice.controller;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import src.main.identityservice.dto.AccountAdminDTO;
 import src.main.identityservice.dto.StatusRequest;
@@ -11,12 +10,9 @@ import src.main.identityservice.service.AccountService;
 import java.util.List;
 
 @RestController
-@RequestMapping("/api/admin/accounts")
+@RequestMapping("/accounts")
 @RequiredArgsConstructor
-// @CrossOrigin(origins = "http://localhost:5173")
-@CrossOrigin(origins = "*")
-//@PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
-public class AdminUserController {
+public class AccountController {
 
     private final AccountService accountService;
 
@@ -41,9 +37,9 @@ public class AdminUserController {
     @PutMapping("/{id}/roles")
     public ResponseEntity<AccountAdminDTO> updateRoles(
             @PathVariable String id,
-            @RequestBody List<String> roles) {
-
-        return ResponseEntity.ok(accountService.updateRoles(id, roles));
+            @RequestBody String role
+    ) {
+        return ResponseEntity.ok(accountService.updateRoles(id, role));
     }
 
     @PutMapping("/{id}/status")

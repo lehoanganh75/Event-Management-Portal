@@ -14,7 +14,7 @@ import {
   ArrowLeft,
   Search,
 } from "lucide-react";
-import { getPlansByStatus } from "../../api/eventApi";
+import { eventApi } from "../../api/eventApi";
 
 const ChooseModeStep = ({ onChoose }) => (
   <div className="p-8">
@@ -74,44 +74,27 @@ const SelectPlanStep = ({ onSelectPlan, onBack }) => {
   const [searchTerm, setSearchTerm] = useState("");
 
   useEffect(() => {
-    let accountId = null;
-
-    const userData = localStorage.getItem("user");
-    if (userData) {
+    // Không cần decode token rườm rà ở đây nữa vì axiosClient đã lo header,
+    // và Backend thường lấy accountId từ Security Context.
+    
+    const fetchApprovedPlans = async () => {
+      setLoading(true);
       try {
-        const user = JSON.parse(userData);
-        accountId =
-          user.id || user.accountId || user.account?.id || user.userId;
-      } catch (error) {
-        console.error("Lỗi parse user data:", error);
-      }
-    }
-
-    if (!accountId) {
-      const accessToken = localStorage.getItem("accessToken");
-      if (accessToken) {
-        try {
-          const base64Url = accessToken.split(".")[1];
-          const base64 = base64Url.replace(/-/g, "+").replace(/_/g, "/");
-          const payload = JSON.parse(atob(base64));
-          accountId =
-            payload.accountId || payload.sub || payload.userId || payload.id;
-        } catch (e) {
-          console.error("Lỗi decode token:", e);
-        }
-      }
-    }
-
-    getPlansByStatus("PLAN_APPROVED", accountId)
-      .then((res) => {
-        console.log("Dữ liệu kế hoạch đã duyệt (API):", res.data);
+        // SỬA: Gọi API thông qua cấu trúc mới
+        // Backend sẽ lọc theo status APPROVED và user đang đăng nhập
+        const res = await eventApi.plans.getAll({ status: "PLAN_APPROVED" });
+        
+        console.log("Dữ liệu kế hoạch đã duyệt:", res.data);
         setPlans(Array.isArray(res.data) ? res.data : []);
-      })
-      .catch((error) => {
-        console.error("Lỗi lấy danh sách kế hoạch đã duyệt:", error);
+      } catch (error) {
+        console.error("Lỗi lấy danh sách kế hoạch:", error);
         setPlans([]);
-      })
-      .finally(() => setLoading(false));
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchApprovedPlans();
   }, []);
 
   const filtered = plans.filter(

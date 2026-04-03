@@ -18,12 +18,10 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 @RestController
-@RequestMapping("/api/templates")
+@RequestMapping("/templates")
 @RequiredArgsConstructor
 public class EventTemplateController {
-
-    @Autowired
-    private EventTemplateService templateService;
+    private final EventTemplateService templateService;
 
     @GetMapping("/all")
     public ResponseEntity<Page<EventTemplate>> getTemplates(

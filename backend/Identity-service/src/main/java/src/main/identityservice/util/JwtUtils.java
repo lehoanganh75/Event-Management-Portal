@@ -10,6 +10,7 @@ import lombok.Getter;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import src.main.identityservice.dto.UserPrincipal;
+import src.main.identityservice.entity.Account;
 
 import javax.crypto.SecretKey;
 import java.util.Date;
@@ -23,44 +24,37 @@ public class JwtUtils {
     @Value("${jwt.secret}")
     private String secretKey;
 
-    @Value("${jwt.expiration:900000}")
+    @Value("${jwt.expiration}")
     private long accessExpiration;
 
-    @Value("${jwt.refresh-token.expiration:604800000}")
+    @Value("${jwt.refresh-token.expiration}")
     private long refreshExpiration;
 
     private SecretKey key;
 
     @PostConstruct
     protected void init() {
-        // Giải mã Base64 key để đảm bảo tính an toàn và đúng định dạng cho HS512
         byte[] keyBytes = Decoders.BASE64.decode(secretKey);
         this.key = Keys.hmacShaKeyFor(keyBytes);
     }
 
     // 1. Tạo Access Token
-    public String generateToken(UserPrincipal info) {
-        Map<String, Object> claims = new HashMap<>();
-        claims.put("email", info.getEmail());
-        claims.put("userId", info.getUserId());
-        claims.put("accountId", info.getAccountId());
-        if (info.getRoles() != null) {
-            claims.put("roles", info.getRoles());
-        }
-        return createToken(claims, info.getAccountId(), accessExpiration);
+    public String generateToken(UserPrincipal userPrincipal) {
+        return createToken(userPrincipal, accessExpiration);
     }
 
     // 2. Tạo Refresh Token (thường chỉ chứa username để bảo mật)
-    public String generateRefreshToken(String username) {
-        return createToken(new HashMap<>(), username, refreshExpiration);
+    public String generateRefreshToken(UserPrincipal userPrincipal) {
+        return createToken(userPrincipal, refreshExpiration);
     }
 
-    private String createToken(Map<String, Object> claims, String subject, long expiration) {
+    private String createToken(UserPrincipal userPrincipal, long expiration) {
+        Date now = new Date();
         return Jwts.builder()
-                .setClaims(claims)
-                .setSubject(subject)
-                .setIssuedAt(new Date(System.currentTimeMillis()))
-                .setExpiration(new Date(System.currentTimeMillis() + expiration))
+                .setSubject(userPrincipal.getAccountId())
+                .claim("role", userPrincipal.getRole())
+                .setIssuedAt(now)
+                .setExpiration(new Date(now.getTime() + expiration))
                 .signWith(key, SignatureAlgorithm.HS512)
                 .compact();
     }

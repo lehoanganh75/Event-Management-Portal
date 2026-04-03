@@ -1,8 +1,8 @@
 package src.main.identityservice.service;
 
-import src.main.identityservice.dto.AuthResponse;
-import src.main.identityservice.dto.LoginRequest;
-import src.main.identityservice.dto.RegisterRequest;
+import src.main.identityservice.dto.response.AuthResponse;
+import src.main.identityservice.dto.request.LoginRequest;
+import src.main.identityservice.dto.request.RegisterRequest;
 
 import java.util.Map;
 

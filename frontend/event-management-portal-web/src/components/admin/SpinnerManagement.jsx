@@ -5,7 +5,8 @@ import {
 } from 'lucide-react';
 import { useSearchParams } from 'react-router-dom';
 import axios from 'axios';
-import { getEventById } from "../../api/eventApi";
+import { drawApi } from '../../api/drawApi';
+import { eventApi } from '../../api/eventApi'; // Nếu cần dùng getEventById
 
 // Cấu hình hiển thị trạng thái vòng quay theo Enum Backend
 const STATUS_CONFIG = {
@@ -49,50 +50,38 @@ const SpinnerManagement = () => {
   const fetchCampaigns = async () => {
     setFetching(true);
     try {
-      const token = localStorage.getItem("accessToken");
-      const res = await axios.get("http://localhost:8083/api/lucky-draws", {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+        const res = await drawApi.campaigns.getAll();
+        
+        const formattedData = res.data.map(item => ({
+            id: item.id,
+            name: item.title,
+            eventId: item.eventId,
+            time: `${new Date(item.startTime).toLocaleDateString()} (${new Date(item.startTime).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})} - ${new Date(item.endTime).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})})`,
+            status: item.status,
+            is_deleted: item.deleted ? 1 : 0, 
+            raw: item
+        }));
 
-      console.log("res", res)
-      
-      const formattedData = res.data.map(item => ({
-        id: item.id,
-        name: item.title,
-        eventId: item.eventId,
-        time: `${new Date(item.startTime).toLocaleDateString()} (${new Date(item.startTime).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})} - ${new Date(item.endTime).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})})`,
-        status: item.status,
-        // Chú ý: Backend trả về isDeleted (boolean) nên ở đây dùng item.isDeleted
-        is_deleted: item.deleted ? 1 : 0, 
-        raw: item
-      }));
-
-      console.log(formattedData);
-
-      // Chỉ lấy những cái chưa bị xóa (is_deleted = 0)
-      setCampaigns(formattedData.filter(item => item.is_deleted === 0));
+        setCampaigns(formattedData.filter(item => item.is_deleted === 0));
     } catch (error) {
-      console.error("Lỗi tải danh sách:", error);
+        console.error("Lỗi tải danh sách:", error);
     } finally {
-      setFetching(false);
+        setFetching(false);
     }
-  };
+};
 
   // 2. Fetch danh sách người trúng thưởng
   const fetchWinners = async () => {
     setFetching(true);
     try {
-      const token = localStorage.getItem("accessToken");
-      const res = await axios.get("http://localhost:8083/api/draw-results", {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      setWinners(res.data);
+        const res = await drawApi.results.getAll();
+        setWinners(res.data);
     } catch (error) {
-      console.error("Lỗi tải danh sách trúng thưởng:", error);
+        console.error("Lỗi tải danh sách trúng thưởng:", error);
     } finally {
-      setFetching(false);
+        setFetching(false);
     }
-  };
+};
 
   useEffect(() => {
     if (activeTab === 'Chiến dịch vòng quay') fetchCampaigns();
@@ -128,43 +117,20 @@ const SpinnerManagement = () => {
   };
 
   const handleDeleteClick = async (campaign) => {
-    if (window.confirm(`Bạn có chắc chắn muốn xóa chiến dịch "${campaign.name}"?`)) {
-      setLoading(true);
-      try {
-        const token = localStorage.getItem("accessToken");
-        
-        // campaign.raw chứa dữ liệu từ Backend trả về
-        // Chú ý: Backend cần List<Prize> ở định dạng đúng
-        const payload = {
-          ...campaign.raw,
-          isDeleted: true // Gửi true (JS) -> Java sẽ nhận và lưu thành 1
-        };
-
-        console.log("Payload gửi đi:", payload);
-
-        const response = await axios.put(
-          `http://localhost:8083/api/lucky-draws/${campaign.raw.id}`, 
-          payload, 
-          {
-            headers: { 
-                Authorization: `Bearer ${token}`,
-                'Content-Type': 'application/json'
-            }
-          }
-        );
-
-        console.log("Response từ server:", response.data);
-
-        alert("Xóa chiến dịch thành công!");
-        fetchCampaigns(); 
-      } catch (error) {
-        console.error("Delete error:", error);
-        alert("Lỗi: Không thể cập nhật trạng thái xóa.");
-      } finally {
-        setLoading(false);
-      }
+    if (window.confirm(`Bạn có chắc muốn xóa chiến dịch "${campaign.name}"?`)) {
+        setLoading(true);
+        try {
+            const payload = { ...campaign.raw, deleted: true };
+            await drawApi.campaigns.delete(campaign.raw.id, payload);
+            alert("Xóa thành công!");
+            fetchCampaigns(); 
+        } catch (error) {
+            alert("Không thể xóa lúc này.");
+        } finally {
+            setLoading(false);
+        }
     }
-  };
+};
 
   // 5. Nhận diện ID từ URL (Khi điều hướng từ EventPage)
   useEffect(() => {
@@ -250,47 +216,42 @@ const SpinnerManagement = () => {
 
   // 7. Submit Dữ liệu (Create / Update)
   const handleSubmit = async () => {
-    if (!formData.eventId || !formData.title || !selectedDate) return alert("Vui lòng nhập đủ các trường bắt buộc!");
+    if (!formData.eventId || !formData.title || !selectedDate) return alert("Thiếu thông tin!");
     
     setLoading(true);
     try {
-      const token = localStorage.getItem("accessToken");
-      const payload = {
-        ...formData,
-        startTime: `${selectedDate}T${startTimeOnly}:00`,
-        endTime: `${selectedDate}T${endTimeOnly}:00`,
-        prizes: [
-          ...formData.prizes.filter(p => p.name.trim() !== "").map(p => ({ 
-            ...p, 
-            winProbabilityPercent: (p.winProbabilityPercent / 100).toFixed(4) 
-          })),
-          { 
-            name: "Chúc bạn may mắn lần sau", 
-            quantity: 999999, 
-            winProbabilityPercent: (parseFloat(unluckyPercent) / 100).toFixed(4) 
-          }
-        ]
-      };
+        const payload = {
+            ...formData,
+            startTime: `${selectedDate}T${startTimeOnly}:00`,
+            endTime: `${selectedDate}T${endTimeOnly}:00`,
+            prizes: [
+                ...formData.prizes.filter(p => p.name.trim() !== "").map(p => ({ 
+                    ...p, 
+                    winProbabilityPercent: (p.winProbabilityPercent / 100).toFixed(4) 
+                })),
+                { 
+                    name: "Chúc bạn may mắn lần sau", 
+                    quantity: 999999, 
+                    winProbabilityPercent: (parseFloat(unluckyPercent) / 100).toFixed(4) 
+                }
+            ]
+        };
 
-      if (isEditMode) {
-        await axios.put(`http://localhost:8083/api/lucky-draws/${editingId}`, payload, {
-          headers: { Authorization: `Bearer ${token}` }
-        });
-        alert("Cập nhật thành công!");
-      } else {
-        await axios.post("http://localhost:8083/api/lucky-draws", payload, {
-          headers: { Authorization: `Bearer ${token}` }
-        });
-        alert("Khởi tạo thành công!");
-      }
-      
-      setIsCreateModalOpen(false);
-      resetForm();
-      fetchCampaigns();
+        if (isEditMode) {
+            await drawApi.campaigns.update(editingId, payload);
+            alert("Cập nhật thành công!");
+        } else {
+            await drawApi.campaigns.create(payload);
+            alert("Khởi tạo thành công!");
+        }
+        
+        setIsCreateModalOpen(false);
+        resetForm();
+        fetchCampaigns();
     } catch (err) {
-      alert("Lỗi: " + (err.response?.data?.message || err.message));
+        alert("Lỗi: " + (err.response?.data?.message || err.message));
     } finally { setLoading(false); }
-  };
+};
 
   const resetForm = () => {
     setFormData({ eventId: "", title: "", description: "", status: "PENDING", allowMultipleWins: false, prizes: [{ name: "", quantity: 1, winProbabilityPercent: 0 }] });

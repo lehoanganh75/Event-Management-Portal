@@ -28,7 +28,7 @@ public class PostResponseDto {
         dto.setPostType(post.getPostType());
         dto.setStatus(post.getStatus());
         dto.setEventId(post.getEvent().getId());
-        dto.setCreatedByAccountId(post.getCreatedByAccountId());
+//        dto.setCreatedByAccountId(post.getCreatedByAccountId());
         dto.setCreatedBy(creator);
         dto.setCreatedAt(post.getCreatedAt());
         dto.setUpdatedAt(post.getUpdatedAt());

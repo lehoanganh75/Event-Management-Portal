@@ -1,14 +1,15 @@
 package src.main.identityservice.dto;
 
-import java.util.List;
+import src.main.identityservice.entity.AccountStatus;
+import src.main.identityservice.entity.Role;
 
 public record AccountAdminDTO(
         String id,
         String username,
         String email,
         String fullName,
-        List<String> roles,
-        String status,
+        Role role,
+        AccountStatus status,
         String createdAt
 ) {
 }

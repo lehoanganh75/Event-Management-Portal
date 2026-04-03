@@ -17,8 +17,8 @@ import {
   FileText,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
-import { getAllPlans, approvePlan, cancelPlan } from "../../api/eventApi";
-import notificationApi from "../../api/notificationApi";
+import { eventApi } from "../../api/eventApi"; // SỬA: Import object tổng
+import { notificationApi } from "../../api/notificationApi";
 
 const STATUS_LABELS = {
   DRAFT: {
@@ -73,18 +73,9 @@ const formatDate = (d) => {
 };
 
 const getCurrentUser = () => {
-  try {
-    const token = localStorage.getItem("accessToken");
-    if (!token) return null;
-    const payload = JSON.parse(atob(token.split(".")[1]));
-    return {
-      accountId: payload.accountId || payload.userId || payload.sub,
-      name: payload.name || payload.fullName || "Admin",
-      email: payload.email,
-    };
-  } catch {
-    return null;
-  }
+  const userStr = localStorage.getItem("user");
+  if (!userStr) return null;
+  return JSON.parse(userStr);
 };
 
 const getAvatarColor = (name) => {
@@ -124,21 +115,11 @@ const PlansPage = () => {
   const fetchPlans = async () => {
     setLoading(true);
     try {
-      const res = await getAllPlans();
-      const plansData = res.data || [];
-      console.log(
-        "Fetched plans:",
-        plansData.map((p) => ({
-          id: p.id,
-          title: p.title,
-          status: p.status,
-          statusUpper: p.status?.toUpperCase(),
-        })),
-      );
-      setPlans(plansData);
+      // Dùng hàm getAll của nhóm plans
+      const res = await eventApi.plans.getAll();
+      setPlans(res.data || []);
     } catch (e) {
       showToast("Lỗi tải dữ liệu!", "error");
-      console.error("Fetch error:", e);
     } finally {
       setLoading(false);
     }
@@ -149,42 +130,31 @@ const PlansPage = () => {
   }, []);
 
   const sendApprovalNotification = async (plan) => {
-    try {
-      if (!plan.createdByAccountId) return;
-
-      await notificationApi.createNotification({
-        userProfileId: plan.createdByAccountId,
-        type: "EVENT_APPROVED",
-        title: "Kế hoạch đã được phê duyệt",
-        message: `Kế hoạch "${plan.title}" của bạn đã được phê duyệt thành công. Bạn có thể tạo sự kiện từ kế hoạch này.`,
-        relatedEntityId: plan.id,
-        relatedEntityType: "EVENT_PLAN",
-        actionUrl: `/plans/${plan.id}`,
-        priority: 3,
-      });
-    } catch (error) {
-      console.error("Lỗi gửi thông báo phê duyệt:", error);
-    }
+    if (!plan.createdByAccountId) return;
+    await notificationApi.create.send({
+      userProfileId: plan.createdByAccountId,
+      type: "EVENT_APPROVED",
+      title: "Kế hoạch đã được phê duyệt",
+      message: `Kế hoạch "${plan.title}" đã được ${approverName} phê duyệt thành công.`,
+      relatedEntityId: plan.id,
+      relatedEntityType: "PLAN",
+      actionUrl: `/manage-plans/${plan.id}`,
+    });
   };
 
-  const sendRejectNotification = async (plan) => {
-    try {
-      if (!plan.createdByAccountId) return;
-
-      await notificationApi.createNotification({
-        userProfileId: plan.createdByAccountId,
-        type: "EVENT_REJECTED",
-        title: "Kế hoạch bị từ chối",
-        message: `Kế hoạch "${plan.title}" của bạn đã bị từ chối. Vui lòng kiểm tra lại thông tin và gửi lại.`,
-        relatedEntityId: plan.id,
-        relatedEntityType: "EVENT_PLAN",
-        actionUrl: `/plans/${plan.id}`,
-        priority: 2,
-      });
-    } catch (error) {
-      console.error("Lỗi gửi thông báo từ chối:", error);
-    }
+  const sendRejectNotification = async (plan, approverName) => {
+    if (!plan.createdByAccountId) return;
+    await notificationApi.create.send({
+      userProfileId: plan.createdByAccountId,
+      type: "EVENT_REJECTED",
+      title: "Kế hoạch bị từ chối",
+      message: `Kế hoạch "${plan.title}" đã bị ${approverName} từ chối. Vui lòng kiểm tra lại.`,
+      relatedEntityId: plan.id,
+      relatedEntityType: "PLAN",
+      actionUrl: `/manage-plans/${plan.id}`,
+    });
   };
+
   const sendNotificationToApprover = async (plan, action, approverInfo) => {
     try {
       const payload = {
@@ -211,55 +181,49 @@ const PlansPage = () => {
       console.error("Lỗi gửi thông báo cho người duyệt:", error);
     }
   };
+  
   const handleApprove = async (id) => {
-    const currentUser = getCurrentUser();
-    if (!currentUser) {
-      showToast("Không xác định được người dùng!", "error");
-      return;
-    }
+    const user = getCurrentUser();
+    if (!user) { showToast("Vui lòng đăng nhập lại!", "error"); return; }
 
     const plan = plans.find((p) => p.id === id);
-
     try {
-      await approvePlan(id, currentUser.name);
-      showToast(`Đã phê duyệt kế hoạch "${plan?.title || ""}"!`);
-
+      // Gọi hàm approve từ nhóm admin trong eventApi
+      await eventApi.admin.approvePlan(id);
+      
+      showToast(`Đã phê duyệt kế hoạch "${plan?.title}"!`);
+      
       if (plan) {
-        await sendApprovalNotification(plan);
-        await sendNotificationToApprover(plan, "approve", currentUser);
+        await sendApprovalNotification(plan, user.fullName || user.username);
       }
 
       fetchPlans();
       setSelectedPlan(null);
     } catch (error) {
-      console.error("Lỗi phê duyệt:", error);
       showToast("Lỗi phê duyệt!", "error");
     }
   };
 
   const handleReject = async (id) => {
-    const currentUser = getCurrentUser();
-    if (!currentUser) {
-      showToast("Không xác định được người dùng!", "error");
-      return;
-    }
+    const user = getCurrentUser();
+    const reason = prompt("Nhập lý do từ chối kế hoạch này:");
+    if (reason === null) return;
 
     const plan = plans.find((p) => p.id === id);
-
     try {
-      await cancelPlan(id);
-      showToast(`Đã từ chối kế hoạch "${plan?.title || ""}"!`);
+      // Gọi hàm reject từ nhóm admin (truyền ID và lý do)
+      await eventApi.admin.rejectPlan(id, reason);
+      
+      showToast(`Đã từ chối kế hoạch "${plan?.title}"!`);
 
       if (plan) {
-        await sendRejectNotification(plan);
-        await sendNotificationToApprover(plan, "reject", currentUser);
+        await sendRejectNotification(plan, user.fullName || user.username);
       }
 
       fetchPlans();
       setSelectedPlan(null);
     } catch (error) {
-      console.error("Lỗi từ chối:", error);
-      showToast("Lỗi từ chối!", "error");
+      showToast("Lỗi thao tác!", "error");
     }
   };
 

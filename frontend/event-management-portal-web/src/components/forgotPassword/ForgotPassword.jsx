@@ -2,9 +2,8 @@ import React, { useState } from "react";
 import { ArrowLeft, Mail, CheckCircle, AlertCircle } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import logo_iuh from "../../assets/images/logo_iuh.png";
-import axios from "axios";
-import HeaderAdmin from "../common/HeaderAdmin";
 import Header from "../common/Header";
+import authApi from "../../api/authApi";
 
 const ForgotPassword = () => {
   const navigate = useNavigate();
@@ -15,6 +14,8 @@ const ForgotPassword = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    
+    // Validation cơ bản tại Frontend
     if (!email.trim()) {
       setError("Email không được để trống");
       return;
@@ -29,17 +30,18 @@ const ForgotPassword = () => {
     setError("");
 
     try {
-      await axios.post(
-        `${import.meta.env.VITE_AUTH_API_URL || "http://localhost:8082/api"}/auth/forgot-password?email=${email.trim()}`
-      );
+      // SỬ DỤNG authApi: axiosClient tự xử lý URL Gateway và Header
+      await authApi.forgotPassword(email.trim());
+      
       setMessage({
         type: "success",
-        content: "Một liên kết khôi phục đã được gửi đến email của bạn. Vui lòng kiểm tra hộp thư!",
+        content: "Một liên kết khôi phục đã được gửi đến email của bạn. Vui lòng kiểm tra hộp thư (bao gồm cả thư rác/spam)!",
       });
     } catch (err) {
+      console.error("Forgot password error:", err);
       setMessage({
         type: "error",
-        content: err.response?.data?.message || "Có lỗi xảy ra, vui lòng thử lại sau.",
+        content: err.response?.data?.message || "Email không tồn tại trong hệ thống hoặc có lỗi xảy ra.",
       });
     } finally {
       setLoading(false);

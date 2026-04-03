@@ -1,23 +1,22 @@
 package src.main.identityservice.service.impl;
 
-import com.fasterxml.jackson.databind.JsonNode;
 import jakarta.mail.MessagingException;
 import jakarta.mail.internet.MimeMessage;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.http.ResponseEntity;
+import org.springframework.http.HttpStatus;
 import org.springframework.mail.javamail.JavaMailSenderImpl;
 import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.client.RestTemplate;
+import org.springframework.web.server.ResponseStatusException;
 import org.thymeleaf.context.Context;
 import org.thymeleaf.spring6.SpringTemplateEngine;
-import src.main.identityservice.dto.AuthResponse;
-import src.main.identityservice.dto.LoginRequest;
-import src.main.identityservice.dto.RegisterRequest;
+import src.main.identityservice.dto.response.AuthResponse;
+import src.main.identityservice.dto.request.LoginRequest;
+import src.main.identityservice.dto.request.RegisterRequest;
 import src.main.identityservice.dto.UserPrincipal;
 import src.main.identityservice.entity.*;
 import src.main.identityservice.exception.*;
@@ -26,6 +25,7 @@ import src.main.identityservice.repository.PasswordResetTokenRepository;
 import src.main.identityservice.repository.RefreshTokenRepository;
 import src.main.identityservice.repository.VerificationTokenRepository;
 import src.main.identityservice.service.AuthService;
+import src.main.identityservice.service.EmailService;
 import src.main.identityservice.util.JwtUtils;
 
 import java.time.LocalDateTime;
@@ -43,6 +43,8 @@ public class AuthServiceImpl implements AuthService {
     private final JavaMailSenderImpl mailSender;
     private final SpringTemplateEngine templateEngine;
 
+    private final EmailService emailService;
+
     @Value("${zerobounce.api.key}")
     private String zeroBounceApiKey;
 
@@ -52,47 +54,39 @@ public class AuthServiceImpl implements AuthService {
     @Override
     @Transactional
     public Map<String, String> register(RegisterRequest request) {
-        validateRegistration(request);
+        if (accountRepository.findByUsername(request.getUsername()).isPresent()) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Tên đăng nhập đã tồn tại.");
+        }
+        if (accountRepository.findByEmail(request.getEmail()).isPresent()) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Email đã được sử dụng.");
+        }
 
         if (!isRealEmail(request.getEmail())) {
-            throw new EmailNotExistsException("Email không tồn tại hoặc không hợp lệ.");
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Email không tồn tại hoặc không hợp lệ.");
         }
 
         Account account = createPendingAccount(request);
 
-        User userProfile = new User();
-        userProfile.setFullName(request.getFullName());
-        userProfile.setGender(request.getGender());
-        userProfile.setDateOfBirth(request.getDateOfBirth());
+        User userRegister = createUserRegister(request);
 
-        userProfile.setAccount(account);
-        account.setUserProfile(userProfile);
+        userRegister.setAccount(account);
+
+        account.setUser(userRegister);
 
         Account savedAccount = accountRepository.save(account);
 
-        // Tạo verification token
         String token = UUID.randomUUID().toString();
         VerificationToken vToken = createVerificationToken(savedAccount, token);
         verificationTokenRepository.save(vToken);
 
-        // Gửi email async (không chặn request)
-        String verificationUrl = "http://localhost:" + PORT + "/api/auth/verify?token=" + token;
-        sendVerificationEmailAsync(request.getEmail(), verificationUrl, request.getFullName());
+        String verificationUrl = "http://localhost:" + PORT + "/auth/verify?token=" + token;
+        emailService.sendVerificationEmail(request.getEmail(), verificationUrl, request.getFullName());
 
         Map<String, String> response = new HashMap<>();
         response.put("status", "success");
         response.put("message", "Đã gửi email xác nhận. Vui lòng kiểm tra hộp thư (bao gồm thư rác/spam).");
         response.put("timestamp", String.valueOf(LocalDateTime.now()));
         return response;
-    }
-
-    private void validateRegistration(RegisterRequest request) {
-        if (accountRepository.findByUsername(request.getUsername()).isPresent()) {
-            throw new UsernameAlreadyExistsException("Tên đăng nhập đã tồn tại.");
-        }
-        if (accountRepository.findByEmail(request.getEmail()).isPresent()) {
-            throw new EmailAlreadyExistsException("Email đã được sử dụng.");
-        }
     }
 
     private Account createPendingAccount(RegisterRequest request) {
@@ -105,6 +99,14 @@ public class AuthServiceImpl implements AuthService {
         return account;
     }
 
+    private User createUserRegister(RegisterRequest request) {
+        User userRegister = new User();
+        userRegister.setFullName(request.getFullName());
+        userRegister.setGender(request.getGender());
+        userRegister.setDateOfBirth(request.getDateOfBirth());
+        return userRegister;
+    }
+
     private VerificationToken createVerificationToken(Account account, String token) {
         VerificationToken vToken = new VerificationToken();
         vToken.setToken(token);
@@ -114,66 +116,26 @@ public class AuthServiceImpl implements AuthService {
         return vToken;
     }
 
-    @Async
-    public void sendVerificationEmailAsync(String toEmail, String verificationUrl, String fullName) {
-        MimeMessage message = mailSender.createMimeMessage();
-
-        try {
-            MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
-            Context context = new Context();
-            context.setVariable("fullName", fullName);
-            context.setVariable("verificationUrl", verificationUrl);
-            context.setVariable("logoUrl", "https://i.imgur.com/YourLogoHere.png"); // Thay bằng link thật
-
-            String html = templateEngine.process("email/verification-email", context);
-
-            helper.setTo(toEmail);
-            helper.setSubject("Xác nhận đăng ký tài khoản - Event Management System");
-            helper.setText(html, true);
-
-            mailSender.send(message);
-            System.out.println("Đã gửi email xác nhận đến: " + toEmail);
-        } catch (MessagingException e) {
-            throw new RuntimeException("Không thể gửi email xác nhận. Vui lòng thử lại sau.", e);
-        }
-    }
-
     private boolean isRealEmail(String email) {
-        if (email == null || email.trim().isEmpty()) return false;
-
-        RestTemplate restTemplate = new RestTemplate();
-
-        String url = "https://emailreputation.abstractapi.com/v1/?api_key=" + zeroBounceApiKey + "&email=" + email;
-
-        try {
-            ResponseEntity<JsonNode> apiResponse = restTemplate.getForEntity(url, JsonNode.class);
-            if (apiResponse.getStatusCode().is2xxSuccessful() && apiResponse.getBody() != null) {
-                String deliverability = apiResponse.getBody().get("email_deliverability").get("status").asText();
-                System.out.println("ZeroBounce check for " + email + " : " + deliverability);
-                return "deliverable".equalsIgnoreCase(deliverability);
-            }
-        } catch (Exception e) {
-            throw new RuntimeException(e.getMessage());
-        }
-        return true;
+        String regex = "^[A-Za-z0-9+_.-]+@(.+)$";
+        return email != null && email.matches(regex);
     }
 
     public void assignRolesByEmail(Account account, String email) {
-        Set<Role> roles = new HashSet<>();
+        Role role;
         String domain = email.substring(email.indexOf("@"));
-
         switch (domain) {
             case "@iuh.edu.vn":
-                roles.add(Role.ADMIN);
+                role = Role.ADMIN;
                 break;
             case "@student.iuh.edu.vn":
-                roles.add(Role.EVENT_PARTICIPANT);
+                role = Role.MEMBER;
                 break;
             default:
-                roles.add(Role.GUEST);
+                role = Role.GUEST;
                 break;
         }
-        account.setRoles(roles);
+        account.setRole(role);
     }
 
     @Override
@@ -204,7 +166,7 @@ public class AuthServiceImpl implements AuthService {
     @Override
     @Transactional
     public AuthResponse login(LoginRequest request) {
-        Account account = (Account) accountRepository.findByUsername(request.getUsername())
+        Account account = accountRepository.findByUsername(request.getUsername())
                 .orElseThrow(() -> new InvalidCredentialsException("Username không tồn tại"));
 
         if (!passwordEncoder.matches(request.getPassword(), account.getPasswordHash())) {
@@ -218,15 +180,12 @@ public class AuthServiceImpl implements AuthService {
         account.setLastLoginAt(LocalDateTime.now());
         accountRepository.save(account);
 
-        String profileId = (account.getUserProfile() != null) ? account.getUserProfile().getId() : null;
+        String profileId = (account.getUser() != null) ? account.getUser().getId() : null;
         System.out.println(profileId);
 
         UserPrincipal principal = new UserPrincipal();
         principal.setAccountId(account.getId());
-        principal.setUserName(account.getUsername());
-        principal.setEmail(account.getEmail());
-        principal.setRoles(account.getRoles());
-        principal.setUserId(profileId);
+        principal.setRole(account.getRole());
 
         String accessToken = jwtUtils.generateToken(principal);
 
@@ -265,6 +224,8 @@ public class AuthServiceImpl implements AuthService {
         Account account = accountRepository.findByEmail(email)
                 .orElseThrow(() -> new EmailNotExistsException("Email không tồn tại trong hệ thống."));
 
+        passwordResetTokenRepository.deleteByAccount(account);
+
         // 3. Tạo token mới (UUID)
         String token = UUID.randomUUID().toString();
         PasswordResetToken resetToken = new PasswordResetToken();
@@ -277,7 +238,7 @@ public class AuthServiceImpl implements AuthService {
 
         // 4. Gửi email (Async)
         String resetUrl = "http://localhost:5173/reset-password?token=" + token; // Link trỏ về Frontend
-        sendResetPasswordEmailAsync(email, resetUrl, account.getUserProfile().getFullName());
+        sendResetPasswordEmailAsync(email, resetUrl, account.getUser().getFullName());
     }
 
     @Override

@@ -1,7 +1,6 @@
 package src.main.eventservice.entity;
 
-import com.fasterxml.jackson.annotation.JsonBackReference;
-import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
@@ -15,25 +14,47 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-@JsonIgnoreProperties({"event", "hibernateLazyInitializer", "handler"})
 public class EventPresenter {
-
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
     private String id;
 
+    // --- Identification ---
+    // ID tài khoản nếu là người trong hệ thống (Giảng viên/Sinh viên IUH)
+    private String presenterAccountId;
+
+    @Column(nullable = false)
+    private String fullName;
+
+    @Column(nullable = false)
+    private String email;
+
+    private String phone;
+
+    private String avatarUrl; // Ảnh đại diện của diễn giả
+
+    // --- Professional Info ---
+    private String position;   // Chức vụ (Vd: Giám đốc kỹ thuật, PGS.TS)
+    private String department; // Đơn vị công tác (Vd: Khoa CNTT, Google Việt Nam)
+
+    @Column(columnDefinition = "TEXT")
+    private String bio;        // Tiểu sử tóm tắt
+
+    private String linkedInUrl;
+
+    // --- Event Context ---
+    private String session;    // Tên phiên/chủ đề bài nói (Vd: "Ứng dụng AI trong y tế")
+
+    private boolean isDeleted = false; // Cờ đánh dấu đã xóa (soft delete)
+
+    // --- Audit ---
+    @CreationTimestamp
+    @Column(updatable = false)
+    private LocalDateTime assignedAt;
+
+    // --- Relationships ---
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "event_id", nullable = false)
-    @JsonBackReference
+    @JsonIgnore
     private Event event;
-
-    private String fullName;
-    private String email;
-    private String session;
-
-    private String position;
-    private String department;
-
-    @CreationTimestamp
-    private LocalDateTime assignedAt;
 }

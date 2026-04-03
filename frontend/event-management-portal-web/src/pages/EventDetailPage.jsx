@@ -20,11 +20,7 @@ import {
 } from "lucide-react";
 import Header from "../components/common/Header";
 import Footer from "../components/common/Footer";
-import {
-  getEventById,
-  cancelRegistration,
-  getRegistrationQR,
-} from "../api/eventApi";
+import { eventApi } from "../api/eventApi";
 import { motion, AnimatePresence } from "framer-motion";
 import QRCode from "react-qr-code";
 import axios from "axios";
@@ -87,29 +83,15 @@ const EventDetail = () => {
       setIsLoading(true);
 
       try {
-        const token = localStorage.getItem("accessToken");
-        const userStr = localStorage.getItem("user");
-
-        const eventRes = await getEventById(eventId);
-
-        if (!eventRes || !eventRes.data) {
-          console.error("No event data in response");
-          showToast("Không tìm thấy dữ liệu sự kiện", "error");
-          setIsLoading(false);
-          return;
-        }
-
+        // 1. Lấy thông tin sự kiện qua eventApi
+        const eventRes = await eventApi.events.getById(eventId);
         setEvent(eventRes.data);
 
-        if (token && userStr) {
+        // 2. Kiểm tra trạng thái đăng ký (Nếu đã đăng nhập)
+        const token = localStorage.getItem("accessToken");
+        if (token) {
           try {
-            const regRes = await axios.get(
-              `http://localhost:8081/api/registrations/check/${eventId}`,
-              {
-                headers: { Authorization: `Bearer ${token}` },
-              },
-            );
-
+            const regRes = await eventApi.registrations.check(eventId);
             const myRegData = regRes.data;
             if (myRegData) {
               setRegister(myRegData);
@@ -119,29 +101,21 @@ const EventDetail = () => {
               setQrValue(`REG-${myRegData.id}`);
             }
           } catch (regErr) {
-            setIsRegistered(false);
-            if (regErr.response?.status !== 404)
-              console.error("Lỗi check đăng ký:", regErr);
+            if (regErr.response?.status !== 404) console.error(regErr);
           }
         }
       } catch (err) {
-        console.error("Lỗi fetch dữ liệu:", err);
-        console.error("Error details:", err.response?.data);
-        showToast(
-          err.response?.data?.message || "Có lỗi xảy ra khi tải dữ liệu",
-          "error",
-        );
+        showToast(err.response?.data?.message || "Lỗi tải dữ liệu", "error");
       } finally {
         setIsLoading(false);
       }
     };
-
     loadEventData();
   }, [eventId]);
 
   useEffect(() => {
     if (showQRModal && registrationId) {
-      getRegistrationQR(registrationId)
+      eventApi.registrations.getQR(registrationId)
         .then((res) => {
           setQrValue(
             res.data?.qrToken || res.data?.token || `REG-${registrationId}`,
@@ -173,14 +147,7 @@ const EventDetail = () => {
 
     setIsProcessing(true);
     try {
-      const res = await axios.post(
-        `http://localhost:8081/api/registrations/${eventId}`,
-        {},
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        },
-      );
-
+      const res = await eventApi.registrations.register(eventId);
       const newReg = res.data;
       setRegister(newReg);
       setIsRegistered(true);
@@ -224,7 +191,7 @@ const EventDetail = () => {
 
     try {
       const res = await axios.post(
-        `http://localhost:8083/api/draw-entries/${event.luckyDrawId}`,
+        `${import.meta.env.VITE_DRAW_API_URL || API_URL}/draw-entries/${event.luckyDrawId}`,
         {},
         { headers: { Authorization: `Bearer ${token}` } },
       );
@@ -246,7 +213,7 @@ const EventDetail = () => {
     setIsProcessing(true);
     setShowCancelModal(false);
     try {
-      await cancelRegistration(eventId);
+      await eventApi.registrations.cancel(eventId);
 
       setIsRegistered(false);
       setRegister(null);

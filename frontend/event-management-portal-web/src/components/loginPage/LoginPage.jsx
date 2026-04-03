@@ -13,8 +13,8 @@ import {
 import { useNavigate } from "react-router-dom";
 import logo_iuh from "../../assets/images/logo_iuh.png";
 import ErrorNotification from "../notification/ErrorNotification";
-import axios from "axios";
 import Header from "../common/Header";
+import { authApi } from "../../api/authApi";
 
 const LoginPage = () => {
   const navigate = useNavigate();
@@ -56,12 +56,11 @@ const LoginPage = () => {
     e.preventDefault();
     if (isLoading || !validateForm()) return;
 
-    try {
-      const API_LOGIN = `${import.meta.env.VITE_AUTH_API_URL}/auth/login`;
-      const API_PROFILE = `${import.meta.env.VITE_AUTH_API_URL}/profiles/me`;
+    setIsLoading(true);
+    
 
-      // 1. Gọi API Login
-      const loginRes = await axios.post(API_LOGIN, {
+    try {
+      const loginRes = await authApi.login({
         username: formData.username,
         password: formData.password,
       });
@@ -72,13 +71,7 @@ const LoginPage = () => {
         localStorage.setItem("accessToken", accessToken);
         localStorage.setItem("refreshToken", refreshToken);
 
-        // 2. Lấy thông tin profile
-        const profileRes = await axios.get(API_PROFILE, {
-          headers: {
-            Authorization: `Bearer ${accessToken}`,
-          },
-        });
-
+        const profileRes = await authApi.getMyProfile();
         const data = profileRes.data;
 
         const userData = {
@@ -94,13 +87,12 @@ const LoginPage = () => {
         setMessage("Đăng nhập thành công! Đang chuyển hướng...");
         setToastVisible(true);
 
+        // Chuyển hướng dựa trên Role
         setTimeout(() => {
-          if (
-            userData.roles.includes("ADMIN") ||
-            userData.roles.includes("SUPER_ADMIN")
-          ) {
+          const roles = userData.roles;
+          if (roles.includes("ADMIN") || roles.includes("SUPER_ADMIN")) {
             navigate("/admin");
-          } else if (userData.roles.includes("LECTURER")) {
+          } else if (roles.includes("LECTURER")) {
             navigate("/lecturer");
           } else {
             navigate("/");
@@ -110,9 +102,12 @@ const LoginPage = () => {
     } catch (error) {
       console.error("Login Error:", error);
       let errorMsg = "Tên đăng nhập hoặc mật khẩu không chính xác.";
+      
+      // Lấy message lỗi từ backend trả về thông qua Kong
       if (error.response?.data?.message) {
         errorMsg = error.response.data.message;
       }
+      
       setErrorMessage(errorMsg);
       setErrorToastVisible(true);
     } finally {

@@ -1,4 +1,4 @@
-package src.main.identityservice.dto;
+package src.main.identityservice.dto.request;
 
 import lombok.Getter;
 

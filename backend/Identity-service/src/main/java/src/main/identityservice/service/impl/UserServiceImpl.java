@@ -42,12 +42,8 @@ public class UserServiceImpl implements UserService {
         Account account = accountRepository.findById(accountId)
                 .orElseThrow(() -> new RuntimeException("Account not found with id: " + accountId));
 
-        Set<Role> roles = account.getRoles();
-        if (roles == null || roles.isEmpty()) {
-            return List.of();
-        }
-
-        return roles.stream()
+        Role roles = account.getRole();
+        return Set.of(roles).stream()
                 .map(Role::name)
                 .collect(Collectors.toList());
     }
@@ -82,5 +78,12 @@ public class UserServiceImpl implements UserService {
         return users.stream()
                 .map(UserDto::from)
                 .collect(Collectors.toList());
+    }
+
+    @Override
+    public UserDto getUserById(String id) {
+        return userRepository.findById(id)
+                .map(UserDto::from)
+                .orElseThrow(() -> new RuntimeException("User profile not found for ID: " + id));
     }
 }

@@ -5,7 +5,7 @@ import {
   Copy, Clock
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
-import { eventTemplateApi } from "../../api/eventTemplateApi";
+import { contentApi } from '../../api/contentApi' 
 
 const CATEGORY_LABELS = {
   WORKSHOP: "Workshop", SEMINAR: "Hội thảo", COMPETITION: "Cuộc thi",
@@ -71,7 +71,9 @@ const TemplatesPage = () => {
   const fetchTemplates = async (page = currentPage, search = searchTerm) => {
     setLoading(true);
     try {
-      const res = await eventTemplateApi.getAllTemplatesGlobal(search, page, ITEMS_PER_PAGE);
+      // Gọi qua contentApi đã gộp
+      const res = await contentApi.templates.getAll(getOrgId(), search, page, ITEMS_PER_PAGE);
+      
       setTemplates((res.content || []).map(mapTemplate));
       setTotalPages(res.totalPages || 0);
       setTotalElements(res.totalElements || 0);
@@ -116,27 +118,25 @@ const TemplatesPage = () => {
     if (!formData.name.trim()) { showToast("Tên mẫu không được để trống!", "error"); return; }
     setIsSaving(true);
     try {
+      const payload = {
+        templateName: formData.name,
+        description: formData.description,
+        templateType: formData.category,
+        isActive: formData.isActive,
+        organizationId: getOrgId(),
+      };
+
       if (modalMode === "create") {
-        await eventTemplateApi.createTemplate({
-          templateName: formData.name,
-          description: formData.description,
-          organizationId: getOrgId(),
-          templateType: formData.category,
-          isActive: formData.isActive,
-        });
+        // Dùng contentApi thay cho eventTemplateApi
+        await contentApi.templates.create(payload);
         showToast("Tạo mẫu thành công!");
       } else {
-        await eventTemplateApi.updateTemplate(selectedTemplate.id, {
-          templateName: formData.name,
-          description: formData.description,
-          templateType: formData.category,
-          isActive: formData.isActive,
-        });
+        await contentApi.templates.update(selectedTemplate.id, payload);
         showToast("Cập nhật mẫu thành công!");
       }
       setIsModalOpen(false);
       fetchTemplates(currentPage);
-    } catch {
+    } catch (error) {
       showToast("Có lỗi xảy ra!", "error");
     } finally {
       setIsSaving(false);
@@ -145,7 +145,8 @@ const TemplatesPage = () => {
 
   const handleDelete = async () => {
     try {
-      await eventTemplateApi.deleteTemplate(templateToDelete.id);
+      // Dùng contentApi thay cho eventTemplateApi
+      await contentApi.templates.delete(templateToDelete.id);
       showToast("Xóa mẫu thành công!");
       fetchTemplates(currentPage);
       setIsDeleteOpen(false);

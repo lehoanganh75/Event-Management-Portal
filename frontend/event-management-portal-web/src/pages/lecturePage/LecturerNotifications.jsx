@@ -25,7 +25,6 @@ import {
   MessageSquare,
   BarChart3
 } from "lucide-react";
-import notificationApi from "../../api/notificationApi";
 import { motion, AnimatePresence } from "framer-motion";
 
 // Hàm decode JWT

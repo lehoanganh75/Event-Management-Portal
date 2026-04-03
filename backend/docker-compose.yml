@@ -70,11 +70,8 @@ services:
       SPRING_DATASOURCE_URL: jdbc:mariadb://mariadb:3306/analytics_db?createDatabaseIfNotExist=true
       SPRING_DATASOURCE_USERNAME: root
       SPRING_DATASOURCE_PASSWORD: root
-      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
-      SPRING_PROFILES_ACTIVE: prod
     depends_on:
       - mariadb
-      - kafka
     networks:
       - micro-network
 
@@ -84,15 +81,14 @@ services:
     restart: always
     ports:
       - "8082:8082"
+    env_file:
+      - ./Event-service/.env
     environment:
       SPRING_DATASOURCE_URL: jdbc:mariadb://mariadb:3306/event_db?createDatabaseIfNotExist=true
       SPRING_DATASOURCE_USERNAME: root
       SPRING_DATASOURCE_PASSWORD: root
-      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
-      SPRING_PROFILES_ACTIVE: prod
     depends_on:
       - mariadb
-      - kafka
     networks:
       - micro-network
 
@@ -108,10 +104,8 @@ services:
       SPRING_DATASOURCE_URL: jdbc:mariadb://mariadb:3306/identity_db?createDatabaseIfNotExist=true
       SPRING_DATASOURCE_USERNAME: root
       SPRING_DATASOURCE_PASSWORD: root
-      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
     depends_on:
       - mariadb
-      - kafka
     networks:
       - micro-network
 
@@ -121,15 +115,14 @@ services:
     restart: always
     ports:
       - "8084:8084"
+    env_file:
+        - ./Lucky-draw-service/.env
     environment:
       SPRING_DATASOURCE_URL: jdbc:mariadb://mariadb:3306/lucky_draw_db?createDatabaseIfNotExist=true
       SPRING_DATASOURCE_USERNAME: root
       SPRING_DATASOURCE_PASSWORD: root
-      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
-      SPRING_PROFILES_ACTIVE: prod
     depends_on:
       - mariadb
-      - kafka
     networks:
       - micro-network
 
@@ -139,13 +132,12 @@ services:
     restart: always
     ports:
       - "8085:8085"
+    env_file:
+      - ./Notification-service/.env
     environment:
       SPRING_DATA_MONGODB_URI: mongodb://mongodb:27017/notification_db?createDatabaseIfNotExist=true
-      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
-      SPRING_PROFILES_ACTIVE: prod
     depends_on:
-      - mongodb # SỬA LẠI: Đổi sang mongodb
-      - kafka
+      - mongodb
     networks:
       - micro-network
 

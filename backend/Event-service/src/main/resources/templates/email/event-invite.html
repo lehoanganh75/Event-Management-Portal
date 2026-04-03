@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>Lời mời tham gia Sự kiện</title>
+    <style>
+        body { margin: 0; padding: 0; background-color: #f4f7f6; }
+        .container { font-family: 'Segoe UI', Arial, sans-serif; max-width: 600px; margin: 20px auto; padding: 0; background-color: #ffffff; border: 1px solid #e0e0e0; border-radius: 12px; overflow: hidden; }
+        .header { background-color: #2563eb; color: white; padding: 30px 20px; text-align: center; }
+        .header h2 { margin: 0; font-size: 24px; text-transform: uppercase; letter-spacing: 1px; }
+        .content { padding: 30px; line-height: 1.6; color: #334155; }
+        .event-box { background-color: #f8fafc; border-left: 4px solid #2563eb; padding: 15px; margin: 20px 0; border-radius: 4px; }
+        .event-info { margin-bottom: 8px; font-weight: bold; }
+        .button-wrapper { text-align: center; margin: 30px 0; }
+        .button { display: inline-block; padding: 14px 32px; background-color: #2563eb; color: #ffffff !important; text-decoration: none; border-radius: 6px; font-weight: bold; box-shadow: 0 4px 6px -1px rgba(37, 99, 235, 0.2); }
+        .url-text { font-size: 11px; color: #94a3b8; word-break: break-all; margin-top: 10px; text-align: center; }
+        .footer { font-size: 12px; color: #64748b; padding: 20px; text-align: center; background-color: #f1f5f9; border-top: 1px solid #e2e8f0; }
+        .warning { color: #dc2626; font-weight: bold; font-size: 14px; text-align: center; }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="header">
+        <h2>THƯ MỜI THAM GIA SỰ KIỆN</h2>
+    </div>
+    <div class="content">
+        <p>Xin chào <strong><span th:text="${fullName}">Sinh viên</span></strong>,</p>
+
+        <p>Ban tổ chức trân trọng kính mời bạn tham gia sự kiện sắp tới trên hệ thống <strong>IUH Event Management</strong>.</p>
+
+        <div class="event-box">
+            <div class="event-info">📌 Sự kiện: <span th:text="${eventName}">Tên sự kiện</span></div>
+        </div>
+
+        <p>Để xác nhận sự hiện diện của bạn và nhận mã vé (QR Code), vui lòng nhấn vào nút xác nhận bên dưới:</p>
+
+        <div class="button-wrapper">
+            <a th:href="${inviteUrl}" class="button">XÁC NHẬN THAM GIA</a>
+        </div>
+
+        <p class="warning">⚠️ Lưu ý: Link xác nhận này sẽ hết hạn sau 30 giây kể từ khi email được gửi đi.</p>
+
+        <div class="url-text">
+            Nếu nút trên không hoạt động, bạn có thể copy link sau: <br/>
+            <span th:text="${inviteUrl}">http://link-xac-nhan</span>
+        </div>
+    </div>
+    <div class="footer">
+        <p>Đây là email tự động, vui lòng không phản hồi email này.</p>
+        <p>&copy; 2026 IUH Event Management System Team</p>
+    </div>
+</div>
+</body>
+</html>

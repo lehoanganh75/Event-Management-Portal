@@ -63,8 +63,6 @@ public class PlanResponseDto {
         dto.setEndTime(event.getEndTime() != null ? event.getEndTime().toString() : null);
         dto.setRegistrationDeadline(event.getRegistrationDeadline() != null ? event.getRegistrationDeadline().toString() : null);
         dto.setLocation(event.getLocation());
-        dto.setFaculty(event.getFaculty());
-        dto.setMajor(event.getMajor());
         dto.setType(event.getType() != null ? event.getType().name() : null);
         dto.setEventMode(event.getEventMode());
         dto.setMaxParticipants(event.getMaxParticipants());
@@ -88,9 +86,9 @@ public class PlanResponseDto {
 
 
         dto.setTargetObjects(event.getTargetObjects());
-        dto.setPresentersList(event.getPresenters());
-        dto.setOrganizersList(event.getOrganizers());
-        dto.setParticipantsList(event.getParticipants());
+//        dto.setPresentersList(event.getPresenters());
+//        dto.setOrganizersList(event.getOrganizers());
+//        dto.setParticipantsList(event.getParticipants());
 
         if (approver != null) {
             dto.setApprovedByName(approver.getFullName());

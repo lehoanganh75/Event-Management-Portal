@@ -1,134 +1,88 @@
-import axios from "axios";
+import axiosClient from "./axiosClient";
+import { API_ENDPOINTS } from "../configs/api.config";
 
-const BASE_URL ="http://localhost:8084/api/v1";
+export const notificationApi = {
+    // 1. NHÓM LẤY DỮ LIỆU (GET)
+    get: {
+        // Cho Admin: Lấy tất cả thông báo hệ thống
+        allForAdmin: () => 
+            axiosClient.get(`${API_ENDPOINTS.NOTIFICATIONS}/admin/all`),
 
-const API_BASE_URL = `${BASE_URL}/notifications`;
+        // Cho User: Lấy thông báo theo ID người dùng
+        byUser: (userId) => 
+            axiosClient.get(`${API_ENDPOINTS.NOTIFICATIONS}/user/${userId}`),
 
-const notificationApi = {
-  getNotificationsByUser: (userId) => {
-    return axios.get(`${API_BASE_URL}/user/${userId}`);
-  },
+        // Lấy phân trang
+        paged: (userId, page = 0, size = 20) => 
+            axiosClient.get(`${API_ENDPOINTS.NOTIFICATIONS}/user/${userId}/paged`, {
+                params: { page, size }
+            }),
 
-  getNotificationsPaged: (userId, page = 0, size = 20) => {
-    return axios.get(`${API_BASE_URL}/user/${userId}/paged`, {
-      params: { page, size }
-    });
-  },
+        unreadCount: (userId) => 
+            axiosClient.get(`${API_ENDPOINTS.NOTIFICATIONS}/user/${userId}/unread-count`),
 
-  getUnreadNotifications: (userId) => {
-    return axios.get(`${API_BASE_URL}/user/${userId}/unread`);
-  },
+        byId: (id) => 
+            axiosClient.get(`${API_ENDPOINTS.NOTIFICATIONS}/${id}`),
+        
+        recent: (userId, limit = 5) => 
+            axiosClient.get(`${API_ENDPOINTS.NOTIFICATIONS}/user/${userId}/recent`, {
+                params: { limit }
+            }),
+            
+        stats: (userId) => 
+            axiosClient.get(`${API_ENDPOINTS.NOTIFICATIONS}/user/${userId}/stats`),
+    },
 
-  getUnreadCount: (userId) => {
-    return axios.get(`${API_BASE_URL}/user/${userId}/unread-count`);
-  },
+    // 2. NHÓM HÀNH ĐỘNG/CẬP NHẬT (PATCH)
+    actions: {
+        markAsRead: (id) => 
+            axiosClient.patch(`${API_ENDPOINTS.NOTIFICATIONS}/${id}/read`),
 
-  getRecentNotifications: (userId, limit = 5) => {
-    return axios.get(`${API_BASE_URL}/user/${userId}/recent`, {
-      params: { limit }
-    });
-  },
+        markBatchRead: (ids) => 
+            axiosClient.patch(`${API_ENDPOINTS.NOTIFICATIONS}/read-batch`, ids),
 
-  getNotificationsByType: (userId, type) => {
-    return axios.get(`${API_BASE_URL}/user/${userId}/type/${type}`);
-  },
+        markAllRead: (userId) => 
+            // Nếu admin gọi thì không cần userId, nếu user gọi thì cần theo endpoint backend
+            axiosClient.patch(`${API_ENDPOINTS.NOTIFICATIONS}/user/${userId}/read-all`),
+            
+        markAllReadAdmin: () => 
+            axiosClient.patch(`${API_ENDPOINTS.NOTIFICATIONS}/read-all`),
+    },
 
-  getNotificationsByDateRange: (userId, startDate, endDate) => {
-    return axios.get(`${API_BASE_URL}/user/${userId}/date-range`, {
-      params: { startDate, endDate }
-    });
-  },
+    // 3. NHÓM TẠO MỚI (POST)
+    create: {
+        // Gửi thông báo (Admin dùng để broadcast hoặc gửi cụ thể)
+        send: (payload) => {
+            // Loại bỏ các field rỗng để payload sạch hơn
+            const cleanPayload = Object.fromEntries(
+                Object.entries(payload).filter(([_, v]) => v !== null && v !== undefined && v !== "")
+            );
+            return axiosClient.post(`${API_ENDPOINTS.NOTIFICATIONS}/send`, cleanPayload);
+        },
 
-  searchNotifications: (userId, keyword) => {
-    return axios.get(`${API_BASE_URL}/user/${userId}/search`, {
-      params: { keyword }
-    });
-  },
+        bulk: (request) => 
+            axiosClient.post(`${API_ENDPOINTS.NOTIFICATIONS}/bulk`, request),
+        
+        realtime: (request) => 
+            axiosClient.post(`${API_ENDPOINTS.NOTIFICATIONS}/realtime`, request),
+    },
 
-  getNotificationStats: (userId) => {
-    return axios.get(`${API_BASE_URL}/user/${userId}/stats`);
-  },
+    // 4. NHÓM XÓA (DELETE)
+    delete: {
+        byId: (id) => 
+            axiosClient.delete(`${API_ENDPOINTS.NOTIFICATIONS}/${id}`),
 
-  hasUnreadNotifications: (userId) => {
-    return axios.get(`${API_BASE_URL}/user/${userId}/has-unread`);
-  },
+        batch: (ids) => 
+            axiosClient.delete(`${API_ENDPOINTS.NOTIFICATIONS}/batch`, { data: ids }),
 
-  getNotificationById: (id) => {
-    return axios.get(`${API_BASE_URL}/${id}`);
-  },
-
-  exportNotifications: (userId) => {
-    return axios.get(`${API_BASE_URL}/user/${userId}/export`);
-  },
-
-  markAsRead: (notificationId) => {
-    return axios.patch(`${API_BASE_URL}/${notificationId}/read`);
-  },
-
-  markMultipleAsRead: (notificationIds) => {
-    return axios.patch(`${API_BASE_URL}/read-batch`, notificationIds);
-  },
-
-  markAllAsRead: (userId) => {
-    return axios.patch(`${API_BASE_URL}/user/${userId}/read-all`);
-  },
-
-  createNotification: (notificationData) => {    
-    const payload = {
-      userProfileId: notificationData.userProfileId,
-      type: notificationData.type,
-      title: notificationData.title?.substring(0, 255),
-      message: notificationData.message,
-      relatedEntityId: notificationData.relatedEntityId,
-      relatedEntityType: notificationData.relatedEntityType,
-      actionUrl: notificationData.actionUrl,
-      priority: notificationData.priority
-    };
-    
-    Object.keys(payload).forEach(key => {
-      if (payload[key] === undefined || payload[key] === null || payload[key] === "") {
-        delete payload[key];
-      }
-    });
-    
-    return axios.post(`${API_BASE_URL}`, payload)
-      .then(response => {
-        return response;
-      })
-      .catch(error => {
-        throw error;
-      });
-  },
-
-  sendBulkNotification: (request) => {
-    return axios.post(`${API_BASE_URL}/bulk`, request);
-  },
-
-  sendRealtimeNotification: (request) => {
-    return axios.post(`${API_BASE_URL}/realtime`, request);
-  },
-
-  deleteNotification: (notificationId) => {
-    return axios.delete(`${API_BASE_URL}/${notificationId}`);
-  },
-
-  deleteMultipleNotifications: (notificationIds) => {
-    return axios.delete(`${API_BASE_URL}/batch`, { data: notificationIds });
-  },
-
-  deleteAllNotifications: (userId) => {
-    return axios.delete(`${API_BASE_URL}/user/${userId}`);
-  },
-
-  cleanupOldNotifications: (daysToKeep = 30) => {
-    return axios.delete(`${API_BASE_URL}/cleanup`, {
-      params: { daysToKeep }
-    });
-  },
-
-  getAllNotifications: () => {
-    return axios.get(`${API_BASE_URL}/admin/all`);
-  },
+        allByUser: (userId) => 
+            axiosClient.delete(`${API_ENDPOINTS.NOTIFICATIONS}/user/${userId}`),
+        
+        cleanup: (daysToKeep = 30) => 
+            axiosClient.delete(`${API_ENDPOINTS.NOTIFICATIONS}/cleanup`, {
+                params: { daysToKeep }
+            }),
+    }
 };
 
 export default notificationApi;

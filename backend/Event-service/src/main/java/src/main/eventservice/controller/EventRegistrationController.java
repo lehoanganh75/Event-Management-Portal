@@ -17,7 +17,7 @@ import java.util.Map;
 import java.util.Optional;
 
 @RestController
-@RequestMapping("/api/registrations")
+@RequestMapping("/registrations")
 @RequiredArgsConstructor
 public class EventRegistrationController {
     private final EventRegistrationService registrationService;

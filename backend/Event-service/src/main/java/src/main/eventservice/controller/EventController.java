@@ -25,59 +25,60 @@ import src.main.eventservice.service.EventService;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 @RestController
-@RequestMapping("/api/events")
+@RequestMapping("/events")
 @RequiredArgsConstructor
 @Slf4j
 public class EventController {
-
     private final EventService eventService;
     private final EventPresenterService presenterService;
     private final EventParticipantService participantService;
     private final EventOrganizerService organizerService;
+
+    // 1. Dành cho Sinh viên/Người dùng (Chỉ lấy sự kiện chưa xóa)
+    @GetMapping
+    public ResponseEntity<List<Event>> getAllActiveEvents() {
+        return ResponseEntity.ok(eventService.findAllActive());
+    }
+
+    @GetMapping("/all")
+    public ResponseEntity<List<Event>> getAllEvents() {
+        return ResponseEntity.ok(eventService.findAll());
+    }
 
     @GetMapping("/featured")
     public ResponseEntity<List<Event>> getFeaturedEvents() {
         return ResponseEntity.ok(eventService.getFeaturedEvents());
     }
 
-    @GetMapping
-    public ResponseEntity<List<Event>> getAllEvents() {
-        return ResponseEntity.ok(eventService.getAllEvents());
+    @GetMapping("/{id}")
+    public ResponseEntity<Optional<Event>> getEventByIdForUser(@PathVariable String id) {
+        return ResponseEntity.ok(eventService.getEventById(id));
     }
 
-    @GetMapping("/{id}")
-    public ResponseEntity<Event> getEventById(@PathVariable String id) {
-        return eventService.getEventById(id)
-                .map(ResponseEntity::ok)
-                .orElse(ResponseEntity.notFound().build());
+    @GetMapping("/admin/{id}")
+    public ResponseEntity<Optional<Event>> getEventByIdForAdmin(@PathVariable String id) {
+        return ResponseEntity.ok(eventService.findById(id));
     }
 
     @GetMapping("/my-events")
-    public ResponseEntity<List<PlanResponseDto>> getMyEvents(@AuthenticationPrincipal Jwt jwt) {
-        String accountId = jwt.getClaimAsString("accountId");
+    public ResponseEntity<List<Event>> getMyEvents(@AuthenticationPrincipal Jwt jwt) {
+        String accountId = jwt.getSubject();
         return ResponseEntity.ok(eventService.getEventsByAccountId(accountId));
     }
 
     @GetMapping("/my-events/this-month")
     public ResponseEntity<List<Event>> getMyEventsThisMonth(@AuthenticationPrincipal Jwt jwt) {
-        String accountId = jwt.getClaimAsString("accountId");
+        String accountId = jwt.getSubject();
         return ResponseEntity.ok(eventService.getMyEventsByAccountAndMonth(accountId));
     }
 
     @GetMapping("/by-statuses")
     public ResponseEntity<List<Event>> getEventsByStatuses(@RequestParam List<String> statuses) {
-        try {
-            List<EventStatus> statusList = statuses.stream()
-                    .map(s -> EventStatus.valueOf(s.trim().toUpperCase()))
-                    .collect(Collectors.toList());
-
-            return ResponseEntity.ok(eventService.getEventsByStatuses(statusList));
-        } catch (IllegalArgumentException e) {
-            return ResponseEntity.badRequest().build();
-        }
+        return ResponseEntity.ok(eventService.getEventsByStatuses(statuses));
     }
 
     @GetMapping("/plans")
@@ -128,7 +129,9 @@ public class EventController {
     public ResponseEntity<?> createPlan(@Valid @RequestBody PlanCreateRequest request) {
         try {
             Event event = new Event();
-            event.setOrganizationId(request.getOrganizationId());
+
+            EventOrganizer eventOrganizer = new EventOrganizer();
+            eventOrganizer.setFullName(request.getOrganizationId());
 
             String title = request.getTitle();
             if (title == null || title.trim().isEmpty()) {
@@ -147,65 +150,60 @@ public class EventController {
             event.setMaxParticipants(request.getMaxParticipants());
             event.setFinalized(request.isFinalized());
             event.setArchived(request.isArchived());
-            event.setFaculty(request.getFaculty());
-            event.setMajor(request.getMajor());
             event.setRecipients(request.getRecipients());
             event.setNotes(request.getNotes());
-            event.setTemplateId(request.getTemplateId());
             event.setCustomFieldsJson(request.getCustomFieldsJson());
             event.setCreatedByAccountId(request.getCreatedByAccountId());
             event.setTargetObjects(request.getTargetObjects());
 
-            if (request.getPresenters() != null) {
-                log.info("Converting {} presenters", request.getPresenters().size());
-                List<EventPresenter> presenters = request.getPresenters().stream()
-                        .map(dto -> {
-                            EventPresenter p = new EventPresenter();
-                            p.setFullName(dto.getFullName());
-                            p.setEmail(dto.getEmail());
-                            p.setPosition(dto.getPosition());
-                            p.setDepartment(dto.getDepartment());
-                            p.setSession(dto.getSession());
-                            return p;
-                        })
-                        .collect(Collectors.toList());
-                event.setPresenters(presenters);
-            }
+//            if (request.getPresenters() != null) {
+//                log.info("Converting {} presenters", request.getPresenters().size());
+//                List<EventPresenter> presenters = request.getPresenters().stream()
+//                        .map(dto -> {
+//                            EventPresenter p = new EventPresenter();
+//                            p.setFullName(dto.getFullName());
+//                            p.setEmail(dto.getEmail());
+//                            p.setPosition(dto.getPosition());
+//                            p.setDepartment(dto.getDepartment());
+//                            p.setSession(dto.getSession());
+//                            return p;
+//                        })
+//                        .collect(Collectors.toList());
+//                event.setPresenters(presenters);
+//            }
 
-            if (request.getOrganizers() != null) {
-                log.info("Converting {} organizers", request.getOrganizers().size());
-                List<EventOrganizer> organizers = request.getOrganizers().stream()
-                        .map(dto -> {
-                            EventOrganizer o = new EventOrganizer();
-                            o.setFullName(dto.getFullName());
-                            o.setEmail(dto.getEmail());
-                            o.setPosition(dto.getPosition());
-                            o.setDepartment(dto.getDepartment());
-                            o.setRole(dto.getRole());
-                            return o;
-                        })
-                        .collect(Collectors.toList());
-                event.setOrganizers(organizers);
-            }
+//            if (request.getOrganizers() != null) {
+//                log.info("Converting {} organizers", request.getOrganizers().size());
+//                List<EventOrganizer> organizers = request.getOrganizers().stream()
+//                        .map(dto -> {
+//                            EventOrganizer o = new EventOrganizer();
+//                            o.setFullName(dto.getFullName());
+//                            o.setEmail(dto.getEmail());
+//                            o.setPosition(dto.getPosition());
+//                            o.setRole(dto.getRole());
+//                            return o;
+//                        })
+//                        .collect(Collectors.toList());
+//                event.setOrganizers(organizers);
+//            }
 
-            if (request.getParticipants() != null) {
-                log.info("Converting {} participants", request.getParticipants().size());
-                List<EventParticipant> participants = request.getParticipants().stream()
-                        .map(dto -> {
-                            EventParticipant p = new EventParticipant();
-                            p.setFullName(dto.getFullName());
-                            p.setEmail(dto.getEmail());
-                            p.setTitle(dto.getTitle());
-                            p.setPosition(dto.getPosition());
-                            p.setDepartment(dto.getDepartment());
-                            p.setOrganization(dto.getOrganization());
-                            p.setCode(dto.getCode());
-                            p.setNotes(dto.getNotes());
-                            return p;
-                        })
-                        .collect(Collectors.toList());
-                event.setParticipants(participants);
-            }
+//            if (request.getParticipants() != null) {
+//                log.info("Converting {} participants", request.getParticipants().size());
+//                List<EventParticipant> participants = request.getParticipants().stream()
+//                        .map(dto -> {
+//                            EventParticipant p = new EventParticipant();
+//                            p.setFullName(dto.getFullName());
+//                            p.setEmail(dto.getEmail());
+//                            p.setTitle(dto.getTitle());
+//                            p.setPosition(dto.getPosition());
+//                            p.setDepartment(dto.getDepartment());
+//                            p.setOrganization(dto.getOrganization());
+//                            p.setNotes(dto.getNotes());
+//                            return p;
+//                        })
+//                        .collect(Collectors.toList());
+//                event.setParticipants(participants);
+//            }
 
             event.setStatus(EventStatus.DRAFT);
 
@@ -494,5 +492,26 @@ public class EventController {
         src.main.eventservice.entity.enums.OrganizerRole organizerRole =
                 src.main.eventservice.entity.enums.OrganizerRole.valueOf(role.toUpperCase());
         return ResponseEntity.ok(organizerService.updateOrganizerRole(organizerId, organizerRole));
+    }
+
+    @PostMapping("/{eventId}/invite")
+    public ResponseEntity<Map<String, String>> inviteParticipants(
+            @PathVariable String eventId,
+            @RequestBody List<String> inviteeIds,
+            @AuthenticationPrincipal Jwt jwt
+    ) {
+        String organizerId = jwt.getSubject();
+        Map<String, String> response = eventService.invitateParticipants(eventId, organizerId, inviteeIds);
+        return ResponseEntity.ok(response);
+    }
+
+    @GetMapping("/{eventId}/accept-invite")
+    public ResponseEntity<Map<String, String>> acceptInvite(
+            @PathVariable String eventId,
+            @RequestParam String token) {
+
+        log.info("Xác nhận lời mời cho sự kiện: {} với token: {}", eventId, token);
+        Map<String, String> response = eventService.acceptInvite(eventId, token);
+        return ResponseEntity.ok(response);
     }
 }

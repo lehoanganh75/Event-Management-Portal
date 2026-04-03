@@ -1,26 +1,38 @@
 package src.main.eventservice.service.impl;
 
+import jakarta.mail.MessagingException;
+import jakarta.mail.internet.MimeMessage;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.http.HttpStatus;
+import org.springframework.mail.javamail.JavaMailSender;
+import org.springframework.mail.javamail.MimeMessageHelper;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
+import org.springframework.util.StringUtils;
+import org.springframework.web.server.ResponseStatusException;
+import org.thymeleaf.context.Context;
+import org.thymeleaf.spring6.SpringTemplateEngine;
 import src.main.eventservice.client.IdentityServiceClient;
+import src.main.eventservice.constant.RedisConstant;
 import src.main.eventservice.dto.PlanResponseDto;
 import src.main.eventservice.dto.UserDto;
-import src.main.eventservice.entity.Event;
-import src.main.eventservice.entity.EventOrganizer;
-import src.main.eventservice.entity.EventParticipant;
-import src.main.eventservice.entity.EventPresenter;
+import src.main.eventservice.entity.*;
 import src.main.eventservice.entity.enums.EventStatus;
+import src.main.eventservice.entity.enums.OrganizerRole;
 import src.main.eventservice.entity.enums.ParticipationStatus;
+import src.main.eventservice.entity.enums.RecapStatus;
 import src.main.eventservice.repository.*;
 import src.main.eventservice.service.EventService;
 
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.*;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -28,80 +40,69 @@ import java.util.stream.Stream;
 @RequiredArgsConstructor
 @Slf4j
 public class EventServiceImpl implements EventService {
-
     private final EventRepository eventRepository;
     private final EventTemplateRepository eventTemplateRepository;
     private final IdentityServiceClient identityClient;
     private final EventPresenterRepository presenterRepository;
     private final EventOrganizerRepository organizerRepository;
     private final EventParticipantRepository participantRepository;
+    private final EventRegistrationRepository registrationRepository;
+    private final EventInvitationRepository invitationRepository;
 
+    private final StringRedisTemplate redisTemplate;
+
+    private final JavaMailSender mailSender;
+    private final SpringTemplateEngine templateEngine;
+
+    // Lấy tất cả sự kiện đang hoạt động (không bao gồm kế hoạch và sự kiện đã xóa) - dùng cho người dùng cuối
     @Override
-    public List<Event> getAllEvents() {
-        List<EventStatus> statuses = List.of(
-                EventStatus.EVENT_PENDING_APPROVAL,
-                EventStatus.PUBLISHED,
-                EventStatus.ONGOING,
-                EventStatus.COMPLETED,
-                EventStatus.CANCELLED
-        );
-        List<Event> events = eventRepository.findByStatusInAndIsDeletedFalseOrderByStartTimeDesc(statuses);
-
-        for (Event event : events) {
-            List<EventPresenter> presenters = presenterRepository.findByEventId(event.getId());
-            List<EventOrganizer> organizers = organizerRepository.findByEventId(event.getId());
-            List<EventParticipant> participants = participantRepository.findByEventId(event.getId());
-
-            event.setPresenters(presenters);
-            event.setOrganizers(organizers);
-            event.setParticipants(participants);
-
-            enrichEventWithRegistrationCount(event);
-        }
-
+    public List<Event> findAllActive() {
+        List<Event> events = eventRepository.findByStatusInAndIsDeletedFalseOrderByStartTimeDesc(
+                List.of(EventStatus.EVENT_PENDING_APPROVAL, EventStatus.PUBLISHED, EventStatus.ONGOING, EventStatus.COMPLETED));
         return events;
     }
 
+    // Lấy tất cả sự kiện (bao gồm cả kế hoạch và sự kiện đã xóa) - dùng cho admin
+    @Override
+    public List<Event> findAll() {
+        return eventRepository.findByStatusInAndIsDeletedFalseOrderByStartTimeDesc(
+                List.of(EventStatus.DRAFT, EventStatus.PLAN_PENDING_APPROVAL, EventStatus.PLAN_APPROVED,
+                        EventStatus.EVENT_PENDING_APPROVAL, EventStatus.PUBLISHED, EventStatus.ONGOING,
+                        EventStatus.COMPLETED, EventStatus.CANCELLED));
+    }
+
+    // Lấy sự kiện nổi bật nhất dựa trên số lượng người đăng ký, đánh giá, bài viết liên quan, thời gian diễn ra, v.v. - dùng cho trang chủ
     @Override
     public List<Event> getFeaturedEvents() {
-        List<EventStatus> statuses = List.of(
-                EventStatus.PUBLISHED,
-                EventStatus.ONGOING,
-                EventStatus.COMPLETED
-        );
-        List<Event> candidates = eventRepository.findByStatusInAndIsDeletedFalse(statuses);
+        List<Event> events = eventRepository.findByStatusInAndIsDeletedFalseOrderByStartTimeDesc(
+                List.of(EventStatus.PUBLISHED, EventStatus.ONGOING, EventStatus.COMPLETED));
         LocalDateTime now = LocalDateTime.now();
 
-        candidates.forEach(this::enrichEventWithRegistrationCount);
+        events.forEach(this::enrichEventWithRegistrationCount);
 
-        return candidates.stream()
+        return events.stream()
                 .sorted(Comparator.comparingDouble(e -> -calculateScore(e, now)))
                 .limit(6)
                 .collect(Collectors.toList());
     }
 
+    // Lấy chi tiết sự kiện theo ID, bao gồm cả thông tin đã xóa (nếu có) - dùng cho admin
     @Override
     public Optional<Event> findById(String id) {
-        Optional<Event> eventOpt = eventRepository.findById(id);
-        eventOpt.ifPresent(this::enrichEventWithRegistrationCount);
-        return eventOpt;
+        Optional<Event> events = eventRepository.findById(id);
+        events.ifPresent(this::enrichEventWithRegistrationCount);
+        return events;
     }
 
+    // Lấy chi tiết sự kiện theo ID, chỉ khi sự kiện chưa bị xóa - dùng cho người dùng cuối
     @Override
+    @Transactional
     public Optional<Event> getEventById(String id) {
-        Optional<Event> eventOpt = eventRepository.findById(id);
-        eventOpt.ifPresent(event -> {
-            List<EventPresenter> presenters = presenterRepository.findByEventId(event.getId());
-            List<EventOrganizer> organizers = organizerRepository.findByEventId(event.getId());
-            List<EventParticipant> participants = participantRepository.findByEventId(event.getId());
-
-            event.setPresenters(presenters);
-            event.setOrganizers(organizers);
-            event.setParticipants(participants);
-
-            enrichEventWithRegistrationCount(event);
-        });
-        return eventOpt;
+        return eventRepository.findByIdAndIsDeletedFalse(id)
+                .map(event -> {
+                    enrichEventWithRegistrationCount(event);
+                    return event;
+                });
     }
 
     private void enrichEventWithRegistrationCount(Event event) {
@@ -138,12 +139,87 @@ public class EventServiceImpl implements EventService {
         return score;
     }
 
+    // Lấy tất cả kế hoạch của tôi dựa trên accountId - dùng cho trang cá nhân
+    @Override
+    public List<Event> getEventsByAccountId(String accountId) {
+        List<EventStatus> statuses = List.of(
+                EventStatus.EVENT_PENDING_APPROVAL, EventStatus.PUBLISHED,
+                EventStatus.ONGOING, EventStatus.COMPLETED, EventStatus.CANCELLED);
+
+        // 1. Lấy toàn bộ Events cùng với các list liên quan (đã dùng EntityGraph ở Repo)
+        List<Event> events = eventRepository.findByStatusInAndIsDeletedFalseAndCreatedByAccountId(statuses, accountId);
+
+        if (events.isEmpty()) return Collections.emptyList();
+
+        // Lấy số lượng người đăng ký cho mỗi event
+        events.forEach(this::enrichEventWithRegistrationCount);
+
+        // Thu thập ID người dùng để gọi Identity Service 1 lần duy nhất
+        Set<String> userIds = events.stream()
+                .flatMap(e -> Stream.of(e.getCreatedByAccountId(), e.getApprovedByAccountId()))
+                .filter(StringUtils::hasText)
+                .collect(Collectors.toSet());
+
+        Map<String, UserDto> userMap = fetchUserMap(userIds);
+
+        // 3. Map thông tin User vào Entity
+        events.forEach(event -> {
+            event.setCreator(userMap.get(event.getCreatedByAccountId()));
+            event.setApprover(userMap.get(event.getApprovedByAccountId()));
+        });
+
+        // 4. Sắp xếp và Map sang DTO
+        return events.stream()
+                .sorted(Comparator.comparing(Event::getStartTime, Comparator.nullsLast(Comparator.reverseOrder())))
+                .collect(Collectors.toList());
+    }
+
+    // Lấy tất cả sự kiện của tôi trong tháng hiện tại dựa trên accountId - dùng cho trang cá nhân
     @Override
     public List<Event> getMyEventsByAccountAndMonth(String accountId) {
-        LocalDateTime start = LocalDateTime.now()
+        // 1. Tính toán khoảng thời gian đầu tháng và cuối tháng
+        LocalDateTime startOfMonth = LocalDateTime.now()
                 .withDayOfMonth(1).withHour(0).withMinute(0).withSecond(0).withNano(0);
-        return eventRepository.findByCreatedByAccountIdAndCreatedAtBetweenAndIsDeletedFalse(
-                accountId, start, start.plusMonths(1));
+        LocalDateTime endOfMonth = startOfMonth.plusMonths(1).minusNanos(1);
+
+        // 2. Lấy danh sách events (đã kèm theo presenters, organizers, participants qua EntityGraph)
+        List<Event> events = eventRepository.findByCreatedByAccountIdAndCreatedAtBetweenAndIsDeletedFalse(
+                accountId, startOfMonth, endOfMonth);
+
+        if (events.isEmpty()) return Collections.emptyList();
+
+        // 3. Bổ sung số lượng người đăng ký cho mỗi event
+        events.forEach(this::enrichEventWithRegistrationCount);
+
+        // 4. Thu thập ID và gọi Identity Service để lấy thông tin User (Creator/Approver)
+        Set<String> userIds = events.stream()
+                .flatMap(e -> Stream.of(e.getCreatedByAccountId(), e.getApprovedByAccountId()))
+                .filter(StringUtils::hasText)
+                .collect(Collectors.toSet());
+
+        Map<String, UserDto> userMap = fetchUserMap(userIds);
+
+        // 5. Gán thông tin User vào từng Entity Event (@Transient fields)
+        events.forEach(event -> {
+            event.setCreator(userMap.get(event.getCreatedByAccountId()));
+            event.setApprover(userMap.get(event.getApprovedByAccountId()));
+        });
+
+        // 6. Sắp xếp theo thời gian tạo hoặc thời gian bắt đầu (mới nhất lên đầu)
+        return events.stream()
+                .sorted(Comparator.comparing(Event::getCreatedAt, Comparator.nullsLast(Comparator.reverseOrder())))
+                .collect(Collectors.toList());
+    }
+
+    private Map<String, UserDto> fetchUserMap(Set<String> userIds) {
+        if (userIds.isEmpty()) return Collections.emptyMap();
+        try {
+            return identityClient.getUsersByIds(new ArrayList<>(userIds)).stream()
+                    .collect(Collectors.toMap(UserDto::getId, u -> u, (old, latest) -> old));
+        } catch (Exception e) {
+            log.error("Failed to fetch users from Identity Service", e);
+            return Collections.emptyMap();
+        }
     }
 
     @Override
@@ -200,7 +276,6 @@ public class EventServiceImpl implements EventService {
             existing.setFinalized(eventDetails.isFinalized());
             existing.setArchived(eventDetails.isArchived());
             existing.setApprovedByAccountId(eventDetails.getApprovedByAccountId());
-            existing.setOrganizerUnit(eventDetails.getOrganizerUnit());
             existing.setNotes(eventDetails.getNotes());
             existing.setAdditionalInfo(eventDetails.getAdditionalInfo());
             existing.setCustomFieldsJson(eventDetails.getCustomFieldsJson());
@@ -241,8 +316,18 @@ public class EventServiceImpl implements EventService {
 
     @Override
     @Transactional
-    public List<Event> getEventsByStatuses(List<EventStatus> statuses) {
-        List<Event> events = eventRepository.findByStatusInAndIsDeletedFalseOrderByStartTimeDesc(statuses);
+    public List<Event> getEventsByStatuses(List<String> statuses) {
+        List<EventStatus> eventStatuses = statuses.stream()
+                .map(s -> {
+                    try {
+                        return EventStatus.valueOf(s);
+                    } catch (IllegalArgumentException e) {
+                        throw new RuntimeException("Trạng thái không hợp lệ: " + s);
+                    }
+                })
+                .collect(Collectors.toList());
+
+        List<Event> events = eventRepository.findByStatusInAndIsDeletedFalseOrderByStartTimeDesc(eventStatuses);
         events.forEach(this::enrichEventWithRegistrationCount);
         return events;
     }
@@ -266,10 +351,11 @@ public class EventServiceImpl implements EventService {
     @Override
     public List<Event> getPlansByStatusById(EventStatus status, String accountId) {
         if (!isPlanStatus(status)) throw new IllegalArgumentException("Status không thuộc giai đoạn kế hoạch");
-        List<Event> plans = eventRepository.findByStatusInAndIsDeletedFalseAndCreatedByAccountId(
-                Collections.singletonList(status), accountId);
-        plans.forEach(this::enrichEventWithRegistrationCount);
-        return plans;
+//        Optional<Event> plans = eventRepository.findByStatusInAndIsDeletedFalseAndCreatedByAccountId(
+//                Collections.singletonList(status), accountId);
+//        plans.forEach(this::enrichEventWithRegistrationCount);
+//        return plans;
+        return null;
     }
 
     @Transactional
@@ -285,55 +371,36 @@ public class EventServiceImpl implements EventService {
         event.setDeleted(false);
         if (event.getStatus() == null) event.setStatus(EventStatus.DRAFT);
 
-        if (event.getTemplateId() != null && !event.getTemplateId().trim().isEmpty()) {
-            eventTemplateRepository.findById(event.getTemplateId()).ifPresent(t -> {
-                t.setUsageCount(t.getUsageCount() + 1);
-                eventTemplateRepository.save(t);
-            });
-        }
-
         // ===== LƯU EVENT TRƯỚC =====
         Event savedEvent = eventRepository.save(event);
 
-        // ===== THÊM LOG VÀ LƯU CÁC BẢNG CON =====
-        log.info("========== CREATE PLAN DEBUG ==========");
-        log.info("Saved event ID: {}", savedEvent.getId());
+
 
         // Lưu presenters
         if (event.getPresenters() != null && !event.getPresenters().isEmpty()) {
             for (EventPresenter presenter : event.getPresenters()) {
-                log.info("Before set - Presenter event is null? {}", presenter.getEvent() == null);
                 presenter.setEvent(savedEvent);
-                log.info("After set - Presenter event ID: {}", presenter.getEvent().getId());
                 presenter.setAssignedAt(LocalDateTime.now());
                 presenterRepository.save(presenter);
             }
-            log.info("Đã lưu {} presenters", event.getPresenters().size());
         }
 
         // Lưu organizers
         if (event.getOrganizers() != null && !event.getOrganizers().isEmpty()) {
             for (EventOrganizer organizer : event.getOrganizers()) {
-                log.info("Before set - Organizer event is null? {}", organizer.getEvent() == null);
                 organizer.setEvent(savedEvent);
-                log.info("After set - Organizer event ID: {}", organizer.getEvent().getId());
                 organizer.setAssignedAt(LocalDateTime.now());
                 organizerRepository.save(organizer);
             }
-            log.info("Đã lưu {} organizers", event.getOrganizers().size());
         }
 
         // Lưu participants
         if (event.getParticipants() != null && !event.getParticipants().isEmpty()) {
             for (EventParticipant participant : event.getParticipants()) {
-                log.info("Before set - Participant event is null? {}", participant.getEvent() == null);
                 participant.setEvent(savedEvent);
-                log.info("After set - Participant event ID: {}", participant.getEvent().getId());
-                participant.setRegisteredAt(LocalDateTime.now());
                 participant.setStatus(ParticipationStatus.REGISTERED);
                 participantRepository.save(participant);
             }
-            log.info("Đã lưu {} participants", event.getParticipants().size());
         }
 
         // Lưu targetObjects và recipients (JSON fields)
@@ -346,8 +413,6 @@ public class EventServiceImpl implements EventService {
             savedEvent.setRecipients(event.getRecipients());
             savedEvent = eventRepository.save(savedEvent);
         }
-
-        log.info("=======================================");
 
         return savedEvent;
     }
@@ -432,7 +497,6 @@ public class EventServiceImpl implements EventService {
         newEvent.setLocation(Optional.ofNullable(eventDetails.getLocation()).orElse(plan.getLocation()));
         newEvent.setMaxParticipants(eventDetails.getMaxParticipants() > 0
                 ? eventDetails.getMaxParticipants() : plan.getMaxParticipants());
-        newEvent.setOrganizerUnit(plan.getOrganizerUnit());
         newEvent.setCreatedByAccountId(eventDetails.getCreatedByAccountId());
         newEvent.setStatus(EventStatus.EVENT_PENDING_APPROVAL);
         newEvent.setCreatedAt(LocalDateTime.now());
@@ -516,7 +580,6 @@ public class EventServiceImpl implements EventService {
                         .collect(Collectors.toMap(UserDto::getId, u -> u, (o, n) -> o));
             }
         } catch (Exception e) {
-            log.error("Lỗi khi gọi Identity Service", e);
         }
 
         Map<String, UserDto> finalUserMap = userMap;
@@ -529,97 +592,47 @@ public class EventServiceImpl implements EventService {
 
     @Override
     public List<PlanResponseDto> getPlansByAccountId(String accountId) {
-        List<EventStatus> statuses = List.of(
-                EventStatus.DRAFT, EventStatus.PLAN_PENDING_APPROVAL,
-                EventStatus.PLAN_APPROVED, EventStatus.CANCELLED);
-
-        List<Event> plans = eventRepository.findByStatusInAndIsDeletedFalseAndCreatedByAccountId(statuses, accountId);
-
-        for (Event plan : plans) {
-            List<EventPresenter> presenters = presenterRepository.findByEventId(plan.getId());
-            plan.setPresenters(presenters);
-
-            List<EventOrganizer> organizers = organizerRepository.findByEventId(plan.getId());
-            plan.setOrganizers(organizers);
-
-            List<EventParticipant> participants = participantRepository.findByEventId(plan.getId());
-            plan.setParticipants(participants);
-
-            enrichEventWithRegistrationCount(plan);
-
-            log.info("Plan {} - presenters: {}, organizers: {}, participants: {}, targetObjects: {}",
-                    plan.getId(), presenters.size(), organizers.size(), participants.size(), plan.getTargetObjects());
-        }
-
-        Set<String> userIds = plans.stream()
-                .flatMap(e -> Stream.of(e.getCreatedByAccountId(), e.getApprovedByAccountId()))
-                .filter(Objects::nonNull)
-                .filter(id -> !id.isBlank())
-                .collect(Collectors.toSet());
-
-        Map<String, UserDto> userMap = Collections.emptyMap();
-        try {
-            if (!userIds.isEmpty()) {
-                userMap = identityClient.getUsersByIds(new ArrayList<>(userIds)).stream()
-                        .collect(Collectors.toMap(UserDto::getId, u -> u, (o, n) -> o));
-            }
-        } catch (Exception e) {
-            log.error("Lỗi khi gọi Identity Service", e);
-        }
-
-        Map<String, UserDto> finalUserMap = userMap;
-        return plans.stream()
-                .map(e -> PlanResponseDto.from(e,
-                        finalUserMap.get(e.getCreatedByAccountId()),
-                        finalUserMap.get(e.getApprovedByAccountId())))
-                .collect(Collectors.toList());
-    }
-
-
-    @Override
-    public List<PlanResponseDto> getEventsByAccountId(String accountId) {
-        List<EventStatus> statuses = List.of(
-                EventStatus.EVENT_PENDING_APPROVAL, EventStatus.PUBLISHED,
-                EventStatus.ONGOING, EventStatus.COMPLETED, EventStatus.CANCELLED);
-
-        List<Event> events = eventRepository.findByStatusInAndIsDeletedFalseAndCreatedByAccountId(statuses, accountId);
-
-        for (Event event : events) {
-            List<EventPresenter> presenters = presenterRepository.findByEventId(event.getId());
-            event.setPresenters(presenters);
-
-            List<EventOrganizer> organizers = organizerRepository.findByEventId(event.getId());
-            event.setOrganizers(organizers);
-
-            List<EventParticipant> participants = participantRepository.findByEventId(event.getId());
-            event.setParticipants(participants);
-
-            enrichEventWithRegistrationCount(event);
-        }
-
-        Set<String> userIds = events.stream()
-                .flatMap(e -> Stream.of(e.getCreatedByAccountId(), e.getApprovedByAccountId()))
-                .filter(Objects::nonNull)
-                .filter(id -> !id.isBlank())
-                .collect(Collectors.toSet());
-
-        Map<String, UserDto> userMap = Collections.emptyMap();
-        try {
-            if (!userIds.isEmpty()) {
-                userMap = identityClient.getUsersByIds(new ArrayList<>(userIds)).stream()
-                        .collect(Collectors.toMap(UserDto::getId, u -> u, (o, n) -> o));
-            }
-        } catch (Exception e) {
-            log.error("Lỗi khi gọi Identity Service", e);
-        }
-
-        Map<String, UserDto> finalUserMap = userMap;
-        return events.stream()
-                .sorted(Comparator.comparing(Event::getStartTime, Comparator.nullsLast(Comparator.naturalOrder())).reversed())
-                .map(e -> PlanResponseDto.from(e,
-                        finalUserMap.get(e.getCreatedByAccountId()),
-                        finalUserMap.get(e.getApprovedByAccountId())))
-                .collect(Collectors.toList());
+//        List<EventStatus> statuses = List.of(
+//                EventStatus.DRAFT, EventStatus.PLAN_PENDING_APPROVAL,
+//                EventStatus.PLAN_APPROVED, EventStatus.CANCELLED);
+//
+//        List<Event> plans = eventRepository.findByStatusInAndIsDeletedFalseAndCreatedByAccountId(statuses, accountId);
+//
+//        for (Event plan : plans) {
+//            List<EventPresenter> presenters = presenterRepository.findByEventId(plan.getId());
+//            plan.setPresenters(presenters);
+//
+//            List<EventOrganizer> organizers = organizerRepository.findByEventId(plan.getId());
+//            plan.setOrganizers(organizers);
+//
+//            List<EventParticipant> participants = participantRepository.findByEventId(plan.getId());
+//            plan.setParticipants(participants);
+//
+//            enrichEventWithRegistrationCount(plan);
+//        }
+//
+//        Set<String> userIds = plans.stream()
+//                .flatMap(e -> Stream.of(e.getCreatedByAccountId(), e.getApprovedByAccountId()))
+//                .filter(Objects::nonNull)
+//                .filter(id -> !id.isBlank())
+//                .collect(Collectors.toSet());
+//
+//        Map<String, UserDto> userMap = Collections.emptyMap();
+//        try {
+//            if (!userIds.isEmpty()) {
+//                userMap = identityClient.getUsersByIds(new ArrayList<>(userIds)).stream()
+//                        .collect(Collectors.toMap(UserDto::getId, u -> u, (o, n) -> o));
+//            }
+//        } catch (Exception e) {
+//        }
+//
+//        Map<String, UserDto> finalUserMap = userMap;
+//        return plans.stream()
+//                .map(e -> PlanResponseDto.from(e,
+//                        finalUserMap.get(e.getCreatedByAccountId()),
+//                        finalUserMap.get(e.getApprovedByAccountId())))
+//                .collect(Collectors.toList());
+        return null;
     }
 
     @Override
@@ -665,5 +678,177 @@ public class EventServiceImpl implements EventService {
             case CANCELLED -> cancelEvent(id, null);
             default -> throw new RuntimeException("Trạng thái không hỗ trợ: " + status);
         };
+    }
+
+    @Override
+    public Map<String, String> invitateParticipants(String eventId, String organizerId, List<String> inviteeIds) {
+        // 1. Kiểm tra sự tồn tại của sự kiện
+        Event event = eventRepository.findById(eventId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Sự kiện không tồn tại"));
+
+        // Kiểm tra trạng thái sự kiện
+        if (event.getStatus() != EventStatus.PUBLISHED && event.getStatus() != EventStatus.ONGOING) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Chỉ có thể mời tham gia khi sự kiện đang PUBLISHED hoặc ONGOING");
+        }
+
+        // 2. Kiểm tra organizerId có thuộc Ban tổ chức của eventId này không
+        EventOrganizer eventOrganizer = organizerRepository.findByEventIdAndOrganizerAccountId(eventId, organizerId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.FORBIDDEN, "Bạn không có quyền mời người tham gia cho sự kiện này"));
+
+        // 3. Xác thực danh sách người dùng mục tiêu từ Identity Service
+        List<UserDto> targetUsers = identityClient.getUsersByIds(inviteeIds);
+
+        long expirySeconds = RedisConstant.INVITE_EXPIRY_SECONDS;; // Dùng hằng số đã tạo
+        LocalDateTime expiryDate = LocalDateTime.now().plusSeconds(expirySeconds);
+
+        String inviteToken = UUID.randomUUID().toString();
+
+        // 4. Xử lý Stream để tạo danh sách EventInvitation
+        List<EventInvitation> invitations = targetUsers.stream()
+                .filter(user -> user.getEmail() != null)
+                // Lọc: Không mời người đã có trong BTC
+                .filter(user -> !organizerRepository.existsByEventIdAndAccountId(eventId, user.getId()))
+                // Lọc: (Tùy chọn) Không mời người đang có lời mời PENDING cho event này
+                // .filter(user -> !invitationRepository.existsByEventIdAndInviteeEmailAndStatus(eventId, user.getEmail(), InvitationStatus.PENDING))
+                .map(user -> {
+
+                    // Lưu token vào Redis để check nhanh khi Accept
+                    String redisKey = RedisConstant.EVENT_INVITE_PREFIX + inviteToken;
+                    redisTemplate.opsForValue().set(redisKey, user.getId(), expirySeconds, TimeUnit.SECONDS);
+
+                    return EventInvitation.builder()
+                            .event(event)
+                            .inviterAccountId(organizerId) // Người mời
+                            .inviteeAccountId(user.getId()) // ID người nhận
+                            .inviteeEmail(user.getEmail())   // Email người nhận
+                            // Chú ý: Bạn cần thêm trường fullName vào Entity EventInvitation nếu muốn lưu,
+                            // hoặc dùng message để chứa thông tin này.
+                            .message("Mời tham gia Ban tổ chức sự kiện: " + event.getTitle())
+                            .targetRole(OrganizerRole.MEMBER) // Vai trò dự kiến
+                            .status(RecapStatus.InvitationStatus.PENDING)
+                            .expiredAt(expiryDate)
+                            // .token(inviteToken) // Đảm bảo Entity có trường token nếu muốn lưu DB
+                            .build();
+                })
+                .toList();
+
+        if (invitations.isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Danh sách mời trống hoặc người dùng đã có trong BTC");
+        }
+
+        // 5. Lưu vào bảng event_invitations (Sử dụng invitationRepository)
+        invitationRepository.saveAll(invitations);
+
+        // 6. Gửi Email thông báo (Async)
+        invitations.forEach(invitation -> {
+
+            String inviteUrl = String.format("http://localhost:8082/api/events/%s/accept-invite?token=%s",
+
+                    eventId, inviteToken);
+
+            sendEventInviteEmailAsync(invitation.getInviteeEmail(), inviteUrl, event.getTitle(), invitation.getMessage());
+        });
+
+        return Map.of(
+                "status", "success",
+                "invitedCount", String.valueOf(invitations.size()),
+                "message", "Đã gửi lời mời thành công",
+                "expiresIn", expirySeconds + "s"
+        );
+    }
+
+    @Override
+    @Transactional
+    public Map<String, String> acceptInvite(String eventId, String token) {
+        // 1. Tìm lời mời dựa trên token (Sử dụng invitationRepository)
+        EventInvitation invitation = invitationRepository.findByToken(token)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Lời mời không hợp lệ hoặc không tồn tại"));
+
+        // 2. Bảo mật: Kiểm tra xem lời mời này có thuộc về eventId đang gọi không
+        if (!invitation.getEvent().getId().equals(eventId)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Mã mời này không thuộc về sự kiện hiện tại");
+        }
+
+        // 3. Kiểm tra trạng thái lời mời (Dùng InvitationStatus của bạn)
+        if (invitation.getStatus() == RecapStatus.InvitationStatus.ACCEPTED) {
+            throw new ResponseStatusException(HttpStatus.OK, "Bạn đã chấp nhận lời mời này trước đó rồi");
+        }
+
+        if (invitation.getStatus() != RecapStatus.InvitationStatus.PENDING) {
+            throw new ResponseStatusException(HttpStatus.GONE, "Lời mời này không còn khả dụng");
+        }
+
+        // 4. Kiểm tra hết hạn qua Redis
+        String redisKey = RedisConstant.EVENT_INVITE_PREFIX + token;
+        if (Boolean.FALSE.equals(redisTemplate.hasKey(redisKey))) {
+            invitation.setStatus(RecapStatus.InvitationStatus.REJECTED);
+            invitationRepository.save(invitation);
+            throw new ResponseStatusException(HttpStatus.GONE, "Lời mời đã hết hạn (30 giây). Vui lòng liên hệ Trưởng ban để gửi lại.");
+        }
+
+        // --- MỚI: Lấy Name từ IdentityService dựa trên inviteeAccountId ---
+        String fullName = "Thành viên BTC"; // Default
+        try {
+            // Giả sử identityClient có hàm lấy profile theo 1 ID
+            UserDto userProfile = identityClient.getUsersById(invitation.getInviteeAccountId());
+            if (userProfile != null && userProfile.getFullName() != null) {
+                fullName = userProfile.getFullName();
+            }
+        } catch (Exception e) {
+            log.warn("Không thể lấy profile mới nhất từ Identity Service cho ID: {}, sử dụng tên mặc định", invitation.getInviteeAccountId());
+            // Nếu Identity chết, bạn có thể lấy lại fullName đã lưu trong Invitation (nếu lúc mời có lưu)
+        }
+
+        // 5. CHÍNH THỨC LƯU VÀO EVENT_ORGANIZERS
+        EventOrganizer newOrganizer = EventOrganizer.builder()
+                .event(invitation.getEvent())
+                .accountId(invitation.getInviteeAccountId())
+                .fullName(fullName) // Đảm bảo Entity Invitation có lưu fullName từ Identity
+                .email(invitation.getInviteeEmail())
+                .role(invitation.getTargetRole())   // Lấy Role được chỉ định lúc mời (LEADER, STAFF,...)
+                .assignedAt(LocalDateTime.now())
+                .isDeleted(false)
+                .build();
+
+        organizerRepository.save(newOrganizer);
+
+        // 6. Cập nhật trạng thái lời mời và dọn dẹp Redis
+        invitation.setStatus(RecapStatus.InvitationStatus.ACCEPTED);
+        invitation.setRespondedAt(LocalDateTime.now());
+        invitationRepository.save(invitation);
+
+        redisTemplate.delete(redisKey);
+
+        // 7. Trả về kết quả
+        Map<String, String> response = new HashMap<>();
+        response.put("status", "success");
+        response.put("message", "Chúc mừng! Bạn đã chính thức trở thành thành viên Ban tổ chức.");
+        response.put("role", newOrganizer.getRole().toString());
+        response.put("eventName", invitation.getEvent().getTitle());
+
+        return response;
+    }
+
+    @Async
+    public void sendEventInviteEmailAsync(String targetEmail, String inviteUrl, String eventName, String fullName) {
+        MimeMessage message = mailSender.createMimeMessage();
+        try {
+            MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
+            Context context = new Context();
+            context.setVariable("fullName", fullName);
+            context.setVariable("eventName", eventName);
+            context.setVariable("inviteUrl", inviteUrl);
+
+            // Đảm bảo bạn có file src/main/resources/templates/email/event-invite.html
+            String html = templateEngine.process("email/event-invite", context);
+
+            helper.setTo(targetEmail);
+            helper.setSubject("[IUH EVENT] Lời mời tham gia: " + eventName);
+            helper.setText(html, true);
+
+            mailSender.send(message);
+        } catch (MessagingException e) {
+            log.error("Lỗi gửi mail mời sự kiện: {}", e.getMessage());
+        }
     }
 }

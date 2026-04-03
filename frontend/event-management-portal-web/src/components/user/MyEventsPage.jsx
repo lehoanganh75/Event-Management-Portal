@@ -1,40 +1,15 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import {
-  Calendar,
-  Clock,
-  MapPin,
-  Users,
-  CheckCircle2,
-  QrCode,
-  Loader2,
-  Search,
-  X,
-  ChevronLeft,
-  ChevronRight,
-  CalendarX,
-  ArrowLeft,
-  Ticket,
-  Bell,
+  Calendar, Clock, MapPin, Users, CheckCircle2, QrCode,
+  Loader2, Search, X, ChevronLeft, ChevronRight,
+  CalendarX, ArrowLeft, Ticket, Bell,
 } from "lucide-react";
 import Header from "../common/Header";
-import Footer from "../common/Footer";
-import { getAttendedEvents } from "../../api/eventApi";
 import QRCode from "react-qr-code";
 import { motion, AnimatePresence } from "framer-motion";
-
-const getCurrentAccountId = () => {
-  try {
-    const token = localStorage.getItem("accessToken");
-    if (token) {
-      const payload = JSON.parse(atob(token.split(".")[1]));
-      return payload.accountId || payload.userId || payload.sub || null;
-    }
-    return null;
-  } catch (e) {
-    return null;
-  }
-};
+// SỬA: Import eventApi từ file gộp trung tâm để dùng axiosClient
+import { eventApi } from "../../api/eventApi";
 
 const STATUS_MAP = {
   Registered: {
@@ -85,33 +60,53 @@ const MyEventsPage = () => {
   const [selectedQR, setSelectedQR] = useState(null);
   const [todayEvents, setTodayEvents] = useState([]);
 
+  // 1. Helper lấy User ID từ dữ liệu user đã lưu trong localStorage (không cần decodeJWT)
+  const getUserId = () => {
+    const userData = localStorage.getItem("user");
+    if (userData) {
+      try {
+        const user = JSON.parse(userData);
+        return user.id || user.accountId || user.userId;
+      } catch (e) {
+        return null;
+      }
+    }
+    return null;
+  };
+
   useEffect(() => {
-    const userId = getCurrentAccountId();
+    const userId = getUserId();
     if (!userId) {
       navigate("/login");
       return;
     }
 
-    getAttendedEvents(userId)
-      .then((res) => {
+    const fetchMyEvents = async () => {
+      setLoading(true);
+      try {
+        // 2. Fetch danh sách sự kiện đã đăng ký sử dụng eventApi mới
+        // axiosClient bên trong sẽ tự đính kèm Token và BaseURL từ .env
+        const res = await eventApi.registrations.getByUser(userId);
         const data = res.data || [];
         setRegistrations(data);
 
+        // Logic lọc sự kiện diễn ra trong ngày hôm nay
         const today = new Date().toDateString();
         const todays = data.filter((reg) => {
-          if (reg.checkedIn) return false;
-          if (reg.status !== "Registered") return false;
-          if (!reg.eventStartTime) return false;
+          if (reg.checkedIn || reg.status !== "Registered" || !reg.eventStartTime) return false;
           const eventDate = new Date(reg.eventStartTime).toDateString();
           return eventDate === today;
         });
         setTodayEvents(todays);
-      })
-      .catch((err) => {
-        console.error(err);
+      } catch (err) {
+        console.error("Lỗi lấy danh sách sự kiện:", err);
         setRegistrations([]);
-      })
-      .finally(() => setLoading(false));
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchMyEvents();
   }, [navigate]);
 
   const filtered = registrations.filter((reg) => {
@@ -139,6 +134,7 @@ const MyEventsPage = () => {
     <div className="min-h-screen bg-[#eef2f7] font-sans">
       <Header />
 
+      {/* Hero Section with Stats */}
       <div className="bg-[#1a3a6b] relative overflow-hidden">
         <div className="absolute inset-0 opacity-10">
           <div className="absolute top-0 right-0 w-96 h-96 bg-white rounded-full -translate-y-1/2 translate-x-1/3" />
@@ -160,44 +156,21 @@ const MyEventsPage = () => {
               <Ticket size={24} className="text-white" />
             </div>
             <div>
-              <h1 className="text-2xl font-black text-white">
-                Sự kiện của tôi
-              </h1>
-              <p className="text-blue-200 text-sm mt-0.5">
-                Danh sách sự kiện bạn đã đăng ký và tham gia
-              </p>
+              <h1 className="text-2xl font-black text-white">Sự kiện của tôi</h1>
+              <p className="text-blue-200 text-sm mt-0.5">Quản lý các sự kiện bạn đã tham gia</p>
             </div>
           </div>
 
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             {[
-              {
-                label: "Tổng đăng ký",
-                value: stats.total,
-                color: "bg-white/10",
-              },
-              {
-                label: "Đã điểm danh",
-                value: stats.attended,
-                color: "bg-emerald-500/20",
-              },
-              {
-                label: "Chờ tham gia",
-                value: stats.registered,
-                color: "bg-blue-400/20",
-              },
-              {
-                label: "Đã hủy",
-                value: stats.cancelled,
-                color: "bg-red-400/20",
-              },
+              { label: "Tổng đăng ký", value: stats.total, color: "bg-white/10" },
+              { label: "Đã điểm danh", value: stats.attended, color: "bg-emerald-500/20" },
+              { label: "Chờ tham gia", value: stats.registered, color: "bg-blue-400/20" },
+              { label: "Đã hủy", value: stats.cancelled, color: "bg-red-400/20" },
             ].map(({ label, value, color }) => (
-              <div
-                key={label}
-                className={`${color} rounded-2xl p-4 border border-white/10`}
-              >
+              <div key={label} className={`${color} rounded-2xl p-4 border border-white/10`}>
                 <p className="text-2xl font-black text-white">{value}</p>
-                <p className="text-blue-200 text-xs mt-0.5">{label}</p>
+                <p className="text-blue-200 text-xs mt-0.5 uppercase font-bold tracking-wider">{label}</p>
               </div>
             ))}
           </div>
@@ -205,193 +178,131 @@ const MyEventsPage = () => {
       </div>
 
       <div className="max-w-6xl mx-auto px-4 py-8">
+        {/* Filter Toolbar */}
         <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-4 mb-6 flex flex-col sm:flex-row gap-3">
           <div className="relative flex-1">
-            <Search
-              size={16}
-              className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
-            />
+            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
             <input
               type="text"
-              placeholder="Tìm kiếm sự kiện..."
+              placeholder="Tìm kiếm sự kiện theo tên..."
               value={searchKeyword}
-              onChange={(e) => {
-                setSearchKeyword(e.target.value);
-                setCurrentPage(1);
-              }}
+              onChange={(e) => { setSearchKeyword(e.target.value); setCurrentPage(1); }}
               className="w-full pl-9 pr-4 py-2.5 border border-gray-200 rounded-xl text-sm outline-none bg-gray-50 focus:bg-white focus:border-[#1a3a6b] focus:ring-2 focus:ring-[#1a3a6b]/10 transition-all"
             />
           </div>
 
           <div className="flex gap-2 flex-wrap">
-            {["all", "Registered", "Attended", "Cancelled", "NoShow"].map(
-              (s) => (
-                <button
-                  key={s}
-                  onClick={() => {
-                    setStatusFilter(s);
-                    setCurrentPage(1);
-                  }}
-                  className={`px-3 py-2 rounded-xl text-xs font-semibold transition-all cursor-pointer border ${
-                    statusFilter === s
-                      ? "bg-[#1a3a6b] text-white border-[#1a3a6b]"
-                      : "bg-gray-50 text-gray-600 border-gray-200 hover:border-[#1a3a6b] hover:text-[#1a3a6b]"
-                  }`}
-                >
-                  {s === "all" ? "Tất cả" : STATUS_MAP[s]?.label || s}
-                </button>
-              ),
-            )}
+            {["all", "Registered", "Attended", "Cancelled", "NoShow"].map((s) => (
+              <button
+                key={s}
+                onClick={() => { setStatusFilter(s); setCurrentPage(1); }}
+                className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer border ${
+                  statusFilter === s
+                    ? "bg-[#1a3a6b] text-white border-[#1a3a6b] shadow-md shadow-blue-900/20"
+                    : "bg-white text-slate-500 border-slate-200 hover:border-[#1a3a6b] hover:text-[#1a3a6b]"
+                }`}
+              >
+                {s === "all" ? "Tất cả" : STATUS_MAP[s]?.label || s}
+              </button>
+            ))}
           </div>
         </div>
 
+        {/* Urgent Notification */}
         {todayEvents.length > 0 && (
-          <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 mb-6 flex items-center justify-between">
+          <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="bg-amber-50 border border-amber-200 rounded-2xl p-4 mb-6 flex items-center justify-between shadow-sm">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 bg-amber-100 rounded-full flex items-center justify-center shrink-0">
-                <Bell size={20} className="text-amber-600" />
+                <Bell size={20} className="text-amber-600 animate-bounce" />
               </div>
               <div>
-                <p className="font-bold text-amber-800 text-sm">
-                  Bạn có {todayEvents.length} sự kiện cần điểm danh hôm nay!
-                </p>
-                <p className="text-amber-600 text-xs mt-0.5">
-                  {todayEvents.map(e => e.eventTitle).join(", ")}
-                </p>
+                <p className="font-bold text-amber-800 text-sm">Cần điểm danh!</p>
+                <p className="text-amber-600 text-xs mt-0.5">Bạn có {todayEvents.length} sự kiện diễn ra trong hôm nay.</p>
               </div>
             </div>
-            <button
-              onClick={() => setStatusFilter("Registered")}
-              className="px-3 py-1.5 bg-amber-500 text-white rounded-lg text-xs font-semibold hover:bg-amber-600 transition-all cursor-pointer shrink-0"
-            >
-              Xem ngay
+            <button onClick={() => setStatusFilter("Registered")} className="px-4 py-2 bg-amber-500 text-white rounded-xl text-xs font-bold hover:bg-amber-600 transition-all cursor-pointer">
+              Kiểm tra ngay
             </button>
-          </div>
+          </motion.div>
         )}
 
         {loading ? (
-          <div className="flex flex-col items-center justify-center py-24">
-            <Loader2 size={36} className="animate-spin text-[#1a3a6b] mb-3" />
-            <p className="text-sm text-slate-500">Đang tải danh sách...</p>
+          <div className="flex flex-col items-center justify-center py-32">
+            <Loader2 size={40} className="animate-spin text-[#1a3a6b] mb-4" />
+            <p className="text-slate-500 font-medium tracking-wide">Đang tải danh sách sự kiện...</p>
           </div>
         ) : filtered.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-24 bg-white rounded-2xl border border-slate-100">
-            <CalendarX size={56} className="text-slate-200 mb-4" />
-            <p className="text-slate-600 font-bold text-lg">
-              Không tìm thấy sự kiện nào
-            </p>
-            <p className="text-slate-400 text-sm mt-1">
-              Bạn chưa đăng ký sự kiện nào hoặc không khớp bộ lọc
-            </p>
-            <button
-              onClick={() => navigate("/")}
-              className="mt-6 px-6 py-2.5 bg-[#1a3a6b] text-white rounded-xl font-semibold text-sm hover:bg-[#15306b] transition-all cursor-pointer"
-            >
-              Khám phá sự kiện
+          <div className="flex flex-col items-center justify-center py-24 bg-white rounded-[2rem] border border-slate-100 shadow-inner">
+            <CalendarX size={64} className="text-slate-200 mb-4" />
+            <p className="text-slate-600 font-black text-xl">Không tìm thấy sự kiện</p>
+            <p className="text-slate-400 text-sm mt-2 mb-8">Hãy thử tìm kiếm với từ khóa khác hoặc đăng ký sự kiện mới.</p>
+            <button onClick={() => navigate("/")} className="px-8 py-3 bg-[#1a3a6b] text-white rounded-2xl font-bold shadow-lg shadow-blue-900/20 hover:scale-105 active:scale-95 transition-all">
+              KHÁM PHÁ SỰ KIỆN
             </button>
           </div>
         ) : (
           <>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
               {paginated.map((reg) => {
                 const statusInfo = STATUS_MAP[reg.status] || {
-                  label: reg.status,
-                  color: "bg-slate-100 text-slate-700 border-slate-200",
+                  label: reg.status, color: "bg-slate-100 text-slate-700 border-slate-200"
                 };
                 return (
-                  <div
-                    key={reg.id}
-                    className="bg-white rounded-2xl border border-slate-100 shadow-sm hover:shadow-md transition-all overflow-hidden"
-                  >
-                    <div className="p-5">
-                      <div className="flex items-start justify-between gap-3 mb-3">
-                        <h3
-                          onClick={() => navigate(`/events/${reg.eventId}`)}
-                          className="font-bold text-slate-800 text-sm leading-snug hover:text-[#1a3a6b] cursor-pointer line-clamp-2 flex-1"
-                        >
-                          {reg.eventTitle || "Sự kiện không tên"}
-                        </h3>
-                        <span
-                          className={`px-2.5 py-1 rounded-full text-[10px] font-black uppercase border shrink-0 ${statusInfo.color}`}
-                        >
+                  <motion.div layout key={reg.id} className="bg-white rounded-3xl border border-slate-100 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all overflow-hidden flex flex-col">
+                    <div className="p-6 grow">
+                      <div className="flex items-start justify-between gap-3 mb-4">
+                        <span className={`px-2.5 py-1 rounded-lg text-[10px] font-black uppercase border tracking-widest ${statusInfo.color}`}>
                           {statusInfo.label}
                         </span>
+                        <QrCode onClick={() => setSelectedQR(reg)} size={20} className="text-slate-300 hover:text-[#1a3a6b] cursor-pointer transition-colors" />
                       </div>
+                      
+                      <h3 onClick={() => navigate(`/events/${reg.eventId}`)} className="font-black text-slate-800 text-lg leading-tight hover:text-[#1a3a6b] cursor-pointer line-clamp-2 mb-4">
+                        {reg.eventTitle || "Sự kiện không tên"}
+                      </h3>
 
-                      <div className="space-y-1.5 text-xs text-slate-500">
+                      <div className="space-y-2 text-xs font-bold text-slate-500">
                         <div className="flex items-center gap-2">
-                          <Calendar
-                            size={13}
-                            className="text-slate-400 shrink-0"
-                          />
+                          <Calendar size={14} className="text-blue-500" />
                           <span>Đăng ký: {formatDate(reg.registeredAt)}</span>
                         </div>
                         {reg.checkInTime && (
-                          <div className="flex items-center gap-2">
-                            <CheckCircle2
-                              size={13}
-                              className="text-emerald-500 shrink-0"
-                            />
-                            <span className="text-emerald-600 font-semibold">
-                              Điểm danh: {formatDate(reg.checkInTime)} lúc{" "}
-                              {formatTime(reg.checkInTime)}
-                            </span>
+                          <div className="flex items-center gap-2 p-2 bg-emerald-50 rounded-xl">
+                            <CheckCircle2 size={14} className="text-emerald-500" />
+                            <span className="text-emerald-700">Check-in: {formatTime(reg.checkInTime)} - {formatDate(reg.checkInTime)}</span>
                           </div>
                         )}
                       </div>
                     </div>
 
-                    <div className="border-t border-slate-100 px-5 py-3 flex items-center justify-between bg-slate-50/50">
-                      <button
-                        onClick={() => navigate(`/events/${reg.eventId}`)}
-                        className="text-xs text-[#1a3a6b] font-semibold hover:underline cursor-pointer flex items-center gap-1 px-3 py-1.5 border border-[#1a3a6b]/20 rounded-lg hover:bg-[#1a3a6b]/5 transition-all"
-                      >
-                        Xem chi tiết
+                    <div className="px-6 py-4 bg-slate-50/50 border-t border-slate-100 flex items-center justify-between">
+                      <button onClick={() => navigate(`/events/${reg.eventId}`)} className="text-xs text-[#1a3a6b] font-black uppercase tracking-widest hover:underline">
+                        Chi tiết
                       </button>
                       {reg.status === "Registered" && reg.qrToken && (
-                        <button
-                          onClick={() => setSelectedQR(reg)}
-                          className="flex items-center gap-1.5 px-3 py-1.5 bg-[#1a3a6b] text-white rounded-lg text-xs font-semibold hover:bg-[#15306b] transition-all cursor-pointer"
-                        >
-                          <QrCode size={13} /> Xem QR
+                        <button onClick={() => setSelectedQR(reg)} className="px-4 py-2 bg-[#1a3a6b] text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-[#15306b] shadow-md shadow-blue-900/10">
+                          MÃ VÉ
                         </button>
                       )}
                     </div>
-                  </div>
+                  </motion.div>
                 );
               })}
             </div>
 
+            {/* Pagination */}
             {totalPages > 1 && (
-              <div className="flex justify-center gap-2">
-                <button
-                  onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                  disabled={currentPage === 1}
-                  className="w-9 h-9 border border-slate-200 rounded-xl flex items-center justify-center hover:bg-white disabled:opacity-30 cursor-pointer"
-                >
-                  <ChevronLeft size={16} />
+              <div className="flex justify-center items-center gap-2">
+                <button onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1} className="w-10 h-10 border border-slate-200 rounded-2xl flex items-center justify-center bg-white hover:bg-slate-50 disabled:opacity-30 cursor-pointer">
+                  <ChevronLeft size={20} />
                 </button>
                 {[...Array(totalPages)].map((_, i) => (
-                  <button
-                    key={i}
-                    onClick={() => setCurrentPage(i + 1)}
-                    className={`w-9 h-9 rounded-xl text-sm font-bold transition-all cursor-pointer ${
-                      currentPage === i + 1
-                        ? "bg-[#1a3a6b] text-white shadow-lg"
-                        : "border border-slate-200 text-slate-500 hover:border-[#1a3a6b] hover:text-[#1a3a6b]"
-                    }`}
-                  >
+                  <button key={i} onClick={() => setCurrentPage(i + 1)} className={`w-10 h-10 rounded-2xl text-sm font-black transition-all ${currentPage === i + 1 ? "bg-[#1a3a6b] text-white shadow-lg shadow-blue-900/20 scale-110" : "bg-white text-slate-400 border border-slate-200 hover:border-[#1a3a6b]"}`}>
                     {i + 1}
                   </button>
                 ))}
-                <button
-                  onClick={() =>
-                    setCurrentPage((p) => Math.min(totalPages, p + 1))
-                  }
-                  disabled={currentPage === totalPages}
-                  className="w-9 h-9 border border-slate-200 rounded-xl flex items-center justify-center hover:bg-white disabled:opacity-30 cursor-pointer"
-                >
-                  <ChevronRight size={16} />
+                <button onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages} className="w-10 h-10 border border-slate-200 rounded-2xl flex items-center justify-center bg-white hover:bg-slate-50 disabled:opacity-30 cursor-pointer">
+                  <ChevronRight size={20} />
                 </button>
               </div>
             )}
@@ -399,41 +310,28 @@ const MyEventsPage = () => {
         )}
       </div>
 
+      {/* QR Modal Popup */}
       <AnimatePresence>
         {selectedQR && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
-            <motion.div
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.9 }}
-              className="bg-white rounded-3xl p-8 max-w-sm w-full text-center shadow-2xl relative"
-            >
-              <button
-                onClick={() => setSelectedQR(null)}
-                className="absolute top-4 right-4 p-2 bg-slate-100 hover:bg-slate-200 rounded-full cursor-pointer transition-all"
-              >
-                <X size={18} />
+          <div className="fixed inset-0 z-100 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4">
+            <motion.div initial={{ opacity: 0, scale: 0.9, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.9, y: 20 }} className="bg-white rounded-[2.5rem] p-10 max-w-sm w-full text-center shadow-2xl relative border-4 border-white">
+              <button onClick={() => setSelectedQR(null)} className="absolute top-6 right-6 p-2 bg-slate-100 hover:bg-rose-50 hover:text-rose-500 rounded-full cursor-pointer transition-all">
+                <X size={20} />
               </button>
-              <div className="w-14 h-14 bg-blue-50 rounded-full flex items-center justify-center mx-auto mb-4">
-                <QrCode size={28} className="text-[#1a3a6b]" />
+              <div className="w-16 h-16 bg-blue-50 rounded-3xl flex items-center justify-center mx-auto mb-6 rotate-3 shadow-inner">
+                <QrCode size={32} className="text-[#1a3a6b]" />
               </div>
-              <h2 className="text-lg font-black text-slate-800 mb-1">
-                Mã QR Check-in
-              </h2>
-              <p className="text-sm text-slate-500 mb-2 line-clamp-2">
-                {selectedQR.eventTitle}
-              </p>
-              {selectedQR.qrTokenExpiry && (
-                <p className="text-xs text-orange-500 font-semibold mb-5">
-                  Hết hạn: {formatDate(selectedQR.qrTokenExpiry)}
-                </p>
-              )}
-              <div className="bg-white p-4 rounded-2xl shadow-inner border border-slate-100 inline-block">
+              <h2 className="text-2xl font-black text-slate-800 mb-2 tracking-tight">Vé Tham Gia</h2>
+              <p className="text-sm text-slate-500 mb-8 font-medium line-clamp-2 px-4">{selectedQR.eventTitle}</p>
+              
+              <div className="bg-white p-6 rounded-[2rem] shadow-2xl border-2 border-slate-50 inline-block mb-8">
                 <QRCode value={selectedQR.qrToken} size={200} level="H" />
               </div>
-              <p className="text-xs text-slate-400 mt-4">
-                Xuất trình mã này khi check-in sự kiện
-              </p>
+              
+              <div className="bg-blue-50 rounded-2xl p-4 text-xs font-bold text-blue-700 flex flex-col gap-1">
+                <p>Vui lòng xuất trình mã này tại bàn đăng ký.</p>
+                {selectedQR.qrTokenExpiry && <p className="text-blue-400 font-medium uppercase text-[9px]">Hết hạn: {formatDate(selectedQR.qrTokenExpiry)}</p>}
+              </div>
             </motion.div>
           </div>
         )}

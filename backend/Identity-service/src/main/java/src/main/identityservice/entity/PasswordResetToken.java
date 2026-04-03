@@ -19,12 +19,12 @@ public class PasswordResetToken {
     @Column(nullable = false, unique = true)
     private String token;
 
-    @OneToOne
-    @JoinColumn(name = "account_id", nullable = false)
-    private Account account;
-
     @Column(nullable = false)
     private LocalDateTime expiryDate;
 
     private boolean used = false;
+
+    @OneToOne
+    @JoinColumn(name = "account_id", nullable = false)
+    private Account account;
 }

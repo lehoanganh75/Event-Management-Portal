@@ -16,4 +16,6 @@ public interface UserService {
     List<User> searchUsers(String keyword);
 
     List<UserDto> getUsersByIds(List<String> ids);
+
+    UserDto getUserById(String id);
 }

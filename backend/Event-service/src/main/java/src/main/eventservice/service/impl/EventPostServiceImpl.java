@@ -47,9 +47,9 @@ public class EventPostServiceImpl implements EventPostService {
         post.setUpdatedAt(LocalDateTime.now());
         post.setDeleted(false);
 
-        if (post.getStatus() == PostStatus.PUBLISHED) {
-            post.setPostAt(LocalDateTime.now());
-        }
+//        if (post.getStatus() == PostStatus.PUBLISHED) {
+//            post.setPostAt(LocalDateTime.now());
+//        }
 
         return eventPostRepository.save(post);
     }
@@ -64,9 +64,9 @@ public class EventPostServiceImpl implements EventPostService {
         existingPost.setPostType(postDetails.getPostType());
         existingPost.setUpdatedAt(LocalDateTime.now());
 
-        if (existingPost.getStatus() != PostStatus.PUBLISHED && postDetails.getStatus() == PostStatus.PUBLISHED) {
-            existingPost.setPostAt(LocalDateTime.now());
-        }
+//        if (existingPost.getStatus() != PostStatus.PUBLISHED && postDetails.getStatus() == PostStatus.PUBLISHED) {
+//            existingPost.setPostAt(LocalDateTime.now());
+//        }
         existingPost.setStatus(postDetails.getStatus());
 
         return eventPostRepository.save(existingPost);
@@ -83,7 +83,7 @@ public class EventPostServiceImpl implements EventPostService {
 
     @Override
     public List<PostResponseDto> getPostsByAccountId(String accountId) {
-        List<EventPost> posts = eventPostRepository.findByCreatedByAccountIdOrderByCreatedAtDesc(accountId);
+        List<EventPost> posts = eventPostRepository.findByAuthorAccountIdOrderByCreatedAtDesc(accountId);
 
         return posts.stream().map(post -> {
             return PostResponseDto.from(post, null);
@@ -92,7 +92,7 @@ public class EventPostServiceImpl implements EventPostService {
 
     @Override
     public List<PostResponseDto> getPostsByAccountIdAndEventId(String accountId, String eventId) {
-        List<EventPost> posts = eventPostRepository.findByCreatedByAccountIdAndEventId(accountId, eventId);
+        List<EventPost> posts = eventPostRepository.findByAuthorAccountIdAndEventId(accountId, eventId);
 
         return posts.stream().map(post -> {
             return PostResponseDto.from(post, null);
@@ -114,8 +114,8 @@ public class EventPostServiceImpl implements EventPostService {
         post.setContent(postDto.getContent());
         post.setPostType(postDto.getPostType());
         post.setStatus(postDto.getStatus());
-        post.setCreatedByAccountId(postDto.getAccountId());
-        post.setPostAt(postDto.getPublishedAt());
+//        post.setCreatedByAccountId(postDto.getAccountId());
+//        post.setPostAt(postDto.getPublishedAt());
         post.setCreatedAt(LocalDateTime.now());
         post.setUpdatedAt(LocalDateTime.now());
         post.setDeleted(false);

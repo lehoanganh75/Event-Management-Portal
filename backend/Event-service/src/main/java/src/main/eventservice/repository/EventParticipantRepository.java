@@ -15,7 +15,7 @@ public interface EventParticipantRepository extends JpaRepository<EventParticipa
 
     List<EventParticipant> findByEventId(String eventId);
 
-    List<EventParticipant> findByEventIdOrderByRegisteredAtDesc(String eventId);
+    List<EventParticipant> findByEventIdOrderByCreatedAtDesc(String eventId);
 
     List<EventParticipant> findByEventIdAndStatus(String eventId, ParticipationStatus status);
 
@@ -36,4 +36,8 @@ public interface EventParticipantRepository extends JpaRepository<EventParticipa
     List<EventParticipant> findCheckedInParticipants(@Param("eventId") String eventId);
 
     void deleteByEventId(String eventId);
+
+    boolean existsByEventIdAndParticipantAccountId(String eventId, String id);
+
+    Optional<EventParticipant> findByParticipantCode(String participantCode);
 }

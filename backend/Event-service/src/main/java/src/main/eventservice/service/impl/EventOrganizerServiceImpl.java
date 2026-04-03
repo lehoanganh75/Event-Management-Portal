@@ -18,7 +18,6 @@ import java.util.List;
 @RequiredArgsConstructor
 @Slf4j
 public class EventOrganizerServiceImpl implements EventOrganizerService {
-
     private final EventOrganizerRepository organizerRepository;
     private final EventRepository eventRepository;
 

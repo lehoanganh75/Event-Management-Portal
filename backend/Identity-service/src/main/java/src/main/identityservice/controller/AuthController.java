@@ -4,9 +4,9 @@ import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import src.main.identityservice.dto.AuthResponse;
-import src.main.identityservice.dto.LoginRequest;
-import src.main.identityservice.dto.RegisterRequest;
+import src.main.identityservice.dto.response.AuthResponse;
+import src.main.identityservice.dto.request.LoginRequest;
+import src.main.identityservice.dto.request.RegisterRequest;
 import src.main.identityservice.exception.TokenExpiredException;
 import src.main.identityservice.exception.TokenInvalidException;
 import src.main.identityservice.exception.TokenUsedException;
@@ -25,8 +25,7 @@ public class AuthController {
 
     @PostMapping("/register")
     public ResponseEntity<Map<String, String>> register(@RequestBody RegisterRequest request) {
-        Map<String, String> respone = authService.register(request);
-        return ResponseEntity.ok(respone);
+        return ResponseEntity.ok(authService.register(request));
     }
 
     @PostMapping("/login")

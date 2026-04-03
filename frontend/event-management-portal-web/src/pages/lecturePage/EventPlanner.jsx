@@ -5,8 +5,6 @@ import { TemplateSelectionStep } from "../../components/eventPlanner/TemplateSel
 import { ManualInputStep } from "../../components/eventPlanner/ManualInputStep";
 import { EventProgramStep } from "../../components/eventPlanner/Eventprogramstep";
 import { PreviewStep } from "../../components/eventPlanner/PreviewStep";
-import { createPlan } from "../../api/eventApi";
-import notificationApi from "../../api/notificationApi";
 import axios from "axios";
 
 const INITIAL_FORM_DATA = {

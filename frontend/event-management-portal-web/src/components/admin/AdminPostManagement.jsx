@@ -17,7 +17,8 @@ import {
   RefreshCw,
   Calendar
 } from "lucide-react";
-import { getAllEvents } from "../../api/eventApi";
+import { eventApi } from "../../api/eventApi";     // Sử dụng eventApi mới
+import { contentApi } from "../../api/contentApi"; // Sử dụng contentApi mới
 
 const AdminPostManagement = ({ eventId, eventTitle }) => {
   const [posts, setPosts] = useState([]);
@@ -61,23 +62,14 @@ const AdminPostManagement = ({ eventId, eventTitle }) => {
   const fetchPosts = async () => {
     setLoading(true);
     try {
-      const url = `http://localhost:8081/api/posts?size=1000`;
+      // Gọi hàm getAll từ contentApi - axiosClient tự lo Token và BaseURL
+      const response = await contentApi.posts.getAll({ size: 1000 });
+      const data = response.data;
       
-      const response = await fetch(url);
-      
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-      
-      const data = await response.json();
-      if (data.content) {
-        setPosts(data.content);
-      } else {
-        setPosts(data);
-      }
+      setPosts(data.content || data || []);
     } catch (error) {
       console.error("Error fetching posts:", error);
-      alert("Không thể tải dữ liệu. Vui lòng kiểm tra kết nối đến server.");
+      alert("Không thể tải dữ liệu bài đăng.");
     } finally {
       setLoading(false);
     }
@@ -87,17 +79,19 @@ const AdminPostManagement = ({ eventId, eventTitle }) => {
     fetchPosts();
   }, [eventId]);
 
+  const fetchAllEvents = async () => {
+    try {
+      const res = await eventApi.events.getAll();
+      setAllEvents(res.data || []);
+    } catch (error) {
+      console.error("Lỗi lấy danh sách sự kiện:", error);
+    }
+  };
+
   useEffect(() => {
-    const fetchAllEvents = async () => {
-      try {
-        const res = await getAllEvents();
-        setAllEvents(res.data || []);
-      } catch (error) {
-        console.error("Lỗi lấy danh sách sự kiện:", error);
-      }
-    };
+    fetchPosts();
     fetchAllEvents();
-  }, []);
+  }, [eventId]);
 
   const filteredPosts = posts.filter(post => {
     const matchSearch = searchTerm === "" || 
@@ -118,54 +112,31 @@ const AdminPostManagement = ({ eventId, eventTitle }) => {
   // Create/Update post
   const handleSavePost = async () => {
     try {
-      const url = modalMode === "create" 
-        ? `http://localhost:8081/api/posts`
-        : `http://localhost:8081/api/posts/${selectedPost.id}`;
-      
-      const method = modalMode === "create" ? "POST" : "PUT";
-      
-      // Lấy accountId để gửi kèm khi tạo mới
       let accountId = null;
       const userData = localStorage.getItem("user");
       if (userData) {
-        try {
-          const user = JSON.parse(userData);
-          accountId = user.id || user.accountId || user.account?.id || user.userId;
-        } catch (error) {}
-      }
-      
-      if (!accountId) {
-        const accessToken = localStorage.getItem("accessToken");
-        if (accessToken) {
-          try {
-            const payload = JSON.parse(atob(accessToken.split('.')[1]));
-            accountId = payload.accountId || payload.sub || payload.userId || payload.id;
-          } catch (e) {}
-        }
+        const user = JSON.parse(userData);
+        accountId = user.id || user.accountId || user.userId;
       }
 
-      const payload = { ...formData };
+      const payload = { 
+        ...formData, 
+        createdByAccountId: accountId,
+        eventId: formData.eventId || eventId 
+      };
+      
       if (modalMode === "create") {
-        if (accountId) payload.createdByAccountId = accountId;
-        if (!payload.eventId && eventId) payload.eventId = eventId;
-      }
-
-      const response = await fetch(url, {
-        method,
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload)
-      });
-      
-      if (response.ok) {
-        fetchPosts();
-        setIsModalOpen(false);
-        alert(modalMode === "create" ? "Tạo bài đăng thành công!" : "Cập nhật bài đăng thành công!");
+        await contentApi.posts.create(payload);
       } else {
-        alert("Có lỗi xảy ra, vui lòng thử lại!");
+        await contentApi.posts.update(selectedPost.id, payload);
       }
+      
+      fetchPosts();
+      setIsModalOpen(false);
+      alert(modalMode === "create" ? "Tạo bài đăng thành công!" : "Cập nhật thành công!");
     } catch (error) {
       console.error("Error saving post:", error);
-      alert("Có lỗi xảy ra, vui lòng thử lại!");
+      alert(error.response?.data?.message || "Có lỗi xảy ra, vui lòng thử lại!");
     }
   };
 
@@ -174,17 +145,12 @@ const AdminPostManagement = ({ eventId, eventTitle }) => {
     if (!window.confirm("Bạn có chắc muốn xóa bài đăng này?")) return;
     
     try {
-      const response = await fetch(`http://localhost:8081/api/posts/${postId}`, {
-        method: "DELETE"
-      });
-      
-      if (response.ok) {
-        fetchPosts();
-        alert("Xóa bài đăng thành công!");
-      }
+      await contentApi.posts.delete(postId);
+      fetchPosts();
+      alert("Xóa bài đăng thành công!");
     } catch (error) {
       console.error("Error deleting post:", error);
-      alert("Có lỗi xảy ra, vui lòng thử lại!");
+      alert("Lỗi khi xóa bài đăng.");
     }
   };
 

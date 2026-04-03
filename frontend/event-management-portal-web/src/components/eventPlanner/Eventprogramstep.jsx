@@ -24,6 +24,8 @@ import {
   Info,
 } from "lucide-react";
 import axios from "axios";
+import { userApi } from "../../api/userApi"; // Import API mới tách
+import { notificationApi } from "../../api/notificationApi";
 
 const FIELD_TYPES = [
   { value: "short_text", label: "Văn bản ngắn", icon: Type },
@@ -260,39 +262,14 @@ function PeopleSearch({ onSelect, accentColor = "blue" }) {
   const ac = colors[accentColor] || colors.blue;
 
   const search = async () => {
-    if (!q.trim()) {
-      setRes([]);
-      setDone(true);
-      return;
-    }
-
+    if (!q.trim()) { setRes([]); setDone(true); return; }
     setLoading(true);
     setDone(false);
 
     try {
-      const token = localStorage.getItem("accessToken");
-      if (!token) {
-        console.error("No token found");
-        setRes([]);
-        setDone(true);
-        setLoading(false);
-        return;
-      }
-
-      const IDENTITY_SERVICE_URL =
-        import.meta.env.VITE_IDENTITY_API_URL || "http://localhost:8082";
-
-      const response = await axios.get(
-        `${IDENTITY_SERVICE_URL}/api/profiles/search?keyword=${encodeURIComponent(q)}`,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        },
-      );
-
-      const users = response.data || [];
-      setRes(users);
+      // SỬ DỤNG API ĐÃ TÁCH
+      const response = await userApi.searchProfiles(q);
+      setRes(response.data || []);
       setDone(true);
     } catch (error) {
       console.error("Lỗi tìm kiếm:", error);
@@ -310,21 +287,12 @@ function PeopleSearch({ onSelect, accentColor = "blue" }) {
       fullName: u.fullName, 
       email: u.account?.email || "",
       dept: u.majorName || "",
-      avatar:
-        (u.fullName || "")
-          .split(" ")
-          .map((w) => w[0])
-          .slice(-2)
-          .join("")
-          .toUpperCase() || "NG",
-      title: "",
+      avatar: (u.fullName || "").charAt(0).toUpperCase() || "NG",
       role: u.account?.roles?.[0] || "MEMBER",
       loginCode: u.loginCode,
       phone: u.phone,
     });
-    setQ("");
-    setRes([]);
-    setDone(false);
+    setQ(""); setRes([]); setDone(false);
   };
 
   return (
@@ -1857,63 +1825,28 @@ export const EventProgramStep = ({
   const [currentUser, setCurrentUser] = useState(null);
 
   useEffect(() => {
-    const getUserInfo = () => {
-      const userData = localStorage.getItem("user");
-
-      if (userData) {
-        try {
-          const user = JSON.parse(userData);
-
-          const accountId = user.id || user.accountId || user.userId;
-          if (accountId) {
-            let displayName = user.fullName || user.username;
-
-            setCurrentUser({
-              id: accountId,
-              name: displayName || "Tôi",
-              fullName: displayName || "Tôi",
-              email: user.email || "",
-              title: user.title || "",
-              org: user.department || user.faculty || user.majorName || "",
-              department: user.department || user.faculty || "",
-              isMe: true,
-              avatar: (displayName || "T").charAt(0).toUpperCase(),
-            });
-            return;
-          }
-        } catch (error) {
-          console.error("Lỗi parse user data:", error);
-        }
-      }
-
-      const accessToken = localStorage.getItem("accessToken");
-      if (accessToken) {
-        try {
-          const base64Url = accessToken.split(".")[1];
-          const base64 = base64Url.replace(/-/g, "+").replace(/_/g, "/");
-          const payload = JSON.parse(atob(base64));
-
-          let displayName =
-            payload.fullName || payload.name || payload.username;
-
+    // Lấy thông tin user sạch từ localStorage (Không cần decodeJWT rườm rà)
+    const userData = localStorage.getItem("user");
+    if (userData) {
+      try {
+        const user = JSON.parse(userData);
+        const accountId = user.id || user.accountId || user.userId;
+        if (accountId) {
           setCurrentUser({
-            id: payload.accountId || payload.sub || payload.userId,
-            name: displayName || "Tôi",
-            fullName: displayName || "Tôi",
-            email: payload.email || "",
-            title: payload.title || "",
-            org: payload.department || payload.faculty || "",
-            department: payload.department || payload.faculty || "",
+            id: accountId,
+            name: user.fullName || user.username || "Tôi",
+            fullName: user.fullName || user.username || "Tôi",
+            email: user.email || "",
+            title: user.title || "",
+            org: user.department || user.faculty || user.majorName || "",
             isMe: true,
-            avatar: (displayName || "T").charAt(0).toUpperCase(),
+            avatar: (user.fullName || "T").charAt(0).toUpperCase(),
           });
-        } catch (e) {
-          console.error("Lỗi decode token:", e);
         }
+      } catch (error) {
+        console.error("Lỗi parse user data:", error);
       }
-    };
-
-    getUserInfo();
+    }
   }, []);
 
   const meAdded = organizers.some(
@@ -1980,7 +1913,6 @@ export const EventProgramStep = ({
 
   const handleSubmit = () => {
     setIsSubmitting(true);
-
     const fullEventData = {
       ...externalFormData,
       presenters,

@@ -5,5 +5,5 @@ public enum SessionType {
     WORKSHOP,
     PANEL,
     BREAK,
-    NETWORKING
+    NETWORKING;
 }

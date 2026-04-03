@@ -1,21 +1,19 @@
 package src.main.eventservice.entity;
 
-import com.fasterxml.jackson.annotation.JsonFormat;
 import com.fasterxml.jackson.annotation.JsonIgnore;
-import com.fasterxml.jackson.annotation.JsonManagedReference;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.annotations.SQLRestriction;
 import org.hibernate.annotations.UpdateTimestamp;
 import org.hibernate.type.SqlTypes;
+import src.main.eventservice.dto.UserDto;
 import src.main.eventservice.entity.enums.EventStatus;
 import src.main.eventservice.entity.enums.EventType;
 
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 @Entity
 @Table(name = "events")
@@ -23,20 +21,20 @@ import java.util.Map;
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
+@Builder // Thêm Builder để dễ tạo object trong Service/Test
 public class Event {
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
     private String id;
 
-    private String organizationId;
-    private String createdByAccountId;
-    private String approvedByAccountId;
+    @Column(unique = true, nullable = false)
+    private String slug; // Dùng cho URL đẹp (vd: /event/iuh-tech-day)
 
-    @Column(name = "template_id")
-    private String templateId;
-
+    // --- BASIC INFORMATION ---
+    @Column(nullable = false)
     private String title;
 
+    @Column(columnDefinition = "TEXT")
     private String description;
 
     @Column(name = "event_topic", length = 1000)
@@ -44,88 +42,126 @@ public class Event {
 
     private String coverImage;
 
+    private String location;
+
+    private String eventMode; // ONLINE, OFFLINE, HYBRID
+
+    // --- TIMING & DEADLINES ---
     private LocalDateTime startTime;
 
     private LocalDateTime endTime;
 
     private LocalDateTime registrationDeadline;
 
-    private String location;
-    private String eventMode;
+    // --- OWNERSHIP & APPROVAL ---
+    // Đã xóa phần trùng lặp ở đây
+    private String createdByAccountId;
 
+    private String approvedByAccountId;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "organization_id")
+    @JsonIgnore
+    private Organization organization;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "template_id")
+    @JsonIgnore
+    private EventTemplate template;
+
+    // --- CAPACITY & STATUS ---
     private int maxParticipants;
 
     @Enumerated(EnumType.STRING)
     private EventType type;
 
+    @Builder.Default // Giúp Builder không ghi đè giá trị mặc định
     @Enumerated(EnumType.STRING)
     private EventStatus status = EventStatus.DRAFT;
 
+    @Builder.Default
+    private boolean finalized = false;
+
+    @Builder.Default
+    private boolean archived = false; // Thêm @Builder.Default để Builder của Lombok nhận giá trị này
+
+    @Builder.Default
+    private boolean isDeleted = false;
+
+    // --- ADDITIONAL TOOLS & INFO ---
     private String luckyDrawId;
 
-    private boolean finalized = false;
-    private boolean archived = false;
+    @Column(columnDefinition = "TEXT")
+    private String notes;
 
-    private String faculty;
-    private String major;
-    @OneToMany(mappedBy = "event", cascade = CascadeType.ALL, orphanRemoval = true)
-    @JsonIgnore
-    private List<EventPost> posts;
+    @Column(columnDefinition = "TEXT")
+    private String additionalInfo;
 
-    @OneToMany(mappedBy = "event", cascade = CascadeType.ALL, orphanRemoval = true)
-    @JsonIgnore
-    private List<EventFeedback> feedbacks;
+    // --- AUDIT TIMESTAMPS ---
+    @CreationTimestamp
+    @Column(updatable = false)
+    private LocalDateTime createdAt;
 
-    @OneToMany(mappedBy = "event", cascade = CascadeType.ALL, orphanRemoval = true)
-    @JsonIgnore
-    private List<EventRegistration> registrations;
+    @UpdateTimestamp
+    private LocalDateTime updatedAt;
 
-    @OneToMany(mappedBy = "event", orphanRemoval = true)
-    @JsonIgnore
-    @JsonManagedReference
-    private List<EventParticipant> participants = new ArrayList<>();
-
-    private String organizerUnit;
-
-    @OneToOne(mappedBy = "event", cascade = CascadeType.ALL, orphanRemoval = true)
-    @JsonIgnore
-    private Recap recap;
-
-    @OneToMany(mappedBy = "event", cascade = CascadeType.ALL, orphanRemoval = true)
-    @JsonIgnore
-    private List<EventSession> session;
-
-    @OneToMany(mappedBy = "event", orphanRemoval = true)
-    @JsonIgnore
-    @JsonManagedReference
-    private List<EventOrganizer> organizers = new ArrayList<>();
-
-    @OneToMany(mappedBy = "event", orphanRemoval = true)
-    @JsonIgnore
-    @JsonManagedReference
-    private List<EventPresenter> presenters = new ArrayList<>();
-
-    @JdbcTypeCode(SqlTypes.JSON)
-    @Column(columnDefinition = "JSON")
-    private List<Map<String, Object>> recipients;
+    // --- JSON DATA (FLEXIBLE) ---
+    // Chứa cấu hình form đăng ký hoặc tiêu chí riêng
+    @Column(columnDefinition = "TEXT")
+    private String customFieldsJson;
 
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(columnDefinition = "JSON")
     private List<Map<String, Object>> targetObjects;
 
-    @CreationTimestamp
-    private LocalDateTime createdAt;
-    @UpdateTimestamp
-    private LocalDateTime updatedAt;
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(columnDefinition = "JSON")
+    private List<Map<String, Object>> recipients;
 
-    private boolean isDeleted = false;
-
-    @Transient
+    // --- TRANSIENT FIELDS ---
+    @Transient // Không lưu vào DB, dùng để tính toán lúc runtime
     private int registeredCount;
 
-    private String notes;
+    // --- RELATIONSHIPS ---
+    // Khởi tạo sẵn ArrayList để tránh NullPointer
+    @OneToMany(mappedBy = "event", cascade = CascadeType.ALL, orphanRemoval = true)
+    @JsonIgnore
+    private Set<EventRegistration> registrations = new HashSet<>();
 
-    private String additionalInfo;
+    @OneToMany(mappedBy = "event", cascade = CascadeType.ALL, orphanRemoval = true)
+    @SQLRestriction("is_deleted = false")
+//    @JsonIgnore
+    private Set<EventOrganizer> organizers = new HashSet<>();
 
-    private String customFieldsJson;
+    @OneToMany(mappedBy = "event", cascade = CascadeType.ALL, orphanRemoval = true)
+    @SQLRestriction("is_deleted = false")
+//    @JsonIgnore
+    private Set<EventPresenter> presenters = new HashSet<>();
+
+    @OneToMany(mappedBy = "event", cascade = CascadeType.ALL, orphanRemoval = true)
+    @SQLRestriction("is_deleted = false")
+//    @JsonIgnore
+    private Set<EventParticipant> participants = new HashSet<>();
+
+    @OneToMany(mappedBy = "event", cascade = CascadeType.ALL, orphanRemoval = true)
+    @JsonIgnore
+    private Set<EventSession> sessions = new HashSet<>();
+
+    @OneToMany(mappedBy = "event", cascade = CascadeType.ALL, orphanRemoval = true)
+    @JsonIgnore
+    private Set<EventPost> posts = new HashSet<>();
+
+    @OneToMany(mappedBy = "event", cascade = CascadeType.ALL, orphanRemoval = true)
+    @JsonIgnore
+    private Set<EventFeedback> feedbacks = new HashSet<>();
+
+    @OneToOne(mappedBy = "event", cascade = CascadeType.ALL, orphanRemoval = true)
+    @JsonIgnore
+    private Recap recap;
+
+    @Transient
+    private UserDto creator;
+
+    @Transient
+    private UserDto approver;
 }

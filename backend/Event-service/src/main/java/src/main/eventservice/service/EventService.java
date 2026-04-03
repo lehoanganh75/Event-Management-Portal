@@ -12,8 +12,9 @@ import java.util.Map;
 import java.util.Optional;
 
 public interface EventService {
+    List<Event> findAll();
 
-    List<Event> getAllEvents();
+    List<Event> findAllActive();
 
     List<Event> getFeaturedEvents();
 
@@ -23,11 +24,14 @@ public interface EventService {
 
     List<Event> getMyEventsByAccountAndMonth(String accountId);
 
+    List<Event> getEventsByAccountId(String accountId);
+
+
     Event createEvent(Event event);
 
     void deleteEvent(String id);
 
-    List<Event> getEventsByStatuses(List<EventStatus> statuses);
+    List<Event> getEventsByStatuses(List<String> statuses);
 
     @Transactional
     Event saveEvent(Event event);
@@ -72,14 +76,15 @@ public interface EventService {
 
     List<PlanResponseDto> getPlansByAccountId(String accountId);
 
-    List<PlanResponseDto> getEventsByAccountId(String accountId);
-
     List<PlanResponseDto> getEventsByStatus(EventStatus status);
 
     List<PlanResponseDto> getPlansPendingApproval();
 
     List<PlanResponseDto> getEventsPendingApproval();
 
-    @Transactional
     Event updateEventStatus(String id, EventStatus status, String approverId, String accountId);
+
+    public Map<String, String> invitateParticipants(String eventId, String organizerId, List<String> inviteeIds);
+
+    Map<String, String> acceptInvite(String eventId, String token);
 }
