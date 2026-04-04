@@ -51,8 +51,11 @@ plugins:
   - name: cors
     config:
       origins:
-        - http://localhost:3000
-        - http://fitiuh-events.io.vn
+        - http://localhost:3000          # Cho máy Local
+        - http://127.0.0.1:3000          # Cho máy Local (biến thể)
+        - http://fitiuh-events.io.vn      # Tên miền (Port 80)
+        - http://fitiuh-events.io.vn:3000 # Tên miền kèm Port (Nếu có)
+        - http://192.168.1.113:3000      # IP Server kèm Port
       methods:
         - GET
         - POST
@@ -61,4 +64,7 @@ plugins:
         - OPTIONS
       headers:
         - "*"
+      exposed_headers:
+        - "*"
       credentials: true
+      max_age: 3600
