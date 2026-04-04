@@ -663,7 +663,7 @@ export const EventReviewStep = ({
       }
 
       const IDENTITY_SERVICE_URL =
-        import.meta.env.VITE_IDENTITY_API_URL || "http://localhost:8082";
+        import.meta.env.VITE_API_GATEWAY_URL;
       const token = localStorage.getItem("accessToken");
 
       let adminAccounts = [];

@@ -2,6 +2,9 @@ import axios from 'axios';
 
 const GATEWAY_URL = import.meta.env.VITE_API_GATEWAY_URL;
 
+// Dòng này cực kỳ quan trọng để bạn check trên Console F12 xem nó đang nhận gì
+console.log("BASE_URL_GATEWAY:", GATEWAY_URL);
+
 const axiosClient = axios.create({
     baseURL: GATEWAY_URL,
     headers: {
