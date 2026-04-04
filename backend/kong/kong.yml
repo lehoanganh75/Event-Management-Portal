@@ -51,6 +51,7 @@ plugins:
   - name: cors
     config:
       origins:
+        - http://localhost:3000
         - http://fitiuh-events.io.vn
       methods:
         - GET
@@ -59,8 +60,5 @@ plugins:
         - DELETE
         - OPTIONS
       headers:
-        - Accept
-        - Authorization
-        - Content-Type
+        - "*"
       credentials: true
-      max_age: 3600
