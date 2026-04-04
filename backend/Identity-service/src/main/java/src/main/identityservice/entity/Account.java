@@ -43,10 +43,8 @@ public class Account {
     private LocalDateTime updatedAt;
     private LocalDateTime lastLoginAt;
 
-    @ElementCollection(fetch = FetchType.EAGER)
-    @CollectionTable(name = "account_roles", joinColumns = @JoinColumn(name = "account_id"))
     @Enumerated(EnumType.STRING)
-    private Set<Role> roles;
+    private Role role;
 
     @OneToMany(mappedBy = "account", cascade = CascadeType.ALL, orphanRemoval = true)
     @JsonIgnore
@@ -54,6 +52,5 @@ public class Account {
 
     @OneToOne(mappedBy = "account", cascade = CascadeType.ALL, orphanRemoval = true, optional = true)
     @JsonIgnore
-    private User userProfile;
-
+    private User user;
 }

@@ -12,7 +12,7 @@ import {
   ArrowRight,
   Check,
 } from "lucide-react";
-import { eventTemplateApi } from "../../api/eventTemplateApi";
+import { contentApi } from "../../api/contentApi";
 
 const SmartSuggestionPanel = ({ templates, onSelect, onClose }) => {
   const [description, setDescription] = useState("");
@@ -604,11 +604,11 @@ export const TemplateSelectionStep = ({
   const fetchTemplates = async (pageNumber) => {
     try {
       setLoading(true);
-      const response = await eventTemplateApi.getAllTemplates(
+      const response = await contentApi.templates.getAll(
         organizationId,
         searchTerm,
         pageNumber,
-        6,
+        6
       );
       const emptyTemplate = {
         id: "0",
@@ -616,10 +616,12 @@ export const TemplateSelectionStep = ({
         defaultTitle: "",
         description: "Bắt đầu kế hoạch mới với thông tin hoàn toàn trống.",
       };
+
       const processedContent =
         pageNumber === 0
-          ? [emptyTemplate, ...response.content]
-          : response.content;
+          ? [emptyTemplate, ...(response.content || [])]
+          : (response.content || []);
+
       setPageData({ ...response, content: processedContent });
     } catch (error) {
       console.error("Lỗi khi tải bản mẫu:", error);

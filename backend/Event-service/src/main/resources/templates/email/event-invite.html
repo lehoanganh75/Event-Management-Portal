@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>Thư mời Sự kiện - IUH</title>
+    <style>
+        /* Base styles for email client compatibility */
+        body { margin: 0; padding: 0; width: 100% !important; background-color: #f1f5f9; -webkit-text-size-adjust: 100%; -ms-text-size-adjust: 100%; }
+        table { border-spacing: 0; width: 100%; }
+        td { padding: 0; }
+        img { border: 0; }
+
+        .wrapper { width: 100%; table-layout: fixed; background-color: #f1f5f9; padding-bottom: 40px; }
+        .main-table { max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 16px; overflow: hidden; margin-top: 40px; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1); }
+
+        /* Header Section */
+        .header { background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%); padding: 40px 20px; text-align: center; color: #ffffff; }
+        .header h1 { margin: 0; font-family: 'Segoe UI', Helvetica, Arial, sans-serif; font-size: 22px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; }
+
+        /* Content Section */
+        .content { padding: 40px 30px; font-family: 'Segoe UI', Helvetica, Arial, sans-serif; color: #1e293b; line-height: 1.6; }
+        .greeting { font-size: 18px; font-weight: 600; margin-bottom: 16px; color: #0f172a; }
+        .description { font-size: 15px; margin-bottom: 24px; color: #475569; }
+
+        /* Event Highlight Box */
+        .event-card { background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 24px; margin-bottom: 30px; }
+        .event-label { font-size: 12px; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px; display: block; }
+        .event-title { font-size: 20px; font-weight: 700; color: #2563eb; margin: 0; }
+
+        /* Button Style */
+        .button-container { text-align: center; padding: 10px 0 20px; }
+        .btn-confirm { background-color: #2563eb; color: #ffffff !important; display: inline-block; padding: 16px 36px; font-family: 'Segoe UI', sans-serif; font-size: 15px; font-weight: 700; text-decoration: none; border-radius: 8px; transition: background-color 0.3s ease; }
+
+        /* Warning & URL Section */
+        .expiry-notice { background-color: #fff1f2; color: #be123c; border-radius: 8px; padding: 12px; font-size: 13px; font-weight: 600; text-align: center; margin-bottom: 20px; border: 1px solid #fecdd3; }
+        .url-backup { font-size: 12px; color: #94a3b8; text-align: center; line-height: 1.4; }
+        .url-link { color: #2563eb; text-decoration: none; word-break: break-all; }
+
+        /* Footer Section */
+        .footer { padding: 30px; text-align: center; font-family: 'Segoe UI', sans-serif; font-size: 13px; color: #64748b; }
+        .footer p { margin: 4px 0; }
+    </style>
+</head>
+<body>
+<div class="wrapper">
+    <table class="main-table">
+        <tr>
+            <td class="header">
+                <h1>IUH EVENT</h1>
+            </td>
+        </tr>
+        <tr>
+            <td class="content">
+                <p class="greeting">Chào <span th:text="${fullName}">Sinh viên</span>,</p>
+                <p class="description">Bạn vừa nhận được một lời mời tham gia sự kiện đặc biệt từ Ban tổ chức trên hệ thống <strong>IUH Event Management</strong>.</p>
+
+                <div class="event-card">
+                    <span class="event-label">📌 Thông tin sự kiện</span>
+                    <h2 class="event-title" th:text="${eventName}">Tên sự kiện</h2>
+                </div>
+
+                <p class="description" style="text-align: center;">Vui lòng xác nhận sự hiện diện của bạn để hệ thống chuẩn bị vé và chỗ ngồi tốt nhất.</p>
+
+                <div class="button-container">
+                    <a th:href="${inviteUrl}" class="btn-confirm">XÁC NHẬN THAM GIA NGAY</a>
+                </div>
+
+                <div class="expiry-notice">
+                    ⚠️ Link xác nhận này sẽ hết hạn sau <strong th:text="${expirySeconds}">30</strong> giây.
+                </div>
+
+                <div class="url-backup">
+                    Nếu nút trên không hoạt động, vui lòng copy link: <br>
+                    <a th:href="${inviteUrl}" class="url-link" th:text="${inviteUrl}">http://localhost:8080/confirm</a>
+                </div>
+            </td>
+        </tr>
+        <tr>
+            <td class="footer">
+                <p>Đây là email tự động từ hệ thống quản lý sự kiện IUH.</p>
+                <p><strong>IUH Event Management System Team</strong></p>
+                <p>&copy; 2026 Industrial University of Ho Chi Minh City</p>
+            </td>
+        </tr>
+    </table>
+</div>
+</body>
+</html>

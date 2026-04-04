@@ -2,6 +2,7 @@ package src.main.identityservice.service.impl;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import src.main.identityservice.dto.AccountAdminDTO;
 import src.main.identityservice.entity.Account;
 import src.main.identityservice.entity.AccountStatus;
@@ -13,6 +14,7 @@ import src.main.identityservice.service.AccountService;
 
 import java.time.format.DateTimeFormatter;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -36,25 +38,21 @@ public class AccountServiceImpl implements AccountService {
     }
 
     @Override
-    public AccountAdminDTO updateRoles(String accountId, List<String> roleNames) {
+    public AccountAdminDTO updateRoles(String accountId, String roleName) {
         Account account = getAccountOrThrow(accountId);
 
-        if (roleNames == null || roleNames.isEmpty()) {
+        if (roleName == null || roleName.isBlank()) {
             throw new IllegalArgumentException("Danh sách role không được để trống");
         }
 
-        Set<Role> newRoles = roleNames.stream()
-                .map(name -> {
-                    try {
-                        return Role.valueOf(name.toUpperCase());
-                    } catch (IllegalArgumentException e) {
-                        throw new IllegalArgumentException("Vai trò không hợp lệ: " + name);
-                    }
-                })
-                .collect(Collectors.toSet());
+        Role newRole;
+        try {
+            newRole = Role.valueOf(roleName.trim().toUpperCase());
+        } catch (IllegalArgumentException e) {
+            throw new IllegalArgumentException("Vai trò không hợp lệ: " + roleName);
+        }
 
-        // set mới thay vì clear + add
-        account.setRoles(newRoles);
+        account.setRole(newRole);
 
         Account saved = accountRepository.save(account);
         return toAdminDTO(saved);
@@ -97,31 +95,21 @@ public class AccountServiceImpl implements AccountService {
 
     private AccountAdminDTO toAdminDTO(Account account) {
 
-        String fullName = (account.getUserProfile() != null && account.getUserProfile().getFullName() != null)
-                ? account.getUserProfile().getFullName()
-                : "Chưa có hồ sơ";
+        String fullName = Optional.ofNullable(account.getUser())
+                .map(User::getFullName)
+                .orElse("Chưa có hồ sơ");
 
-        String createdAtStr = (account.getCreatedAt() != null)
-                ? account.getCreatedAt().format(DateTimeFormatter.ISO_LOCAL_DATE)
-                : null;
-
-        List<String> roleNames = (account.getRoles() != null)
-                ? account.getRoles().stream()
-                .map(Enum::name)
-                .toList()
-                : List.of();
-
-        String status = (account.getStatus() != null)
-                ? account.getStatus().name()
-                : "UNKNOWN";
+        String createdAtStr = Optional.ofNullable(account.getCreatedAt())
+                .map(date -> date.format(DateTimeFormatter.ofPattern("dd/MM/yyyy")))
+                .orElse(null);
 
         return new AccountAdminDTO(
                 account.getId(),
                 account.getUsername(),
                 account.getEmail(),
                 fullName,
-                roleNames,
-                status,
+                Role.valueOf(account.getRole().name()),
+                account.getStatus(),
                 createdAtStr
         );
     }
@@ -133,65 +121,43 @@ public class AccountServiceImpl implements AccountService {
                         .toList());
     }
 
+    @Transactional
     @Override
     public AccountAdminDTO updateAccount(String accountId, AccountAdminDTO updateRequest) {
+
         Account account = accountRepository.findById(accountId)
                 .orElseThrow(() -> new RuntimeException("Tài khoản không tồn tại: " + accountId));
 
-        if (updateRequest.email() != null && !updateRequest.email().isEmpty()) {
+        if (updateRequest.email() != null && !updateRequest.email().isBlank()) {
             accountRepository.findByEmail(updateRequest.email())
-                    .ifPresent(existingAccount -> {
-                        if (!existingAccount.getId().equals(accountId)) {
-                            throw new RuntimeException("Email đã được sử dụng");
-                        }
+                    .filter(acc -> !acc.getId().equals(accountId))
+                    .ifPresent(acc -> {
+                        throw new RuntimeException("Email đã được sử dụng");
                     });
             account.setEmail(updateRequest.email());
         }
 
-        if (updateRequest.username() != null && !updateRequest.username().isEmpty()) {
+        if (updateRequest.username() != null && !updateRequest.username().isBlank()) {
             accountRepository.findByUsername(updateRequest.username())
-                    .ifPresent(existingAccount -> {
-                        if (!existingAccount.getId().equals(accountId)) {
-                            throw new RuntimeException("Username đã được sử dụng");
-                        }
+                    .filter(acc -> !acc.getId().equals(accountId))
+                    .ifPresent(acc -> {
+                        throw new RuntimeException("Username đã được sử dụng");
                     });
             account.setUsername(updateRequest.username());
         }
 
-        if (updateRequest.status() != null) {
-            try {
-                AccountStatus statusEnum = AccountStatus.valueOf(updateRequest.status().toUpperCase());
-                account.setStatus(statusEnum);
-            } catch (IllegalArgumentException e) {
-                throw new IllegalArgumentException("Trạng thái không hợp lệ: " + updateRequest.status());
-            }
-        }
-
         if (updateRequest.fullName() != null) {
-            User profile = account.getUserProfile();
-            if (profile == null) {
-                profile = new User();
-                profile.setAccount(account);
-                account.setUserProfile(profile);
-            }
+            User profile = Optional.ofNullable(account.getUser())
+                    .orElseGet(() -> {
+                        User u = new User();
+                        u.setAccount(account);
+                        account.setUser(u);
+                        return u;
+                    });
+
             profile.setFullName(updateRequest.fullName());
-            userRepository.save(profile);
         }
 
-        if (updateRequest.roles() != null && !updateRequest.roles().isEmpty()) {
-            Set<Role> newRoles = updateRequest.roles().stream()
-                    .map(name -> {
-                        try {
-                            return Role.valueOf(name.toUpperCase());
-                        } catch (IllegalArgumentException e) {
-                            throw new IllegalArgumentException("Vai trò không hợp lệ: " + name);
-                        }
-                    })
-                    .collect(Collectors.toSet());
-            account.setRoles(newRoles);
-        }
-
-        Account saved = accountRepository.save(account);
-        return toAdminDTO(saved);
+        return toAdminDTO(accountRepository.save(account));
     }
 }

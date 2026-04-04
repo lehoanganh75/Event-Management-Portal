@@ -13,11 +13,13 @@ import {
 import { useNavigate } from "react-router-dom";
 import logo_iuh from "../../assets/images/logo_iuh.png";
 import ErrorNotification from "../notification/ErrorNotification";
-import axios from "axios";
 import Header from "../common/Header";
+import { useAuth } from "../../context/AuthContext";
 
 const LoginPage = () => {
   const navigate = useNavigate();
+  const { login, loading: authLoading } = useAuth();   // Lấy từ Context
+
   const [toastVisible, setToastVisible] = useState(false);
   const [message, setMessage] = useState("");
   const [errorToastVisible, setErrorToastVisible] = useState(false);
@@ -28,6 +30,7 @@ const LoginPage = () => {
   const [formData, setFormData] = useState({ username: "", password: "" });
   const [errors, setErrors] = useState({});
 
+  // Toast tự tắt
   useEffect(() => {
     let timer;
     if (toastVisible) {
@@ -44,75 +47,66 @@ const LoginPage = () => {
 
   const validateForm = () => {
     const newErrors = {};
-    if (!formData.username.trim())
-      newErrors.username = "Tên đăng nhập không được để trống";
-    if (!formData.password.trim())
-      newErrors.password = "Mật khẩu không được để trống";
+    if (!formData.username.trim()) newErrors.username = "Tên đăng nhập không được để trống";
+    if (!formData.password.trim()) newErrors.password = "Mật khẩu không được để trống";
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
+  };
+
+  // Hàm lấy role từ JWT
+  const getRoleFromToken = (token) => {
+    if (!token) return null;
+    try {
+      const payload = JSON.parse(atob(token.split(".")[1]));
+      return payload.role;        // backend trả về "role" (string)
+    } catch (error) {
+      console.error("Không thể decode JWT:", error);
+      return null;
+    }
   };
 
   const handleLogin = async (e) => {
     e.preventDefault();
     if (isLoading || !validateForm()) return;
 
-    try {
-      const API_LOGIN = `${import.meta.env.VITE_AUTH_API_URL}/auth/login`;
-      const API_PROFILE = `${import.meta.env.VITE_AUTH_API_URL}/profiles/me`;
+    setIsLoading(true);
+    setErrorToastVisible(false);
 
-      // 1. Gọi API Login
-      const loginRes = await axios.post(API_LOGIN, {
+    try {
+      await login({
         username: formData.username,
         password: formData.password,
       });
 
-      if (loginRes.data && loginRes.data.accessToken) {
-        const { accessToken, refreshToken } = loginRes.data;
+      setMessage("Đăng nhập thành công! Đang chuyển hướng...");
+      setToastVisible(true);
 
-        localStorage.setItem("accessToken", accessToken);
-        localStorage.setItem("refreshToken", refreshToken);
+      // Lấy accessToken vừa được lưu trong AuthContext
+      const accessToken = localStorage.getItem("accessToken");
+      const userRole = getRoleFromToken(accessToken);
 
-        // 2. Lấy thông tin profile
-        const profileRes = await axios.get(API_PROFILE, {
-          headers: {
-            Authorization: `Bearer ${accessToken}`,
-          },
-        });
+      // Chuyển hướng theo role
+      setTimeout(() => {
+        if (userRole === "SUPER_ADMIN" || userRole === "ADMIN") {
+          navigate("/admin");
+        } else if (userRole === "LECTURER") {
+          navigate("/lecturer");
+        } else {
+          navigate("/");                    // Student / User bình thường
+        }
+      }, 1300);
 
-        const data = profileRes.data;
-
-        const userData = {
-          username: data?.username || data?.email?.split("@")[0] || "User",
-          roles: Array.isArray(data?.roles) ? data.roles : ["GUEST"],
-          email: data?.email || "",
-          fullName: data?.fullName || "Chưa cập nhật",
-          avatarUrl: data?.avatarUrl || null,
-        };
-
-        localStorage.setItem("user", JSON.stringify(userData));
-
-        setMessage("Đăng nhập thành công! Đang chuyển hướng...");
-        setToastVisible(true);
-
-        setTimeout(() => {
-          if (
-            userData.roles.includes("ADMIN") ||
-            userData.roles.includes("SUPER_ADMIN")
-          ) {
-            navigate("/admin");
-          } else if (userData.roles.includes("LECTURER")) {
-            navigate("/lecturer");
-          } else {
-            navigate("/");
-          }
-        }, 1500);
-      }
     } catch (error) {
       console.error("Login Error:", error);
+
       let errorMsg = "Tên đăng nhập hoặc mật khẩu không chính xác.";
+
       if (error.response?.data?.message) {
         errorMsg = error.response.data.message;
+      } else if (error.message) {
+        errorMsg = error.message;
       }
+
       setErrorMessage(errorMsg);
       setErrorToastVisible(true);
     } finally {
@@ -121,26 +115,10 @@ const LoginPage = () => {
   };
 
   const features = [
-    {
-      icon: CalendarCheck,
-      title: "Quản lý sự kiện",
-      desc: "Tạo và theo dõi toàn bộ sự kiện trong trường",
-    },
-    {
-      icon: QrCode,
-      title: "QR Check-in",
-      desc: "Điểm danh nhanh chóng bằng mã QR cá nhân",
-    },
-    {
-      icon: Users,
-      title: "Quản lý người dùng",
-      desc: "Phân quyền linh hoạt theo vai trò",
-    },
-    {
-      icon: BarChart3,
-      title: "Thống kê realtime",
-      desc: "Báo cáo và phân tích dữ liệu tức thì",
-    },
+    { icon: CalendarCheck, title: "Quản lý sự kiện", desc: "Tạo và theo dõi toàn bộ sự kiện trong trường" },
+    { icon: QrCode, title: "QR Check-in", desc: "Điểm danh nhanh chóng bằng mã QR cá nhân" },
+    { icon: Users, title: "Quản lý người dùng", desc: "Phân quyền linh hoạt theo vai trò" },
+    { icon: BarChart3, title: "Thống kê realtime", desc: "Báo cáo và phân tích dữ liệu tức thì" },
   ];
 
   return (

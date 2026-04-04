@@ -14,7 +14,7 @@ import src.main.luckydrawservice.service.LuckyDrawService;
 import java.util.List;
 
 @RestController
-@RequestMapping("/api/lucky-draws")
+@RequestMapping("/lucky-draws")
 @RequiredArgsConstructor
 public class LuckyDrawController {
     private final LuckyDrawService luckyDrawService;

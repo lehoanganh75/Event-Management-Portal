@@ -14,8 +14,5 @@ import java.util.Set;
 @AllArgsConstructor
 public class UserPrincipal {
     private String accountId;
-    private String email;
-    private Set<Role> roles;
-    private String userId;
-    private String userName;
+    private Role role;
 }

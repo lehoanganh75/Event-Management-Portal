@@ -10,7 +10,7 @@ public interface AccountService {
 
     void deleteAccount(String accountId);
 
-    AccountAdminDTO updateRoles(String accountId, List<String> roleNames);
+    AccountAdminDTO updateRoles(String accountId, String role);
 
     AccountAdminDTO updateStatus(String accountId, String status);
 

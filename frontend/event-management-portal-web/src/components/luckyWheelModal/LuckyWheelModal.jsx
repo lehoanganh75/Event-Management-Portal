@@ -36,7 +36,7 @@ const LuckyWheelModal = ({ onClose, register, luckDrawId }) => {
       try {
         setIsLoading(true);
         const token = localStorage.getItem("accessToken");
-        const res = await axios.get(`http://localhost:8083/api/lucky-draws/${luckDrawId}`, {
+        const res = await axios.get(`${import.meta.env.VITE_DRAW_API_URL || API_URL}/lucky-draws/${luckDrawId}`, {
           headers: { Authorization: `Bearer ${token}` }
         });
         setLuckyDrawData(res.data);
@@ -95,7 +95,7 @@ const LuckyWheelModal = ({ onClose, register, luckDrawId }) => {
       
       // GỌI BACKEND
       const res = await axios.post(
-        `http://localhost:8083/api/lucky-draws/${luckDrawId}/spin`, 
+        `${import.meta.env.VITE_DRAW_API_URL || API_URL}/lucky-draws/${luckDrawId}/spin`, 
         {}, 
         { headers: { Authorization: `Bearer ${token}` } }
       );

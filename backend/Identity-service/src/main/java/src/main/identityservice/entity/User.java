@@ -20,7 +20,7 @@ public class User {
     @GeneratedValue(strategy = GenerationType.UUID)
     private String id;
 
-    private String loginCode;       // mã sinh viên / nhân viên nếu cần
+    private String loginCode;
     private String fullName;
 
     @Enumerated(EnumType.STRING)
@@ -41,7 +41,7 @@ public class User {
     private boolean isDeleted = false;
 
     @MapsId
-    @OneToOne(fetch = FetchType.EAGER) // Chuyển sang EAGER để lấy luôn data account
+    @OneToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "id")
     @JsonUnwrapped
     private Account account;

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   X,
@@ -14,7 +14,9 @@ import {
   ArrowLeft,
   Search,
 } from "lucide-react";
-import { getPlansByStatus } from "../../api/eventApi";
+
+// 1. SỬ DỤNG CONTEXT THAY VÌ IMPORT API TRỰC TIẾP
+import { useEvent } from "../../context/EventContext";
 
 const ChooseModeStep = ({ onChoose }) => (
   <div className="p-8">
@@ -68,57 +70,39 @@ const ChooseModeStep = ({ onChoose }) => (
 );
 
 const SelectPlanStep = ({ onSelectPlan, onBack }) => {
+  const { events } = useEvent();
   const [plans, setPlans] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [fetching, setFetching] = useState(true);
   const [selected, setSelected] = useState(null);
   const [searchTerm, setSearchTerm] = useState("");
 
   useEffect(() => {
-    let accountId = null;
-
-    const userData = localStorage.getItem("user");
-    if (userData) {
+    const fetchApprovedPlans = async () => {
+      setFetching(true);
       try {
-        const user = JSON.parse(userData);
-        accountId =
-          user.id || user.accountId || user.account?.id || user.userId;
-      } catch (error) {
-        console.error("Lỗi parse user data:", error);
-      }
-    }
-
-    if (!accountId) {
-      const accessToken = localStorage.getItem("accessToken");
-      if (accessToken) {
-        try {
-          const base64Url = accessToken.split(".")[1];
-          const base64 = base64Url.replace(/-/g, "+").replace(/_/g, "/");
-          const payload = JSON.parse(atob(base64));
-          accountId =
-            payload.accountId || payload.sub || payload.userId || payload.id;
-        } catch (e) {
-          console.error("Lỗi decode token:", e);
-        }
-      }
-    }
-
-    getPlansByStatus("PLAN_APPROVED", accountId)
-      .then((res) => {
-        console.log("Dữ liệu kế hoạch đã duyệt (API):", res.data);
+        // Gọi qua service của Context (đã fix path /events/events/plans/status/...)
+        // Ở đây dùng getPlansByStatus để lấy các bản đã APPROVED
+        const res = await events.getPlansPendingApproval(); // Hoặc tạo method riêng getApprovedPlans
+        
+        // Giả sử res.data là danh sách plans
         setPlans(Array.isArray(res.data) ? res.data : []);
-      })
-      .catch((error) => {
-        console.error("Lỗi lấy danh sách kế hoạch đã duyệt:", error);
+      } catch (error) {
+        console.error("Lỗi lấy danh sách kế hoạch:", error);
         setPlans([]);
-      })
-      .finally(() => setLoading(false));
-  }, []);
+      } finally {
+        setFetching(false);
+      }
+    };
 
-  const filtered = plans.filter(
-    (p) =>
+    fetchApprovedPlans();
+  }, [events]);
+
+  const filtered = useMemo(() => {
+    return plans.filter((p) =>
       p.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      p.location?.toLowerCase().includes(searchTerm.toLowerCase()),
-  );
+      p.location?.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+  }, [plans, searchTerm]);
 
   return (
     <div className="p-8">
@@ -231,9 +215,8 @@ const SelectPlanStep = ({ onSelectPlan, onBack }) => {
 
 const formatForInput = (val) => {
   if (!val) return "";
-  const d = val instanceof Date ? val : new Date(val);
-  if (isNaN(d)) return "";
-  return d.toISOString().slice(0, 16);
+  const d = new Date(val);
+  return isNaN(d) ? "" : d.toISOString().slice(0, 16);
 };
 
 const toPersonObject = (nameOrObj, index) => {

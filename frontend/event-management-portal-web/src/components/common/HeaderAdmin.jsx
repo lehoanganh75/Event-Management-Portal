@@ -2,7 +2,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Bell, ChevronDown, LogOut, User, Settings, Check, X, CheckCircle, Calendar, Clock, AlertCircle, XCircle, Info } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import notificationApi from '../../api/notificationApi';
+import { notificationApi } from "../../api/notificationApi"; // SỬA: Import có ngoặc nhọn
+import { authApi } from "../../api/authApi";
 
 const roleMap = {
   SUPER_ADMIN: "Quản Trị Viên Cao Cấp",
@@ -26,31 +27,29 @@ const HeaderAdmin = () => {
   const notificationRef = useRef(null);
   const menuRef = useRef(null);
 
+  const getUserId = () => {
+    const userData = localStorage.getItem("user");
+    if (userData) {
+      const user = JSON.parse(userData);
+      return user.id || user.accountId || user.userId;
+    }
+    return null;
+  };
+
   useEffect(() => {
     const userData = localStorage.getItem("user");
     if (userData) {
-      try {
-        setCurrentUser(JSON.parse(userData));
-      } catch (error) {
-        console.error("Lỗi parse user data:", error);
-        localStorage.removeItem("user");
-      }
+      setCurrentUser(JSON.parse(userData));
     }
   }, []);
 
-  useEffect(() => {
-    if (currentUser) {
-      const userId = getCurrentUserId();
-      if (userId) {
-        fetchUnreadCount(userId);
-        fetchRecentNotifications(userId);
-        
-        const interval = setInterval(() => {
-          fetchUnreadCount(userId);
-        }, 30000);
-        
-        return () => clearInterval(interval);
-      }
+ useEffect(() => {
+    const userId = getUserId();
+    if (currentUser && userId) {
+      fetchUnreadCount(userId);
+      fetchRecentNotifications(userId);
+      const interval = setInterval(() => fetchUnreadCount(userId), 30000);
+      return () => clearInterval(interval);
     }
   }, [currentUser]);
 
@@ -93,14 +92,14 @@ const HeaderAdmin = () => {
     return null;
   };
 
+  // 2. Fetch thông báo sử dụng api object mới
   const fetchUnreadCount = async (userId) => {
     if (!userId) return;
     try {
-      const response = await notificationApi.getUnreadCount(userId);
+      const response = await notificationApi.get.unreadCount(userId);
       setUnreadCount(response.data);
     } catch (error) {
       console.error("Lỗi lấy số lượng thông báo:", error);
-      setUnreadCount(0);
     }
   };
 
@@ -108,44 +107,37 @@ const HeaderAdmin = () => {
     if (!userId) return;
     setIsLoading(true);
     try {
-      const response = await notificationApi.getRecentNotifications(userId, 5);
+      // Dùng nhóm get.recent đã định nghĩa
+      const response = await notificationApi.get.recent(userId, 5);
       setNotifications(response.data || []);
     } catch (error) {
-      console.error("Lỗi lấy thông báo:", error);
       setNotifications([]);
     } finally {
       setIsLoading(false);
     }
   };
 
+  // 3. Xử lý logic Thông báo
   const handleMarkAsRead = async (id) => {
     try {
-      await notificationApi.markAsRead(id);
-      setNotifications(
-        notifications.map((n) => (n.id === id ? { ...n, read: true } : n))
+      await notificationApi.actions.markAsRead(id);
+      setNotifications(prev => 
+        prev.map((n) => (n.id === id ? { ...n, read: true } : n))
       );
       setUnreadCount((prev) => Math.max(0, prev - 1));
-    } catch (error) {
-      console.error("Lỗi đánh dấu đã đọc:", error);
-    }
+    } catch (error) { console.error(error); }
   };
 
   const handleMarkAllAsRead = async () => {
-    const userId = getCurrentUserId();
+    const userId = getUserId();
     if (!userId) return;
-    
     setIsMarkingAll(true);
     try {
-      await notificationApi.markAllAsRead(userId);
-      setNotifications(
-        notifications.map((n) => ({ ...n, read: true }))
-      );
+      await notificationApi.actions.markAllRead(userId);
+      setNotifications(prev => prev.map((n) => ({ ...n, read: true })));
       setUnreadCount(0);
-    } catch (error) {
-      console.error("Lỗi đánh dấu tất cả:", error);
-    } finally {
-      setIsMarkingAll(false);
-    }
+    } catch (error) { console.error(error); } 
+    finally { setIsMarkingAll(false); }
   };
 
   const handleViewAll = () => {
@@ -202,13 +194,22 @@ const HeaderAdmin = () => {
     return roleMap[currentUser?.roles?.[0]] || "Thành viên";
   };
 
-  const handleLogout = () => {
-    localStorage.clear();
-    setIsDropdownOpen(false);
-    setLogoutToastVisible(true);
-    setTimeout(() => {
-      navigate("/login");
-    }, 1500);
+  // 4. Xử lý Đăng xuất an toàn qua API
+  const handleLogout = async () => {
+    try {
+      const refreshToken = localStorage.getItem("refreshToken");
+      if (refreshToken) {
+        await authApi.logout(refreshToken);
+      }
+    } catch (error) {
+      console.error("Lỗi đăng xuất:", error);
+    } finally {
+      localStorage.clear();
+      setCurrentUser(null);
+      setIsDropdownOpen(false);
+      setLogoutToastVisible(true);
+      setTimeout(() => navigate("/login"), 1500);
+    }
   };
 
   return (

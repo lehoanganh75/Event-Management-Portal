@@ -4,9 +4,9 @@ import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import src.main.identityservice.dto.AuthResponse;
-import src.main.identityservice.dto.LoginRequest;
-import src.main.identityservice.dto.RegisterRequest;
+import src.main.identityservice.dto.response.AuthResponse;
+import src.main.identityservice.dto.request.LoginRequest;
+import src.main.identityservice.dto.request.RegisterRequest;
 import src.main.identityservice.exception.TokenExpiredException;
 import src.main.identityservice.exception.TokenInvalidException;
 import src.main.identityservice.exception.TokenUsedException;
@@ -25,8 +25,7 @@ public class AuthController {
 
     @PostMapping("/register")
     public ResponseEntity<Map<String, String>> register(@RequestBody RegisterRequest request) {
-        Map<String, String> respone = authService.register(request);
-        return ResponseEntity.ok(respone);
+        return ResponseEntity.ok(authService.register(request));
     }
 
     @PostMapping("/login")
@@ -45,20 +44,17 @@ public class AuthController {
         try {
             Map<String, String> result = authService.checkEmailVerification(token);
 
-            // Thành công → redirect về login với thông báo success
             String redirectUrl = "http://localhost:5173/login?verified=true&message=" +
                     URLEncoder.encode(result.get("message"), StandardCharsets.UTF_8);
 
             response.sendRedirect(redirectUrl);
 
         } catch (TokenInvalidException | TokenUsedException | TokenExpiredException e) {
-            // Lỗi token → redirect về login với thông báo lỗi
             String errorMsg = URLEncoder.encode(e.getMessage(), StandardCharsets.UTF_8);
             String redirectUrl = "http://localhost:5173/login?verified=false&error=" + errorMsg;
 
             response.sendRedirect(redirectUrl);
         } catch (Exception e) {
-            // Lỗi khác
             String errorMsg = URLEncoder.encode("Có lỗi hệ thống. Vui lòng thử lại.", StandardCharsets.UTF_8);
             response.sendRedirect("http://localhost:5173/login?verified=false&error=" + errorMsg);
         }

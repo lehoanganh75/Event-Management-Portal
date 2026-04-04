@@ -13,6 +13,6 @@ import java.util.Optional;
 public interface AccountRepository extends JpaRepository<Account,String> {
     Optional<Account> findByUsername(String username);
     Optional<Account> findByEmail(String email);
-    @Query("SELECT a FROM Account a LEFT JOIN FETCH a.userProfile")
+    @Query("SELECT a FROM Account a LEFT JOIN FETCH a.user")
     List<Account> findAllWithProfile();
 }

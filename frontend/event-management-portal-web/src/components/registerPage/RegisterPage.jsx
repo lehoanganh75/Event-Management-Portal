@@ -1,30 +1,18 @@
 import React, { useState, useEffect, useCallback, memo } from "react";
 import {
-  Eye,
-  EyeOff,
-  CalendarCheck,
-  ArrowLeft,
-  Users,
-  QrCode,
-  BarChart3,
-  CheckCircle,
-  X,
+  Eye, EyeOff, CalendarCheck, ArrowLeft, Users, QrCode,
+  BarChart3, CheckCircle, X, Loader2
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { motion, AnimatePresence } from "framer-motion";
+
 import logo_iuh from "../../assets/images/logo_iuh.png";
 import ErrorNotification from "../notification/ErrorNotification";
-import axios from "axios";
 import Header from "../common/Header";
+import { useAuth } from "../../context/AuthContext";
 
 const InputField = memo(({
-  id,
-  label,
-  type = "text",
-  value,
-  placeholder,
-  error,
-  rightElement,
-  onChange
+  id, label, type = "text", value, placeholder, error, rightElement, onChange
 }) => (
   <div className="space-y-1.5">
     <label className="block text-sm font-medium text-gray-700">{label}</label>
@@ -53,9 +41,7 @@ const InputField = memo(({
       <div className="space-y-0.5">
         {Array.isArray(error) ? (
           error.map((e, idx) => (
-            <p key={`${e}-${idx}`} className="text-xs text-red-500">
-              {e}
-            </p>
+            <p key={`${e}-${idx}`} className="text-xs text-red-500">{e}</p>
           ))
         ) : (
           <p className="text-xs text-red-500">{error}</p>
@@ -67,12 +53,15 @@ const InputField = memo(({
 
 const RegisterPage = () => {
   const navigate = useNavigate();
+  const { register } = useAuth();        // ← Lấy từ AuthContext
+
   const [toastVisible, setToastVisible] = useState(false);
   const [message, setMessage] = useState("");
   const [errorToastVisible, setErrorToastVisible] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const [formData, setFormData] = useState({
     fullName: "",
@@ -89,7 +78,7 @@ const RegisterPage = () => {
   useEffect(() => {
     let timer;
     if (toastVisible) {
-      timer = setTimeout(() => setToastVisible(false), 3000);
+      timer = setTimeout(() => setToastVisible(false), 5000);
     }
     return () => clearTimeout(timer);
   }, [toastVisible]);
@@ -97,8 +86,7 @@ const RegisterPage = () => {
   const validatePassword = useCallback((password) => {
     const trimmed = password.trim();
     const errs = [];
-    if (!trimmed)
-      return { isValid: false, errors: ["Mật khẩu không được để trống"] };
+    if (!trimmed) return { isValid: false, errors: ["Mật khẩu không được để trống"] };
     if (trimmed.length < 8) errs.push("Ít nhất 8 ký tự");
     if (!/[A-Z]/.test(trimmed)) errs.push("Ít nhất 1 chữ hoa");
     if (!/[a-z]/.test(trimmed)) errs.push("Ít nhất 1 chữ thường");
@@ -109,48 +97,22 @@ const RegisterPage = () => {
 
   const validateForm = useCallback(() => {
     const newErrors = {};
-    const d = {
-      fullName: formData.fullName.trim(),
-      username: formData.username.trim(),
-      email: formData.email.trim(),
-      password: formData.password.trim(),
-      confirmPassword: formData.confirmPassword.trim(),
-      dateOfBirth: formData.dateOfBirth.trim(),
-      gender: formData.gender.trim(),
-    };
+    const d = { ...formData };
 
-    if (!d.fullName) newErrors.fullName = "Họ và tên không được để trống";
-    if (!d.username) newErrors.username = "Tên đăng nhập không được để trống";
-    if (!d.email) newErrors.email = "Email không được để trống";
+    if (!d.fullName.trim()) newErrors.fullName = "Họ và tên không được để trống";
+    if (!d.username.trim()) newErrors.username = "Tên đăng nhập không được để trống";
+    if (!d.email.trim()) newErrors.email = "Email không được để trống";
     else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(d.email))
       newErrors.email = "Email không hợp lệ";
 
     const pwCheck = validatePassword(d.password);
     if (!pwCheck.isValid) newErrors.password = pwCheck.errors;
 
-    const cpwCheck = validatePassword(d.confirmPassword);
-    if (!cpwCheck.isValid) newErrors.confirmPassword = cpwCheck.errors;
-    else if (d.password !== d.confirmPassword)
+    if (d.password !== d.confirmPassword)
       newErrors.confirmPassword = ["Mật khẩu xác nhận không khớp"];
 
     if (!d.dateOfBirth) {
       newErrors.dateOfBirth = "Ngày sinh không được để trống";
-    } else {
-      const birth = new Date(d.dateOfBirth);
-      const today = new Date();
-      if (birth > today) {
-        newErrors.dateOfBirth = "Ngày sinh không được trong tương lai";
-      } else {
-        let age = today.getFullYear() - birth.getFullYear();
-        if (
-          today.getMonth() < birth.getMonth() ||
-          (today.getMonth() === birth.getMonth() &&
-            today.getDate() < birth.getDate())
-        )
-          age--;
-        if (age < 10)
-          newErrors.dateOfBirth = "Bạn phải trên 10 tuổi để đăng ký";
-      }
     }
 
     setErrors(newErrors);
@@ -161,124 +123,109 @@ const RegisterPage = () => {
     const { id, value } = e.target;
     setFormData((prev) => ({ ...prev, [id]: value }));
     if (errors[id]) {
-      setErrors((prev) => ({ ...prev, [id]: "" }));
+      setErrors((prev) => {
+        const newErrs = { ...prev };
+        delete newErrs[id];
+        return newErrs;
+      });
     }
   }, [errors]);
 
   const handleRegister = async (e) => {
     e.preventDefault();
-    if (!validateForm()) return;
+    if (!validateForm() || isSubmitting) return;
+
+    setIsSubmitting(true);
+    setErrorToastVisible(false);
 
     try {
-      const API = `${import.meta.env.VITE_AUTH_API_URL}/auth/register`;
-      const response = await axios.post(API, {
+      const payload = {
+        fullName: formData.fullName.trim(),
+        email: formData.email.trim(),
         username: formData.username.trim(),
         password: formData.password.trim(),
-        email: formData.email.trim(),
-        dateOfBirth: formData.dateOfBirth.trim(),
-        fullName: formData.fullName.trim(),
-        gender: formData.gender.trim(),
+        dateOfBirth: formData.dateOfBirth,
+        gender: formData.gender,
+      };
+
+      // Gọi register từ AuthContext (đã dùng identityService bên trong)
+      const response = await register(payload);
+
+      setMessage(response?.message || "Đăng ký thành công! Vui lòng kiểm tra email để xác thực tài khoản.");
+      setToastVisible(true);
+
+      // Reset form
+      setFormData({
+        fullName: "", email: "", username: "",
+        password: "", confirmPassword: "",
+        dateOfBirth: "", gender: "OTHER",
       });
 
-      if (response.data?.status === "success") {
-        setMessage(response.data.message || "Đăng ký thành công!");
-        setToastVisible(true);
-        setFormData({
-          fullName: "",
-          email: "",
-          username: "",
-          password: "",
-          confirmPassword: "",
-          dateOfBirth: "",
-          gender: "OTHER",
-        });
-        setErrors({});
-        setTimeout(() => navigate("/login"), 2000);
-      }
+      // Chuyển sang trang login sau 3.5 giây
+      setTimeout(() => navigate("/login"), 3500);
+
     } catch (error) {
-      let msg = "Có lỗi xảy ra khi đăng ký tài khoản.";
+      console.error("Register error:", error);
+
+      let finalMsg = "Đăng ký thất bại. Vui lòng thử lại.";
+
+      // Xử lý lỗi từ backend (GlobalExceptionHandler trả về Map)
       if (error.response?.data) {
-        msg = error.response.data.message || msg;
-        if (error.response.data.field) {
-          setErrors((prev) => ({
-            ...prev,
-            [error.response.data.field]: error.response.data.message,
-          }));
+        const data = error.response.data;
+
+        // Nếu backend trả về field lỗi cụ thể
+        if (data.field) {
+          setErrors(prev => ({ ...prev, [data.field]: data.message || "Dữ liệu không hợp lệ" }));
         }
-      } else if (error.request) {
-        msg = "Không kết nối được đến server. Vui lòng kiểm tra mạng.";
+
+        finalMsg = data.message || data.error || finalMsg;
+      } 
+      else if (error.request) {
+        finalMsg = "Không thể kết nối đến máy chủ. Vui lòng kiểm tra kết nối mạng.";
       }
-      setErrorMessage(msg);
+
+      setErrorMessage(finalMsg);
       setErrorToastVisible(true);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
   const features = [
-    {
-      icon: CalendarCheck,
-      title: "Quản lý sự kiện",
-      desc: "Tạo và theo dõi toàn bộ sự kiện trong trường",
-    },
-    {
-      icon: QrCode,
-      title: "QR Check-in",
-      desc: "Điểm danh nhanh chóng bằng mã QR cá nhân",
-    },
-    {
-      icon: Users,
-      title: "Quản lý người dùng",
-      desc: "Phân quyền linh hoạt theo vai trò",
-    },
-    {
-      icon: BarChart3,
-      title: "Thống kê realtime",
-      desc: "Báo cáo và phân tích dữ liệu tức thì",
-    },
+    { icon: CalendarCheck, title: "Quản lý sự kiện", desc: "Tổ chức và tham gia sự kiện dễ dàng" },
+    { icon: QrCode, title: "QR Check-in", desc: "Điểm danh nhanh chóng, chính xác" },
+    { icon: Users, title: "Cộng đồng", desc: "Kết nối sinh viên và giảng viên IUH" },
+    { icon: BarChart3, title: "Tích lũy", desc: "Theo dõi điểm rèn luyện minh bạch" },
   ];
 
   return (
-    <div>
+    <div className="min-h-screen bg-[#eef2f7] font-sans flex flex-col">
       <Header />
-      <div className="min-h-screen bg-[#eef2f7] flex items-center justify-center p-4 font-sans">
-        {toastVisible && (
-          <div className="fixed top-6 right-6 z-50 transform transition-all duration-500 ease-out translate-x-0 opacity-100 scale-100">
-            <div
-              className="relative overflow-hidden w-full max-w-xl
-                bg-linear-to-r from-emerald-600 via-green-600 to-teal-600
-                text-white rounded-2xl shadow-2xl shadow-green-900/40
-                border border-white/10 backdrop-blur-xl"
+      
+      <div className="grow flex items-center justify-center p-4">
+        {/* Toast Success */}
+        <AnimatePresence>
+          {toastVisible && (
+            <motion.div 
+              initial={{ opacity: 0, y: -20 }} 
+              animate={{ opacity: 1, y: 0 }} 
+              exit={{ opacity: 0 }}
+              className="fixed top-24 right-6 z-50 bg-white border-l-4 border-emerald-500 rounded-xl shadow-2xl p-6 max-w-md"
             >
-              <div className="flex items-start gap-4 p-6">
-                <div className="shrink-0">
-                  <div
-                    className="w-12 h-12 flex items-center justify-center
-                      rounded-full bg-white/15 backdrop-blur-md
-                      border border-white/20 shadow-inner"
-                  >
-                    <CheckCircle
-                      size={26}
-                      className="text-white drop-shadow-md"
-                    />
-                  </div>
+              <div className="flex gap-4">
+                <div className="shrink-0 w-10 h-10 bg-emerald-100 rounded-full flex items-center justify-center text-emerald-600">
+                  <CheckCircle size={20} />
                 </div>
-                <div className="flex-1">
-                  <p className="font-semibold text-lg tracking-tight">
-                    Vui lòng xác nhận email!
-                  </p>
-                  <p className="mt-1 text-white/90 text-sm leading-relaxed">
-                    {message}
-                  </p>
+                <div>
+                  <h3 className="font-bold text-slate-800">Đăng ký thành công!</h3>
+                  <p className="text-sm text-slate-500 mt-1">{message}</p>
                 </div>
-                <button
-                  onClick={() => setToastVisible(false)}
-                  className="shrink-0 p-2 rounded-full hover:bg-white/15 transition duration-200"
-                >
-                  <X size={20} className="text-white/80 hover:text-white" />
-                </button>
+                <X size={18} className="text-slate-300 cursor-pointer" onClick={() => setToastVisible(false)} />
               </div>
-            </div>
-          </div>
-        )}
+            </motion.div>
+          )}
+        </AnimatePresence>
+
         <ErrorNotification
           toastVisible={errorToastVisible}
           setToastVisible={setErrorToastVisible}
@@ -286,243 +233,115 @@ const RegisterPage = () => {
           message={errorMessage}
         />
 
-        <div className="w-full max-w-5xl flex flex-col">
+        <div className="w-full max-w-5xl flex flex-col gap-4">
           <button
             onClick={() => navigate("/login")}
-            className="group flex items-center gap-2 text-sm font-semibold text-[#1a3a6b] hover:gap-3 transition-all duration-200 mb-4 self-start cursor-pointer"
+            className="flex items-center gap-2 text-sm font-bold text-[#1a3a6b] hover:gap-3 transition-all self-start cursor-pointer group"
           >
-            <span className="w-8 h-8 bg-white rounded-full hover:cursor-pointer shadow-sm border border-gray-200 flex items-center justify-center group-hover:bg-[#1a3a6b] group-hover:border-[#1a3a6b] transition-all duration-200">
-              <ArrowLeft
-                size={15}
-                className="text-[#1a3a6b] group-hover:text-white transition-colors duration-200"
-              />
-            </span>
-            <span className="group-hover:text-[#15306b] transition-colors">
-              Quay lại
-            </span>
+            <ArrowLeft size={18} className="group-hover:-translate-x-1 transition-transform" /> Quay lại đăng nhập
           </button>
 
-          <div className="w-full bg-white rounded-3xl shadow-[0_8px_40px_rgba(0,0,0,0.1)] overflow-hidden flex min-h-150">
-            <div className="hidden lg:flex lg:w-[42%] bg-[#1a3a6b] flex-col justify-between p-10 relative overflow-hidden">
-              <div className="absolute inset-0 opacity-10">
-                <div className="absolute top-0 right-0 w-72 h-72 bg-white rounded-full -translate-y-1/2 translate-x-1/2" />
-                <div className="absolute bottom-0 left-0 w-96 h-96 bg-white rounded-full translate-y-1/2 -translate-x-1/2" />
+          <div className="bg-white rounded-[2.5rem] shadow-2xl shadow-slate-200/50 overflow-hidden flex min-h-[600px] border border-white">
+            {/* Left Side: Branding */}
+            <div className="hidden lg:flex lg:w-[40%] bg-[#1a3a6b] flex-col justify-between p-12 relative overflow-hidden text-white">
+              <div className="absolute inset-0 opacity-10 pointer-events-none">
+                <div className="absolute top-0 right-0 w-64 h-64 bg-white rounded-full -translate-y-1/2 translate-x-1/2" />
+                <div className="absolute bottom-0 left-0 w-80 h-80 bg-white rounded-full translate-y-1/2 -translate-x-1/2" />
               </div>
 
               <div className="relative z-10">
-                <div className="flex items-center gap-3 mb-10">
-                  <img
-                    src={logo_iuh}
-                    alt="IUH"
-                    className="h-10 brightness-0 invert"
-                  />
-                  <div>
-                    <p className="text-white font-bold text-sm leading-none">
-                      IUH
-                    </p>
-                    <p className="text-blue-200 text-xs mt-0.5">
-                      Đại học Công nghiệp TP.HCM
-                    </p>
-                  </div>
-                </div>
-                <h2 className="text-white text-3xl font-bold leading-tight mb-3">
-                  Tham gia cùng
-                  <br />
-                  <span className="text-blue-300">Cộng đồng IUH</span>
+                <img src={logo_iuh} alt="IUH" className="h-12 brightness-0 invert mb-8" />
+                <h2 className="text-3xl font-black leading-tight mb-4">
+                  Bắt đầu hành trình <br /> <span className="text-blue-300">số hóa sự kiện</span>
                 </h2>
-                <p className="text-blue-200 text-sm leading-relaxed">
-                  Đăng ký để tham gia hàng trăm sự kiện, tích lũy điểm rèn luyện
-                  và kết nối với cộng đồng sinh viên IUH.
+                <p className="text-blue-100/80 text-sm leading-relaxed mb-10">
+                  Tham gia cộng đồng IUH để quản lý và tham gia các hoạt động ngoại khóa một cách chuyên nghiệp nhất.
                 </p>
-              </div>
 
-              <div className="relative z-10 grid grid-cols-1 gap-3">
-                {features.map(({ icon: Icon, title, desc }) => (
-                  <div
-                    key={title}
-                    className="flex items-center gap-3 bg-white/10 backdrop-blur-sm rounded-xl p-3 border border-white/10"
-                  >
-                    <div className="w-9 h-9 bg-white/20 rounded-lg flex items-center justify-center shrink-0">
-                      <Icon size={18} className="text-white" />
-                    </div>
-                    <div>
-                      <p className="text-white text-sm font-semibold leading-none mb-0.5">
-                        {title}
-                      </p>
-                      <p className="text-blue-200 text-xs">{desc}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              <div className="relative z-10 flex items-center gap-3 pt-4 border-t border-white/20">
-                <div className="flex -space-x-2">
-                  {["SV", "GV", "BT"].map((t) => (
-                    <div
-                      key={t}
-                      className="w-8 h-8 bg-blue-400 rounded-full border-2 border-[#1a3a6b] flex items-center justify-center text-[10px] font-bold text-white"
-                    >
-                      {t}
+                <div className="space-y-4">
+                  {features.map((f, i) => (
+                    <div key={i} className="flex items-center gap-4 p-3 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-sm">
+                      <div className="w-10 h-10 bg-white/10 rounded-xl flex items-center justify-center text-blue-300">
+                        <f.icon size={20} />
+                      </div>
+                      <div>
+                        <p className="font-bold text-sm leading-none mb-1">{f.title}</p>
+                        <p className="text-[11px] text-blue-200/70">{f.desc}</p>
+                      </div>
                     </div>
                   ))}
                 </div>
-                <p className="text-blue-200 text-xs">
-                  Hàng nghìn người dùng tin tưởng sử dụng
-                </p>
               </div>
+              
+              <p className="relative z-10 text-[10px] uppercase tracking-widest font-bold text-blue-300/50">
+                © {new Date().getFullYear()} Industrial University of Ho Chi Minh City
+              </p>
             </div>
 
-            <div className="flex-1 flex flex-col justify-center px-8 py-8 lg:px-10 overflow-y-auto">
-              <div className="lg:hidden flex flex-col items-center mb-6">
-                <img
-                  src={logo_iuh}
-                  alt="IUH Logo"
-                  className="h-12 object-contain mb-2"
-                />
-                <h1 className="text-xl font-bold text-[#1a3a6b]">
-                  Hệ thống Sự kiện IUH
-                </h1>
+            {/* Right Side: Form */}
+            <div className="flex-1 p-8 md:p-12 lg:p-16 flex flex-col justify-center overflow-y-auto">
+              <div className="mb-8">
+                <h1 className="text-3xl font-black text-slate-800 tracking-tight">Tạo tài khoản</h1>
+                <p className="text-slate-400 text-sm mt-2">Đại học Công nghiệp Thành phố Hồ Chí Minh</p>
               </div>
 
-              <div className="mb-6">
-                <h2 className="text-2xl font-bold text-[#1a3a6b] tracking-tight">
-                  Tạo tài khoản
-                </h2>
-                <p className="text-sm text-gray-400 mt-1">
-                  Điền thông tin để bắt đầu trải nghiệm
-                </p>
-              </div>
-
-              <form onSubmit={handleRegister} className="space-y-4">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <form onSubmit={handleRegister} className="space-y-5">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                   <InputField
-                    id="fullName"
-                    label="Họ và tên"
-                    value={formData.fullName}
-                    placeholder="Nhập họ và tên"
-                    error={errors.fullName}
-                    onChange={handleChange}
+                    id="fullName" label="Họ và tên" value={formData.fullName}
+                    placeholder="Nguyễn Văn A" error={errors.fullName} onChange={handleChange}
                   />
                   <InputField
-                    id="email"
-                    label="Email"
-                    type="email"
-                    value={formData.email}
-                    placeholder="Nhập địa chỉ email"
-                    error={errors.email}
-                    onChange={handleChange}
+                    id="email" label="Email" type="email" value={formData.email}
+                    placeholder="example@student.iuh.edu.vn" error={errors.email} onChange={handleChange}
                   />
                 </div>
 
                 <InputField
-                  id="username"
-                  label="Tên đăng nhập"
-                  value={formData.username}
-                  placeholder="Nhập tên đăng nhập"
-                  error={errors.username}
-                  onChange={handleChange}
+                  id="username" label="Tên đăng nhập" value={formData.username}
+                  placeholder="20xxxxxx" error={errors.username} onChange={handleChange}
                 />
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                   <InputField
-                    id="password"
-                    label="Mật khẩu"
-                    type={showPassword ? "text" : "password"}
-                    value={formData.password}
-                    placeholder="Nhập mật khẩu"
-                    error={errors.password}
+                    id="password" label="Mật khẩu" type={showPassword ? "text" : "password"}
+                    value={formData.password} placeholder="••••••••" error={errors.password}
                     onChange={handleChange}
                     rightElement={
-                      <button
-                        type="button"
-                        onClick={() => setShowPassword(!showPassword)}
-                        className="text-gray-400 hover:text-gray-600 transition-colors cursor-pointer"
-                      >
-                        {showPassword ? (
-                          <EyeOff size={17} />
-                        ) : (
-                          <Eye size={17} />
-                        )}
+                      <button type="button" onClick={() => setShowPassword(!showPassword)} className="text-slate-400 hover:text-slate-600 transition-colors cursor-pointer">
+                        {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                       </button>
                     }
                   />
                   <InputField
-                    id="confirmPassword"
-                    label="Xác nhận mật khẩu"
-                    type={showConfirmPassword ? "text" : "password"}
-                    value={formData.confirmPassword}
-                    placeholder="Nhập lại mật khẩu"
-                    error={errors.confirmPassword}
+                    id="confirmPassword" label="Xác nhận mật khẩu" type={showConfirmPassword ? "text" : "password"}
+                    value={formData.confirmPassword} placeholder="••••••••" error={errors.confirmPassword}
                     onChange={handleChange}
                     rightElement={
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setShowConfirmPassword(!showConfirmPassword)
-                        }
-                        className="text-gray-400 hover:text-gray-600 transition-colors cursor-pointer"
-                      >
-                        {showConfirmPassword ? (
-                          <EyeOff size={17} />
-                        ) : (
-                          <Eye size={17} />
-                        )}
+                      <button type="button" onClick={() => setShowConfirmPassword(!showConfirmPassword)} className="text-slate-400 hover:text-slate-600 transition-colors cursor-pointer">
+                        {showConfirmPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                       </button>
                     }
                   />
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                  <InputField
+                    id="dateOfBirth" label="Ngày sinh" type="date" value={formData.dateOfBirth}
+                    error={errors.dateOfBirth} onChange={handleChange}
+                  />
                   <div className="space-y-1.5">
-                    <label className="block text-sm font-medium text-gray-700">
-                      Ngày sinh
-                    </label>
-                    <input
-                      id="dateOfBirth"
-                      type="date"
-                      value={formData.dateOfBirth}
-                      onChange={handleChange}
-                      className={`w-full px-4 py-2.5 border rounded-xl text-sm outline-none transition-all cursor-pointer ${
-                        errors.dateOfBirth
-                          ? "border-red-300 bg-red-50 focus:ring-2 focus:ring-red-100"
-                          : "border-gray-200 bg-gray-50 focus:bg-white focus:border-[#1a3a6b] focus:ring-2 focus:ring-[#1a3a6b]/10"
-                      }`}
-                    />
-                    {errors.dateOfBirth && (
-                      <p className="text-xs text-red-500">
-                        {errors.dateOfBirth}
-                      </p>
-                    )}
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <label className="block text-sm font-medium text-gray-700">
-                      Giới tính
-                    </label>
-                    <div className="flex items-center gap-4 h-10.5">
-                      {[
-                        ["MALE", "Nam"],
-                        ["FEMALE", "Nữ"],
-                        ["OTHER", "Khác"],
-                      ].map(([val, label]) => (
-                        <label
-                          key={val}
-                          className="flex items-center gap-1.5 cursor-pointer select-none"
-                        >
+                    <label className="block text-sm font-medium text-gray-700">Giới tính</label>
+                    <div className="flex items-center gap-4 h-[46px]">
+                      {[["MALE", "Nam"], ["FEMALE", "Nữ"], ["OTHER", "Khác"]].map(([val, label]) => (
+                        <label key={val} className="flex items-center gap-2 cursor-pointer group">
                           <input
-                            type="radio"
-                            name="gender"
-                            value={val}
+                            type="radio" name="gender" value={val}
                             checked={formData.gender === val}
-                            onChange={(e) =>
-                              setFormData((prev) => ({
-                                ...prev,
-                                gender: e.target.value,
-                              }))
-                            }
-                            className="w-4 h-4 accent-[#1a3a6b] cursor-pointer"
+                            onChange={(e) => setFormData(p => ({ ...p, gender: e.target.value }))}
+                            className="w-4 h-4 accent-[#1a3a6b]"
                           />
-                          <span className="text-sm text-gray-600">{label}</span>
+                          <span className="text-sm text-slate-600 font-medium group-hover:text-[#1a3a6b]">{label}</span>
                         </label>
                       ))}
                     </div>
@@ -531,29 +350,23 @@ const RegisterPage = () => {
 
                 <button
                   type="submit"
-                  className="w-full py-3 bg-[#1a3a6b] text-white rounded-xl font-semibold text-sm transition-all flex items-center justify-center gap-2 mt-2 hover:bg-[#15306b] active:scale-[0.98] shadow-lg shadow-[#1a3a6b]/25 cursor-pointer"
+                  disabled={isSubmitting}
+                  className="w-full py-4 bg-[#1a3a6b] text-white rounded-2xl font-black text-sm uppercase tracking-widest shadow-xl shadow-blue-900/20 hover:bg-[#15306b] hover:scale-[1.02] active:scale-[0.98] transition-all disabled:bg-slate-300 disabled:cursor-not-allowed mt-4 flex items-center justify-center gap-3"
                 >
-                  Đăng ký ngay
+                  {isSubmitting ? (
+                    <Loader2 size={20} className="animate-spin" />
+                  ) : (
+                    "ĐĂNG KÝ TÀI KHOẢN"
+                  )}
                 </button>
 
-                <p className="text-center text-sm text-gray-400 pt-1">
+                <p className="text-center text-sm text-slate-500 font-medium">
                   Đã có tài khoản?{" "}
-                  <button
-                    type="button"
-                    onClick={() => navigate("/login")}
-                    className="text-[#1a3a6b] font-semibold hover:underline cursor-pointer"
-                  >
-                    Đăng nhập ngay
+                  <button type="button" onClick={() => navigate("/login")} className="text-[#1a3a6b] font-black hover:underline cursor-pointer">
+                    ĐĂNG NHẬP
                   </button>
                 </p>
               </form>
-
-              <div className="mt-4 text-center text-xs text-gray-400 space-y-1">
-                <p>Gặp vấn đề khi đăng ký?</p>
-                <button className="text-[#1a3a6b] font-medium hover:underline cursor-pointer">
-                  Liên hệ bộ phận hỗ trợ
-                </button>
-              </div>
             </div>
           </div>
         </div>

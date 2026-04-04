@@ -34,14 +34,7 @@ import {
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { EventPlanner } from "./EventPlanner";
-import {
-  getMyPlans,
-  deletePlan,
-  updatePlan,
-  submitPlanForApproval,
-} from "../../api/eventApi";
 import axios from "axios";
-import notificationApi from "../../api/notificationApi";
 
 const STATUS_LABELS = {
   DRAFT: "Bản nháp",
@@ -288,7 +281,7 @@ const ManagePlans = () => {
       let allAccounts = [];
       try {
         const accountsResponse = await axios.get(
-          `${IDENTITY_SERVICE_URL}/api/admin/accounts`,
+          `${IDENTITY_SERVICE_URL}/accounts`,
           {
             headers: { Authorization: `Bearer ${token}` },
           },

@@ -20,33 +20,22 @@ public class UserController {
 
     @GetMapping("/me")
     public ResponseEntity<User> getMyProfile(@AuthenticationPrincipal Jwt jwt) {
-        String userId = jwt.getClaimAsString("userId");
+        String accountId = jwt.getSubject();
 
-        System.out.println("User id" + userId);
+        System.out.println("User id" + accountId);
 
-        if (userId == null) {
+        if (accountId == null) {
             throw new RuntimeException("Token missing accountId claim");
         }
 
-        return ResponseEntity.ok(userService.getProfileByUserId(userId));
-    }
-
-    @GetMapping("/me/roles")
-    public ResponseEntity<List<String>> getMyRoles(@AuthenticationPrincipal Jwt jwt) {
-        String userId = jwt.getClaimAsString("userId");
-        if (userId == null) {
-            throw new RuntimeException("Token missing userId claim");
-        }
-
-        List<String> roles = userService.getRolesByAccountId(userId);
-        return ResponseEntity.ok(roles);
+        return ResponseEntity.ok(userService.getProfileByUserId(accountId));
     }
 
     @PutMapping("/me")
     public ResponseEntity<User> updateMyProfile(
             @AuthenticationPrincipal Jwt jwt,
             @RequestBody User updatedProfile) {
-        String accountId = jwt.getClaimAsString("accountId");
+        String accountId = jwt.getSubject();
 
         if (accountId == null) {
             throw new RuntimeException("Token missing accountId claim");
@@ -60,7 +49,7 @@ public class UserController {
     public ResponseEntity<User> updateApprovalStatus(
             @AuthenticationPrincipal Jwt jwt,
             @RequestParam String status) {
-        String accountId = jwt.getClaimAsString("accountId");
+        String accountId = jwt.getSubject();
         return ResponseEntity.ok(userService.updateApprovalStatus(accountId));
     }
 
@@ -73,5 +62,10 @@ public class UserController {
     @GetMapping("/batch")
     public ResponseEntity<List<UserDto>> getUsersByIds(@RequestParam List<String> ids) {
         return ResponseEntity.ok(userService.getUsersByIds(ids));
+    }
+
+    @GetMapping("/invite")
+    public ResponseEntity<UserDto> getUsersById(@RequestParam String id) {
+        return ResponseEntity.ok(userService.getUserById(id));
     }
 }
