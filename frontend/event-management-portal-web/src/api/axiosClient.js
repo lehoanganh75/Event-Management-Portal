@@ -1,27 +1,54 @@
 import axios from 'axios';
-import API_BASE_URL from '../configs/api.config';
+
+const GATEWAY_URL = import.meta.env.VITE_API_GATEWAY_URL || 'http://localhost:8000';
 
 const axiosClient = axios.create({
-    baseURL: API_BASE_URL,
-    headers: { 'Content-Type': 'application/json' },
+    baseURL: GATEWAY_URL,
+    headers: {
+        'Content-Type': 'application/json',
+    },
+    timeout: 15000, 
 });
 
-// Tự động gắn Token vào Header
-axiosClient.interceptors.request.use((config) => {
-    const token = localStorage.getItem("accessToken");
-    if (token) {
-        config.headers.Authorization = `Bearer ${token}`;
-    }
-    return config;
-}, (error) => Promise.reject(error));
+// Request interceptor - thêm Access Token
+axiosClient.interceptors.request.use(
+    (config) => {
+        const token = localStorage.getItem('accessToken');
+        if (token) {
+            config.headers.Authorization = `Bearer ${token}`;
+        }
+        return config;
+    },
+    (error) => Promise.reject(error)
+);
 
-// Xử lý lỗi tập trung (Optionally)
+// Response interceptor - xử lý 401 + refresh token
 axiosClient.interceptors.response.use(
     (response) => response,
-    (error) => {
-        if (error.response?.status === 401) {
-            console.error("Phiên đăng nhập hết hạn.");
-            // localStorage.removeItem("accessToken");
+    async (error) => {
+        const originalRequest = error.config;
+
+        if (error.response?.status === 401 && !originalRequest._retry) {
+            originalRequest._retry = true;
+
+            try {
+                const refreshToken = localStorage.getItem('refreshToken');
+                if (!refreshToken) throw new Error();
+
+                const res = await axios.post(`${GATEWAY_URL}/identity/auth/refresh`, { refreshToken });
+
+                const { accessToken, refreshToken: newRefreshToken } = res.data;
+
+                localStorage.setItem('accessToken', accessToken);
+                if (newRefreshToken) localStorage.setItem('refreshToken', newRefreshToken);
+
+                originalRequest.headers.Authorization = `Bearer ${accessToken}`;
+                return gatewayApi(originalRequest);
+            } catch (err) {
+                localStorage.removeItem('accessToken');
+                localStorage.removeItem('refreshToken');
+                window.location.href = '/login';
+            }
         }
         return Promise.reject(error);
     }

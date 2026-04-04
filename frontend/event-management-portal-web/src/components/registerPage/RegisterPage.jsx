@@ -1,16 +1,15 @@
 import React, { useState, useEffect, useCallback, memo } from "react";
 import {
   Eye, EyeOff, CalendarCheck, ArrowLeft, Users, QrCode,
-  BarChart3, CheckCircle, X, AlertCircle,
-  Loader2
+  BarChart3, CheckCircle, X, Loader2
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { motion, AnimatePresence } from "framer-motion";
+
 import logo_iuh from "../../assets/images/logo_iuh.png";
 import ErrorNotification from "../notification/ErrorNotification";
-// SỬA: Import authApi từ file gộp trung tâm
-import { authApi } from "../../api/authApi";
 import Header from "../common/Header";
-import { AnimatePresence } from "framer-motion";
+import { useAuth } from "../../context/AuthContext";
 
 const InputField = memo(({
   id, label, type = "text", value, placeholder, error, rightElement, onChange
@@ -54,6 +53,8 @@ const InputField = memo(({
 
 const RegisterPage = () => {
   const navigate = useNavigate();
+  const { register } = useAuth();        // ← Lấy từ AuthContext
+
   const [toastVisible, setToastVisible] = useState(false);
   const [message, setMessage] = useState("");
   const [errorToastVisible, setErrorToastVisible] = useState(false);
@@ -113,7 +114,7 @@ const RegisterPage = () => {
     if (!d.dateOfBirth) {
       newErrors.dateOfBirth = "Ngày sinh không được để trống";
     }
-    
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   }, [formData, validatePassword]);
@@ -132,26 +133,27 @@ const RegisterPage = () => {
 
   const handleRegister = async (e) => {
     e.preventDefault();
-    if (!validateForm()) return;
+    if (!validateForm() || isSubmitting) return;
 
     setIsSubmitting(true);
+    setErrorToastVisible(false);
+
     try {
-      // SỬ DỤNG authApi: Tự động gửi đến Gateway và xử lý CORS
       const payload = {
+        fullName: formData.fullName.trim(),
+        email: formData.email.trim(),
         username: formData.username.trim(),
         password: formData.password.trim(),
-        email: formData.email.trim(),
-        dateOfBirth: formData.dateOfBirth.trim(),
-        fullName: formData.fullName.trim(),
-        gender: formData.gender.trim(),
-      }; 
+        dateOfBirth: formData.dateOfBirth,
+        gender: formData.gender,
+      };
 
-      const response = await authApi.register(payload);
+      // Gọi register từ AuthContext (đã dùng identityService bên trong)
+      const response = await register(payload);
 
-      // Xử lý thành công
-      setMessage(response.data?.message || "Đăng ký thành công! Vui lòng kiểm tra email để xác thực tài khoản.");
+      setMessage(response?.message || "Đăng ký thành công! Vui lòng kiểm tra email để xác thực tài khoản.");
       setToastVisible(true);
-      
+
       // Reset form
       setFormData({
         fullName: "", email: "", username: "",
@@ -159,31 +161,29 @@ const RegisterPage = () => {
         dateOfBirth: "", gender: "OTHER",
       });
 
-      // Chuyển hướng sau 3s
+      // Chuyển sang trang login sau 3.5 giây
       setTimeout(() => navigate("/login"), 3500);
 
     } catch (error) {
       console.error("Register error:", error);
-      
-      // 1. Lấy message tổng quát từ server (dựa vào cấu trúc Map của GlobalExceptionHandler)
-      const serverErrorMsg = error.response?.data?.message || "Đăng ký thất bại";
-      const errorField = error.response?.data?.field; // Lấy field từ backend gửi về
 
-      console.log(serverErrorMsg);
-      
+      let finalMsg = "Đăng ký thất bại. Vui lòng thử lại.";
 
-      let finalMsg = serverErrorMsg;
-
+      // Xử lý lỗi từ backend (GlobalExceptionHandler trả về Map)
       if (error.response?.data) {
-        // 2. Nếu có field cụ thể, đẩy lỗi vào state errors của ô input đó
-        if (errorField) {
-          setErrors(prev => ({ ...prev, [errorField]: serverErrorMsg }));
+        const data = error.response.data;
+
+        // Nếu backend trả về field lỗi cụ thể
+        if (data.field) {
+          setErrors(prev => ({ ...prev, [data.field]: data.message || "Dữ liệu không hợp lệ" }));
         }
-      } else if (error.request) {
-        finalMsg = "Không thể kết nối đến máy chủ. Vui lòng kiểm tra lại kết nối mạng.";
+
+        finalMsg = data.message || data.error || finalMsg;
+      } 
+      else if (error.request) {
+        finalMsg = "Không thể kết nối đến máy chủ. Vui lòng kiểm tra kết nối mạng.";
       }
-      
-      // 3. Hiển thị thông báo lỗi lên Toast/Error Notification
+
       setErrorMessage(finalMsg);
       setErrorToastVisible(true);
     } finally {

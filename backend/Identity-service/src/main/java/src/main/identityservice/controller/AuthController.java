@@ -44,20 +44,17 @@ public class AuthController {
         try {
             Map<String, String> result = authService.checkEmailVerification(token);
 
-            // Thành công → redirect về login với thông báo success
             String redirectUrl = "http://localhost:5173/login?verified=true&message=" +
                     URLEncoder.encode(result.get("message"), StandardCharsets.UTF_8);
 
             response.sendRedirect(redirectUrl);
 
         } catch (TokenInvalidException | TokenUsedException | TokenExpiredException e) {
-            // Lỗi token → redirect về login với thông báo lỗi
             String errorMsg = URLEncoder.encode(e.getMessage(), StandardCharsets.UTF_8);
             String redirectUrl = "http://localhost:5173/login?verified=false&error=" + errorMsg;
 
             response.sendRedirect(redirectUrl);
         } catch (Exception e) {
-            // Lỗi khác
             String errorMsg = URLEncoder.encode("Có lỗi hệ thống. Vui lòng thử lại.", StandardCharsets.UTF_8);
             response.sendRedirect("http://localhost:5173/login?verified=false&error=" + errorMsg);
         }

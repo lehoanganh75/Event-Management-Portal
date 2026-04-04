@@ -2,53 +2,87 @@
 <html xmlns:th="http://www.thymeleaf.org">
 <head>
     <meta charset="UTF-8">
-    <title>Lời mời tham gia Sự kiện</title>
+    <title>Thư mời Sự kiện - IUH</title>
     <style>
-        body { margin: 0; padding: 0; background-color: #f4f7f6; }
-        .container { font-family: 'Segoe UI', Arial, sans-serif; max-width: 600px; margin: 20px auto; padding: 0; background-color: #ffffff; border: 1px solid #e0e0e0; border-radius: 12px; overflow: hidden; }
-        .header { background-color: #2563eb; color: white; padding: 30px 20px; text-align: center; }
-        .header h2 { margin: 0; font-size: 24px; text-transform: uppercase; letter-spacing: 1px; }
-        .content { padding: 30px; line-height: 1.6; color: #334155; }
-        .event-box { background-color: #f8fafc; border-left: 4px solid #2563eb; padding: 15px; margin: 20px 0; border-radius: 4px; }
-        .event-info { margin-bottom: 8px; font-weight: bold; }
-        .button-wrapper { text-align: center; margin: 30px 0; }
-        .button { display: inline-block; padding: 14px 32px; background-color: #2563eb; color: #ffffff !important; text-decoration: none; border-radius: 6px; font-weight: bold; box-shadow: 0 4px 6px -1px rgba(37, 99, 235, 0.2); }
-        .url-text { font-size: 11px; color: #94a3b8; word-break: break-all; margin-top: 10px; text-align: center; }
-        .footer { font-size: 12px; color: #64748b; padding: 20px; text-align: center; background-color: #f1f5f9; border-top: 1px solid #e2e8f0; }
-        .warning { color: #dc2626; font-weight: bold; font-size: 14px; text-align: center; }
+        /* Base styles for email client compatibility */
+        body { margin: 0; padding: 0; width: 100% !important; background-color: #f1f5f9; -webkit-text-size-adjust: 100%; -ms-text-size-adjust: 100%; }
+        table { border-spacing: 0; width: 100%; }
+        td { padding: 0; }
+        img { border: 0; }
+
+        .wrapper { width: 100%; table-layout: fixed; background-color: #f1f5f9; padding-bottom: 40px; }
+        .main-table { max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 16px; overflow: hidden; margin-top: 40px; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1); }
+
+        /* Header Section */
+        .header { background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%); padding: 40px 20px; text-align: center; color: #ffffff; }
+        .header h1 { margin: 0; font-family: 'Segoe UI', Helvetica, Arial, sans-serif; font-size: 22px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; }
+
+        /* Content Section */
+        .content { padding: 40px 30px; font-family: 'Segoe UI', Helvetica, Arial, sans-serif; color: #1e293b; line-height: 1.6; }
+        .greeting { font-size: 18px; font-weight: 600; margin-bottom: 16px; color: #0f172a; }
+        .description { font-size: 15px; margin-bottom: 24px; color: #475569; }
+
+        /* Event Highlight Box */
+        .event-card { background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 24px; margin-bottom: 30px; }
+        .event-label { font-size: 12px; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px; display: block; }
+        .event-title { font-size: 20px; font-weight: 700; color: #2563eb; margin: 0; }
+
+        /* Button Style */
+        .button-container { text-align: center; padding: 10px 0 20px; }
+        .btn-confirm { background-color: #2563eb; color: #ffffff !important; display: inline-block; padding: 16px 36px; font-family: 'Segoe UI', sans-serif; font-size: 15px; font-weight: 700; text-decoration: none; border-radius: 8px; transition: background-color 0.3s ease; }
+
+        /* Warning & URL Section */
+        .expiry-notice { background-color: #fff1f2; color: #be123c; border-radius: 8px; padding: 12px; font-size: 13px; font-weight: 600; text-align: center; margin-bottom: 20px; border: 1px solid #fecdd3; }
+        .url-backup { font-size: 12px; color: #94a3b8; text-align: center; line-height: 1.4; }
+        .url-link { color: #2563eb; text-decoration: none; word-break: break-all; }
+
+        /* Footer Section */
+        .footer { padding: 30px; text-align: center; font-family: 'Segoe UI', sans-serif; font-size: 13px; color: #64748b; }
+        .footer p { margin: 4px 0; }
     </style>
 </head>
 <body>
-<div class="container">
-    <div class="header">
-        <h2>THƯ MỜI THAM GIA SỰ KIỆN</h2>
-    </div>
-    <div class="content">
-        <p>Xin chào <strong><span th:text="${fullName}">Sinh viên</span></strong>,</p>
+<div class="wrapper">
+    <table class="main-table">
+        <tr>
+            <td class="header">
+                <h1>IUH EVENT</h1>
+            </td>
+        </tr>
+        <tr>
+            <td class="content">
+                <p class="greeting">Chào <span th:text="${fullName}">Sinh viên</span>,</p>
+                <p class="description">Bạn vừa nhận được một lời mời tham gia sự kiện đặc biệt từ Ban tổ chức trên hệ thống <strong>IUH Event Management</strong>.</p>
 
-        <p>Ban tổ chức trân trọng kính mời bạn tham gia sự kiện sắp tới trên hệ thống <strong>IUH Event Management</strong>.</p>
+                <div class="event-card">
+                    <span class="event-label">📌 Thông tin sự kiện</span>
+                    <h2 class="event-title" th:text="${eventName}">Tên sự kiện</h2>
+                </div>
 
-        <div class="event-box">
-            <div class="event-info">📌 Sự kiện: <span th:text="${eventName}">Tên sự kiện</span></div>
-        </div>
+                <p class="description" style="text-align: center;">Vui lòng xác nhận sự hiện diện của bạn để hệ thống chuẩn bị vé và chỗ ngồi tốt nhất.</p>
 
-        <p>Để xác nhận sự hiện diện của bạn và nhận mã vé (QR Code), vui lòng nhấn vào nút xác nhận bên dưới:</p>
+                <div class="button-container">
+                    <a th:href="${inviteUrl}" class="btn-confirm">XÁC NHẬN THAM GIA NGAY</a>
+                </div>
 
-        <div class="button-wrapper">
-            <a th:href="${inviteUrl}" class="button">XÁC NHẬN THAM GIA</a>
-        </div>
+                <div class="expiry-notice">
+                    ⚠️ Link xác nhận này sẽ hết hạn sau <strong th:text="${expirySeconds}">30</strong> giây.
+                </div>
 
-        <p class="warning">⚠️ Lưu ý: Link xác nhận này sẽ hết hạn sau 30 giây kể từ khi email được gửi đi.</p>
-
-        <div class="url-text">
-            Nếu nút trên không hoạt động, bạn có thể copy link sau: <br/>
-            <span th:text="${inviteUrl}">http://link-xac-nhan</span>
-        </div>
-    </div>
-    <div class="footer">
-        <p>Đây là email tự động, vui lòng không phản hồi email này.</p>
-        <p>&copy; 2026 IUH Event Management System Team</p>
-    </div>
+                <div class="url-backup">
+                    Nếu nút trên không hoạt động, vui lòng copy link: <br>
+                    <a th:href="${inviteUrl}" class="url-link" th:text="${inviteUrl}">http://localhost:8080/confirm</a>
+                </div>
+            </td>
+        </tr>
+        <tr>
+            <td class="footer">
+                <p>Đây là email tự động từ hệ thống quản lý sự kiện IUH.</p>
+                <p><strong>IUH Event Management System Team</strong></p>
+                <p>&copy; 2026 Industrial University of Ho Chi Minh City</p>
+            </td>
+        </tr>
+    </table>
 </div>
 </body>
 </html>

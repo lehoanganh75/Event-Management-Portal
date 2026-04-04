@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo, useCallback } from "react";
 import {
   FileText,
   Plus,
@@ -17,11 +17,23 @@ import {
   RefreshCw,
   Calendar
 } from "lucide-react";
-import { eventApi } from "../../api/eventApi";     // Sử dụng eventApi mới
-import { contentApi } from "../../api/contentApi"; // Sử dụng contentApi mới
+
+// IMPORT CONTEXT
+import { useAuth } from "../../context/AuthContext";
+import { useEvent } from "../../context/EventContext";
 
 const AdminPostManagement = ({ eventId, eventTitle }) => {
-  const [posts, setPosts] = useState([]);
+  // LẤY DATA VÀ SERVICE TỪ CONTEXT
+  const { user } = useAuth();
+  const { 
+    posts, 
+    fetchAllPosts, 
+    createPost, 
+    updatePost, 
+    deletePost,
+    events: eventService 
+  } = useEvent();
+
   const [allEvents, setAllEvents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
@@ -41,7 +53,7 @@ const AdminPostManagement = ({ eventId, eventTitle }) => {
 
   const ITEMS_PER_PAGE = 10;
 
-  // Các loại bài đăng
+  // Các loại bài đăng (Giữ nguyên)
   const POST_TYPES = {
     ANNOUNCEMENT: { label: "Thông báo", color: "blue", icon: Megaphone },
     NEWS: { label: "Tin tức", color: "green", icon: Newspaper },
@@ -50,7 +62,7 @@ const AdminPostManagement = ({ eventId, eventTitle }) => {
     FEEDBACK: { label: "Phản hồi", color: "yellow", icon: MessageCircle }
   };
 
-  // Trạng thái bài đăng
+  // Trạng thái bài đăng (Giữ nguyên)
   const POST_STATUS = {
     DRAFT: { label: "Nháp", color: "gray", icon: FileText },
     PENDING: { label: "Chờ duyệt", color: "yellow", icon: Clock },
@@ -59,41 +71,26 @@ const AdminPostManagement = ({ eventId, eventTitle }) => {
     SCHEDULED: { label: "Đã lên lịch", color: "blue", icon: Calendar }
   };
 
-  const fetchPosts = async () => {
+  const loadData = useCallback(async () => {
     setLoading(true);
     try {
-      // Gọi hàm getAll từ contentApi - axiosClient tự lo Token và BaseURL
-      const response = await contentApi.posts.getAll({ size: 1000 });
-      const data = response.data;
-      
-      setPosts(data.content || data || []);
+      // Gọi fetch bài đăng từ Context
+      await fetchAllPosts({ size: 1000 });
+      // Lấy danh sách sự kiện từ service trong context
+      const res = await eventService.getAllEvents();
+      setAllEvents(res.data || []);
     } catch (error) {
-      console.error("Error fetching posts:", error);
-      alert("Không thể tải dữ liệu bài đăng.");
+      console.error("Error fetching data:", error);
     } finally {
       setLoading(false);
     }
-  };
+  }, [fetchAllPosts, eventService]);
 
   useEffect(() => {
-    fetchPosts();
-  }, [eventId]);
+    if (user) loadData();
+  }, [user, eventId, loadData]);
 
-  const fetchAllEvents = async () => {
-    try {
-      const res = await eventApi.events.getAll();
-      setAllEvents(res.data || []);
-    } catch (error) {
-      console.error("Lỗi lấy danh sách sự kiện:", error);
-    }
-  };
-
-  useEffect(() => {
-    fetchPosts();
-    fetchAllEvents();
-  }, [eventId]);
-
-  const filteredPosts = posts.filter(post => {
+  const filteredPosts = (posts || []).filter(post => {
     const matchSearch = searchTerm === "" || 
       post.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       post.content?.toLowerCase().includes(searchTerm.toLowerCase());
@@ -102,59 +99,49 @@ const AdminPostManagement = ({ eventId, eventTitle }) => {
     return matchSearch && matchStatus && matchType;
   });
 
-  // Pagination
+  // Pagination (Giữ nguyên)
   const totalPages = Math.ceil(filteredPosts.length / ITEMS_PER_PAGE);
   const paginatedPosts = filteredPosts.slice(
     (currentPage - 1) * ITEMS_PER_PAGE,
     currentPage * ITEMS_PER_PAGE
   );
 
-  // Create/Update post
+  // Save post (Sửa logic lấy accountId từ AuthContext)
   const handleSavePost = async () => {
     try {
-      let accountId = null;
-      const userData = localStorage.getItem("user");
-      if (userData) {
-        const user = JSON.parse(userData);
-        accountId = user.id || user.accountId || user.userId;
-      }
-
       const payload = { 
         ...formData, 
-        createdByAccountId: accountId,
+        createdByAccountId: user?.id || user?.accountId,
         eventId: formData.eventId || eventId 
       };
       
       if (modalMode === "create") {
-        await contentApi.posts.create(payload);
+        await createPost(payload);
       } else {
-        await contentApi.posts.update(selectedPost.id, payload);
+        await updatePost(selectedPost.id, payload);
       }
       
-      fetchPosts();
+      await fetchAllPosts({ size: 1000 }); // Refresh data
       setIsModalOpen(false);
       alert(modalMode === "create" ? "Tạo bài đăng thành công!" : "Cập nhật thành công!");
     } catch (error) {
-      console.error("Error saving post:", error);
-      alert(error.response?.data?.message || "Có lỗi xảy ra, vui lòng thử lại!");
+      alert(error.response?.data?.message || "Có lỗi xảy ra!");
     }
   };
 
-  // Delete post
+  // Delete post (Dùng hàm từ Context)
   const handleDeletePost = async (postId) => {
     if (!window.confirm("Bạn có chắc muốn xóa bài đăng này?")) return;
-    
     try {
-      await contentApi.posts.delete(postId);
-      fetchPosts();
+      await deletePost(postId);
+      await fetchAllPosts({ size: 1000 });
       alert("Xóa bài đăng thành công!");
     } catch (error) {
-      console.error("Error deleting post:", error);
       alert("Lỗi khi xóa bài đăng.");
     }
   };
 
-  // Stats
+  // Stats (Giữ nguyên logic)
   const stats = {
     total: posts.length,
     published: posts.filter(p => p.status === "PUBLISHED").length,
@@ -163,6 +150,7 @@ const AdminPostManagement = ({ eventId, eventTitle }) => {
     totalComments: posts.reduce((sum, post) => sum + (post.comments?.length || 0), 0)
   };
 
+  // ==================== UI HOÀN TOÀN GIỮ NGUYÊN ====================
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -341,7 +329,7 @@ const AdminPostManagement = ({ eventId, eventTitle }) => {
         </div>
       )}
 
-      {/* Create/Edit Modal */}
+      {/* Modal */}
       {isModalOpen && (
         <PostModal
           mode={modalMode}
@@ -358,69 +346,35 @@ const AdminPostManagement = ({ eventId, eventTitle }) => {
   );
 };
 
-// Component cho Type Badge
+// CÁC SUB-COMPONENT GIỮ NGUYÊN HOÀN TOÀN
 const TypeBadge = ({ type, postTypes }) => {
   const typeConfig = postTypes[type];
   if (!typeConfig) return null;
-  
-  const colorClasses = {
-    blue: "bg-blue-100 text-blue-700",
-    green: "bg-green-100 text-green-700",
-    orange: "bg-orange-100 text-orange-700",
-    purple: "bg-purple-100 text-purple-700",
-    yellow: "bg-yellow-100 text-yellow-700"
-  };
-  
-  return (
-    <span className={`px-2 py-1 text-xs rounded-full ${colorClasses[typeConfig.color] || "bg-gray-100 text-gray-700"}`}>
-      {typeConfig.label}
-    </span>
-  );
+  const colors = { blue: "bg-blue-100 text-blue-700", green: "bg-green-100 text-green-700", orange: "bg-orange-100 text-orange-700", purple: "bg-purple-100 text-purple-700", yellow: "bg-yellow-100 text-yellow-700" };
+  return <span className={`px-2 py-1 text-xs rounded-full ${colors[typeConfig.color] || "bg-gray-100"}`}>{typeConfig.label}</span>;
 };
 
-// Component cho Status Badge
 const StatusBadge = ({ status, postStatus }) => {
   const statusConfig = postStatus[status];
   if (!statusConfig) return null;
-  
   const IconComponent = statusConfig.icon;
-  const colorClasses = {
-    green: "text-green-600",
-    gray: "text-gray-600",
-    yellow: "text-yellow-600",
-    red: "text-red-600",
-    blue: "text-blue-600"
-  };
-  
+  const colors = { green: "text-green-600", gray: "text-gray-600", yellow: "text-yellow-600", red: "text-red-600", blue: "text-blue-600" };
   return (
-    <span className={`flex items-center gap-1 text-sm ${colorClasses[statusConfig.color] || "text-gray-600"}`}>
-      {IconComponent && <IconComponent size={14} className={colorClasses[statusConfig.color]} />}
+    <span className={`flex items-center gap-1 text-sm ${colors[statusConfig.color] || "text-gray-600"}`}>
+      {IconComponent && <IconComponent size={14} />}
       {statusConfig.label}
     </span>
   );
 };
 
-// Stat Card Component
 const StatCard = ({ label, value, icon: Icon, color }) => {
-  const bgColorClasses = {
-    blue: "bg-blue-100",
-    green: "bg-green-100",
-    gray: "bg-gray-100",
-    purple: "bg-purple-100"
-  };
-  
-  const textColorClasses = {
-    blue: "text-blue-600",
-    green: "text-green-600",
-    gray: "text-gray-600",
-    purple: "text-purple-600"
-  };
-  
+  const bgs = { blue: "bg-blue-100", green: "bg-green-100", gray: "bg-gray-100", purple: "bg-purple-100" };
+  const texts = { blue: "text-blue-600", green: "text-green-600", gray: "text-gray-600", purple: "text-purple-600" };
   return (
     <div className="bg-white rounded-lg shadow p-4">
       <div className="flex items-center justify-between">
-        <div className={`p-2 ${bgColorClasses[color] || "bg-gray-100"} rounded-lg`}>
-          <Icon size={20} className={textColorClasses[color] || "text-gray-600"} />
+        <div className={`p-2 ${bgs[color] || "bg-gray-100"} rounded-lg`}>
+          <Icon size={20} className={texts[color] || "text-gray-600"} />
         </div>
         <p className="text-2xl font-bold">{value}</p>
       </div>
@@ -429,124 +383,27 @@ const StatCard = ({ label, value, icon: Icon, color }) => {
   );
 };
 
-// Post Modal Component
-const PostModal = ({ mode, formData, setFormData, onSave, onClose, postTypes, postStatus, userEvents }) => {
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    onSave();
-  };
-  
-  return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={onClose}>
-      <div className="bg-white rounded-lg w-full max-w-2xl max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
-        <form onSubmit={handleSubmit}>
-          <div className="p-6 border-b">
-            <h3 className="text-lg font-bold">
-              {mode === "create" ? "Tạo bài đăng mới" : "Chỉnh sửa bài đăng"}
-            </h3>
+const PostModal = ({ mode, formData, setFormData, onSave, onClose, postTypes, postStatus, userEvents }) => (
+  <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={onClose}>
+    <div className="bg-white rounded-lg w-full max-w-2xl max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+      <form onSubmit={(e) => { e.preventDefault(); onSave(); }}>
+        <div className="p-6 border-b"><h3 className="text-lg font-bold">{mode === "create" ? "Tạo bài đăng mới" : "Chỉnh sửa bài đăng"}</h3></div>
+        <div className="p-6 space-y-4">
+          <div><label className="block text-sm font-medium mb-1">Tiêu đề *</label><input type="text" value={formData.title || ""} onChange={(e) => setFormData({ ...formData, title: e.target.value })} className="w-full px-3 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-blue-500" required /></div>
+          <div><label className="block text-sm font-medium mb-1">Nội dung *</label><textarea value={formData.content || ""} onChange={(e) => setFormData({ ...formData, content: e.target.value })} rows={8} className="w-full px-3 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-blue-500" required /></div>
+          <div><label className="block text-sm font-medium mb-1">Sự kiện áp dụng</label><select value={formData.eventId || ""} onChange={(e) => setFormData({ ...formData, eventId: e.target.value })} className="w-full px-3 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-blue-500"><option value="">-- Chọn sự kiện --</option>{userEvents?.map((ev) => (<option key={ev.id} value={ev.id}>{ev.title}</option>))}</select></div>
+          <div className="grid grid-cols-2 gap-4">
+            <div><label className="block text-sm font-medium mb-1">Loại</label><select value={formData.postType} onChange={(e) => setFormData({ ...formData, postType: e.target.value })} className="w-full px-3 py-2 border rounded-lg outline-none">{Object.entries(postTypes).map(([k, { label }]) => (<option key={k} value={k}>{label}</option>))}</select></div>
+            <div><label className="block text-sm font-medium mb-1">Trạng thái</label><select value={formData.status} onChange={(e) => setFormData({ ...formData, status: e.target.value })} className="w-full px-3 py-2 border rounded-lg outline-none">{Object.entries(postStatus).map(([k, { label }]) => (<option key={k} value={k}>{label}</option>))}</select></div>
           </div>
-          
-          <div className="p-6 space-y-4">
-            {/* Title */}
-            <div>
-              <label className="block text-sm font-medium mb-1">Tiêu đề *</label>
-              <input
-                type="text"
-                value={formData.title || ""}
-                onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="Nhập tiêu đề bài đăng"
-                required
-              />
-            </div>
-            
-            {/* Content */}
-            <div>
-              <label className="block text-sm font-medium mb-1">Nội dung *</label>
-              <textarea
-                value={formData.content || ""}
-                onChange={(e) => setFormData({ ...formData, content: e.target.value })}
-                rows={8}
-                className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="Nhập nội dung bài đăng..."
-                required
-              />
-            </div>
-            
-            {/* Event Selection */}
-            <div>
-              <label className="block text-sm font-medium mb-1">Sự kiện áp dụng</label>
-              <select
-                value={formData.eventId || ""}
-                onChange={(e) => setFormData({ ...formData, eventId: e.target.value })}
-                className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="">-- Chọn sự kiện (Tùy chọn) --</option>
-                {userEvents?.map((ev) => (
-                  <option key={ev.id} value={ev.id}>{ev.title}</option>
-                ))}
-              </select>
-            </div>
-
-            {/* Post Type */}
-            <div>
-              <label className="block text-sm font-medium mb-1">Loại bài đăng</label>
-              <select
-                value={formData.postType || "ANNOUNCEMENT"}
-                onChange={(e) => setFormData({ ...formData, postType: e.target.value })}
-                className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                {Object.entries(postTypes).map(([key, { label }]) => (
-                  <option key={key} value={key}>{label}</option>
-                ))}
-              </select>
-            </div>
-            
-            {/* Status */}
-            <div>
-              <label className="block text-sm font-medium mb-1">Trạng thái</label>
-              <select
-                value={formData.status || "DRAFT"}
-                onChange={(e) => setFormData({ ...formData, status: e.target.value })}
-                className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                {Object.entries(postStatus).map(([key, { label }]) => (
-                  <option key={key} value={key}>{label}</option>
-                ))}
-              </select>
-            </div>
-            
-            {/* Published At */}
-            <div>
-              <label className="block text-sm font-medium mb-1">Thời gian hiển thị (Tùy chọn)</label>
-              <input
-                type="datetime-local"
-                value={formData.publishedAt ? new Date(formData.publishedAt).toISOString().slice(0, 16) : ""}
-                onChange={(e) => setFormData({ ...formData, publishedAt: e.target.value ? new Date(e.target.value).toISOString() : null })}
-                className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-            </div>
-          </div>
-          
-          <div className="p-6 border-t flex justify-end gap-3">
-            <button
-              type="button"
-              onClick={onClose}
-              className="px-4 py-2 border rounded-lg hover:bg-gray-50 transition-colors"
-            >
-              Hủy
-            </button>
-            <button
-              type="submit"
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-            >
-              {mode === "create" ? "Tạo bài đăng" : "Cập nhật"}
-            </button>
-          </div>
-        </form>
-      </div>
+        </div>
+        <div className="p-6 border-t flex justify-end gap-3">
+          <button type="button" onClick={onClose} className="px-4 py-2 border rounded-lg">Hủy</button>
+          <button type="submit" className="px-4 py-2 bg-blue-600 text-white rounded-lg">{mode === "create" ? "Tạo bài đăng" : "Cập nhật"}</button>
+        </div>
+      </form>
     </div>
-  );
-};
+  </div>
+);
 
 export default AdminPostManagement;

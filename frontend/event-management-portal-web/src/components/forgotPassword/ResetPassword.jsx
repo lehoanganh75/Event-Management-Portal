@@ -1,10 +1,10 @@
+// src/pages/auth/ResetPassword.jsx
 import React, { useState } from "react";
 import { ArrowLeft, Eye, EyeOff, CheckCircle, AlertCircle, Loader2 } from "lucide-react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import logo_iuh from "../../assets/images/logo_iuh.png";
-// SỬA: Import authApi từ file gộp trung tâm
-import { authApi } from "../../api/authApi";
 import Header from "../common/Header";
+import { useAuth } from "../../context/AuthContext";
 
 const PasswordInput = ({ id, label, value, show, onToggle, error, onChange }) => (
     <div className="space-y-1.5">
@@ -45,6 +45,8 @@ const ResetPassword = () => {
   const token = searchParams.get("token");
   const navigate = useNavigate();
 
+  const { resetPassword } = useAuth();     // ← Lấy từ AuthContext
+
   const [formData, setFormData] = useState({ newPassword: "", confirmPassword: "" });
   const [errors, setErrors] = useState({});
   const [status, setStatus] = useState({ type: "", message: "" });
@@ -54,7 +56,7 @@ const ResetPassword = () => {
 
   const validatePassword = (password) => {
     const errs = [];
-    if (!password.trim()) return ["Mật khẩu không được để trống"];
+    if (!password.trim()) errs.push("Mật khẩu không được để trống");
     if (password.length < 8) errs.push("Ít nhất 8 ký tự");
     if (!/[A-Z]/.test(password)) errs.push("Ít nhất 1 chữ hoa");
     if (!/[!@#$%^&*()]/.test(password)) errs.push("Ít nhất 1 ký tự đặc biệt");
@@ -63,6 +65,15 @@ const ResetPassword = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+
+    if (!token) {
+      setStatus({
+        type: "error",
+        message: "Liên kết không hợp lệ. Vui lòng yêu cầu đặt lại mật khẩu mới.",
+      });
+      return;
+    }
+
     const newErrs = {};
 
     const pwErrs = validatePassword(formData.newPassword);
@@ -81,17 +92,24 @@ const ResetPassword = () => {
     setStatus({ type: "", message: "" });
 
     try {
-      // SỬ DỤNG authApi: AxiosClient tự động xử lý URL Gateway và tham số
-      // Giả định authApi.resetPassword đã được định nghĩa với (token, newPassword)
-      await authApi.resetPassword(token, formData.newPassword);
+      // Gọi resetPassword từ AuthContext
+      await resetPassword(token, formData.newPassword);
 
-      setStatus({ type: "success", message: "Mật khẩu của bạn đã được cập nhật thành công! Đang chuyển hướng..." });
+      setStatus({
+        type: "success",
+        message: "Mật khẩu của bạn đã được cập nhật thành công! Đang chuyển hướng đến trang đăng nhập...",
+      });
+
       setTimeout(() => navigate("/login"), 2500);
     } catch (error) {
       console.error("Reset password error:", error);
+
+      const errorMsg = error.response?.data?.message 
+        || "Liên kết không hợp lệ hoặc đã hết hạn. Vui lòng yêu cầu lại.";
+
       setStatus({
         type: "error",
-        message: error.response?.data?.message || "Liên kết không hợp lệ hoặc đã hết hạn. Vui lòng yêu cầu lại.",
+        message: errorMsg,
       });
     } finally {
       setLoading(false);

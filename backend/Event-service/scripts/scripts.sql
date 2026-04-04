@@ -97,7 +97,7 @@ INSERT INTO event_templates (
 VALUES
 
 -- 1. Workshop IT
-(UUID(), 'Workshop Java Spring Boot',
+('a2311a05-2f22-11f1-a793-726639b4c8d6', 'Workshop Java Spring Boot',
  'Template cho workshop backend Java',
  'WORKSHOP', 'COURSE',
  'Workshop: Java Spring Boot Master',

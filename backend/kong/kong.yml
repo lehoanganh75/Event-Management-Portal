@@ -9,6 +9,7 @@ services:
       - name: analytics-route
         paths:
           - /analytics
+        strip_path: true
 
   # 2. Event Service (Trong ảnh thư mục là Event-service)
   - name: event-service
@@ -17,6 +18,7 @@ services:
       - name: event-route
         paths:
           - /events
+        strip_path: true
 
   # 3. Identity Service
   - name: identity-service
@@ -25,6 +27,7 @@ services:
       - name: identity-route
         paths:
           - /identity
+        strip_path: true
 
   # 4. Lucky Draw Service
   - name: lucky-draw-service
@@ -33,6 +36,7 @@ services:
       - name: lucky-draw-route
         paths:
           - /lucky-draw
+        strip_path: true
 
   # 5. Notification Service
   - name: notification-service
@@ -41,6 +45,7 @@ services:
       - name: notification-route
         paths:
           - /notification
+        strip_path: true
 
 plugins:
   - name: cors

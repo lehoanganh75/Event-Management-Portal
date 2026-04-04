@@ -3,10 +3,12 @@ import { ArrowLeft, Mail, CheckCircle, AlertCircle } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import logo_iuh from "../../assets/images/logo_iuh.png";
 import Header from "../common/Header";
-import authApi from "../../api/authApi";
+import { useAuth } from "../../context/AuthContext";
 
 const ForgotPassword = () => {
   const navigate = useNavigate();
+  const { forgotPassword } = useAuth();     // ← Lấy từ AuthContext
+
   const [email, setEmail] = useState("");
   const [message, setMessage] = useState({ type: "", content: "" });
   const [loading, setLoading] = useState(false);
@@ -14,8 +16,8 @@ const ForgotPassword = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
-    // Validation cơ bản tại Frontend
+
+    // Validation frontend
     if (!email.trim()) {
       setError("Email không được để trống");
       return;
@@ -30,18 +32,26 @@ const ForgotPassword = () => {
     setError("");
 
     try {
-      // SỬ DỤNG authApi: axiosClient tự xử lý URL Gateway và Header
-      await authApi.forgotPassword(email.trim());
-      
+      // Gọi hàm từ AuthContext (đã dùng identityService.forgotPassword bên trong)
+      await forgotPassword(email.trim());
+
       setMessage({
         type: "success",
-        content: "Một liên kết khôi phục đã được gửi đến email của bạn. Vui lòng kiểm tra hộp thư (bao gồm cả thư rác/spam)!",
+        content: "Một liên kết khôi phục mật khẩu đã được gửi đến email của bạn. Vui lòng kiểm tra hộp thư (kể cả thư rác/spam)!",
       });
+      
+      // Clear input sau khi gửi thành công
+      setEmail("");
+      
     } catch (err) {
       console.error("Forgot password error:", err);
+      
+      const errorMsg = err.response?.data?.message 
+        || "Email không tồn tại trong hệ thống hoặc có lỗi xảy ra. Vui lòng thử lại.";
+
       setMessage({
         type: "error",
-        content: err.response?.data?.message || "Email không tồn tại trong hệ thống hoặc có lỗi xảy ra.",
+        content: errorMsg,
       });
     } finally {
       setLoading(false);

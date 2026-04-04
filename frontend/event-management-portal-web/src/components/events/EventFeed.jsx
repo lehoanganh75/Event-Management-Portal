@@ -1,16 +1,15 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import {
-  Newspaper, Calendar, Clock, MapPin, Users, Loader2, Search, X, 
-  ChevronLeft, ChevronRight, SlidersHorizontal, ArrowUpDown, 
-  Sparkles, Gift, TrendingUp
+  Newspaper, Calendar, Clock, MapPin, Users, Search, X, 
+  ChevronLeft, ChevronRight, Gift, Sparkles
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
 // IMPORT CÁC COMPONENT & API TẬP TRUNG
+import { useEvent } from "../../context/EventContext";
 import Preloader from "./Preloader";
 import LuckyWheelModal from "../luckyWheelModal/LuckyWheelModal";
-import { eventApi } from "../../api/eventApi"; // SỬA: Dùng file gộp trung tâm
 
 /* ─── CÁC COMPONENT PHỤ (Giữ nguyên logic UI) ─── */
 function LeftSidebar({ onSearchChange, variant = "full" }) {
@@ -104,6 +103,8 @@ export function EventFeed() {
   const location = useLocation();
   const isLecturerView = location.pathname.startsWith("/lecturer");
 
+  const { events, loading, error } = useEvent();
+
   const [posts, setPosts] = useState([]);
   const [currentPage, setCurrentPage] = useState(1);
   const [isLoading, setIsLoading] = useState(true);
@@ -122,37 +123,35 @@ export function EventFeed() {
 
   const handleEventClick = (eventId) => navigate(`/events/${eventId}`);
 
+  const loadEvents = useCallback(async () => {
+    // Không cần set setIsLoading thủ công vì Context quản lý loading.action hoặc loading.myEvents
+    try {
+      // Sử dụng service 'events' từ context (đã được cấu hình axiosClient chuẩn)
+      const res = await events.getAllActiveEvents();
+      const data = res?.data || [];
+
+      // Lọc các sự kiện công khai
+      const visibleEvents = data.filter(ev => 
+        ev.status !== "DRAFT" && ev.status !== "PLAN_PENDING_APPROVAL"
+      );
+      
+      setPosts(visibleEvents);
+    } catch (err) {
+      // Error đã được Context log và xử lý, ở đây chỉ cần reset state local
+      setPosts([]);
+    }
+  }, [events]);
+
   // FETCH DATA SỬ DỤNG API TẬP TRUNG
   useEffect(() => {
-    const loadEvents = async () => {
-      setIsLoading(true);
-      try {
-        // SỬ DỤNG API GỘP: axiosClient tự lo Token và URL
-        const res = await eventApi.events.getAll();
-        const data = res.data || [];
-        
-        // Lọc bỏ bản nháp và chỉ lấy sự kiện công khai
-        const visibleEvents = data.filter(ev => 
-          ev.status !== "DRAFT" && ev.status !== "PLAN_PENDING_APPROVAL"
-        );
-        
-        setPosts(visibleEvents);
-      } catch (err) {
-        console.error("Lỗi fetch sự kiện:", err);
-        setPosts([]);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
     loadEvents();
-  }, [filters.status]);
+  }, [loadEvents]);
 
-  // LOGIC FILTER VÀ PHÂN TRANG
+  // 3. LOGIC FILTER VÀ PHÂN TRANG (Giữ nguyên)
   const filteredPosts = useMemo(() => {
     return posts
       .filter((post) => {
-        const matchesKeyword = post.title.toLowerCase().includes(searchKeyword.toLowerCase());
+        const matchesKeyword = post.title?.toLowerCase().includes(searchKeyword.toLowerCase());
         const matchesStatus = filters.status === "all" || post.status === filters.status;
         return matchesKeyword && matchesStatus;
       })
@@ -168,7 +167,7 @@ export function EventFeed() {
 
   return (
     <div id="su-kien" className="min-h-screen bg-gray-50 flex flex-col font-sans">
-      {isLoading && <Preloader />}
+      {loading.myEvents && <Preloader />}
 
       {!isLecturerView && <MobileSearchBar onSearchChange={setSearchKeyword} />}
 

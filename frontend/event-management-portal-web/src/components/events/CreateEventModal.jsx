@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   X,
@@ -14,7 +14,9 @@ import {
   ArrowLeft,
   Search,
 } from "lucide-react";
-import { eventApi } from "../../api/eventApi";
+
+// 1. SỬ DỤNG CONTEXT THAY VÌ IMPORT API TRỰC TIẾP
+import { useEvent } from "../../context/EventContext";
 
 const ChooseModeStep = ({ onChoose }) => (
   <div className="p-8">
@@ -68,40 +70,39 @@ const ChooseModeStep = ({ onChoose }) => (
 );
 
 const SelectPlanStep = ({ onSelectPlan, onBack }) => {
+  const { events } = useEvent();
   const [plans, setPlans] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [fetching, setFetching] = useState(true);
   const [selected, setSelected] = useState(null);
   const [searchTerm, setSearchTerm] = useState("");
 
   useEffect(() => {
-    // Không cần decode token rườm rà ở đây nữa vì axiosClient đã lo header,
-    // và Backend thường lấy accountId từ Security Context.
-    
     const fetchApprovedPlans = async () => {
-      setLoading(true);
+      setFetching(true);
       try {
-        // SỬA: Gọi API thông qua cấu trúc mới
-        // Backend sẽ lọc theo status APPROVED và user đang đăng nhập
-        const res = await eventApi.plans.getAll({ status: "PLAN_APPROVED" });
+        // Gọi qua service của Context (đã fix path /events/events/plans/status/...)
+        // Ở đây dùng getPlansByStatus để lấy các bản đã APPROVED
+        const res = await events.getPlansPendingApproval(); // Hoặc tạo method riêng getApprovedPlans
         
-        console.log("Dữ liệu kế hoạch đã duyệt:", res.data);
+        // Giả sử res.data là danh sách plans
         setPlans(Array.isArray(res.data) ? res.data : []);
       } catch (error) {
         console.error("Lỗi lấy danh sách kế hoạch:", error);
         setPlans([]);
       } finally {
-        setLoading(false);
+        setFetching(false);
       }
     };
 
     fetchApprovedPlans();
-  }, []);
+  }, [events]);
 
-  const filtered = plans.filter(
-    (p) =>
+  const filtered = useMemo(() => {
+    return plans.filter((p) =>
       p.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      p.location?.toLowerCase().includes(searchTerm.toLowerCase()),
-  );
+      p.location?.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+  }, [plans, searchTerm]);
 
   return (
     <div className="p-8">
@@ -214,9 +215,8 @@ const SelectPlanStep = ({ onSelectPlan, onBack }) => {
 
 const formatForInput = (val) => {
   if (!val) return "";
-  const d = val instanceof Date ? val : new Date(val);
-  if (isNaN(d)) return "";
-  return d.toISOString().slice(0, 16);
+  const d = new Date(val);
+  return isNaN(d) ? "" : d.toISOString().slice(0, 16);
 };
 
 const toPersonObject = (nameOrObj, index) => {

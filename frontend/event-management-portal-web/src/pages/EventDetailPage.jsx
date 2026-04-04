@@ -1,60 +1,24 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import {
-  ArrowLeft,
-  Calendar,
-  Clock,
-  MapPin,
-  Users,
-  Building2,
-  Share2,
-  Heart,
-  Timer,
-  Target,
-  CheckCircle,
-  X,
-  AlertCircle,
-  QrCode,
-  ShieldCheck,
-  Gift,
+  ArrowLeft, Calendar, Clock, MapPin, Users, CheckCircle, X, 
+  AlertCircle, QrCode, ShieldCheck, Gift, Timer
 } from "lucide-react";
-import Header from "../components/common/Header";
-import Footer from "../components/common/Footer";
-import { eventApi } from "../api/eventApi";
 import { motion, AnimatePresence } from "framer-motion";
 import QRCode from "react-qr-code";
-import axios from "axios";
+import Header from "../components/common/Header";
+import Footer from "../components/common/Footer";
 import LuckyWheelModal from "../components/luckyWheelModal/LuckyWheelModal";
 
-const organizerMap = {
-  cntt: "Khoa CNTT",
-  ctsv: "Phòng CTSV",
-  "kinh-te": "Khoa Kinh tế",
-  "doan-hoi": "Đoàn - Hội",
-  club: "CLB sinh viên",
-};
-
-const typeMap = {
-  seminar: "Hội thảo",
-  sport: "Thi đấu thể thao",
-  culture: "Văn nghệ",
-  career: "Tuyển dụng",
-  workshop: "Workshop",
-  charity: "Từ thiện",
-  networking: "Giao lưu",
-};
-
-const targetMap = {
-  all: "Tất cả sinh viên",
-  "year-1": "Sinh viên năm 1",
-  "year-2-3": "Sinh viên năm 2-3",
-  "year-4": "Sinh viên năm 4",
-  "cntt-only": "Chỉ khoa CNTT",
-};
+// IMPORT CONTEXT
+import { useEvent } from "../context/EventContext";
 
 const EventDetail = () => {
   const { eventId } = useParams();
   const navigate = useNavigate();
+
+  // 1. LẤY SERVICE TỪ USEEVENT
+  const { events } = useEvent();
 
   const [event, setEvent] = useState(null);
   const [register, setRegister] = useState(null);
@@ -62,11 +26,8 @@ const EventDetail = () => {
   const [isRegistered, setIsRegistered] = useState(false);
   const [isCheckedIn, setIsCheckedIn] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
-  const [toast, setToast] = useState({
-    show: false,
-    message: "",
-    type: "success",
-  });
+  const [toast, setToast] = useState({ show: false, message: "", type: "success" });
+  
   const [showQRModal, setShowQRModal] = useState(false);
   const [showCancelModal, setShowCancelModal] = useState(false);
   const [showLuckyWheel, setShowLuckyWheel] = useState(false);
@@ -77,54 +38,42 @@ const EventDetail = () => {
     setToast({ show: true, message, type });
     setTimeout(() => setToast((prev) => ({ ...prev, show: false })), 3000);
   };
+
+  // 2. LOAD DATA DÙNG events SERVICE
   useEffect(() => {
     const loadEventData = async () => {
       if (!eventId) return;
       setIsLoading(true);
 
       try {
-        // 1. Lấy thông tin sự kiện qua eventApi
-        const eventRes = await eventApi.events.getById(eventId);
+        // Lấy thông tin sự kiện qua hàm đã fix path /events/events/...
+        const eventRes = await events.getEventById(eventId);
         setEvent(eventRes.data);
 
-        // 2. Kiểm tra trạng thái đăng ký (Nếu đã đăng nhập)
-        const token = localStorage.getItem("accessToken");
-        if (token) {
-          try {
-            const regRes = await eventApi.registrations.check(eventId);
-            const myRegData = regRes.data;
-            if (myRegData) {
-              setRegister(myRegData);
-              setIsRegistered(true);
-              setRegistrationId(myRegData.id);
-              setIsCheckedIn(myRegData.checkedIn || false);
-              setQrValue(`REG-${myRegData.id}`);
-            }
-          } catch (regErr) {
-            if (regErr.response?.status !== 404) console.error(regErr);
+        try {
+          // Kiểm tra đăng ký (Dùng hàm .events để gọi endpoint custom nếu chưa định nghĩa hàm riêng)
+          const regRes = await events.checkRegistration(eventId);
+          const myRegData = regRes.data;
+          if (myRegData) {
+            setRegister(myRegData);
+            setIsRegistered(true);
+            setRegistrationId(myRegData.id);
+            setIsCheckedIn(myRegData.checkedIn || false);
+            setQrValue(myRegData.qrToken || `REG-${myRegData.id}`);
           }
+        } catch (regErr) {
+          if (regErr.response?.status !== 404) console.error(regErr);
         }
       } catch (err) {
-        showToast(err.response?.data?.message || "Lỗi tải dữ liệu", "error");
+        showToast("Lỗi tải dữ liệu sự kiện", "error");
       } finally {
         setIsLoading(false);
       }
     };
     loadEventData();
-  }, [eventId]);
+  }, [eventId, events]);
 
-  useEffect(() => {
-    if (showQRModal && registrationId) {
-      eventApi.registrations.getQR(registrationId)
-        .then((res) => {
-          setQrValue(
-            res.data?.qrToken || res.data?.token || `REG-${registrationId}`,
-          );
-        })
-        .catch(() => setQrValue(`REG-${registrationId}`));
-    }
-  }, [showQRModal, registrationId]);
-
+  // 3. ĐĂNG KÝ THAM GIA
   const handleRegister = async () => {
     const token = localStorage.getItem("accessToken");
     if (!token) {
@@ -132,129 +81,78 @@ const EventDetail = () => {
       return navigate("/login");
     }
 
-    if (
-      event.registrationDeadline &&
-      new Date() > new Date(event.registrationDeadline)
-    ) {
-      showToast("Đã hết hạn đăng ký tham gia sự kiện này!", "error");
-      return;
-    }
-
-    if (event.registeredCount >= event.maxParticipants) {
-      showToast("Sự kiện đã đủ người tham gia!", "error");
+    if (event.registrationDeadline && new Date() > new Date(event.registrationDeadline)) {
+      showToast("Đã hết hạn đăng ký!", "error");
       return;
     }
 
     setIsProcessing(true);
     try {
-      const res = await eventApi.registrations.register(eventId);
+      const res = await events.registerToEvent(eventId);
       const newReg = res.data;
       setRegister(newReg);
       setIsRegistered(true);
       setRegistrationId(newReg.id);
-      setQrValue(`REG-${newReg.id}`);
-      setEvent((prev) => ({
-        ...prev,
-        registeredCount: (prev.registeredCount || 0) + 1,
-      }));
+      setQrValue(newReg.qrToken || `REG-${newReg.id}`);
+      setEvent(prev => ({ ...prev, registeredCount: (prev.registeredCount || 0) + 1 }));
       showToast("Đăng ký thành công!", "success");
     } catch (error) {
-      console.error("Registration error:", error);
-      const errorMessage =
-        error.response?.data?.message ||
-        error.response?.data?.error ||
-        "Đăng ký thất bại.";
-      showToast(errorMessage, "error");
+      showToast(error.response?.data?.message || "Đăng ký thất bại", "error");
     } finally {
       setIsProcessing(false);
     }
   };
 
-  const isRegistrationOpen = () => {
-    if (!event?.registrationDeadline) return true;
-    const now = new Date();
-    const deadline = new Date(event.registrationDeadline);
-    return now <= deadline;
-  };
-
-  const getRegistrationStatus = () => {
-    if (!event) return null;
-    if (event.status === "COMPLETED") return "COMPLETED";
-    if (!isRegistrationOpen()) return "EXPIRED";
-    if (availableSlots <= 0) return "FULL";
-    return "OPEN";
-  };
-
-  const createDrawEntry = async () => {
-    const token = localStorage.getItem("accessToken");
-    if (!token || !event?.luckyDrawId) return;
-
+  // 4. HỦY ĐĂNG KÝ
+  const confirmCancelRegistration = async () => {
+    setIsProcessing(true);
+    setShowCancelModal(false);
     try {
-      const res = await axios.post(
-        `${import.meta.env.VITE_DRAW_API_URL || API_URL}/draw-entries/${event.luckyDrawId}`,
-        {},
-        { headers: { Authorization: `Bearer ${token}` } },
-      );
+      await events.cancelRegistration(eventId);
+      setIsRegistered(false);
+      setRegister(null);
+      setRegistrationId(null);
+      setEvent(prev => ({ ...prev, registeredCount: Math.max(0, (prev.registeredCount || 0) - 1) }));
+      showToast("Đã hủy đăng ký thành công!", "success");
+    } catch (error) {
+      showToast("Không thể hủy đăng ký", "error");
+    } finally {
+      setIsProcessing(false);
+    }
+  };
 
+  // 5. VÒNG QUAY MAY MẮN
+  const createDrawEntry = async () => {
+    try {
+      // Gọi qua API Lucky Draw (nên đưa vào service nếu có thể)
+      const res = await events.events.post(`/draw/draw-entries/${event.luckyDrawId}`);
       if (res.data) {
         showToast("Đã nhận lượt quay thưởng!", "success");
         setShowLuckyWheel(true);
       }
     } catch (error) {
-      console.error("Lỗi tạo lượt quay:", error);
-      const errorMsg =
-        error.response?.data?.message ||
-        "Bạn đã hết lượt quay hoặc không đủ điều kiện";
-      showToast(errorMsg, "error");
+      showToast(error.response?.data?.message || "Bạn không đủ điều kiện quay", "error");
     }
   };
 
-  const confirmCancelRegistration = async () => {
-    setIsProcessing(true);
-    setShowCancelModal(false);
-    try {
-      await eventApi.registrations.cancel(eventId);
+  if (isLoading) return (
+    <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50">
+      <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-600 mb-4"></div>
+      <p className="text-gray-500 font-medium">Đang tải...</p>
+    </div>
+  );
 
-      setIsRegistered(false);
-      setRegister(null);
-      setRegistrationId(null);
-      setEvent((prev) => ({
-        ...prev,
-        registeredCount: Math.max(0, (prev.registeredCount || 0) - 1),
-      }));
-
-      showToast("Đã hủy đăng ký thành công!", "success");
-    } catch (error) {
-      console.error("Cancel Error:", error.response);
-      showToast("Không thể hủy đăng ký lúc này", "error");
-    } finally {
-      setIsProcessing(false);
-    }
-  };
-
-  if (isLoading) {
-    return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-600 mb-4"></div>
-        <p className="text-gray-500 font-medium">Đang tải...</p>
-      </div>
-    );
-  }
-
-  if (!event)
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        Không tìm thấy sự kiện.
-      </div>
-    );
+  if (!event) return <div className="min-h-screen flex items-center justify-center">Không tìm thấy sự kiện.</div>;
 
   const registeredCount = event.registeredCount || 0;
   const maxParticipants = event.maxParticipants || 1;
   const availableSlots = Math.max(0, maxParticipants - registeredCount);
-  const registrationPercent = Math.min(
-    100,
-    (registeredCount / maxParticipants) * 100,
-  );
+  const registrationPercent = Math.min(100, (registeredCount / maxParticipants) * 100);
+
+  const isRegistrationOpen = () => {
+    if (!event?.registrationDeadline) return true;
+    return new Date() <= new Date(event.registrationDeadline);
+  };
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -262,40 +160,20 @@ const EventDetail = () => {
 
       <AnimatePresence>
         {toast.show && (
-          <motion.div
-            initial={{ opacity: 0, x: 100 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: 100 }}
-            className={`fixed top-24 right-6 z-110 flex items-center gap-3 px-5 py-4 rounded-2xl shadow-2xl border bg-white ${toast.type === "success" ? "border-emerald-100" : "border-rose-100"}`}
-          >
-            {toast.type === "success" ? (
-              <CheckCircle className="text-emerald-500" />
-            ) : (
-              <AlertCircle className="text-rose-500" />
-            )}
+          <motion.div initial={{ opacity: 0, x: 100 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 100 }}
+            className={`fixed top-24 right-6 z-110 flex items-center gap-3 px-5 py-4 rounded-2xl shadow-2xl border bg-white ${toast.type === "success" ? "border-emerald-100" : "border-rose-100"}`}>
+            {toast.type === "success" ? <CheckCircle className="text-emerald-500" /> : <AlertCircle className="text-rose-500" />}
             <p className="text-sm font-bold">{toast.message}</p>
           </motion.div>
         )}
       </AnimatePresence>
 
       <div className="relative h-80 bg-gray-900 overflow-hidden">
-        <img
-          src={
-            event.coverImage ||
-            "https://www.cvent.com/sites/default/files/image/2023-11/Business_Travel_Trends_Bleisure_Event-Cvent_CONNECT_2023.jpg"
-          }
-          alt=""
-          className="w-full h-full object-cover opacity-40"
-        />
+        <img src={event.coverImage || "https://via.placeholder.com/1200x600"} alt="" className="w-full h-full object-cover opacity-40" />
         <div className="absolute inset-0 bg-linear-to-t from-gray-900 to-transparent" />
         <div className="absolute bottom-10 left-10 text-white max-w-7xl mx-auto px-6">
-          <button
-            onClick={() => navigate(-1)}
-            className="flex items-center gap-2 mb-4 hover:underline"
-          >
-            <ArrowLeft size={18} /> Quay lại
-          </button>
-          <h1 className="text-4xl font-black">{event.title}</h1>
+          <button onClick={() => navigate(-1)} className="flex items-center gap-2 mb-4 hover:underline"><ArrowLeft size={18} /> Quay lại</button>
+          <h1 className="text-4xl font-black uppercase">{event.title}</h1>
         </div>
       </div>
 
@@ -307,173 +185,112 @@ const EventDetail = () => {
                 <div className="p-4 bg-blue-50 rounded-2xl flex items-center gap-3">
                   <Calendar className="text-blue-600" />
                   <div>
-                    <p className="text-xs text-gray-500 uppercase font-bold">
-                      Ngày
-                    </p>
-                    <p className="font-bold">
-                      {event.eventDate ||
-                        new Date(event.startTime).toLocaleDateString("vi-VN")}
-                    </p>
+                    <p className="text-xs text-gray-500 uppercase font-bold">Ngày tổ chức</p>
+                    <p className="font-bold">{new Date(event.startTime).toLocaleDateString("vi-VN")}</p>
                   </div>
                 </div>
                 <div className="p-4 bg-blue-50 rounded-2xl flex items-center gap-3">
                   <MapPin className="text-blue-600" />
                   <div>
-                    <p className="text-xs text-gray-500 uppercase font-bold">
-                      Địa điểm
-                    </p>
+                    <p className="text-xs text-gray-500 uppercase font-bold">Địa điểm</p>
                     <p className="font-bold">{event.location}</p>
                   </div>
                 </div>
-
                 <div className="p-4 bg-orange-50 rounded-2xl flex items-center gap-3">
                   <Timer className="text-orange-600" />
                   <div>
-                    <p className="text-xs text-gray-500 uppercase font-bold">
-                      Hạn đăng ký
-                    </p>
-                    <p className="font-bold">
-                      {event.registrationDeadlineFormatted ||
-                        (event.registrationDeadline
-                          ? new Date(
-                              event.registrationDeadline,
-                            ).toLocaleDateString("vi-VN")
-                          : "Không giới hạn")}
-                    </p>
-                    {event.registrationDeadline &&
-                      new Date(event.registrationDeadline) < new Date() && (
-                        <p className="text-xs text-red-500 mt-1">
-                          ⚠️ Đã hết hạn đăng ký
-                        </p>
-                      )}
+                    <p className="text-xs text-gray-500 uppercase font-bold">Hạn đăng ký</p>
+                    <p className="font-bold">{event.registrationDeadline ? new Date(event.registrationDeadline).toLocaleDateString("vi-VN") : "Không giới hạn"}</p>
                   </div>
                 </div>
-              </div>
-              <div className="p-4 bg-blue-50 rounded-2xl flex items-center gap-3">
-                <Calendar className="text-blue-600" />
-                <div>
-                  <p className="text-xs text-gray-500 uppercase font-bold">
-                    Ngày
-                  </p>
-                  <p className="font-bold">
-                    {event.eventDate ||
-                      new Date(event.startTime).toLocaleDateString("vi-VN")}
-                  </p>
+                <div className="p-4 bg-blue-50 rounded-2xl flex items-center gap-3">
+                  <Clock className="text-blue-600" />
+                  <div>
+                    <p className="text-xs text-gray-500 uppercase font-bold">Giờ bắt đầu</p>
+                    <p className="font-bold">{new Date(event.startTime).toLocaleTimeString("vi-VN", {hour: '2-digit', minute:'2-digit'})}</p>
+                  </div>
                 </div>
-              </div>
-              <div className="p-4 bg-blue-50 rounded-2xl flex items-center gap-3">
-                <MapPin className="text-blue-600" />
-                <div>
-                  <p className="text-xs text-gray-500 uppercase font-bold">
-                    Địa điểm
-                  </p>
-                  <p className="font-bold">{event.location}</p>
-                </div>
+            </div>
+            <p className="text-gray-600 leading-relaxed whitespace-pre-line">{event.description}</p>
+          </div>
+
+          {/* Khối Diễn Giả */}
+          {event.presenters && event.presenters.length > 0 && (
+            <div className="bg-white p-8 rounded-3xl shadow-sm border border-gray-100">
+              <h2 className="text-2xl font-bold mb-6 flex items-center gap-2"><Users className="text-orange-500" /> Diễn giả</h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {event.presenters.map((p, i) => (
+                  <div key={i} className="flex items-center gap-4 p-4 rounded-2xl border bg-slate-50/50">
+                    <div className="w-16 h-16 rounded-full overflow-hidden border-2 border-white shrink-0">
+                      <img src={p.avatarUrl || `https://ui-avatars.com/api/?name=${p.fullName}`} className="w-full h-full object-cover" alt=""/>
+                    </div>
+                    <div>
+                      <h4 className="font-bold text-slate-800">{p.fullName}</h4>
+                      <p className="text-[10px] text-blue-600 font-bold uppercase">{p.position}</p>
+                    </div>
+                  </div>
+                ))}
               </div>
             </div>
-            <p className="text-gray-600 leading-relaxed whitespace-pre-line">
-              {event.fullDescription || event.description}
-            </p>
+          )}
         </div>
 
         <div className="lg:col-span-1">
           <div className="bg-white p-8 rounded-3xl shadow-xl border border-blue-50 sticky top-24">
             <div className="mb-6">
               <div className="flex justify-between mb-2 font-bold">
-                <span className="text-gray-400 uppercase text-xs">
-                  Đã đăng ký
-                </span>
-                <span className="text-blue-600">
-                  {registeredCount} / {maxParticipants}
-                </span>
+                <span className="text-gray-400 uppercase text-xs">Đã đăng ký</span>
+                <span className="text-blue-600">{registeredCount} / {maxParticipants}</span>
               </div>
               <div className="w-full bg-gray-100 h-3 rounded-full overflow-hidden">
-                <div
-                  className="bg-blue-600 h-full transition-all duration-1000"
-                  style={{ width: `${registrationPercent}%` }}
-                />
+                <div className="bg-blue-600 h-full transition-all duration-1000" style={{ width: `${registrationPercent}%` }} />
               </div>
-              <p className="text-xs mt-2 font-bold text-emerald-500">
-                {availableSlots > 0
-                  ? `Còn ${availableSlots} chỗ trống`
-                  : "Đã hết chỗ"}
-              </p>
+              <p className="text-xs mt-2 font-bold text-emerald-500">{availableSlots > 0 ? `Còn ${availableSlots} chỗ trống` : "Đã hết chỗ"}</p>
             </div>
+            
             <div className="space-y-3">
-              {event.status !== "COMPLETED" ? (
+              {event.status === "COMPLETED" ? (
+                <div className="w-full py-4 bg-gray-100 text-gray-400 rounded-2xl font-bold text-center border border-gray-200 italic">Sự kiện đã kết thúc</div>
+              ) : (
                 <>
-                  {register && register.status === "REGISTERED" ? (
+                  {isRegistered ? (
                     isCheckedIn ? (
                       <div className="space-y-3">
                         <div className="w-full py-4 bg-emerald-50 text-emerald-700 rounded-2xl font-bold flex items-center justify-center gap-2 border border-emerald-100 shadow-sm">
                           <ShieldCheck className="w-5 h-5" /> Đã điểm danh
                         </div>
                         {event.luckyDrawId && (
-                          <motion.button
-                            whileHover={{ scale: 1.1 }}
-                            whileTap={{ scale: 0.9 }}
-                            onClick={createDrawEntry}
-                            className="relative w-20 h-20 bg-linear-to-br from-yellow-400 via-orange-500 to-red-500 rounded-full shadow-[0_15px_35px_rgba(234,179,8,0.5)] flex items-center justify-center border-4 border-white overflow-hidden group"
-                          >
-                            <Gift className="w-10 h-10 text-white animate-bounce" />
-                            <div className="absolute inset-0 rounded-full animate-ping bg-yellow-400/30 -z-10" />
+                          <motion.button whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} onClick={createDrawEntry}
+                            className="w-full py-4 bg-linear-to-r from-yellow-400 to-orange-500 text-white rounded-2xl font-bold flex items-center justify-center gap-2 shadow-lg shadow-yellow-100">
+                            <Gift size={20} /> Quay thưởng ngay
                           </motion.button>
                         )}
                       </div>
                     ) : (
-                      <button
-                        onClick={() => setShowCancelModal(true)}
-                        className="w-full py-4 bg-gray-900 text-white rounded-2xl font-bold flex items-center justify-center gap-2 hover:bg-rose-600 transition-all group shadow-lg"
-                      >
+                      <button onClick={() => setShowCancelModal(true)}
+                        className="w-full py-4 bg-gray-900 text-white rounded-2xl font-bold flex items-center justify-center gap-2 hover:bg-rose-600 transition-all group">
                         <CheckCircle className="w-5 h-5 group-hover:hidden" />
                         <X className="w-5 h-5 hidden group-hover:block" />
                         <span className="group-hover:hidden">Đã đăng ký</span>
-                        <span className="hidden group-hover:block">
-                          Hủy đăng ký
-                        </span>
+                        <span className="hidden group-hover:block">Hủy đăng ký</span>
                       </button>
                     )
-                  ) : // KIỂM TRA THỜI HẠN ĐĂNG KÝ
-                  !isRegistrationOpen() ? (
-                    <div className="w-full py-4 bg-gray-100 text-gray-500 rounded-2xl font-bold text-center border border-gray-200">
-                      <Timer className="w-5 h-5 inline mr-2" />
-                      Đã hết hạn đăng ký
-                    </div>
+                  ) : !isRegistrationOpen() ? (
+                    <div className="w-full py-4 bg-gray-100 text-gray-500 rounded-2xl font-bold text-center border border-gray-200">Đã hết hạn đăng ký</div>
                   ) : availableSlots <= 0 ? (
-                    <div className="w-full py-4 bg-gray-100 text-gray-500 rounded-2xl font-bold text-center border border-gray-200">
-                      <Users className="w-5 h-5 inline mr-2" />
-                      Đã hết chỗ
-                    </div>
+                    <div className="w-full py-4 bg-gray-100 text-gray-500 rounded-2xl font-bold text-center border border-gray-200">Đã hết chỗ</div>
                   ) : (
-                    <button
-                      onClick={handleRegister}
-                      disabled={isProcessing}
-                      className="w-full py-4 bg-blue-600 text-white rounded-2xl font-bold hover:bg-blue-700 shadow-lg shadow-blue-200 disabled:bg-gray-300 transition-all"
-                    >
-                      {isProcessing ? (
-                        <div className="flex items-center gap-2 justify-center">
-                          <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                          Đang xử lý...
-                        </div>
-                      ) : register && register.status === "CANCELLED" ? (
-                        "Đăng ký lại"
-                      ) : (
-                        "Đăng ký tham gia"
-                      )}
+                    <button onClick={handleRegister} disabled={isProcessing}
+                      className="w-full py-4 bg-blue-600 text-white rounded-2xl font-bold hover:bg-blue-700 shadow-lg disabled:bg-gray-300 transition-all">
+                      {isProcessing ? "Đang xử lý..." : "Đăng ký tham gia"}
                     </button>
                   )}
                 </>
-              ) : (
-                <div className="w-full py-4 bg-gray-100 text-gray-400 rounded-2xl font-bold text-center border border-gray-200 italic">
-                  Sự kiện đã kết thúc
-                </div>
               )}
 
-              {register && register.status === "REGISTERED" && (
-                <button
-                  onClick={() => setShowQRModal(true)}
-                  className="w-full py-3 border border-gray-200 rounded-xl font-bold text-gray-500 flex items-center justify-center gap-2 hover:bg-gray-50 hover:text-blue-600 hover:border-blue-200 transition-all"
-                >
+              {isRegistered && (
+                <button onClick={() => setShowQRModal(true)}
+                  className="w-full py-3 border border-gray-200 rounded-xl font-bold text-gray-500 flex items-center justify-center gap-2 hover:bg-gray-50 transition-all">
                   <QrCode size={18} /> Mã vé của tôi
                 </button>
               )}
@@ -482,113 +299,43 @@ const EventDetail = () => {
         </div>
       </main>
 
+      {/* MODALS */}
       <AnimatePresence>
         {showQRModal && (
           <div className="fixed inset-0 z-200 flex items-center justify-center bg-black/60 p-6 backdrop-blur-sm">
-            <motion.div
-              initial={{ scale: 0.9, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.9, opacity: 0 }}
-              className="bg-white p-10 rounded-[40px] max-w-sm w-full text-center relative"
-            >
-              <button
-                onClick={() => setShowQRModal(false)}
-                className="absolute top-6 right-6 p-2 bg-gray-100 rounded-full hover:bg-gray-200"
-              >
-                <X size={20} />
-              </button>
-              <h2 className="text-2xl font-black mb-1">Vé tham gia</h2>
-              <p className="text-gray-400 text-sm mb-8 italic">
-                Dùng mã này để điểm danh
-              </p>
-              <div className="bg-white p-6 border-4 border-blue-50 rounded-3xl inline-block shadow-inner">
-                {isRegistered ? (
-                  <QRCode value={qrValue} size={200} />
-                ) : (
-                  <div className="p-10 text-rose-500 font-bold">
-                    Vui lòng đăng ký trước
-                  </div>
-                )}
+            <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }}
+              className="bg-white p-10 rounded-[40px] max-w-sm w-full text-center relative">
+              <button onClick={() => setShowQRModal(false)} className="absolute top-6 right-6 p-2 bg-gray-100 rounded-full hover:bg-gray-200"><X size={20} /></button>
+              <h2 className="text-2xl font-black mb-1 italic">VÉ THAM GIA</h2>
+              <div className="bg-white p-6 border-4 border-blue-50 rounded-3xl inline-block mt-4">
+                <QRCode value={qrValue} size={200} />
               </div>
+              <p className="mt-4 text-slate-400 font-bold tracking-widest">{register?.ticketCode}</p>
             </motion.div>
           </div>
         )}
       </AnimatePresence>
-
-      <AnimatePresence>
-        {event?.luckyDrawId && (
-          <motion.div
-            initial={{ scale: 0, y: 50, opacity: 0 }}
-            animate={{ scale: 1, y: 0, opacity: 1 }}
-            exit={{ scale: 0, y: 50, opacity: 0 }}
-            className="fixed bottom-8 right-8 z-999"
-          >
-            <motion.div
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: 0.5 }}
-              className="absolute right-full mr-4 top-1/2 -translate-y-1/2 bg-gray-900 text-white px-4 py-2 rounded-xl text-xs font-bold whitespace-nowrap shadow-2xl pointer-events-none"
-            >
-              🎉 Bạn có lượt quay may mắn!
-              <div className="absolute top-1/2 -right-1 -translate-y-1/2 w-2 h-2 bg-gray-900 rotate-45" />
-            </motion.div>
-
-            <motion.button
-              whileHover={{ scale: 1.1 }}
-              whileTap={{ scale: 0.9 }}
-              onClick={() => setShowLuckyWheel(true)}
-              className="relative w-20 h-20 bg-linear-to-br from-yellow-400 via-orange-500 to-red-500 rounded-full shadow-[0_15px_35px_rgba(234,179,8,0.5)] flex items-center justify-center border-4 border-white overflow-hidden group"
-            >
-              <div className="absolute inset-0 bg-linear-to-r from-transparent via-white/30 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000" />
-
-              <Gift className="w-10 h-10 text-white animate-bounce" />
-
-              <div className="absolute inset-0 rounded-full animate-ping bg-yellow-400/30 -z-10" />
-            </motion.button>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {showLuckyWheel && (
-        <LuckyWheelModal
-          onClose={() => setShowLuckyWheel(false)}
-          event_attanded={register}
-          luckDrawId={event.luckyDrawId}
-        />
-      )}
 
       <AnimatePresence>
         {showCancelModal && (
           <div className="fixed inset-0 z-200 flex items-center justify-center bg-black/60 p-6 backdrop-blur-sm">
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: 20 }}
-              className="bg-white p-8 rounded-3xl max-w-sm w-full text-center"
-            >
+            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 20 }}
+              className="bg-white p-8 rounded-3xl max-w-sm w-full text-center">
               <AlertCircle size={48} className="mx-auto text-rose-500 mb-4" />
-              <h3 className="text-xl font-bold mb-2">Xác nhận hủy?</h3>
-              <p className="text-gray-500 text-sm mb-6">
-                Hành động này không thể hoàn tác. Bạn chắc chắn muốn hủy chứ?
-              </p>
+              <h3 className="text-xl font-bold mb-2 uppercase">Xác nhận hủy?</h3>
+              <p className="text-gray-500 text-sm mb-6 font-medium">Bạn chắc chắn muốn hủy đăng ký tham gia sự kiện này chứ?</p>
               <div className="flex gap-3">
-                <button
-                  onClick={() => setShowCancelModal(false)}
-                  className="flex-1 py-3 bg-gray-100 rounded-xl font-bold"
-                >
-                  Đóng
-                </button>
-                <button
-                  onClick={confirmCancelRegistration}
-                  className="flex-1 py-3 bg-rose-500 text-white rounded-xl font-bold"
-                >
-                  Xác nhận
-                </button>
+                <button onClick={() => setShowCancelModal(false)} className="flex-1 py-3 bg-gray-100 rounded-xl font-bold">Đóng</button>
+                <button onClick={confirmCancelRegistration} className="flex-1 py-3 bg-rose-500 text-white rounded-xl font-bold shadow-lg shadow-rose-100">Xác nhận hủy</button>
               </div>
             </motion.div>
           </div>
         )}
       </AnimatePresence>
+
+      {showLuckyWheel && (
+        <LuckyWheelModal onClose={() => setShowLuckyWheel(false)} event_attanded={register} luckDrawId={event.luckyDrawId} />
+      )}
 
       <Footer />
     </div>

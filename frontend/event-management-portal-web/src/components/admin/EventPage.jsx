@@ -7,12 +7,15 @@ import {
   MessageSquare, Building2, UserPlus, FileText, Send
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
-// SỬA: Import API tập trung
-import { eventApi } from "../../api/eventApi";
-import { notificationApi } from "../../api/notificationApi";
+import { useNavigate } from "react-router-dom";
+
+// 1. IMPORT CONTEXT THAY VÌ API
+import { useEvent } from "../../context/EventContext";
+import { useNotification } from "../../context/NotificationContext";
+import { useAuth } from "../../context/AuthContext";
+
 import CreateEventModal from "../events/CreateEventModal";
 import { EventCreator } from "../events/EventCreator";
-import { useNavigate } from "react-router-dom";
 
 const STATUS_LABELS = {
   All: "Tất cả trạng thái",
@@ -98,7 +101,21 @@ const Badge = ({ children, color = "slate" }) => (
 
 const EventPage = () => {
   const navigate = useNavigate();
-  const [events, setEvents] = useState([]);
+
+  // 1. LẤY DATA & SERVICE TỪ CONTEXT
+  const { user } = useAuth();
+  const { 
+    events: eventService, // service gốc chứa getAllEvents
+    approvePlan, 
+    rejectPlan,
+    fetchEventDetail,
+    loading: eventLoading 
+  } = useEvent();
+  
+  const { service: notificationService } = useNotification();
+
+  // State local
+  const [dataEvents, setDataEvents] = useState([]); // Đổi tên để tránh trùng với service
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("All");
@@ -108,27 +125,28 @@ const EventPage = () => {
 
   const [toast, setToast] = useState({ show: false, message: "", type: "success" });
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [modalMode, setModalMode] = useState("view");
   const [selectedEvent, setSelectedEvent] = useState(null);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [eventToDelete, setEventToDelete] = useState(null);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
+
   const [showEventCreator, setShowEventCreator] = useState(false);
-  const prefillRef = useRef({});
+
+  const [modalMode, setModalMode] = useState(null);
 
   const showToast = (message, type = "success") => {
     setToast({ show: true, message, type });
     setTimeout(() => setToast((prev) => ({ ...prev, show: false })), 3000);
   };
 
-  // 1. Fetch dữ liệu qua API tập trung
+  // 2. FETCH EVENTS TỪ HÀM getAllEvents NHƯ BẠN YÊU CẦU
   const fetchEvents = async () => {
     setLoading(true);
     try {
-      const res = await eventApi.events.getAll();
-      // Lọc bỏ bản nháp đối với trang quản lý chung của Admin
+      // Gọi đúng hàm lấy tất cả sự kiện (dành cho Admin)
+      const res = await eventService.getAllEvents();
       const validEvents = (res.data || []).filter(e => e.status?.toUpperCase() !== "DRAFT");
-      setEvents(validEvents);
+      setDataEvents(validEvents);
     } catch (error) {
       showToast("Lỗi khi tải danh sách sự kiện", "error");
     } finally {
@@ -136,13 +154,15 @@ const EventPage = () => {
     }
   };
 
-  useEffect(() => { fetchEvents(); }, []);
+  useEffect(() => { 
+    if (user) fetchEvents(); 
+  }, [user]);
 
-  // 2. Logic Phê duyệt / Từ chối (Sử dụng nhóm admin trong eventApi)
-  const handleApprovePlan = async (id) => {
+  // 3. LOGIC PHÊ DUYỆT / TỪ CHỐI
+  const handleApprovePlanAction = async (id) => {
     try {
       setLoading(true);
-      await eventApi.admin.approvePlan(id);
+      await approvePlan(id); // Dùng hàm từ Context
       showToast("Đã phê duyệt kế hoạch thành công", "success");
       fetchEvents();
     } catch (err) {
@@ -150,12 +170,12 @@ const EventPage = () => {
     } finally { setLoading(false); }
   };
 
-  const handleRejectPlan = async (id) => {
+  const handleRejectPlanAction = async (id) => {
     const reason = prompt("Nhập lý do từ chối kế hoạch:");
     if (reason === null) return;
     try {
       setLoading(true);
-      await eventApi.admin.rejectPlan(id, reason);
+      await rejectPlan(id, reason); // Dùng hàm từ Context
       showToast("Đã từ chối kế hoạch", "success");
       fetchEvents();
     } catch (err) {
@@ -163,10 +183,11 @@ const EventPage = () => {
     } finally { setLoading(false); }
   };
 
-  const handleApproveEvent = async (id) => {
+  const handleApproveEventAction = async (id) => {
     try {
       setLoading(true);
-      await eventApi.admin.approveEvent(id);
+      // Gọi thông qua service gốc vì context thường chỉ bọc các hàm chung
+      await eventService.approveEvent(id); 
       showToast("Đã phê duyệt đăng tải sự kiện", "success");
       fetchEvents();
     } catch (err) {
@@ -174,28 +195,28 @@ const EventPage = () => {
     } finally { setLoading(false); }
   };
 
-  // 3. Logic Filter & Phân trang
+  // 4. LOGIC FILTER & PHÂN TRANG (Dùng dataEvents thay vì events)
   const uniqueCreators = useMemo(() => {
-    const creators = events.map((e) => e.createdByName).filter(Boolean);
+    const creators = dataEvents.map((e) => e.createdByName).filter(Boolean);
     return [...new Set(creators)].sort();
-  }, [events]);
+  }, [dataEvents]);
 
   const processedEvents = useMemo(() => {
-    return events.filter((e) => {
+    return dataEvents.filter((e) => {
       const matchesSearch = e.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
                             e.location?.toLowerCase().includes(searchTerm.toLowerCase());
       const matchesStatus = statusFilter === "All" || e.status === statusFilter;
       const matchesCreator = creatorFilter === "All" || e.createdByName === creatorFilter;
       return matchesSearch && matchesStatus && matchesCreator;
     }).sort((a, b) => new Date(b.createdAt || b.startTime) - new Date(a.createdAt || a.startTime));
-  }, [events, searchTerm, statusFilter, creatorFilter]);
+  }, [dataEvents, searchTerm, statusFilter, creatorFilter]);
 
   const currentItems = processedEvents.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
   const totalPages = Math.ceil(processedEvents.length / itemsPerPage);
 
   const handleConfirmDelete = async () => {
     try {
-      await eventApi.events.delete(eventToDelete.id);
+      await eventService.deleteEvent(eventToDelete.id);
       showToast("Xóa sự kiện thành công!", "success");
       fetchEvents();
     } catch (err) {
@@ -216,10 +237,41 @@ const EventPage = () => {
     } catch { showToast("Cập nhật thất bại!", "error"); }
   };
 
-  const openModal = (event, mode) => {
-    setSelectedEvent({ ...event });
-    setModalMode(mode);
-    setIsModalOpen(true);
+  const handleSelectPlan = (plan) => {
+    setIsCreateOpen(false);
+    navigate(`/lecturer/create-event?planId=${plan.id}`);
+  };
+
+  const handleCreateNew = () => {
+    setIsCreateOpen(false);
+    navigate("/lecturer/create-event");
+  };
+
+  const openModal = async (event, mode) => {
+    setLoading(true); 
+    try {
+      // 1. Gọi hàm fetchEventDetail từ Context (useEvent)
+      const detailData = await fetchEventDetail(event.id);
+      
+      // 2. Log thông tin ra console để kiểm tra
+      console.log("=== EVENT DETAIL DATA ===");
+      console.log("ID:", event.id);
+      console.log("Full Object:", detailData);
+      
+      // Nếu dữ liệu trả về nằm trong detailData.data (tùy cấu trúc axios của bạn)
+      const finalData = detailData?.data || detailData;
+
+      // 3. Cập nhật vào state để Modal hiển thị
+      setSelectedEvent(finalData); 
+      setModalMode(mode);
+      setIsModalOpen(true);
+      
+    } catch (error) {
+      console.error("Lỗi khi lấy chi tiết sự kiện:", error);
+      showToast("Không thể tải thông tin chi tiết!", "error");
+    } finally {
+      setLoading(false);
+    }
   };
 
   const closeModal = () => { setIsModalOpen(false); setSelectedEvent(null); };
@@ -363,32 +415,143 @@ const EventPage = () => {
       
       {/* Detail Modal Integration... */}
       <AnimatePresence>
-        {isModalOpen && selectedEvent && (
-          <div className="fixed inset-0 z-[150] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
-            <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="bg-white w-full max-w-5xl rounded-[2.5rem] shadow-2xl overflow-hidden max-h-[90vh] flex flex-col border-4 border-white">
-               {/* Modal Header & Content tương tự bản gốc nhưng dùng state selectEvent */}
-               <div className="px-8 py-5 border-b border-slate-100 flex items-center justify-between shrink-0">
-                  <div className="flex items-center gap-3">
-                    <div className="p-2 bg-blue-100 text-blue-600 rounded-xl"><Info size={20} /></div>
-                    <h2 className="text-xl font-black text-slate-800 uppercase">Chi tiết sự kiện</h2>
-                  </div>
-                  <X onClick={closeModal} size={24} className="text-slate-300 hover:text-slate-600 cursor-pointer" />
-               </div>
-               <div className="flex-1 overflow-y-auto p-8 custom-scrollbar">
-                  <Section title="Thông tin cơ bản" icon={FileText} color="blue">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <InfoRow label="Tiêu đề" value={selectedEvent.title} icon={FileText} color="blue" />
-                        <InfoRow label="Đơn vị" value={selectedEvent.organizerUnit || selectedEvent.faculty} icon={Building2} color="amber" />
-                    </div>
-                  </Section>
-               </div>
-               <div className="p-6 border-t border-slate-50 flex justify-end">
-                  <button onClick={closeModal} className="px-8 py-3 bg-slate-100 text-slate-600 rounded-2xl font-bold cursor-pointer hover:bg-slate-200">Đóng</button>
-               </div>
-            </motion.div>
+  {isModalOpen && selectedEvent && (
+    <div className="fixed inset-0 z-[150] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
+      <motion.div 
+        initial={{ scale: 0.95, opacity: 0 }} 
+        animate={{ scale: 1, opacity: 1 }} 
+        className="bg-white w-full max-w-5xl rounded-[2.5rem] shadow-2xl overflow-hidden max-h-[90vh] flex flex-col border-4 border-white"
+      >
+        {/* Modal Header */}
+        <div className="px-8 py-5 border-b border-slate-100 flex items-center justify-between shrink-0 bg-slate-50/50">
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-blue-100 text-blue-600 rounded-xl"><Info size={20} /></div>
+            <div>
+              <h2 className="text-xl font-black text-slate-800 uppercase italic">Chi tiết sự kiện</h2>
+              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">ID: {selectedEvent.id}</p>
+            </div>
           </div>
-        )}
-      </AnimatePresence>
+          <X onClick={closeModal} size={24} className="text-slate-300 hover:text-slate-600 cursor-pointer transition-colors" />
+        </div>
+
+        <div className="flex-1 overflow-y-auto p-8 custom-scrollbar space-y-8">
+          
+          {/* Cover Image & Quick Info */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <div className="lg:col-span-2">
+               {selectedEvent.coverImage ? (
+                  <img 
+                    src={selectedEvent.coverImage} 
+                    alt="Cover" 
+                    className="w-full h-64 object-cover rounded-[2rem] shadow-inner border border-slate-100"
+                  />
+               ) : (
+                  <div className="w-full h-64 bg-slate-100 rounded-[2rem] flex items-center justify-center text-slate-400 italic">
+                    Không có ảnh bìa
+                  </div>
+               )}
+            </div>
+            <div className="space-y-4">
+               <Section title="Trạng thái & Loại" icon={Tag} color="purple">
+                  <div className="flex flex-col gap-3">
+                    <Badge color={selectedEvent.status?.includes('PENDING') ? 'amber' : 'blue'}>
+                      {STATUS_LABELS[selectedEvent.status] || selectedEvent.status}
+                    </Badge>
+                    <Badge color="indigo">
+                      {EVENT_TYPE_LABELS[selectedEvent.type] || selectedEvent.type}
+                    </Badge>
+                    <div className="flex items-center gap-2 mt-2 px-3 py-2 bg-white rounded-xl border border-slate-100">
+                      <Globe size={14} className="text-blue-500" />
+                      <span className="text-xs font-bold text-slate-600">{selectedEvent.eventMode}</span>
+                    </div>
+                  </div>
+               </Section>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+            {/* Thông tin cơ bản */}
+            <Section title="Thông tin cơ bản" icon={FileText} color="blue">
+              <div className="space-y-1">
+                <InfoRow label="Tiêu đề sự kiện" value={selectedEvent.title} icon={FileText} color="blue" />
+                <InfoRow label="Chủ đề" value={selectedEvent.eventTopic} icon={Hash} color="cyan" />
+                <InfoRow label="Đơn vị tổ chức" value={selectedEvent.organizerUnit || "Khoa/Đơn vị đào tạo"} icon={Building2} color="amber" />
+                <InfoRow label="Người tạo" value={selectedEvent.createdByAccountId} icon={UserPlus} color="slate" />
+              </div>
+            </Section>
+
+            {/* Thời gian & Địa điểm */}
+            <Section title="Thời gian & Địa điểm" icon={CalendarIcon} color="rose">
+              <div className="space-y-1">
+                <InfoRow label="Địa điểm" value={selectedEvent.location} icon={MapPin} color="rose" />
+                <InfoRow label="Bắt đầu" value={new Date(selectedEvent.startTime).toLocaleString('vi-VN')} icon={Clock} color="emerald" />
+                <InfoRow label="Kết thúc" value={new Date(selectedEvent.endTime).toLocaleString('vi-VN')} icon={Clock} color="rose" />
+                <InfoRow label="Hạn đăng ký" value={formatDate(selectedEvent.registrationDeadline)} icon={CalendarIcon} color="orange" />
+              </div>
+            </Section>
+          </div>
+
+          {/* Nội dung chi tiết */}
+          <Section title="Mô tả kế hoạch" icon={Info} color="emerald">
+            <div className="space-y-4">
+              <div>
+                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Giới thiệu ngắn</p>
+                <p className="text-sm text-slate-600 leading-relaxed italic bg-white p-4 rounded-2xl border border-slate-100">
+                  "{selectedEvent.description || "Không có mô tả"}"
+                </p>
+              </div>
+              {selectedEvent.notes && (
+                <div>
+                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Ghi chú kế hoạch</p>
+                  <div className="text-sm text-slate-800 bg-blue-50/50 p-4 rounded-2xl border border-blue-100">
+                    {selectedEvent.notes}
+                  </div>
+                </div>
+              )}
+            </div>
+          </Section>
+
+          {/* Thông số hậu cần */}
+          <Section title="Hậu cần & Quy mô" icon={Users} color="indigo">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div className="bg-white p-4 rounded-2xl border border-slate-100 text-center">
+                <p className="text-[10px] font-black text-slate-400 uppercase mb-1">Số lượng tối đa</p>
+                <p className="text-xl font-black text-indigo-600">{selectedEvent.maxParticipants} <span className="text-xs text-slate-400 font-bold">người</span></p>
+              </div>
+              <div className="bg-white p-4 rounded-2xl border border-slate-100 text-center">
+                <p className="text-[10px] font-black text-slate-400 uppercase mb-1">Đã đăng ký</p>
+                <p className="text-xl font-black text-emerald-600">{selectedEvent.registeredCount || 0}</p>
+              </div>
+              <div className="bg-white p-4 rounded-2xl border border-slate-100 text-center">
+                <p className="text-[10px] font-black text-slate-400 uppercase mb-1">Duyệt bởi</p>
+                <p className="text-sm font-black text-slate-700">{selectedEvent.approvedByAccountId || "Chưa duyệt"}</p>
+              </div>
+            </div>
+          </Section>
+        </div>
+
+        {/* Modal Footer */}
+        <div className="p-6 border-t border-slate-50 flex justify-end gap-3 bg-slate-50/30">
+          <button 
+            onClick={closeModal} 
+            className="px-8 py-3 bg-white border border-slate-200 text-slate-600 rounded-2xl font-bold hover:bg-slate-50 transition-all shadow-sm cursor-pointer"
+          >
+            Đóng cửa sổ
+          </button>
+          
+          {selectedEvent.status?.includes('PENDING') && (
+            <button 
+              onClick={() => { /* Logic duyệt nhanh nếu cần */ }}
+              className="px-8 py-3 bg-blue-600 text-white rounded-2xl font-black uppercase text-xs tracking-widest shadow-lg shadow-blue-200 hover:bg-blue-700 transition-all cursor-pointer"
+            >
+              Phê duyệt ngay
+            </button>
+          )}
+        </div>
+      </motion.div>
+    </div>
+  )}
+</AnimatePresence>
     </div>
   );
 };

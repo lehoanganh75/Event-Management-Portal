@@ -1,82 +1,56 @@
-import { useLocation, useNavigate } from "react-router-dom";
-import { EventFeed } from "../components/events/EventFeed";
-import Layout from "../components/layout/Layout";
-import {
-  Award,
-  TrendingUp,
-  Users,
-  MapPin,
-} from "lucide-react";
+// src/pages/VangLaiPage.jsx
 import React, { useState, useEffect, useMemo } from "react";
-import { eventApi } from "../api/eventApi";
+import { useNavigate, useLocation } from "react-router-dom";
+import { Award, TrendingUp, Users, MapPin } from "lucide-react";
+
+import Layout from "../components/layout/Layout";
+import { EventFeed } from "../components/events/EventFeed";
+import { useEvent } from "../context/EventContext";
+import { useAuth } from "../context/AuthContext";
+
+const formatDate = (dateString) => {
+    if (!dateString) return "";
+    return new Intl.DateTimeFormat('vi-VN', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric'
+    }).format(new Date(dateString));
+};
 
 const VangLaiPage = () => {
   const navigate = useNavigate();
   const location = useLocation();
+
+  const { events } = useEvent();
+  const { user, loading: authLoading } = useAuth();
+
   const [featuredEvents, setFeaturedEvents] = useState([]);
   const [totalParticipants, setTotalParticipants] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [user, setUser] = useState(null);
 
-  // 1. Load danh sách sự kiện nổi bật từ API tập trung
   useEffect(() => {
-    const loadData = async () => {
-      try {
-        setLoading(true);
-        setError(null);
+    const loadFeatured = async () => {
+        try {
+            setLoading(true);
+            const res = await events.getFeaturedEvents();
+            
+            if (res.data && Array.isArray(res.data)) {
+                setFeaturedEvents(res.data);
 
-        // Lấy tất cả sự kiện và lọc ra các sự kiện đang diễn ra/nổi bật
-        const res = await eventApi.events.getAll();
-
-        if (res.data && Array.isArray(res.data)) {
-          // Lọc các sự kiện có trạng thái PUBLISHED hoặc ONGOING
-          const activeEvents = res.data.filter(ev => 
-            ["PUBLISHED", "ONGOING"].includes(ev.status?.toUpperCase())
-          );
-          
-          setFeaturedEvents(activeEvents);
-
-          const sum = activeEvents.reduce((acc, ev) => {
-            return acc + (ev.registeredCount || 0);
-          }, 0);
-          setTotalParticipants(sum);
-        } else {
-          setError("Dữ liệu không hợp lệ");
+                // TẬN DỤNG TRỰC TIẾP registeredCount TỪ BACKEND
+                const total = res.data.reduce((acc, ev) => acc + (ev.registeredCount || 0), 0);
+                
+                setTotalParticipants(total);
+            }
+        } catch (err) {
+            console.error("Lỗi tải sự kiện tiêu biểu:", err);
+        } finally {
+            setLoading(false);
         }
-      } catch (error) {
-        console.error("Lỗi khi load sự kiện:", error);
-        setError("Không thể kết nối đến máy chủ");
-      } finally {
-        setLoading(false);
-      }
     };
-
-    loadData();
-  }, []);
-
-  // 2. Lấy thông tin user và role từ localStorage
-  useEffect(() => {
-    const userData = localStorage.getItem("user");
-    if (userData) {
-      try {
-        setUser(JSON.parse(userData));
-      } catch (e) {
-        console.error("Lỗi parse user data");
-      }
-    }
-  }, []);
-
-  // Kiểm tra quyền tạo sự kiện (Dành cho Admin, Tổ chức)
-  const isAllowedToCreate = useMemo(() => {
-    if (!user || !user.roles) return false;
-    const roles = user.roles.map(r => r.toUpperCase());
-    return roles.includes("ADMIN") || roles.includes("ORGANIZER") || roles.includes("SUPER_ADMIN");
-  }, [user]);
-
-  const openModal = (type) => {
-    navigate(type === "login" ? "/login" : "/register");
-  };
+    loadFeatured();
+  }, [events]);
 
   const scrollToSuKien = () => {
     const el = document.getElementById("su-kien");
@@ -84,17 +58,25 @@ const VangLaiPage = () => {
       const yOffset = -140;
       const y = el.getBoundingClientRect().top + window.pageYOffset + yOffset;
       window.scrollTo({ top: y, behavior: "smooth" });
-    } else if (location.pathname !== "/") {
-      navigate("/");
     }
   };
+
+  const isAllowedToCreate = useMemo(() => {
+    // Nếu đang load auth thì tạm thời chưa cho hiện nút quản lý
+    if (authLoading || !user || !user.role) return false;
+    
+    const userRole = user.role.toUpperCase();
+    const authorizedRoles = ["ADMIN", "ORGANIZER", "SUPER_ADMIN", "LECTURER"];
+    
+    return authorizedRoles.includes(userRole);
+  }, [user, authLoading]);
 
   const handleEventClick = (event) => {
     navigate(`/events/${event.id}`);
   };
-
+  
   return (
-    <Layout onLogin={() => openModal("login")}>
+    <Layout onLogin={() => navigate("/login")}>
       <section id="gioi-thieu" className="min-h-screen bg-white scroll-mt-35">
         {/* Banner Section */}
         <div className="relative bg-[#245bb5] text-white overflow-hidden py-12 md:py-20 px-4 md:px-20">

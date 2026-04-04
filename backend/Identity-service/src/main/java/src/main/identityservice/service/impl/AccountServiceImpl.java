@@ -103,21 +103,13 @@ public class AccountServiceImpl implements AccountService {
                 .map(date -> date.format(DateTimeFormatter.ofPattern("dd/MM/yyyy")))
                 .orElse(null);
 
-        List<String> roleNames = (account.getRole() != null)
-                ? List.of(account.getRole().name())
-                : List.of();
-
-        String status = Optional.ofNullable(account.getStatus())
-                .map(Enum::name)
-                .orElse("UNKNOWN");
-
         return new AccountAdminDTO(
                 account.getId(),
                 account.getUsername(),
                 account.getEmail(),
                 fullName,
-                Role.valueOf(status.toUpperCase()),
-                AccountStatus.PENDING,
+                Role.valueOf(account.getRole().name()),
+                account.getStatus(),
                 createdAtStr
         );
     }

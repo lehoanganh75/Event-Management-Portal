@@ -1,0 +1,90 @@
+package com.eventservice.service;
+
+import jakarta.transaction.Transactional;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import com.eventservice.dto.PlanResponseDto;
+import com.eventservice.entity.Event;
+import com.eventservice.entity.enums.EventStatus;
+
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+
+public interface EventService {
+    List<Event> findAll();
+
+    List<Event> findAllActive();
+
+    List<Event> getFeaturedEvents();
+
+    Optional<Event> findById(String id);
+
+    Optional<Event> getEventById(String id);
+
+    List<Event> getMyEventsByAccountAndMonth(String accountId);
+
+    List<Event> getEventsByAccountId(String accountId);
+
+
+    Event createEvent(Event event);
+
+    void deleteEvent(String id);
+
+    List<Event> getEventsByStatuses(List<String> statuses);
+
+    @Transactional
+    Event saveEvent(Event event);
+
+    Page<Event> getAllEvents(PageRequest pageable);
+
+    Event updateEvent(String id, Event eventDetails);
+
+    void updateLuckyDrawId(String id, String luckyDrawId);
+
+    List<Event> getAllPlans();
+
+    List<Event> getPlansByStatus(EventStatus status);
+
+    List<Event> getPlansByStatusById(EventStatus status, String accountId);
+
+    Event createPlan(Event event);
+
+    Event updatePlan(String id, Event planDetails);
+
+    void deletePlan(String id);
+
+    Event submitPlanForApproval(String id);
+
+    Event approvePlan(String id, String approverId);
+
+    Event rejectPlan(String id, String approverId, String reason);
+
+    Event createEventFromPlan(String planId, Event eventDetails);
+
+    Event approveEvent(String id, String approverId);
+
+    Event rejectEvent(String id, String approverId, String reason);
+
+    Event startEvent(String id);
+
+    Event completeEvent(String id);
+
+    Event cancelEvent(String id, String reason);
+
+    List<PlanResponseDto> getAllPlansEnriched();
+
+    List<PlanResponseDto> getPlansByAccountId(String accountId);
+
+    List<PlanResponseDto> getEventsByStatus(EventStatus status);
+
+    List<PlanResponseDto> getPlansPendingApproval();
+
+    List<PlanResponseDto> getEventsPendingApproval();
+
+    Event updateEventStatus(String id, EventStatus status, String approverId, String accountId);
+
+    public Map<String, String> invitateParticipants(String eventId, String organizerId, List<String> inviteeIds);
+
+    Map<String, String> acceptInvite(String eventId, String token);
+}
