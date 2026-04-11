@@ -1,11 +1,11 @@
-package src.main.identityservice.controller;
+package com.identityservice.controller;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import src.main.identityservice.dto.AccountAdminDTO;
-import src.main.identityservice.dto.StatusRequest;
-import src.main.identityservice.service.AccountService;
+import com.identityservice.dto.AccountAdminDTO;
+import com.identityservice.dto.StatusRequest;
+import com.identityservice.service.AccountService;
 
 import java.util.List;
 

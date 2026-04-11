@@ -1,9 +1,10 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
-import { ScrollView, Text, TouchableOpacity } from "react-native";
+import { ScrollView, Text, TouchableOpacity, StyleSheet, View } from "react-native";
 
 const QuickAccess = () => {
   const router = useRouter();
+  
   const items = [
     { icon: 'notifications-outline', label: 'Thông báo', link: '/notifications' },
     { icon: 'calendar-outline', label: 'Đang diễn ra', link: '/home?status=ongoing' },
@@ -12,19 +13,59 @@ const QuickAccess = () => {
   ];
 
   return (
-    <ScrollView horizontal showsHorizontalScrollIndicator={false} className="px-4 py-4 bg-white">
-      {items.map((item, index) => (
-        <TouchableOpacity
-          key={index}
-          onPress={() => router.push(item.link as any)}
-          className="flex-row items-center bg-blue-50 px-4 py-2.5 rounded-full mr-3 border border-blue-100"
-        >
-          <Ionicons name={item.icon as any} size={16} color="#1d4ed8" />
-          <Text className="ml-2 text-blue-700 font-bold text-xs">{item.label}</Text>
-        </TouchableOpacity>
-      ))}
-    </ScrollView>
+    <View style={styles.container}>
+      <ScrollView 
+        horizontal 
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.scrollContent}
+      >
+        {items.map((item, index) => (
+          <TouchableOpacity
+            key={index}
+            onPress={() => router.push(item.link as any)}
+            activeOpacity={0.7}
+            style={styles.itemButton}
+          >
+            <Ionicons name={item.icon as any} size={16} color="#1d4ed8" />
+            <Text style={styles.itemLabel}>{item.label}</Text>
+          </TouchableOpacity>
+        ))}
+      </ScrollView>
+    </View>
   );
 };
+
+const styles = StyleSheet.create({
+  container: {
+    backgroundColor: "#ffffff",
+    paddingVertical: 12,
+  },
+  scrollContent: {
+    paddingHorizontal: 16, // Tạo khoảng trống ở hai đầu danh sách khi cuộn
+  },
+  itemButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#eff6ff", // blue-50
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 99,
+    marginRight: 12,
+    borderWidth: 1,
+    borderColor: "#dbeafe", // blue-100
+    // Đổ bóng nhẹ cho nút
+    shadowColor: "#1d4ed8",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  itemLabel: {
+    marginLeft: 8,
+    color: "#1d4ed8", // blue-700
+    fontWeight: "bold",
+    fontSize: 12,
+  },
+});
 
 export default QuickAccess;

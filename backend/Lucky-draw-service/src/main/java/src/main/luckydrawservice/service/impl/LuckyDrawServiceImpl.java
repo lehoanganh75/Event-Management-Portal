@@ -1,11 +1,12 @@
 package src.main.luckydrawservice.service.impl;
 
+import feign.FeignException;
 import lombok.RequiredArgsConstructor;
 import org.apache.kafka.common.errors.ResourceNotFoundException;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.kafka.core.KafkaTemplate;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.server.ResponseStatusException;
 import src.main.luckydrawservice.client.EventClient;
 import src.main.luckydrawservice.dto.DrawResultResponse;
 import src.main.luckydrawservice.dto.LuckyDrawCreateRequest;
@@ -20,9 +21,8 @@ import src.main.luckydrawservice.service.LuckyDrawService;
 import java.math.BigDecimal;
 import java.security.SecureRandom;
 import java.time.LocalDateTime;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
+import java.util.Optional;
 import java.util.Random;
 import java.util.stream.Collectors;
 
@@ -36,12 +36,19 @@ public class LuckyDrawServiceImpl implements LuckyDrawService {
 
     private final Random random = new SecureRandom();
 
-    @Autowired
-    private EventClient eventClient;
+    private final EventClient eventClient;
 
-    @Override
     @Transactional
+    @Override
     public LuckyDraw createLuckyDraw(LuckyDrawCreateRequest request, String createdByAccountId) {
+        try {
+            eventClient.updateLuckyDrawId(request.getEventId());
+        } catch (FeignException.Conflict e) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Sự kiện này đã có vòng quay, không thể tạo thêm.");
+        } catch (Exception e) {
+            throw new RuntimeException("Không thể kết nối tới Event-Service để xác thực: " + e.getMessage());
+        }
+
         LuckyDraw luckyDraw = new LuckyDraw();
         luckyDraw.setEventId(request.getEventId());
         luckyDraw.setCreatedByAccountId(createdByAccountId);
@@ -65,17 +72,12 @@ public class LuckyDrawServiceImpl implements LuckyDrawService {
                         prize.setRemainingQuantity(prizeReq.getQuantity());
                         prize.setWinProbabilityPercent(prizeReq.getWinProbabilityPercent());
                         return prize;
-            }).collect(Collectors.toList());
+                    }).collect(Collectors.toList());
 
             prizeRepository.saveAll(prizes);
         }
 
-        try {
-            eventClient.updateLuckyDrawId(request.getEventId(), savedDraw.getId());
-        } catch (Exception e) {
-            throw new RuntimeException("Lỗi kết nối với Event-Service: " + e.getMessage());
-        }
-        return luckyDraw;
+        return savedDraw;
     }
 
     @Override
@@ -132,20 +134,32 @@ public class LuckyDrawServiceImpl implements LuckyDrawService {
         return luckyDrawRepository.findAll();
     }
 
+    @Transactional
+    @Override
+    public void deleteLuckyDrawByEventId(String eventId){
+        LuckyDraw luckyDraw = luckyDrawRepository.findByEventId(eventId)
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy dữ liệu LuckyDraw cho sự kiện ID: " + eventId));
+
+        luckyDraw.setDeleted(true);
+        luckyDraw.setUpdatedAt(LocalDateTime.now());
+
+        luckyDrawRepository.save(luckyDraw);
+    }
+
     @Override
     @Transactional
     public DrawResultResponse performLuckyDraw(String luckyDrawId, String userProfileId) {
         // 1. Kiểm tra LuckyDraw tồn tại và đang active
         LuckyDraw luckyDraw = luckyDrawRepository.findById(luckyDrawId)
-                .orElseThrow(() -> new ResourceNotFoundException("Lucky Draw not found: " + luckyDrawId));
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.CONFLICT, "Lucky Draw not found: " + luckyDrawId));
 
         if (luckyDraw.getStatus() != DrawStatus.ACTIVE) {
-            throw new IllegalStateException("Chương trình quay thưởng hiện không khả dụng (đã kết thúc hoặc chưa bắt đầu)");
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Chương trình quay thưởng hiện không khả dụng (đã kết thúc hoặc chưa bắt đầu)");
         }
 
         // 2. Kiểm tra lượt quay: Tìm lượt quay có status VALID
         DrawEntry entry = drawEntryRepository.findFirstByLuckyDrawIdAndUserProfileIdAndStatus(luckyDrawId, userProfileId, EntryStatus.VALID)
-                .orElseThrow(() -> new IllegalArgumentException("Bạn không có lượt quay hợp lệ cho sự kiện này"));
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.CONFLICT, "Bạn không có lượt quay hợp lệ cho sự kiện này"));
 
         // 3. Lấy danh sách giải thưởng thực tế còn quà
         List<Prize> availablePrizes = prizeRepository.findByLuckyDrawIdAndRemainingQuantityGreaterThan(luckyDrawId, 0);
@@ -205,5 +219,63 @@ public class LuckyDrawServiceImpl implements LuckyDrawService {
         prizeResponse.setDescription(prize.getDescription());
         prizeResponse.setQuantity(prize.getQuantity());
         return prizeResponse;
+    }
+
+    @Transactional
+    @Override
+    public void activateLuckyDraw(String luckyDrawId, String accountId) {
+        // 1. Tìm vòng quay
+        LuckyDraw luckyDraw = luckyDrawRepository.findById(luckyDrawId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.CONFLICT, "Không tìm thấy vòng quay với ID: " + luckyDrawId));
+
+        // 2. Kiểm tra quyền sở hữu (Chỉ người tạo mới được kích hoạt)
+        if (!luckyDraw.getCreatedByAccountId().equals(accountId)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Bạn không có quyền kích hoạt vòng quay này");
+        }
+
+        // 3. Kiểm tra trạng thái hiện tại (Chỉ kích hoạt nếu đang PENDING)
+        if (luckyDraw.getStatus() != DrawStatus.PENDING) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Vòng quay đã được kích hoạt hoặc đã kết thúc");
+        }
+
+        // 4. Kiểm tra xem đã có giải thưởng chưa (Tránh kích hoạt vòng quay trống)
+        if (luckyDraw.getPrizes() == null || luckyDraw.getPrizes().isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Vòng quay phải có ít nhất một giải thưởng trước khi kích hoạt");
+        }
+
+        // 5. Cập nhật trạng thái và thời gian cập nhật
+        luckyDraw.setStatus(DrawStatus.ACTIVE);
+        luckyDraw.setUpdatedAt(LocalDateTime.now());
+
+        luckyDrawRepository.save(luckyDraw);
+
+        // Log thông tin
+        System.out.println("Vòng quay '" + luckyDraw.getTitle() + "' đã được kích hoạt bởi: " + accountId);
+    }
+
+    @Transactional
+    @Override
+    public DrawEntry createDrawEntry(String userProfileId, String luckyDrawId) {
+        LuckyDraw luckyDraw = luckyDrawRepository.findById(luckyDrawId)
+                .orElseThrow(() -> new ResourceNotFoundException("Lucky Draw not found"));
+
+        DrawEntry drawEntryEntity = new DrawEntry();
+        drawEntryEntity.setUserProfileId(userProfileId);
+        drawEntryEntity.setLuckyDraw(luckyDraw);
+        drawEntryEntity.setStatus(EntryStatus.VALID);
+        return drawEntryRepository.save(drawEntryEntity);
+    }
+
+    @Transactional
+    @Override
+    public Optional<DrawEntry> findByLuckyDrawIdAndUserProfileId(String luckyDrawId, String userProfileId) {
+        // Trả về Optional rỗng nếu không tìm thấy, Jackson sẽ chuyển thành null khi gửi về FE
+        return drawEntryRepository.findByLuckyDrawIdAndUserProfileId(luckyDrawId, userProfileId);
+    }
+
+    @Override
+    public Optional<LuckyDraw> findByEventId(String eventId) {
+        return Optional.ofNullable(luckyDrawRepository.findByEventId(eventId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy vòng quay cho sự kiện có ID: " + eventId)));
     }
 }

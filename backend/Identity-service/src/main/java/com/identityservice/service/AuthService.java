@@ -1,8 +1,8 @@
-package src.main.identityservice.service;
+package com.identityservice.service;
 
-import src.main.identityservice.dto.response.AuthResponse;
-import src.main.identityservice.dto.request.LoginRequest;
-import src.main.identityservice.dto.request.RegisterRequest;
+import com.identityservice.dto.response.AuthResponse;
+import com.identityservice.dto.request.LoginRequest;
+import com.identityservice.dto.request.RegisterRequest;
 
 import java.util.Map;
 
@@ -13,4 +13,5 @@ public interface AuthService {
     void logout(String token);
     void forgotPassword(String email);
     void resetPassword(String token, String newPassword);
+    Map<String, String> verifyMobileOTP(String otp, String username);
 }

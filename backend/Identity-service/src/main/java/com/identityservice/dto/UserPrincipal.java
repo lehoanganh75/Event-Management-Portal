@@ -1,10 +1,10 @@
-package src.main.identityservice.dto;
+package com.identityservice.dto;
 
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
-import src.main.identityservice.entity.Role;
+import com.identityservice.entity.Role;
 
 import java.util.Set;
 

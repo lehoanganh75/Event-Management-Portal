@@ -1,8 +1,8 @@
-package src.main.identityservice.dto.request;
+package com.identityservice.dto.request;
 
+import com.identityservice.entity.Gender;
 import lombok.Getter;
 import lombok.Setter;
-import src.main.identityservice.entity.Gender;
 
 import java.time.LocalDate;
 

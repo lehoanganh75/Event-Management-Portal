@@ -1,9 +1,9 @@
-package src.main.identityservice.repository;
+package com.identityservice.repository;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
-import src.main.identityservice.entity.Account;
-import src.main.identityservice.entity.PasswordResetToken;
+import com.identityservice.entity.Account;
+import com.identityservice.entity.PasswordResetToken;
 
 import java.util.Optional;
 

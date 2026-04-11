@@ -1,12 +1,18 @@
 module.exports = function (api) {
   api.cache(true);
   return {
-    presets: [
-      ["babel-preset-expo", { jsxImportSource: "nativewind" }],
-      "nativewind/babel", // NativeWind v4 yêu cầu preset này
-    ],
+    presets: ["babel-preset-expo"],
     plugins: [
-      "react-native-reanimated/plugin", // Luôn để reanimated ở dòng cuối cùng của plugins
+      [
+        "module-resolver",
+        {
+          root: ["./"],
+          alias: {
+            "@": "./", // Dấu @ trỏ về thư mục gốc
+          },
+        },
+      ],
+      "react-native-reanimated/plugin", // Nếu bạn có dùng reanimated
     ],
   };
 };

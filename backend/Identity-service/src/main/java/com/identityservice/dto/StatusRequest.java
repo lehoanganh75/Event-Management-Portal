@@ -1,4 +1,4 @@
-package src.main.identityservice.dto;
+package com.identityservice.dto;
 
 import lombok.Data;
 

@@ -1,4 +1,4 @@
-package src.main.identityservice.dto.response;
+package com.identityservice.dto.response;
 
 import lombok.AllArgsConstructor;
 import lombok.Getter;

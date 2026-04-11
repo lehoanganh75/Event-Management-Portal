@@ -1,5 +1,7 @@
 package com.eventservice.service.impl;
 
+import com.eventservice.client.LuckyDrawClient;
+import com.eventservice.dto.EventCurrentUserRole;
 import com.eventservice.entity.*;
 import com.eventservice.entity.enums.EventStatus;
 import com.eventservice.entity.enums.InvitationStatus;
@@ -15,20 +17,15 @@ import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.http.HttpStatus;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
-import org.springframework.util.StringUtils;
 import org.springframework.web.server.ResponseStatusException;
 import com.eventservice.client.IdentityServiceClient;
 import com.eventservice.constant.RedisConstant;
 import com.eventservice.dto.NotificationEvent;
 import com.eventservice.dto.PlanResponseDto;
 import com.eventservice.dto.UserDto;
-import com.eventservice.entity.*;
-import com.eventservice.entity.enums.*;
-import com.eventservice.repository.*;
 import com.eventservice.service.EmailService;
 import com.eventservice.service.EventService;
 
-import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
@@ -48,174 +45,215 @@ public class EventServiceImpl implements EventService {
     private final EventRegistrationRepository registrationRepository;
     private final EventInvitationRepository invitationRepository;
 
+    private final LuckyDrawClient luckyDrawClient;
+
     private final StringRedisTemplate redisTemplate;
 
     private final EmailService emailService;
 
     private final KafkaTemplate<String, Object> kafkaTemplate;
 
-    // Lấy tất cả sự kiện đang hoạt động (không bao gồm kế hoạch và sự kiện đã xóa) - dùng cho người dùng cuối
+    // Lấy sự kiện cho xem (trang chủ, trang danh sách sự kiện)
     @Override
-    public List<Event> findAllActive() {
-        List<Event> events = eventRepository.findByStatusInAndIsDeletedFalseOrderByStartTimeDesc(
-                List.of(EventStatus.EVENT_PENDING_APPROVAL, EventStatus.PUBLISHED, EventStatus.ONGOING, EventStatus.COMPLETED));
-
-        events.forEach(this::enrichEventWithRegistrationCount);
-
-        return events;
+    public List<Event> findEventsForUser() {
+        List<EventStatus> publicStatuses = List.of(
+                EventStatus.PUBLISHED, EventStatus.ONGOING, EventStatus.COMPLETED, EventStatus.CANCELLED
+        );
+        return enrichEvents(eventRepository.findByStatusInAndIsDeletedFalseOrderByRegistrationDeadlineAsc(publicStatuses));
     }
 
-    // Lấy tất cả sự kiện (bao gồm cả kế hoạch và sự kiện đã xóa) - dùng cho admin
+    // Lấy sự kiện đang diễn ra hôm nay
     @Override
-    public List<Event> findAll() {
-        List<Event> events = eventRepository.findByStatusInAndIsDeletedFalseOrderByStartTimeDesc(
-                List.of(EventStatus.DRAFT, EventStatus.PLAN_PENDING_APPROVAL, EventStatus.PLAN_APPROVED,
-                        EventStatus.EVENT_PENDING_APPROVAL, EventStatus.PUBLISHED, EventStatus.ONGOING,
-                        EventStatus.COMPLETED, EventStatus.CANCELLED));
-
-        events.forEach(this::enrichEventWithRegistrationCount);
-
-        return events;
-    }
-
-    // Lấy sự kiện nổi bật nhất dựa trên số lượng người đăng ký, đánh giá, bài viết liên quan, thời gian diễn ra, v.v. - dùng cho trang chủ
-    @Override
-    public List<Event> getFeaturedEvents() {
-        List<Event> events = eventRepository.findByStatusInAndIsDeletedFalseOrderByStartTimeDesc(
-                List.of(EventStatus.PUBLISHED, EventStatus.ONGOING, EventStatus.COMPLETED));
+    public List<Event> getOngoingEvents() {
         LocalDateTime now = LocalDateTime.now();
 
-        events.forEach(this::enrichEventWithRegistrationCount);
+        List<EventStatus> statuses = List.of(EventStatus.PUBLISHED, EventStatus.ONGOING);
 
-        return events.stream()
-                .sorted(Comparator.comparingDouble(e -> -calculateScore(e, now)))
-                .limit(6)
-                .collect(Collectors.toList());
+        List<Event> events = eventRepository.findOngoingEvents(statuses, now);
+
+        return enrichEvents(events);
     }
 
-    // Lấy chi tiết sự kiện theo ID, bao gồm cả thông tin đã xóa (nếu có) - dùng cho admin
+    // Lấy sự kiện sắp diễn ra trong tuần này
     @Override
-    public Optional<Event> findById(String id) {
-        Optional<Event> events = eventRepository.findById(id);
-        events.ifPresent(this::enrichEventWithRegistrationCount);
+    public List<Event> getUpcomingEventsThisWeek() {
+        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime nextWeek = now.plusDays(7);
+        List<Event> events = eventRepository.findByStartTimeBetweenAndStatusAndIsDeletedFalse(
+                now, nextWeek, EventStatus.PUBLISHED);
+        return enrichEvents(events);
+    }
+
+    // Lấy sự kiện nổi bật nhất (Featured)
+    @Override
+    public List<Event> getFeaturedEvents() {
+        LocalDateTime now = LocalDateTime.now();
+        // Lấy ứng viên tiềm năng để tính điểm
+        List<Event> candidates = eventRepository.findByStatusInAndIsDeletedFalse(
+                List.of(EventStatus.PUBLISHED, EventStatus.ONGOING));
+
+        List<Event> featured = candidates.stream()
+                .peek(this::enrichEventWithRegistrationCount)
+                .sorted(Comparator.comparingDouble((Event e) -> -calculateScore(e, now)))
+                .limit(6)
+                .collect(Collectors.toList());
+
+        return enrichEvents(featured);
+    }
+
+    // Lấy sự kiện cho admin và super admin xem (trang quản lý sự kiện)
+    @Override
+    public List<Event> findEventsForAdmin() {
+        return enrichEvents(eventRepository.findByIsDeletedFalseOrderByCreatedAtDesc());
+    }
+
+    @Override
+    public List<Event> findMyEventsByRole(String accountId, String roleType) {
+        Set<Event> combined = getRawEventsByRole(accountId, roleType);
+
+        // Chuyển sang List để sắp xếp
+        List<Event> result = new ArrayList<>(combined);
+
+        // Sắp xếp: Mới nhất lên đầu (dựa trên startTime, nếu null thì dùng createdAt)
+        result.sort((e1, e2) -> {
+            LocalDateTime t1 = (e1.getStartTime() != null) ? e1.getStartTime() : e1.getCreatedAt();
+            LocalDateTime t2 = (e2.getStartTime() != null) ? e2.getStartTime() : e2.getCreatedAt();
+            return t2.compareTo(t1);
+        });
+
+        // Cuối cùng đi qua hàm enrich để lấy UserDto và RegistrationCount
+        return enrichEvents(result);
+    }
+
+    @Override
+    public List<Event> getMyEventsByAccountAndMonth(String accountId, String roleType, int month, int year) {
+        // 1. Lấy dữ liệu thô dựa trên Role
+        Set<Event> rawEvents = getRawEventsByRole(accountId, roleType);
+
+        // 2. Lọc theo Tháng và Năm (Dựa trên startTime)
+        List<Event> filtered = rawEvents.stream()
+                .filter(e -> e.getStartTime() != null
+                        && e.getStartTime().getMonthValue() == month
+                        && e.getStartTime().getYear() == year)
+                .collect(Collectors.toList());
+
+        // 3. Sắp xếp (Dùng chung logic sắp xếp của bạn)
+        filtered.sort((e1, e2) -> {
+            LocalDateTime t1 = e1.getStartTime(); // Ở đây chắc chắn startTime != null do đã filter
+            LocalDateTime t2 = e2.getStartTime();
+            return t2.compareTo(t1);
+        });
+
+        // 4. Làm giàu dữ liệu (UserDto, Count...)
+        return enrichEvents(filtered);
+    }
+
+    @Override
+    public Optional<Event> getEventById(String id, String accountId) {
+        Event event = eventRepository.findById(id)
+                .filter(e -> !e.isDeleted())
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy sự kiện với ID: " + id));
+
+        List<Event> enrichedList = enrichEvents(List.of(event));
+
+        if (enrichedList.isEmpty()) {
+            return Optional.empty();
+        }
+
+        Event enrichedEvent = enrichedList.get(0);
+
+        enrichEventForCurrentUser(enrichedEvent, accountId);
+
+        return Optional.of(enrichedEvent);
+    }
+
+    // --- CÁC HÀM HELPER (CLEAN CODE) ---
+
+    private List<Event> enrichEvents(List<Event> events) {
+        if (events.isEmpty()) return events;
+
+        // 1. Gom tất cả ID (Creator, Approver, Organizers, Presenters)
+        Set<String> userIds = collectAllUserIds(events);
+
+        // 2. Gọi Identity Service 1 lần duy nhất
+        Map<String, UserDto> userMap = fetchUserMap(userIds);
+
+        // 3. Phân phối dữ liệu vào từng Event
+        events.forEach(event -> {
+            this.enrichEventWithRegistrationCount(event);
+            event.setCreator(userMap.get(event.getCreatedByAccountId()));
+            event.setApprover(userMap.get(event.getApprovedByAccountId()));
+
+            // Lọc danh sách BTC/Presenters chưa bị xóa và có thể gán UserDto vào nếu cần
+            filterActiveSubLists(event);
+        });
         return events;
     }
 
-    // Lấy chi tiết sự kiện theo ID, chỉ khi sự kiện chưa bị xóa - dùng cho người dùng cuối
-    @Override
-    @Transactional
-    public Optional<Event> getEventById(String id) {
-        return eventRepository.findByIdAndIsDeletedFalse(id)
-                .map(event -> {
-                    enrichEventWithRegistrationCount(event);
-                    return event;
-                });
+    private void enrichEventForCurrentUser(Event event, String accountId) {
+        if (accountId == null) {
+            event.setCurrentUserRole(new EventCurrentUserRole()); // tất cả false
+            return;
+        }
+
+        EventCurrentUserRole role = new EventCurrentUserRole();
+
+        // 1. Creator & Approver
+        role.setCreator(event.getCreatedByAccountId() != null &&
+                event.getCreatedByAccountId().equals(accountId));
+        role.setApprover(event.getApprovedByAccountId() != null &&
+                event.getApprovedByAccountId().equals(accountId));
+
+        // 2. Registered + chi tiết registration
+        EventRegistration registration = findRegistrationByUser(event, accountId);
+        role.setRegistered(registration != null);
+        role.setRegistration(registration);   // null nếu chưa đăng ký
+
+        // 3. Presenter
+        EventPresenter presenter = findPresenterByUser(event, accountId);
+        role.setPresented(presenter != null);
+        role.setPresenter(presenter);
+
+        // 4. Organizer (nếu sau này có)
+        boolean isOrganizer = event.getOrganizers() != null &&
+                event.getOrganizers().stream()
+                        .anyMatch(o -> !o.isDeleted() && accountId.equals(o.getAccountId()));
+        role.setOrganizer(isOrganizer);
+
+        // 5. Các permission tiện lợi (có thể mở rộng sau)
+        role.setCanEditEvent(role.isCreator() || role.isOrganizer());
+        role.setCanManageRegistrations(role.isCreator() || role.isOrganizer() || role.isApprover());
+        role.setCanViewTicket(role.isRegistered() || role.getRegistration() == null);
+
+        event.setCurrentUserRole(role);
     }
 
-    private void enrichEventWithRegistrationCount(Event event) {
-        long count = eventRepository.countRegistrationsByEventId(event.getId());
-        event.setRegisteredCount((int) count);
+    private EventRegistration findRegistrationByUser(Event event, String userId) {
+        if (event.getRegistrations() == null) return null;
+        return event.getRegistrations().stream()
+                .filter(r -> !r.isDeleted() && userId.equals(r.getParticipantAccountId()))
+                .findFirst()
+                .orElse(null);
     }
 
-    private double calculateScore(Event event, LocalDateTime now) {
-        double score = Math.log(event.getRegisteredCount() + 1) * 10;
-
-        if (event.getFeedbacks() != null) score += event.getFeedbacks().size() * 0.2;
-        if (event.getPosts() != null) score += event.getPosts().size() * 0.1;
-
-        if (event.getStartTime() != null && event.getEndTime() != null
-                && now.isAfter(event.getStartTime()) && now.isBefore(event.getEndTime())) {
-            score += 30;
-        }
-        if (event.getStartTime() != null && now.isBefore(event.getStartTime())
-                && event.getStartTime().isBefore(now.plusDays(3))) {
-            score += 20;
-        }
-        if (event.getLuckyDrawId() != null && !event.getLuckyDrawId().isBlank()) score += 10;
-        if (event.getRecap() != null) score += 5;
-
-        if (event.getMaxParticipants() > 0) {
-            double fillRate = (double) event.getRegisteredCount() / event.getMaxParticipants();
-            if (fillRate >= 0.8) score += 15;
-        }
-
-        if (event.getStartTime() != null) {
-            long daysDiff = Math.abs(Duration.between(event.getStartTime(), now).toDays());
-            score -= daysDiff * 2;
-        }
-        return score;
+    private EventPresenter findPresenterByUser(Event event, String userId) {
+        if (event.getPresenters() == null) return null;
+        return event.getPresenters().stream()
+                .filter(p -> !p.isDeleted() && userId.equals(p.getPresenterAccountId()))
+                .findFirst()
+                .orElse(null);
     }
 
-    // Lấy tất cả kế hoạch của tôi dựa trên accountId - dùng cho trang cá nhân
-    @Override
-    public List<Event> getEventsByAccountId(String accountId) {
-        List<EventStatus> statuses = List.of(
-                EventStatus.EVENT_PENDING_APPROVAL, EventStatus.PUBLISHED,
-                EventStatus.ONGOING, EventStatus.COMPLETED, EventStatus.CANCELLED);
-
-        // 1. Lấy toàn bộ Events cùng với các list liên quan (đã dùng EntityGraph ở Repo)
-        List<Event> events = eventRepository.findByStatusInAndIsDeletedFalseAndCreatedByAccountId(statuses, accountId);
-
-        if (events.isEmpty()) return Collections.emptyList();
-
-        // Lấy số lượng người đăng ký cho mỗi event
-        events.forEach(this::enrichEventWithRegistrationCount);
-
-        // Thu thập ID người dùng để gọi Identity Service 1 lần duy nhất
-        Set<String> userIds = events.stream()
-                .flatMap(e -> Stream.of(e.getCreatedByAccountId(), e.getApprovedByAccountId()))
-                .filter(StringUtils::hasText)
-                .collect(Collectors.toSet());
-
-        Map<String, UserDto> userMap = fetchUserMap(userIds);
-
-        // 3. Map thông tin User vào Entity
-        events.forEach(event -> {
-            event.setCreator(userMap.get(event.getCreatedByAccountId()));
-            event.setApprover(userMap.get(event.getApprovedByAccountId()));
+    private Set<String> collectAllUserIds(Collection<Event> events) {
+        Set<String> ids = new HashSet<>();
+        events.forEach(e -> {
+            if (e.getCreatedByAccountId() != null) ids.add(e.getCreatedByAccountId());
+            if (e.getApprovedByAccountId() != null) ids.add(e.getApprovedByAccountId());
+            if (e.getOrganizers() != null) {
+                e.getOrganizers().stream().filter(o -> !o.isDeleted()).forEach(o -> ids.add(o.getAccountId()));
+            }
         });
-
-        // 4. Sắp xếp và Map sang DTO
-        return events.stream()
-                .sorted(Comparator.comparing(Event::getStartTime, Comparator.nullsLast(Comparator.reverseOrder())))
-                .collect(Collectors.toList());
-    }
-
-    // Lấy tất cả sự kiện của tôi trong tháng hiện tại dựa trên accountId - dùng cho trang cá nhân
-    @Override
-    public List<Event> getMyEventsByAccountAndMonth(String accountId) {
-        // 1. Tính toán khoảng thời gian đầu tháng và cuối tháng
-        LocalDateTime startOfMonth = LocalDateTime.now()
-                .withDayOfMonth(1).withHour(0).withMinute(0).withSecond(0).withNano(0);
-        LocalDateTime endOfMonth = startOfMonth.plusMonths(1).minusNanos(1);
-
-        // 2. Lấy danh sách events (đã kèm theo presenters, organizers, participants qua EntityGraph)
-        List<Event> events = eventRepository.findByCreatedByAccountIdAndCreatedAtBetweenAndIsDeletedFalse(
-                accountId, startOfMonth, endOfMonth);
-
-        if (events.isEmpty()) return Collections.emptyList();
-
-        // 3. Bổ sung số lượng người đăng ký cho mỗi event
-        events.forEach(this::enrichEventWithRegistrationCount);
-
-        // 4. Thu thập ID và gọi Identity Service để lấy thông tin User (Creator/Approver)
-        Set<String> userIds = events.stream()
-                .flatMap(e -> Stream.of(e.getCreatedByAccountId(), e.getApprovedByAccountId()))
-                .filter(StringUtils::hasText)
-                .collect(Collectors.toSet());
-
-        Map<String, UserDto> userMap = fetchUserMap(userIds);
-
-        // 5. Gán thông tin User vào từng Entity Event (@Transient fields)
-        events.forEach(event -> {
-            event.setCreator(userMap.get(event.getCreatedByAccountId()));
-            event.setApprover(userMap.get(event.getApprovedByAccountId()));
-        });
-
-        // 6. Sắp xếp theo thời gian tạo hoặc thời gian bắt đầu (mới nhất lên đầu)
-        return events.stream()
-                .sorted(Comparator.comparing(Event::getCreatedAt, Comparator.nullsLast(Comparator.reverseOrder())))
-                .collect(Collectors.toList());
+        return ids;
     }
 
     private Map<String, UserDto> fetchUserMap(Set<String> userIds) {
@@ -224,13 +262,103 @@ public class EventServiceImpl implements EventService {
             return identityClient.getUsersByIds(new ArrayList<>(userIds)).stream()
                     .collect(Collectors.toMap(UserDto::getId, u -> u, (old, latest) -> old));
         } catch (Exception e) {
-            log.error("Failed to fetch users from Identity Service", e);
+            log.error("Failed to fetch users: {}", e.getMessage());
             return Collections.emptyMap();
         }
     }
 
-    @Override
+    private void enrichEventWithRegistrationCount(Event event) {
+        event.setRegisteredCount((int) eventRepository.countRegistrationsByEventId(event.getId()));
+    }
+
+    private void filterActiveSubLists(Event event) {
+        if (event.getOrganizers() != null) {
+            event.setOrganizers(event.getOrganizers().stream()
+                    .filter(o -> !o.isDeleted()).collect(Collectors.toSet()));
+        }
+    }
+
+    private double calculateScore(Event event, LocalDateTime now) {
+        double score = Math.log(event.getRegisteredCount() + 1) * 10;
+        if (event.getStartTime() != null && event.getStartTime().isBefore(now.plusDays(3))) score += 20;
+        return score;
+    }
+
+    private Set<Event> getRawEventsByRole(String accountId, String roleType) {
+        Set<Event> combined = new HashSet<>();
+        String type = (roleType != null) ? roleType.toUpperCase() : "ALL";
+
+        switch (type) {
+            case "ORGANIZER":
+                break;
+            case "PRESENTER":
+                combined.addAll(eventRepository.findEventsByPresenterAccountId(accountId));
+                break;
+            case "PARTICIPANT":
+                combined.addAll(eventRepository.findEventsByParticipantAccountId(accountId));
+                break;
+            case "CREATOR":
+                combined.addAll(eventRepository.findByCreatedByAccountIdAndIsDeletedFalse(accountId));
+                break;
+            case "APPROVER":
+                combined.addAll(eventRepository.findByApprovedByAccountIdAndIsDeletedFalse(accountId));
+                break;
+            case "ALL":
+            default:
+                combined.addAll(eventRepository.findEventsByOrganizerAccountId(accountId));
+                combined.addAll(eventRepository.findEventsByPresenterAccountId(accountId));
+                combined.addAll(eventRepository.findEventsByParticipantAccountId(accountId));
+                combined.addAll(eventRepository.findEventsByOrganizationOwner(accountId));
+                combined.addAll(eventRepository.findByCreatedByAccountIdAndIsDeletedFalse(accountId));
+                combined.addAll(eventRepository.findByApprovedByAccountIdAndIsDeletedFalse(accountId));
+                break;
+        }
+        return combined;
+    }
+
     @Transactional
+    @Override
+    public void deleteEvent(String id) {
+        // 1. Kiểm tra tồn tại và lấy dữ liệu
+        Event event = eventRepository.findById(id)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
+                        "Không tìm thấy sự kiện với ID: " + id));
+
+        // 2. Thực hiện xóa mềm Event
+        event.setDeleted(true);
+        event.setStatus(EventStatus.CANCELLED);
+        event.setUpdatedAt(LocalDateTime.now());
+        eventRepository.save(event);
+
+        // 3. Xử lý logic xóa dịch vụ liên quan
+        if (event.isHasLuckyDraw()) {
+            try {
+                // Nên truyền ID của sự kiện hoặc ID của vòng quay cụ thể
+                luckyDrawClient.softDeleteByEventId(id);
+            } catch (Exception e) {
+                // Tùy chọn: Log lỗi hoặc ném ngoại lệ để Rollback event nếu cần tính đồng bộ cao
+                throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR,
+                        "Lỗi khi xóa vòng quay may mắn liên quan", e);
+            }
+        }
+    }
+
+    @Transactional
+    @Override
+    public void updateLuckyDrawId(String id) {
+        Event event = eventRepository.findById(id)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy sự kiện"));
+
+        if (event.isHasLuckyDraw()) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Sự kiện này đã có vòng quay may mắn rồi!");
+        }
+
+        event.setHasLuckyDraw(true);
+        event.setUpdatedAt(LocalDateTime.now());
+        eventRepository.save(event);
+    }
+
+    @Override
     public Event createEvent(Event event) {
         event.setCreatedAt(LocalDateTime.now());
         event.setUpdatedAt(LocalDateTime.now());
@@ -300,29 +428,8 @@ public class EventServiceImpl implements EventService {
         }).orElseThrow(() -> new RuntimeException("Không tìm thấy sự kiện với ID: " + id));
     }
 
-
-    @Override
-    @Transactional
-    public void deleteEvent(String id) {
-        Event event = eventRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Không tìm thấy sự kiện với ID: " + id));
-        event.setDeleted(true);
-        event.setArchived(true);
-        event.setUpdatedAt(LocalDateTime.now());
-        eventRepository.save(event);
-    }
-
     @Transactional
     @Override
-    public void updateLuckyDrawId(String id, String luckyDrawId) {
-        Event event = eventRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Không tìm thấy sự kiện với ID: " + id));
-        event.setLuckyDrawId(luckyDrawId);
-        eventRepository.save(event);
-    }
-
-    @Override
-    @Transactional
     public List<Event> getEventsByStatuses(List<String> statuses) {
         List<EventStatus> eventStatuses = statuses.stream()
                 .map(s -> {

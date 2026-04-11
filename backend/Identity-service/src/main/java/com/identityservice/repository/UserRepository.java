@@ -1,11 +1,11 @@
-package src.main.identityservice.repository;
+package com.identityservice.repository;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
-import src.main.identityservice.entity.Account;
-import src.main.identityservice.entity.User;
+import com.identityservice.entity.Account;
+import com.identityservice.entity.User;
 
 import java.util.List;
 import java.util.Optional;

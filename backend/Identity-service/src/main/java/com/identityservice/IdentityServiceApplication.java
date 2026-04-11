@@ -1,4 +1,4 @@
-package src.main.identityservice;
+package com.identityservice;
 
 import io.github.cdimascio.dotenv.Dotenv;
 import org.springframework.boot.SpringApplication;

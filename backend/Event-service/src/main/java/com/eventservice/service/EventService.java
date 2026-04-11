@@ -12,26 +12,31 @@ import java.util.Map;
 import java.util.Optional;
 
 public interface EventService {
-    List<Event> findAll();
+    // Lấy sự kiện cho xem (trang chủ, trang danh sách sự kiện)
+    List<Event> findEventsForUser();
 
-    List<Event> findAllActive();
+    // Lấy sự kiện đang diễn ra hôm nay
+    List<Event> getOngoingEvents();
 
+    // Lấy sự kiện sắp diễn ra trong tuần này
+    List<Event> getUpcomingEventsThisWeek();
+
+    // Lấy sự kiện nổi bật nhất (Featured)
     List<Event> getFeaturedEvents();
 
-    Optional<Event> findById(String id);
+    // Lấy sự kiện cho admin và super admin xem (trang quản lý sự kiện)
+    List<Event> findEventsForAdmin();
 
-    Optional<Event> getEventById(String id);
+    List<Event> findMyEventsByRole(String accountId, String roleType);
 
-    List<Event> getMyEventsByAccountAndMonth(String accountId);
+    List<Event> getMyEventsByAccountAndMonth(String accountId, String roleType, int month, int year);
 
-    List<Event> getEventsByAccountId(String accountId);
+    Optional<Event> getEventById(String id, String accountId);
 
+    @Transactional
+    void updateLuckyDrawId(String id);
 
     Event createEvent(Event event);
-
-    void deleteEvent(String id);
-
-    List<Event> getEventsByStatuses(List<String> statuses);
 
     @Transactional
     Event saveEvent(Event event);
@@ -40,7 +45,11 @@ public interface EventService {
 
     Event updateEvent(String id, Event eventDetails);
 
-    void updateLuckyDrawId(String id, String luckyDrawId);
+    @Transactional
+    void deleteEvent(String id);
+
+    @Transactional
+    List<Event> getEventsByStatuses(List<String> statuses);
 
     List<Event> getAllPlans();
 

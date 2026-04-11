@@ -1,7 +1,7 @@
-package src.main.identityservice.service;
+package com.identityservice.service;
 
-import src.main.identityservice.dto.UserDto;
-import src.main.identityservice.entity.User;
+import com.identityservice.dto.UserDto;
+import com.identityservice.entity.User;
 
 import java.util.List;
 

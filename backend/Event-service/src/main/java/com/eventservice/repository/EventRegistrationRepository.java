@@ -46,4 +46,10 @@ public interface EventRegistrationRepository extends JpaRepository<EventRegistra
     );
 
     long countByEventIdAndStatusIn(String eventId, List<RegistrationStatus> statuses);
+
+    boolean existsByEventIdAndParticipantAccountIdAndIsDeletedFalse(String eventId, String userId);
+
+    long countByEventId(String eventId);
+
+    Optional<EventRegistration> findByEventIdAndParticipantAccountIdAndIsDeletedFalse(String registrationId, String userId);
 }

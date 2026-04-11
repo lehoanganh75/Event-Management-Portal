@@ -1,16 +1,15 @@
-package src.main.identityservice.controller;
+package com.identityservice.controller;
 
+import com.identityservice.dto.request.LogoutRequest;
+import com.identityservice.dto.request.VerifyOtpRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import src.main.identityservice.dto.response.AuthResponse;
-import src.main.identityservice.dto.request.LoginRequest;
-import src.main.identityservice.dto.request.RegisterRequest;
-import src.main.identityservice.exception.TokenExpiredException;
-import src.main.identityservice.exception.TokenInvalidException;
-import src.main.identityservice.exception.TokenUsedException;
-import src.main.identityservice.service.AuthService;
+import com.identityservice.dto.response.AuthResponse;
+import com.identityservice.dto.request.LoginRequest;
+import com.identityservice.dto.request.RegisterRequest;
+import com.identityservice.service.AuthService;
 
 import java.io.IOException;
 import java.net.URLEncoder;
@@ -34,9 +33,9 @@ public class AuthController {
     }
 
     @PostMapping("/logout")
-    public ResponseEntity<Void> logout(@RequestParam String refreshToken) {
-        authService.logout(refreshToken);
-        return ResponseEntity.noContent().build();
+    public ResponseEntity<?> logout(@RequestBody LogoutRequest request) { // Dùng @RequestBody
+        authService.logout(request.getRefreshToken());
+        return ResponseEntity.ok("Đăng xuất thành công.");
     }
 
     @GetMapping("/verify")
@@ -47,17 +46,19 @@ public class AuthController {
             String redirectUrl = "http://localhost:5173/login?verified=true&message=" +
                     URLEncoder.encode(result.get("message"), StandardCharsets.UTF_8);
 
-            response.sendRedirect(redirectUrl);
-
-        } catch (TokenInvalidException | TokenUsedException | TokenExpiredException e) {
-            String errorMsg = URLEncoder.encode(e.getMessage(), StandardCharsets.UTF_8);
-            String redirectUrl = "http://localhost:5173/login?verified=false&error=" + errorMsg;
-
-            response.sendRedirect(redirectUrl);
         } catch (Exception e) {
             String errorMsg = URLEncoder.encode("Có lỗi hệ thống. Vui lòng thử lại.", StandardCharsets.UTF_8);
             response.sendRedirect("http://localhost:5173/login?verified=false&error=" + errorMsg);
         }
+    }
+
+    @PostMapping("/verify-otp")
+    public ResponseEntity<?> verifyMobileOTP(@RequestBody VerifyOtpRequest request) {
+        String otp = request.getOtp();
+        String username = request.getUsername();
+
+        Map<String, String> result = authService.verifyMobileOTP(otp, username);
+        return ResponseEntity.ok(result);
     }
 
     @PostMapping("/forgot-password")

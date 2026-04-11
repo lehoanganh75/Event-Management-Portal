@@ -1,4 +1,4 @@
-package src.main.identityservice.config;
+package com.identityservice.config;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
@@ -35,9 +35,9 @@ public class SecurityConfig {
                 .sessionManagement(ss -> ss.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/auth/**").permitAll()
-                        .requestMatchers("/admin/**").permitAll()
-                        .requestMatchers("/profiles/**").permitAll()
-                        .anyRequest().permitAll()
+                        .requestMatchers("/admin/**").authenticated()
+                        .requestMatchers("/profiles/**").authenticated()
+                        .anyRequest().authenticated()
                 )
                  .oauth2ResourceServer(oauth2 -> oauth2
                          .jwt(jwtConfigurer -> jwtConfigurer.decoder(jwtDecoder()))

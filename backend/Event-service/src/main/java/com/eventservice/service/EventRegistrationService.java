@@ -11,6 +11,8 @@ import java.util.Optional;
 public interface EventRegistrationService {
     Optional<EventRegistration> findByEventIdAndUserRegistrationId(String eventId, String userRegistrationId);
 
+    EventRegistration registerForEvent(String eventId, String userId);
+
     EventRegistration registerUserToEvent(String eventId, String userRegistrationId);
 
     RegistrationResponseDto getRegistrationWithQR(String registrationId);
@@ -24,4 +26,6 @@ public interface EventRegistrationService {
     List<RegistrationResponseDto> getRegistrationsByUser(String userProfileId);
 
     EventRegistration cancelRegistration(String eventId, String userProfileId);
+
+    EventRegistration getTicketForUser(String id, String currentUserId);
 }

@@ -1,4 +1,4 @@
-package src.main.identityservice.entity;
+package com.identityservice.entity;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;

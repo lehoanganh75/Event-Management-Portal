@@ -1,7 +1,7 @@
-package src.main.identityservice.dto;
+package com.identityservice.dto;
 
-import src.main.identityservice.entity.AccountStatus;
-import src.main.identityservice.entity.Role;
+import com.identityservice.entity.AccountStatus;
+import com.identityservice.entity.Role;
 
 public record AccountAdminDTO(
         String id,

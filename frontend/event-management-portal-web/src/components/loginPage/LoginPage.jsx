@@ -122,8 +122,7 @@ const LoginPage = () => {
   ];
 
   return (
-    <div className="min-h-screen flex flex-col font-sans">
-      <Header />
+    <div className="h-screen flex flex-col font-sans">
       <div className="flex-1 bg-[#eef2f7] flex flex-col items-center justify-center p-4">
         <div className="w-full max-w-5xl flex flex-col">
           <button

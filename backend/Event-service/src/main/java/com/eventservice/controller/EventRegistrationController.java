@@ -22,6 +22,30 @@ import java.util.Optional;
 public class EventRegistrationController {
     private final EventRegistrationService registrationService;
 
+    @GetMapping("/{eventId}")
+    public ResponseEntity<EventRegistration> getTicket(
+            @PathVariable String eventId,
+            @AuthenticationPrincipal Jwt jwt
+    ) {
+        String currentUserId = jwt.getSubject();
+
+        EventRegistration ticket = registrationService.getTicketForUser(eventId, currentUserId);
+
+        return ResponseEntity.ok(ticket);
+    }
+
+    @PostMapping("/register/{eventId}")
+    public ResponseEntity<EventRegistration> register(
+            @PathVariable String eventId,
+            @AuthenticationPrincipal Jwt jwt
+    ) {
+        String userId = jwt.getSubject();
+        EventRegistration result = registrationService.registerForEvent(eventId, userId);
+        return ResponseEntity.status(HttpStatus.CREATED).body(result);
+    }
+
+    // ====================================================
+
     @GetMapping("/check/{eventId}")
     public ResponseEntity<Optional<EventRegistration>> findByEventIdAndUserRegistrationId(
             @PathVariable String eventId,

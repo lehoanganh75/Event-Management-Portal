@@ -1,7 +1,7 @@
-package src.main.identityservice.service;
+package com.identityservice.service;
 
-import src.main.identityservice.dto.AccountAdminDTO;
-import src.main.identityservice.entity.Account;
+import com.identityservice.dto.AccountAdminDTO;
+import com.identityservice.entity.Account;
 
 import java.util.List;
 

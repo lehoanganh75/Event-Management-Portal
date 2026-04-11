@@ -1,7 +1,7 @@
-package src.main.identityservice.dto;
+package com.identityservice.dto;
 
 import lombok.Data;
-import src.main.identityservice.entity.User;
+import com.identityservice.entity.User;
 
 @Data
 public class UserDto {

@@ -1,5 +1,6 @@
 package com.eventservice.entity;
 
+import com.eventservice.dto.EventCurrentUserRole;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.*;
@@ -60,7 +61,7 @@ public class Event {
     private String approvedByAccountId;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "organization_id")
+    @JoinColumn(name = "organization_id", nullable = false)
     @JsonIgnore
     private Organization organization;
 
@@ -89,7 +90,7 @@ public class Event {
     private boolean isDeleted = false;
 
     // --- ADDITIONAL TOOLS & INFO ---
-    private String luckyDrawId;
+    private boolean hasLuckyDraw;
 
     @Column(columnDefinition = "TEXT")
     private String notes;
@@ -164,4 +165,7 @@ public class Event {
 
     @Transient
     private UserDto approver;
+
+    @Transient   // quan trọng: không lưu vào DB
+    private EventCurrentUserRole currentUserRole;
 }

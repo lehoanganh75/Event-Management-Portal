@@ -1,16 +1,18 @@
-package src.main.identityservice.service.impl;
+package com.identityservice.service.impl;
 
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import src.main.identityservice.dto.AccountAdminDTO;
-import src.main.identityservice.entity.Account;
-import src.main.identityservice.entity.AccountStatus;
-import src.main.identityservice.entity.Role;
-import src.main.identityservice.entity.User;
-import src.main.identityservice.repository.AccountRepository;
-import src.main.identityservice.repository.UserRepository;
-import src.main.identityservice.service.AccountService;
+import com.identityservice.dto.AccountAdminDTO;
+import com.identityservice.entity.Account;
+import com.identityservice.entity.AccountStatus;
+import com.identityservice.entity.Role;
+import com.identityservice.entity.User;
+import com.identityservice.repository.AccountRepository;
+import com.identityservice.repository.UserRepository;
+import com.identityservice.service.AccountService;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.time.format.DateTimeFormatter;
 import java.util.List;
@@ -42,14 +44,14 @@ public class AccountServiceImpl implements AccountService {
         Account account = getAccountOrThrow(accountId);
 
         if (roleName == null || roleName.isBlank()) {
-            throw new IllegalArgumentException("Danh sách role không được để trống");
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Danh sách role không được để trống");
         }
 
         Role newRole;
         try {
             newRole = Role.valueOf(roleName.trim().toUpperCase());
         } catch (IllegalArgumentException e) {
-            throw new IllegalArgumentException("Vai trò không hợp lệ: " + roleName);
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Vai trò không hợp lệ: " + roleName);
         }
 
         account.setRole(newRole);
@@ -63,14 +65,14 @@ public class AccountServiceImpl implements AccountService {
         Account account = getAccountOrThrow(accountId);
 
         if (status == null || status.isBlank()) {
-            throw new IllegalArgumentException("Status không được để trống");
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Status không được để trống");
         }
 
         try {
             AccountStatus statusEnum = AccountStatus.valueOf(status.toUpperCase());
             account.setStatus(statusEnum);
         } catch (IllegalArgumentException e) {
-            throw new IllegalArgumentException(
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
                     "Trạng thái không hợp lệ: " + status +
                             ". Các giá trị hợp lệ: " + getValidStatusValues()
             );
@@ -90,7 +92,7 @@ public class AccountServiceImpl implements AccountService {
     private Account getAccountOrThrow(String accountId) {
         return accountRepository.findById(accountId)
                 .orElseThrow(() ->
-                        new RuntimeException("Tài khoản không tồn tại: " + accountId));
+                        new ResponseStatusException(HttpStatus.CONFLICT, "Tài khoản không tồn tại: " + accountId));
     }
 
     private AccountAdminDTO toAdminDTO(Account account) {
@@ -126,13 +128,13 @@ public class AccountServiceImpl implements AccountService {
     public AccountAdminDTO updateAccount(String accountId, AccountAdminDTO updateRequest) {
 
         Account account = accountRepository.findById(accountId)
-                .orElseThrow(() -> new RuntimeException("Tài khoản không tồn tại: " + accountId));
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.CONFLICT, "Tài khoản không tồn tại: " + accountId));
 
         if (updateRequest.email() != null && !updateRequest.email().isBlank()) {
             accountRepository.findByEmail(updateRequest.email())
                     .filter(acc -> !acc.getId().equals(accountId))
                     .ifPresent(acc -> {
-                        throw new RuntimeException("Email đã được sử dụng");
+                        throw new ResponseStatusException(HttpStatus.CONFLICT, "Email đã được sử dụng");
                     });
             account.setEmail(updateRequest.email());
         }
@@ -141,7 +143,7 @@ public class AccountServiceImpl implements AccountService {
             accountRepository.findByUsername(updateRequest.username())
                     .filter(acc -> !acc.getId().equals(accountId))
                     .ifPresent(acc -> {
-                        throw new RuntimeException("Username đã được sử dụng");
+                        throw new ResponseStatusException(HttpStatus.CONFLICT, "Username đã được sử dụng");
                     });
             account.setUsername(updateRequest.username());
         }

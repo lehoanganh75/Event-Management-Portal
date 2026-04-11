@@ -4,6 +4,7 @@ import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.ExpiredJwtException;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import com.eventservice.dto.CheckInRequest;
 import com.eventservice.dto.CheckInResponse;
@@ -16,10 +17,12 @@ import com.eventservice.repository.EventRegistrationRepository;
 import com.eventservice.repository.EventRepository;
 import com.eventservice.service.EventRegistrationService;
 import com.eventservice.util.QRTokenUtil;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 @Service
@@ -33,6 +36,47 @@ public class EventRegistrationServiceImpl implements EventRegistrationService {
     @Override
     public Optional<EventRegistration> findByEventIdAndUserRegistrationId(String eventId, String userRegistrationId) {
         return registrationRepository.findByEventIdAndParticipantAccountId(eventId, userRegistrationId);
+    }
+
+    @Override
+    public EventRegistration registerForEvent(String eventId, String userId) {
+        Event event = eventRepository.findById(eventId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy sự kiện"));
+
+        // 2. Kiểm tra hạn đăng ký
+        if (event.getRegistrationDeadline() != null && LocalDateTime.now().isAfter(event.getRegistrationDeadline())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Đã quá hạn đăng ký sự kiện này");
+        }
+
+        // 3. Kiểm tra số lượng người tham gia tối đa
+        if (event.getRegisteredCount() >= event.getMaxParticipants()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Sự kiện đã hết chỗ");
+        }
+
+        // 4. Kiểm tra xem user đã đăng ký chưa (tránh đăng ký trùng)
+        if (registrationRepository.existsByEventIdAndParticipantAccountIdAndIsDeletedFalse(eventId, userId)) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Bạn đã đăng ký sự kiện này rồi");
+        }
+
+        // 5. Tạo mã vé (VD: TITLE-001)
+        long currentCount = registrationRepository.countByEventId(eventId) + 1;
+        String ticketCode = String.format("%s-%04d", event.getSlug().toUpperCase(), currentCount);
+
+        // 6. Khởi tạo đối tượng đăng ký
+        EventRegistration registration = EventRegistration.builder()
+                .event(event)
+                .participantAccountId(userId)
+                .status(RegistrationStatus.PENDING)
+                .ticketCode(ticketCode)
+                .qrToken(UUID.randomUUID().toString())
+                .qrTokenExpiry(event.getEndTime())
+                .build();
+
+        // 7. Cập nhật số lượng người đã đăng ký vào bảng Event
+        event.setRegisteredCount(event.getRegisteredCount() + 1);
+        eventRepository.save(event);
+
+        return registrationRepository.save(registration);
     }
 
     @Transactional
@@ -275,5 +319,12 @@ public class EventRegistrationServiceImpl implements EventRegistrationService {
 
         registration.setStatus(RegistrationStatus.CANCELLED);
         return registrationRepository.save(registration);
+    }
+
+    @Override
+    public EventRegistration getTicketForUser(String eventId, String currentUserId) {
+        return registrationRepository.findByEventIdAndParticipantAccountIdAndIsDeletedFalse(eventId, currentUserId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
+                        "Không tìm thấy vé hoặc bạn không có quyền truy cập vé này"));
     }
 }

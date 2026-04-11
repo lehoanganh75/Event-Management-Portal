@@ -1,4 +1,4 @@
-package src.main.identityservice.entity;
+package com.identityservice.entity;
 
 public enum ApprovalStatus {
     PENDING,

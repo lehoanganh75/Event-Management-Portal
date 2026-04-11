@@ -1,4 +1,4 @@
-package src.main.identityservice.controller;
+package com.identityservice.controller;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -6,9 +6,9 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.*;
-import src.main.identityservice.dto.UserDto;
-import src.main.identityservice.entity.User;
-import src.main.identityservice.service.UserService;
+import com.identityservice.dto.UserDto;
+import com.identityservice.entity.User;
+import com.identityservice.service.UserService;
 
 import java.util.List;
 

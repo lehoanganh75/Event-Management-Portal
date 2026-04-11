@@ -1,27 +1,28 @@
 package com.eventservice.controller;
 
+import com.eventservice.dto.PlanCreateRequest;
+import com.eventservice.dto.PlanResponseDto;
 import com.eventservice.entity.enums.OrganizerRole;
 import com.eventservice.entity.enums.ParticipationStatus;
+import com.eventservice.service.EventOrganizerService;
+import com.eventservice.service.EventParticipantService;
+import com.eventservice.service.EventPresenterService;
+import com.eventservice.service.EventService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.*;
-import com.eventservice.dto.PlanCreateRequest;
-import com.eventservice.dto.PlanResponseDto;
 import com.eventservice.entity.Event;
 import com.eventservice.entity.EventOrganizer;
 import com.eventservice.entity.EventParticipant;
 import com.eventservice.entity.EventPresenter;
 import com.eventservice.entity.enums.EventStatus;
 import com.eventservice.entity.enums.EventType;
-import com.eventservice.service.EventOrganizerService;
-import com.eventservice.service.EventParticipantService;
-import com.eventservice.service.EventPresenterService;
-import com.eventservice.service.EventService;
 
 import java.util.Arrays;
 import java.util.List;
@@ -39,15 +40,21 @@ public class EventController {
     private final EventParticipantService participantService;
     private final EventOrganizerService organizerService;
 
-    // 1. Dành cho Sinh viên/Người dùng (Chỉ lấy sự kiện chưa xóa)
+    // --- 1. NHÓM CÔNG KHAI (DÀNH CHO USER & GUEST) ---
+
     @GetMapping
-    public ResponseEntity<List<Event>> getAllActiveEvents() {
-        return ResponseEntity.ok(eventService.findAllActive());
+    public ResponseEntity<List<Event>> getEventsForUser() {
+        return ResponseEntity.ok(eventService.findEventsForUser());
     }
 
-    @GetMapping("/all")
-    public ResponseEntity<List<Event>> getAllEvents() {
-        return ResponseEntity.ok(eventService.findAll());
+    @GetMapping("/ongoing")
+    public ResponseEntity<List<Event>> getOngoingEvents() {
+        return ResponseEntity.ok(eventService.getOngoingEvents());
+    }
+
+    @GetMapping("/upcoming-week")
+    public ResponseEntity<List<Event>> getUpcomingEvents() {
+        return ResponseEntity.ok(eventService.getUpcomingEventsThisWeek());
     }
 
     @GetMapping("/featured")
@@ -55,32 +62,44 @@ public class EventController {
         return ResponseEntity.ok(eventService.getFeaturedEvents());
     }
 
-    @GetMapping("/{id}")
-    public ResponseEntity<Optional<Event>> getEventByIdForUser(@PathVariable String id) {
-        return ResponseEntity.ok(eventService.getEventById(id));
+    // --- 2. NHÓM QUẢN TRỊ (DÀNH CHO ADMIN) ---
+
+    @GetMapping("/admin/all")
+    @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
+    public ResponseEntity<List<Event>> getEventsForAdmin() {
+        return ResponseEntity.ok(eventService.findEventsForAdmin());
     }
 
-    @GetMapping("/admin/{id}")
-    public ResponseEntity<Optional<Event>> getEventByIdForAdmin(@PathVariable String id) {
-        return ResponseEntity.ok(eventService.findById(id));
-    }
-
+    // --- 3. NHÓM CÁ NHÂN HÓA (DÀNH CHO TRANG CÁ NHÂN) ---
     @GetMapping("/my-events")
-    public ResponseEntity<List<Event>> getMyEvents(@AuthenticationPrincipal Jwt jwt) {
+    public ResponseEntity<List<Event>> getMyEvents(
+            @AuthenticationPrincipal Jwt jwt,
+            @RequestParam(value = "role", required = false, defaultValue = "ALL") String role) {
+
         String accountId = jwt.getSubject();
-        return ResponseEntity.ok(eventService.getEventsByAccountId(accountId));
+        return ResponseEntity.ok(eventService.findMyEventsByRole(accountId, role));
     }
 
-    @GetMapping("/my-events/this-month")
-    public ResponseEntity<List<Event>> getMyEventsThisMonth(@AuthenticationPrincipal Jwt jwt) {
+    @GetMapping("/{id}")
+    public ResponseEntity<Optional<Event>> getEventById(
+            @PathVariable String id,
+            @AuthenticationPrincipal Jwt jwt
+    ) {
         String accountId = jwt.getSubject();
-        return ResponseEntity.ok(eventService.getMyEventsByAccountAndMonth(accountId));
+        return ResponseEntity.ok(eventService.getEventById(id, accountId));
     }
 
-    @GetMapping("/by-statuses")
-    public ResponseEntity<List<Event>> getEventsByStatuses(@RequestParam List<String> statuses) {
-        return ResponseEntity.ok(eventService.getEventsByStatuses(statuses));
+    @PutMapping("/{eventId}/lucky-draw")
+    public ResponseEntity<?> updateLuckyDrawId(
+            @PathVariable String eventId) {
+
+        eventService.updateLuckyDrawId(eventId);
+        return ResponseEntity.ok().build();
     }
+
+    ////////////////////////////////
+
+    // 1. Dành cho Sinh viên/Người dùng (Chỉ lấy sự kiện chưa xóa)
 
     @GetMapping("/plans")
     public ResponseEntity<List<PlanResponseDto>> getAllPlans() {
@@ -372,19 +391,11 @@ public class EventController {
         return ResponseEntity.ok(updated);
     }
 
-    @PutMapping("/delete/{id}")
+    @DeleteMapping("/delete/{id}")
     public ResponseEntity<Void> deleteEvent(@PathVariable String id) {
         eventService.deleteEvent(id);
         return ResponseEntity.noContent().build();
     }
-
-    @PutMapping("/{id}/lucky-draw")
-    public ResponseEntity<Void> updateLuckyDrawId(@PathVariable String id,
-                                                  @RequestParam String luckyDrawId) {
-        eventService.updateLuckyDrawId(id, luckyDrawId);
-        return ResponseEntity.ok().build();
-    }
-
 
     private boolean isPlanStatus(EventStatus status) {
         return status == EventStatus.DRAFT ||

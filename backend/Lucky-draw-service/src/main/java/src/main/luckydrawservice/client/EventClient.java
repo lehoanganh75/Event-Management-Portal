@@ -6,11 +6,9 @@ import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import src.main.luckydrawservice.config.FeignClientConfig;
 
-@FeignClient(name = "event-service", url = "http://localhost:8083")
+@FeignClient(name = "event-service", url = "http://localhost:8082")
 public interface EventClient {
-    @PutMapping("/events/{id}/lucky-draw")
-    void updateLuckyDrawId(
-            @PathVariable("id") String id,
-            @RequestParam("luckyDrawId") String luckyDrawId
-    );
+
+    @PutMapping("/events/{eventId}/lucky-draw")
+    void updateLuckyDrawId(@PathVariable("eventId") String eventId);
 }

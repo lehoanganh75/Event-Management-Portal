@@ -1,6 +1,7 @@
 package com.eventservice.entity;
 
 import com.fasterxml.jackson.annotation.JsonBackReference;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
@@ -20,12 +21,8 @@ public class EventOrganizer {
     @GeneratedValue(strategy = GenerationType.UUID)
     private String id;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "event_id", nullable = false)
-    @JsonBackReference
-    private Event event;
-
     private String accountId;      // ID người dùng (từ Identity Service)
+
     private String fullName;       // Tên hiển thị trong ban tổ chức
     private String email;          // Email liên hệ
     private String position;       // Chức vụ trong sự kiện (vd: Trưởng ban)
@@ -37,4 +34,14 @@ public class EventOrganizer {
 
     @CreationTimestamp
     private LocalDateTime assignedAt;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "organization_id")
+    @JsonIgnore
+    private Organization organization; // Đơn vị mà nhân sự này thuộc về (Vd: CLB HIT)
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "event_id", nullable = false)
+    @JsonIgnore
+    private Event event;
 }
