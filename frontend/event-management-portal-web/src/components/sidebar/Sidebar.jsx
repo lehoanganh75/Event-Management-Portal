@@ -10,8 +10,7 @@ const Sidebar = () => {
   const menuItems = [
     { name: 'Dashboard',          icon: LayoutDashboard, path: '/admin' },
     { name: 'Quản lý sự kiện',     icon: Calendar,       path: '/admin/events' },
-    { name: 'Quản lý bài truyền thông', icon: Share2,     path: '/admin/media' },
-    { name: 'Quản lý bài tổng kết', icon: FileText,      path: '/admin/summaries' },
+    { name: 'Quản lý bài truyền thông', icon: Share2,     path: '/admin/posts' },
     { name: 'Quản lý kế hoạch',    icon: ClipboardList,  path: '/admin/plans' },
     { name: 'Quản lý mẫu kế hoạch', icon: Layout,        path: '/admin/templates' },
     { name: 'Quản lý khoa',        icon: GraduationCap,  path: '/admin/departments' },

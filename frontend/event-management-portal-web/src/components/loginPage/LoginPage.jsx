@@ -13,12 +13,12 @@ import {
 import { useNavigate } from "react-router-dom";
 import logo_iuh from "../../assets/images/logo_iuh.png";
 import ErrorNotification from "../notification/ErrorNotification";
-import Header from "../common/Header";
 import { useAuth } from "../../context/AuthContext";
 
 const LoginPage = () => {
   const navigate = useNavigate();
-  const { login, loading: authLoading } = useAuth();   // Lấy từ Context
+  // Lấy login và user từ Context
+  const { login, user } = useAuth();
 
   const [toastVisible, setToastVisible] = useState(false);
   const [message, setMessage] = useState("");
@@ -30,7 +30,20 @@ const LoginPage = () => {
   const [formData, setFormData] = useState({ username: "", password: "" });
   const [errors, setErrors] = useState({});
 
-  // Toast tự tắt
+  // Logic điều hướng dựa trên Role sau khi 'user' trong Context thay đổi
+  useEffect(() => {
+    if (user && user.role) {
+      const userRole = user.role.toUpperCase();
+      if (userRole === "SUPER_ADMIN") {
+        navigate("/admin");
+      } else if (userRole === "ADMIN") {
+        navigate("/lecturer");
+      } else {
+        navigate("/");
+      }
+    }
+  }, [user, navigate]);
+
   useEffect(() => {
     let timer;
     if (toastVisible) {
@@ -53,18 +66,6 @@ const LoginPage = () => {
     return Object.keys(newErrors).length === 0;
   };
 
-  // Hàm lấy role từ JWT
-  const getRoleFromToken = (token) => {
-    if (!token) return null;
-    try {
-      const payload = JSON.parse(atob(token.split(".")[1]));
-      return payload.role;        // backend trả về "role" (string)
-    } catch (error) {
-      console.error("Không thể decode JWT:", error);
-      return null;
-    }
-  };
-
   const handleLogin = async (e) => {
     e.preventDefault();
     if (isLoading || !validateForm()) return;
@@ -73,6 +74,8 @@ const LoginPage = () => {
     setErrorToastVisible(false);
 
     try {
+      // Gọi hàm login từ AuthContext
+      // Hàm này đã bao gồm: POST login -> Lưu Token -> GET Profile
       await login({
         username: formData.username,
         password: formData.password,
@@ -80,27 +83,12 @@ const LoginPage = () => {
 
       setMessage("Đăng nhập thành công! Đang chuyển hướng...");
       setToastVisible(true);
-
-      // Lấy accessToken vừa được lưu trong AuthContext
-      const accessToken = localStorage.getItem("accessToken");
-      const userRole = getRoleFromToken(accessToken);
-
-      // Chuyển hướng theo role
-      setTimeout(() => {
-        if (userRole === "SUPER_ADMIN" || userRole === "ADMIN") {
-          navigate("/admin");
-        } else if (userRole === "LECTURER") {
-          navigate("/lecturer");
-        } else {
-          navigate("/");                    // Student / User bình thường
-        }
-      }, 1300);
-
+      // Không cần navigate ở đây vì useEffect phía trên sẽ tự bắt lấy 'user' mới để đi đúng hướng
     } catch (error) {
       console.error("Login Error:", error);
-
       let errorMsg = "Tên đăng nhập hoặc mật khẩu không chính xác.";
-
+      
+      // Xử lý thông điệp lỗi từ Backend
       if (error.response?.data?.message) {
         errorMsg = error.response.data.message;
       } else if (error.message) {

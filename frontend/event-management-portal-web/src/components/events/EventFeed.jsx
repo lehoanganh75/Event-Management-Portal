@@ -1,34 +1,45 @@
 import React, { useState, useEffect, useMemo, useCallback } from "react";
-import { useNavigate, useLocation } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import {
-  Newspaper, Calendar, Clock, MapPin, Users, Search, X, 
-  ChevronLeft, ChevronRight, Gift, Sparkles
+  Newspaper, Calendar, Clock, MapPin, Users, Search,
+  ChevronLeft, ChevronRight, Gift
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
-// IMPORT CÁC COMPONENT & API TẬP TRUNG
-import { useEvent } from "../../context/EventContext";
+import { useEvents } from "../../context/EventContext";
 import Preloader from "./Preloader";
-import LuckyWheelModal from "../luckyWheelModal/LuckyWheelModal";
 
-/* ─── CÁC COMPONENT PHỤ (Giữ nguyên logic UI) ─── */
-function LeftSidebar({ onSearchChange, variant = "full" }) {
+const tabs = [
+  { id: "all", label: "Tất cả", icon: <Newspaper className="w-4 h-4" /> },
+  { id: "upcoming", label: "Sắp diễn ra", icon: <Calendar className="w-4 h-4" /> },
+  { id: "ongoing", label: "Đang diễn ra", icon: <Clock className="w-4 h-4" /> },
+];
+
+function LeftSidebar({ onSearchChange }) {
   const [keyword, setKeyword] = useState("");
   const navigate = useNavigate();
-  if (variant === "minimal") return null;
+
   return (
     <aside className="w-72 shrink-0 space-y-6 hidden lg:block">
       <div>
-        <label className="text-base font-medium text-gray-700 mb-2 block">Tìm theo tên sự kiện</label>
+        <label className="text-base font-medium text-gray-700 mb-2 block">
+          Tìm theo tên sự kiện
+        </label>
         <div className="relative mt-2">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
           <input
-            type="text" placeholder="Nhập tên sự kiện..." value={keyword}
-            onChange={(e) => { setKeyword(e.target.value); onSearchChange(e.target.value); }}
+            type="text"
+            placeholder="Nhập tên sự kiện..."
+            value={keyword}
+            onChange={(e) => {
+              setKeyword(e.target.value);
+              onSearchChange(e.target.value);
+            }}
             className="w-full pl-9 pr-3 py-2 text-sm border border-gray-300 rounded-lg bg-gray-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
           />
         </div>
       </div>
+
       <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
         <div className="bg-[#245bb5] text-white px-4 py-3 font-semibold">⚡ TRUY CẬP NHANH</div>
         <div className="p-4 space-y-3">
@@ -36,7 +47,11 @@ function LeftSidebar({ onSearchChange, variant = "full" }) {
             { icon: <Clock className="w-4 h-4" />, label: "Thông báo mới", link: "/notifications" },
             { icon: <Calendar className="w-4 h-4" />, label: "Sự kiện của tôi", link: "/my-events" },
           ].map((item, idx) => (
-            <button key={idx} onClick={() => navigate(item.link)} className="w-full flex items-center gap-2 px-3 py-2 text-sm text-blue-700 hover:bg-blue-50 rounded-md transition text-left cursor-pointer">
+            <button
+              key={idx}
+              onClick={() => navigate(item.link)}
+              className="w-full flex items-center gap-2 px-3 py-2 text-sm text-blue-700 hover:bg-blue-50 rounded-md transition text-left cursor-pointer"
+            >
               {item.icon} {item.label}
             </button>
           ))}
@@ -53,8 +68,13 @@ function MobileSearchBar({ onSearchChange }) {
       <div className="relative">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
         <input
-          type="text" placeholder="Tìm kiếm sự kiện..." value={keyword}
-          onChange={(e) => { setKeyword(e.target.value); onSearchChange(e.target.value); }}
+          type="text"
+          placeholder="Tìm kiếm sự kiện..."
+          value={keyword}
+          onChange={(e) => {
+            setKeyword(e.target.value);
+            onSearchChange(e.target.value);
+          }}
           className="w-full pl-9 pr-3 py-2.5 text-sm border border-gray-300 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-sm"
         />
       </div>
@@ -63,187 +83,319 @@ function MobileSearchBar({ onSearchChange }) {
 }
 
 function EventCard({ item, onClick }) {
-  const availableSlots = (item.maxParticipants || 0) - (item.registeredCount || 0);
-  const availabilityPercent = ((availableSlots) / (item.maxParticipants || 1)) * 100;
+  const percent =
+    item.maxParticipants
+      ? Math.min(100, (item.registeredCount / item.maxParticipants) * 100)
+      : 0;
 
   return (
-    <div onClick={() => onClick(item.id)} className="bg-white rounded-xl border border-gray-200 overflow-hidden hover:shadow-lg transition-shadow cursor-pointer active:scale-[0.99]">
-      <div className="flex flex-col sm:flex-row">
-        <div className="sm:w-48 md:w-56 shrink-0">
-          <img
-            src={item.coverImage || "https://images.unsplash.com/photo-1501281668745-f7f57925c3b4?auto=format&fit=crop&q=80&w=600"}
-            alt={item.title} className="w-full h-44 sm:h-full object-cover"
-            onError={(e) => { e.target.src = "https://via.placeholder.com/600x400?text=Event+Image"; }}
-          />
+    <motion.div
+      whileHover={{ y: -6, scale: 1.02 }}
+      onClick={() => onClick(item.id)}
+      className="group bg-white rounded-2xl overflow-hidden border border-gray-200 hover:shadow-2xl transition-all cursor-pointer"
+    >
+      {/* IMAGE */}
+      <div className="relative h-48 overflow-hidden">
+        <img
+          src={item.coverImage || "https://via.placeholder.com/600x400"}
+          alt={item.title}
+          className="w-full h-full object-cover group-hover:scale-110 transition duration-500"
+        />
+
+        {/* overlay gradient */}
+        <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
+
+        {/* TYPE */}
+        <div className="absolute top-3 left-3 bg-blue-600 text-white text-xs px-3 py-1 rounded-full font-semibold">
+          {item.type}
         </div>
-        <div className="flex-1 p-4">
-          <div className="flex gap-1.5 items-center mb-2.5 flex-wrap">
-            <span className={`text-[10px] px-2 py-0.5 rounded-full font-black uppercase border ${
-              item.status === "PUBLISHED" ? "bg-blue-50 text-blue-700 border-blue-100" : "bg-green-50 text-green-700 border-green-100"
-            }`}>
-              {item.status === "PUBLISHED" ? "Sắp diễn ra" : item.status}
-            </span>
-            {availabilityPercent <= 20 && availabilityPercent > 0 && <span className="text-[10px] px-2 py-0.5 rounded-full bg-orange-100 text-orange-700 font-bold">Sắp hết chỗ</span>}
-          </div>
-          <h3 className="font-bold text-gray-900 mb-1.5 leading-snug line-clamp-2 uppercase">{item.title}</h3>
-          <p className="text-xs text-gray-500 line-clamp-2 mb-3">{item.description}</p>
-          <div className="flex flex-wrap gap-3 text-[11px] text-gray-500 font-medium">
-            <div className="flex gap-1 items-center"><MapPin className="w-3.5 h-3.5 text-rose-500" /> {item.location}</div>
-            <div className="flex gap-1 items-center"><Users className="w-3.5 h-3.5 text-blue-500" /> {item.registeredCount}/{item.maxParticipants}</div>
-          </div>
+
+        {/* STATUS */}
+        <div className="absolute top-3 right-3 bg-white/90 text-gray-700 text-xs px-3 py-1 rounded-full font-medium">
+          {item.status}
+        </div>
+
+        {/* TITLE over image */}
+        <div className="absolute bottom-3 left-4 right-4 text-white">
+          <h3 className="font-bold text-lg line-clamp-2">
+            {item.title}
+          </h3>
         </div>
       </div>
-    </div>
+
+      {/* CONTENT */}
+      <div className="p-4 space-y-3">
+        {/* DATE + LOCATION */}
+        <div className="flex items-center justify-between text-sm text-gray-600">
+          <div>
+            📅 {formatDate(item.startTime)}
+          </div>
+          <div className="truncate max-w-[120px]">
+            📍 {item.location}
+          </div>
+        </div>
+
+        {/* DEADLINE */}
+        <div className="text-xs text-red-500">
+          ⏳ Hạn đăng ký: {formatDate(item.registrationDeadline)}
+        </div>
+
+        {/* PROGRESS BAR */}
+        {item.maxParticipants && (
+          <div>
+            <div className="flex justify-between text-xs text-gray-500 mb-1">
+              <span>Đã đăng ký</span>
+              <span>
+                {item.registeredCount}/{item.maxParticipants}
+              </span>
+            </div>
+
+            <div className="w-full bg-gray-200 h-2 rounded-full overflow-hidden">
+              <div
+                className="h-full bg-blue-500 transition-all"
+                style={{ width: `${percent}%` }}
+              />
+            </div>
+          </div>
+        )}
+
+        {/* TAGS */}
+        <div className="flex flex-wrap gap-2 pt-2">
+          {item.hasLuckyDraw && (
+            <span className="bg-orange-100 text-orange-600 text-xs px-2 py-1 rounded-full">
+              🎁 Lucky Draw
+            </span>
+          )}
+
+          {item.eventMode === "OFFLINE" && (
+            <span className="bg-green-100 text-green-600 text-xs px-2 py-1 rounded-full">
+              Offline
+            </span>
+          )}
+
+          {item.eventTopic && (
+            <span className="bg-blue-100 text-blue-600 text-xs px-2 py-1 rounded-full">
+              {item.eventTopic}
+            </span>
+          )}
+        </div>
+      </div>
+
+      {/* HOVER DETAIL (Netflix style) */}
+      <div className="absolute inset-0 bg-white/95 backdrop-blur-md opacity-0 group-hover:opacity-100 transition p-5 flex flex-col justify-between">
+        <div>
+          <h3 className="font-bold text-lg mb-2">{item.title}</h3>
+          <p className="text-sm text-gray-600 line-clamp-3">
+            {item.description}
+          </p>
+        </div>
+
+        <div className="text-xs text-gray-500 mt-3 space-y-1">
+          <div>👥 {item.registeredCount} người tham gia</div>
+          <div>📍 {item.location}</div>
+          <div>📅 {formatDate(item.startTime)}</div>
+        </div>
+
+        <button className="mt-4 w-full bg-blue-600 text-white py-2 rounded-xl text-sm hover:bg-blue-700 transition">
+          Xem chi tiết
+        </button>
+      </div>
+    </motion.div>
   );
 }
 
-/* ─── MAIN COMPONENT ─── */
-export function EventFeed() {
+const formatDate = (dateString) => {
+  if (!dateString) return "";
+  return new Intl.DateTimeFormat('vi-VN', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric'
+  }).format(new Date(dateString));
+};
+
+export default function EventListPage() {
   const navigate = useNavigate();
-  const location = useLocation();
-  const isLecturerView = location.pathname.startsWith("/lecturer");
+  const { 
+    userAll,      // Tất cả sự kiện
+    ongoing,      // Đang diễn ra
+    upcoming,     // Sắp diễn ra
+    fetchAllEvents,
+    fetchOngoing,
+    fetchUpcoming,
+    loading: eventLoading 
+  } = useEvents();
 
-  const { events, loading, error } = useEvent();
-
-  const [posts, setPosts] = useState([]);
-  const [currentPage, setCurrentPage] = useState(1);
-  const [isLoading, setIsLoading] = useState(true);
   const [searchKeyword, setSearchKeyword] = useState("");
-  const [sortBy, setSortBy] = useState("newest");
-  const [showFilterModal, setShowFilterModal] = useState(false);
-  const [showChat, setShowChat] = useState(false);
-  const [showWheel, setShowWheel] = useState(false);
+  const [activeTab, setActiveTab] = useState("all");
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 6;
 
-  const [filters, setFilters] = useState({
-    status: "all",
-    type: "all",
-  });
-  
-  const ITEMS_PER_PAGE = 5;
-
-  const handleEventClick = (eventId) => navigate(`/events/${eventId}`);
-
-  const loadEvents = useCallback(async () => {
-    // Không cần set setIsLoading thủ công vì Context quản lý loading.action hoặc loading.myEvents
-    try {
-      // Sử dụng service 'events' từ context (đã được cấu hình axiosClient chuẩn)
-      const res = await events.getAllActiveEvents();
-      const data = res?.data || [];
-
-      // Lọc các sự kiện công khai
-      const visibleEvents = data.filter(ev => 
-        ev.status !== "DRAFT" && ev.status !== "PLAN_PENDING_APPROVAL"
-      );
-      
-      setPosts(visibleEvents);
-    } catch (err) {
-      // Error đã được Context log và xử lý, ở đây chỉ cần reset state local
-      setPosts([]);
-    }
-  }, [events]);
-
-  // FETCH DATA SỬ DỤNG API TẬP TRUNG
+  // Fetch dữ liệu khi component mount
   useEffect(() => {
-    loadEvents();
-  }, [loadEvents]);
+    // Gọi tất cả các API cần thiết một lần
+    fetchAllEvents();
+    fetchOngoing();
+    fetchUpcoming();
+  }, [fetchAllEvents, fetchOngoing, fetchUpcoming]);
 
-  // 3. LOGIC FILTER VÀ PHÂN TRANG (Giữ nguyên)
-  const filteredPosts = useMemo(() => {
-    return posts
-      .filter((post) => {
-        const matchesKeyword = post.title?.toLowerCase().includes(searchKeyword.toLowerCase());
-        const matchesStatus = filters.status === "all" || post.status === filters.status;
-        return matchesKeyword && matchesStatus;
-      })
-      .sort((a, b) => {
-        if (sortBy === "newest") return new Date(b.startTime || b.createdAt) - new Date(a.startTime || a.createdAt);
-        if (sortBy === "most-registered") return (b.registeredCount || 0) - (a.registeredCount || 0);
-        return 0;
-      });
-  }, [posts, searchKeyword, filters.status, sortBy]);
+  // Lọc sự kiện theo Tab + Search
+  const filteredEvents = useMemo(() => {
+    let list = [];
 
-  const totalPages = Math.ceil(filteredPosts.length / ITEMS_PER_PAGE);
-  const paginatedPosts = filteredPosts.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
+    switch (activeTab) {
+      case "ongoing":
+        list = ongoing || [];
+        break;
+      case "upcoming":
+        list = upcoming || [];
+        break;
+      case "all":
+      default:
+        list = userAll || [];
+        break;
+    }
+
+    // Áp dụng tìm kiếm
+    if (searchKeyword.trim()) {
+      const keyword = searchKeyword.toLowerCase().trim();
+      list = list.filter(event =>
+        event.title?.toLowerCase().includes(keyword) ||
+        event.location?.toLowerCase().includes(keyword)
+      );
+    }
+
+    return list;
+  }, [activeTab, userAll, ongoing, upcoming, searchKeyword]);
+
+  // Phân trang
+  const totalPages = Math.ceil(filteredEvents.length / itemsPerPage);
+  const paginatedPosts = useMemo(() => {
+    const start = (currentPage - 1) * itemsPerPage;
+    return filteredEvents.slice(start, start + itemsPerPage);
+  }, [filteredEvents, currentPage]);
+
+  const handleSearchChange = useCallback((value) => {
+    setSearchKeyword(value);
+    setCurrentPage(1); // Reset về trang 1 khi search
+  }, []);
+
+  const handleTabChange = (tabId) => {
+    setActiveTab(tabId);
+    setCurrentPage(1);
+  };
+
+  const handleEventClick = (id) => {
+    navigate(`/events/${id}`);
+  };
 
   return (
-    <div id="su-kien" className="min-h-screen bg-gray-50 flex flex-col font-sans">
-      {loading.myEvents && <Preloader />}
+    <div className="min-h-screen bg-gray-50">
+      <div className="max-w-7xl mx-auto flex gap-8 py-8 px-4">
+        
+        {/* Left Sidebar */}
+        <LeftSidebar onSearchChange={handleSearchChange} />
 
-      {!isLecturerView && <MobileSearchBar onSearchChange={setSearchKeyword} />}
+        {/* Main Content */}
+        <div className="flex-1">
+          <MobileSearchBar onSearchChange={handleSearchChange} />
 
-      <div className="w-full px-4 sm:px-6 lg:px-12 flex gap-6 flex-1 py-4">
-        {!isLecturerView && <LeftSidebar onSearchChange={setSearchKeyword} />}
+          {/* Header */}
+          <div className="px-4 md:px-6 pt-6 pb-4">
+            <h1 className="text-3xl font-bold text-slate-800 tracking-tight">
+              Sự kiện IUH
+            </h1>
+            <p className="text-slate-500 mt-1">Khám phá các sự kiện mới nhất</p>
+          </div>
 
-        <main className="flex-1 min-w-0">
-          {/* Header Section */}
-          <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6 mb-4 flex items-center gap-4">
-            <div className="w-12 h-12 bg-blue-600 rounded-xl flex items-center justify-center shrink-0 shadow-lg shadow-blue-200">
-              <Newspaper className="w-6 h-6 text-white" />
-            </div>
-            <div>
-              <h1 className="text-2xl font-black text-slate-800 tracking-tight">SỰ KIỆN NỔI BẬT</h1>
-              <p className="text-sm text-slate-400 font-medium">Khám phá các hoạt động bổ ích tại IUH</p>
+          {/* Toolbar */}
+          <div className="px-4 md:px-6">
+            <div className="bg-white rounded-2xl p-4 flex flex-col xl:flex-row gap-4 items-center justify-between shadow-sm border">
+              {/* Tabs */}
+              <div className="flex bg-slate-100 p-1 rounded-xl w-full xl:w-auto">
+                {tabs.map((tab) => (
+                  <button
+                    key={tab.id}
+                    onClick={() => handleTabChange(tab.id)}
+                    className={`flex-1 xl:flex-none flex items-center justify-center gap-2 px-6 py-2.5 rounded-xl text-sm font-semibold transition-all ${
+                      activeTab === tab.id
+                        ? "bg-white text-blue-600 shadow-sm"
+                        : "text-slate-500 hover:text-slate-700"
+                    }`}
+                  >
+                    {tab.icon} {tab.label}
+                  </button>
+                ))}
+              </div>
+
+              {/* Search */}
+              <div className="relative w-full xl:w-80 hidden lg:block">
+                <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
+                <input
+                  type="text"
+                  placeholder="Tìm sự kiện..."
+                  value={searchKeyword}
+                  onChange={(e) => handleSearchChange(e.target.value)}
+                  className="w-full pl-11 pr-4 py-3 bg-slate-50 rounded-2xl text-sm focus:ring-2 focus:ring-blue-500 outline-none"
+                />
+              </div>
             </div>
           </div>
 
-          {/* Tool Bar */}
-          <div className="bg-white rounded-xl border border-slate-100 p-4 mb-4 flex justify-between items-center gap-4">
-            <div className="flex items-center gap-4">
-               <div className="text-sm text-slate-500">Tìm thấy <span className="font-bold text-blue-600">{filteredPosts.length}</span> sự kiện</div>
-            </div>
-            <select
-              value={sortBy} onChange={(e) => setSortBy(e.target.value)}
-              className="border-none bg-slate-50 rounded-lg px-3 py-2 text-sm font-bold text-slate-600 outline-none cursor-pointer"
-            >
-              <option value="newest">Mới nhất</option>
-              <option value="most-registered">Quan tâm nhất</option>
-            </select>
-          </div>
-
-          {/* List Content */}
-          <div className="space-y-4">
-            {paginatedPosts.length > 0 ? (
-              paginatedPosts.map((item) => (
-                <EventCard key={item.id} item={item} onClick={handleEventClick} />
-              ))
-            ) : (
-              <div className="bg-white rounded-3xl p-20 text-center border-2 border-dashed border-slate-200">
-                <Search className="w-12 h-12 text-slate-200 mx-auto mb-4" />
-                <p className="text-slate-400 font-bold uppercase tracking-widest">Không có sự kiện nào</p>
+          {/* Event List */}
+          <div className="px-4 md:px-6 mt-8 space-y-6 relative min-h-[400px]">
+            {eventLoading && (
+              <div className="absolute inset-0 bg-white/70 backdrop-blur-sm flex items-center justify-center z-10 rounded-3xl">
+                <Preloader />
               </div>
             )}
+
+            <AnimatePresence mode="wait">
+              {paginatedPosts.length > 0 ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+                  {paginatedPosts.map((item) => (
+                    <EventCard
+                      key={item.id}
+                      item={item}
+                      onClick={handleEventClick}
+                    />
+                  ))}
+                </div>
+              ) : (
+                <div className="bg-white rounded-3xl py-20 text-center border border-dashed border-gray-200">
+                  <p className="text-slate-400 font-semibold text-lg">
+                    Không tìm thấy sự kiện nào
+                  </p>
+                </div>
+              )}
+            </AnimatePresence>
           </div>
 
           {/* Pagination */}
           {totalPages > 1 && (
-            <div className="flex justify-center gap-2 mt-8 mb-10">
-              <button onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1} className="w-10 h-10 border rounded-xl flex items-center justify-center hover:bg-white disabled:opacity-30 cursor-pointer transition-all"><ChevronLeft size={18} /></button>
-              {[...Array(totalPages)].map((_, i) => (
-                <button key={i} onClick={() => setCurrentPage(i + 1)} className={`w-10 h-10 rounded-xl text-sm font-bold transition-all ${currentPage === i + 1 ? "bg-blue-600 text-white shadow-lg shadow-blue-200" : "bg-white border text-slate-400 hover:border-blue-600 hover:text-blue-600"} cursor-pointer`}>{i + 1}</button>
-              ))}
-              <button onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages} className="w-10 h-10 border rounded-xl flex items-center justify-center hover:bg-white disabled:opacity-30 cursor-pointer transition-all"><ChevronRight size={18} /></button>
+            <div className="flex justify-center items-center gap-4 mt-12 pb-12">
+              <button
+                disabled={currentPage === 1}
+                onClick={() => setCurrentPage((p) => Math.max(p - 1, 1))}
+                className="w-11 h-11 rounded-2xl border flex items-center justify-center bg-white hover:bg-gray-50 disabled:opacity-50 transition"
+              >
+                <ChevronLeft size={20} />
+              </button>
+
+              <span className="px-5 py-2 text-sm font-medium text-slate-600">
+                Trang {currentPage} / {totalPages}
+              </span>
+
+              <button
+                disabled={currentPage === totalPages}
+                onClick={() => setCurrentPage((p) => Math.min(p + 1, totalPages))}
+                className="w-11 h-11 rounded-2xl border flex items-center justify-center bg-white hover:bg-gray-50 disabled:opacity-50 transition"
+              >
+                <ChevronRight size={20} />
+              </button>
             </div>
           )}
-        </main>
-      </div>
-
-      {/* Floating Buttons */}
-      <div className="fixed bottom-6 right-6 flex flex-col gap-3 z-50">
-        <button onClick={() => setShowWheel(true)} className="w-14 h-14 bg-orange-500 text-white rounded-full shadow-xl shadow-orange-200 flex items-center justify-center hover:scale-110 transition-transform cursor-pointer"><Gift size={24} /></button>
-        <button onClick={() => setShowChat(true)} className="w-14 h-14 bg-blue-600 text-white rounded-full shadow-xl shadow-blue-200 flex items-center justify-center hover:scale-110 transition-transform cursor-pointer"><Sparkles size={24} /></button>
-      </div>
-
-      {/* Modals */}
-      {showWheel && (
-        <div className="fixed inset-0 z-100 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-          <div className="relative w-full max-w-md">
-            <button onClick={() => setShowWheel(false)} className="absolute -top-4 -right-4 w-10 h-10 bg-white rounded-full shadow flex items-center justify-center z-10 hover:bg-rose-50 hover:text-rose-500 transition-colors cursor-pointer"><X size={20} /></button>
-            <LuckyWheelModal onClose={() => setShowWheel(false)} />
-          </div>
         </div>
-      )}
+      </div>
     </div>
   );
 }
-
-export default EventFeed;

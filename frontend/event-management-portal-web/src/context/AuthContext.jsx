@@ -1,6 +1,6 @@
 // src/context/AuthContext.jsx
 import { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import authService from '../services/authService'; // SỬA: Dùng authService
+import authService from '../services/authService';
 
 const AuthContext = createContext();
 
@@ -16,6 +16,7 @@ export const AuthProvider = ({ children }) => {
     const [isAuthenticated, setIsAuthenticated] = useState(false);
     const [accounts, setAccounts] = useState([]);
 
+    // ==================== KHỞI TẠO USER ====================
     const loadUser = useCallback(async () => {
         const token = localStorage.getItem('accessToken');
         if (!token) {
@@ -24,11 +25,12 @@ export const AuthProvider = ({ children }) => {
         }
 
         try {
-            const res = await authService.getMyProfile(); // SỬA: authService
+            // Sử dụng hàm lấy profile (đã được cấu hình privateIdentity tự refresh token)
+            const res = await authService.getMyProfile();
             setUser(res.data);
             setIsAuthenticated(true);
         } catch (error) {
-            console.error("Session expired");
+            console.error("Không thể khôi phục phiên đăng nhập");
             localStorage.clear();
             setUser(null);
             setIsAuthenticated(false);
@@ -41,13 +43,54 @@ export const AuthProvider = ({ children }) => {
         loadUser();
     }, [loadUser]);
 
-    // Admin: Fetch danh sách account
+    // ==================== HÀNH ĐỘNG XÁC THỰC ====================
+    const login = async (credentials) => {
+        // 1. Gọi login qua publicIdentity (Không cần token)
+        const res = await authService.login(credentials);
+        const { accessToken, refreshToken } = res.data;
+
+        localStorage.setItem('accessToken', accessToken);
+        if (refreshToken) localStorage.setItem('refreshToken', refreshToken);
+
+        // 2. Sau khi có token, lấy profile đầy đủ qua privateIdentity
+        const profileRes = await authService.getMyProfile();
+        setUser(profileRes.data);
+        setIsAuthenticated(true);
+        return res.data;
+    };
+
+    const register = async (userData) => {
+        try {
+            const res = await authService.register(userData);
+        
+            return res.data;
+        } catch (error) {
+            throw error;
+        }
+    };
+
+    const logout = async () => {
+        try {
+            // Gọi API logout để hủy token ở phía Server (nếu Backend có hỗ trợ)
+            await authService.logout();
+        } catch (e) {
+            console.warn("Server-side logout failed or not implemented");
+        } finally {
+            // Luôn xóa sạch dữ liệu ở Client bất kể API thành công hay thất bại
+            localStorage.clear();
+            setUser(null);
+            setIsAuthenticated(false);
+            setAccounts([]);
+        }
+    };
+
+    // ==================== QUẢN LÝ TÀI KHOẢN (ADMIN) ====================
     const fetchAccounts = useCallback(async () => {
         try {
             const res = await authService.getAllAccounts();
             setAccounts(res.data || []);
         } catch (e) {
-            console.error("Lỗi fetchAccounts:", e);
+            console.error("Lỗi fetch danh sách tài khoản:", e);
         }
     }, []);
 
@@ -63,60 +106,43 @@ export const AuthProvider = ({ children }) => {
     };
 
     const updateAccountStatus = async (id) => {
-        const targetAccount = accounts.find(a => a.id === id);
-        if (!targetAccount) return;
+        const target = accounts.find(a => a.id === id);
+        if (!target) return;
 
-        const newStatus = targetAccount.status === "ACTIVE" ? "DISABLED" : "ACTIVE";
-        try {
-            await authService.updateAccountStatus(id, newStatus);
-            // Cập nhật state UI
-            setAccounts(prev => prev.map(acc => 
-                acc.id === id ? { ...acc, status: newStatus } : acc
-            ));
-        } catch (error) {
-            throw error;
-        }
-    };
-
-    const login = async (credentials) => {
-        const res = await authService.login(credentials);
-        const { accessToken, refreshToken } = res.data;
-
-        localStorage.setItem('accessToken', accessToken);
-        if (refreshToken) localStorage.setItem('refreshToken', refreshToken);
-
-        // Sau khi login thành công, gọi lấy profile để đảm bảo dữ liệu user đầy đủ
-        const profileRes = await authService.getMyProfile();
-        setUser(profileRes.data);
-        setIsAuthenticated(true);
-        return res.data;
-    };
-
-    const logout = async () => {
-        try {
-            const rt = localStorage.getItem('refreshToken');
-            if (rt) await authService.logout(rt);
-        } finally {
-            localStorage.clear();
-            setUser(null);
-            setIsAuthenticated(false);
-            setAccounts([]);
-        }
+        const newStatus = target.status === "ACTIVE" ? "DISABLED" : "ACTIVE";
+        await authService.updateAccountStatus(id, newStatus);
+        setAccounts(prev => prev.map(acc => 
+            acc.id === id ? { ...acc, status: newStatus } : acc
+        ));
     };
 
     const value = {
-        user, loading, isAuthenticated, accounts,
+        user, 
+        loading, 
+        isAuthenticated, 
+        accounts,
+        login, 
+        register,
+        logout, 
+        fetchAccounts, 
+        updateAccount,
+        deleteAccount, 
+        updateAccountStatus,
         register: authService.register,
-        login, logout, fetchAccounts, updateAccount,
-        deleteAccount, updateAccountStatus,
         forgotPassword: authService.forgotPassword,
         resetPassword: authService.resetPassword,
-        authService // Export toàn bộ service nếu cần dùng trực tiếp
     };
 
     return (
         <AuthContext.Provider value={value}>
-            {!loading && children} 
+            {/* Chỉ render con khi đã kiểm tra xong token (loading = false).
+               Nếu token còn hạn, user sẽ thấy trang Dashboard ngay thay vì thấy trang Login 0.5s.
+            */}
+            {!loading ? children : (
+                <div style={{ height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <p>Đang xác thực phiên làm việc...</p>
+                </div>
+            )}
         </AuthContext.Provider>
     );
 };

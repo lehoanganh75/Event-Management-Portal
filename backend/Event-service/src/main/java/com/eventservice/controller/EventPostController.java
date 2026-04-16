@@ -1,5 +1,6 @@
 package com.eventservice.controller;
 
+import com.eventservice.dto.PostDetailResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -34,8 +35,8 @@ public class EventPostController {
 
     // Lấy bài đăng theo ID
     @GetMapping("/{id}")
-    public ResponseEntity<EventPost> getPostById(@PathVariable String id) {
-        return ResponseEntity.ok(eventPostService.getPostById(id));
+    public ResponseEntity<PostDetailResponse> getPostById(@PathVariable String id) {
+        return ResponseEntity.ok(eventPostService.getPostDetail(id));
     }
 
     @PostMapping

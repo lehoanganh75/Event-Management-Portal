@@ -33,7 +33,7 @@ public class AuthController {
     }
 
     @PostMapping("/logout")
-    public ResponseEntity<?> logout(@RequestBody LogoutRequest request) { // Dùng @RequestBody
+    public ResponseEntity<?> logout(@RequestBody LogoutRequest request) {
         authService.logout(request.getRefreshToken());
         return ResponseEntity.ok("Đăng xuất thành công.");
     }

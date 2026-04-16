@@ -6,8 +6,12 @@ import com.eventservice.entity.Event;
 import com.eventservice.entity.EventTemplate;
 
 import java.util.List;
+import java.util.Optional;
 
 public interface EventTemplateService {
+
+    EventTemplate getTemplatesById(String id);
+
     Event createFromTemplate(String templateId, String accountId);
 
     EventTemplate saveTemplate(EventTemplate template);
@@ -18,9 +22,7 @@ public interface EventTemplateService {
 
     void deleteTemplate(String id);
 
-    Page<EventTemplate> getAllTemplates(String orgId, String search, Pageable pageable);
-
-    EventTemplate getTemplateById(String id);
+    List<EventTemplate> getAllTemplates();
 
     Page<EventTemplate> getAllTemplatesGlobal(String search, Pageable pageable);
 }

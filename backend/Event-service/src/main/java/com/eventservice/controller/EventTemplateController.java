@@ -13,6 +13,7 @@ import com.eventservice.entity.EventTemplate;
 import com.eventservice.service.EventTemplateService;
 
 import java.net.URI;
+import java.util.List;
 
 @RestController
 @RequestMapping("/templates")
@@ -20,28 +21,14 @@ import java.net.URI;
 public class EventTemplateController {
     private final EventTemplateService templateService;
 
-    @GetMapping("/all")
-    public ResponseEntity<Page<EventTemplate>> getTemplates(
-            @RequestParam String organizationId,
-            @RequestParam(required = false) String search,
-            @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "10") int size,
-            @RequestParam(defaultValue = "usageCount") String sortBy,
-            @RequestParam(defaultValue = "desc") String direction) {
-
-        Sort sort = direction.equalsIgnoreCase("desc")
-                ? Sort.by(sortBy).descending()
-                : Sort.by(sortBy).ascending();
-
-        Pageable pageable = PageRequest.of(page, size, sort);
-
-        return ResponseEntity.ok(templateService.getAllTemplates(organizationId, search, pageable));
+    @GetMapping
+    public ResponseEntity<List<EventTemplate>> getTemplates() {
+        return ResponseEntity.ok(templateService.getAllTemplates());
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<EventTemplate> getTemplate(@PathVariable String id) {
-        EventTemplate template = templateService.getTemplateById(id);
-        return ResponseEntity.ok(template);
+    public ResponseEntity<EventTemplate> getTemplatesById(@PathVariable String id) {
+        return ResponseEntity.ok(templateService.getTemplatesById(id));
     }
 
     @PostMapping("/{id}/apply")
@@ -70,25 +57,25 @@ public class EventTemplateController {
         return ResponseEntity.ok(saved);
     }
 
-    @PostMapping
-    public ResponseEntity<EventTemplate> createTemplate(@RequestBody EventTemplate template) {
-        if (template.getTemplateName() == null || template.getTemplateName().isEmpty()) {
-            throw new RuntimeException("Template name không được để trống");
-        }
-
-        template.setId(null);
-        template.setUsageCount(0);
-
-        EventTemplate saved = templateService.saveTemplate(template);
-
-        URI location = ServletUriComponentsBuilder
-                .fromCurrentRequest()
-                .path("/{id}")
-                .buildAndExpand(saved.getId())
-                .toUri();
-
-        return ResponseEntity.created(location).body(saved);
-    }
+//    @PostMapping
+//    public ResponseEntity<EventTemplate> createTemplate(@RequestBody EventTemplate template) {
+//        if (template.getTemplateName() == null || template.getTemplateName().isEmpty()) {
+//            throw new RuntimeException("Template name không được để trống");
+//        }
+//
+//        template.setId(null);
+//        template.setUsageCount(0);
+//
+//        EventTemplate saved = templateService.saveTemplate(template);
+//
+//        URI location = ServletUriComponentsBuilder
+//                .fromCurrentRequest()
+//                .path("/{id}")
+//                .buildAndExpand(saved.getId())
+//                .toUri();
+//
+//        return ResponseEntity.created(location).body(saved);
+//    }
 
     @PutMapping("/{id}")
     public ResponseEntity<EventTemplate> updateTemplate(

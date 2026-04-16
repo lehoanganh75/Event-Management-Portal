@@ -8,9 +8,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 import src.main.luckydrawservice.client.EventClient;
-import src.main.luckydrawservice.dto.DrawResultResponse;
-import src.main.luckydrawservice.dto.LuckyDrawCreateRequest;
-import src.main.luckydrawservice.dto.PrizeResponse;
+import src.main.luckydrawservice.client.IdentityClient;
+import src.main.luckydrawservice.dto.*;
 import src.main.luckydrawservice.entity.*;
 import src.main.luckydrawservice.repository.DrawEntryRepository;
 import src.main.luckydrawservice.repository.DrawResultRepository;
@@ -21,9 +20,7 @@ import src.main.luckydrawservice.service.LuckyDrawService;
 import java.math.BigDecimal;
 import java.security.SecureRandom;
 import java.time.LocalDateTime;
-import java.util.List;
-import java.util.Optional;
-import java.util.Random;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Service
@@ -37,6 +34,8 @@ public class LuckyDrawServiceImpl implements LuckyDrawService {
     private final Random random = new SecureRandom();
 
     private final EventClient eventClient;
+
+    private final IdentityClient identityClient;
 
     @Transactional
     @Override
@@ -274,8 +273,95 @@ public class LuckyDrawServiceImpl implements LuckyDrawService {
     }
 
     @Override
-    public Optional<LuckyDraw> findByEventId(String eventId) {
-        return Optional.ofNullable(luckyDrawRepository.findByEventId(eventId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy vòng quay cho sự kiện có ID: " + eventId)));
+    public Optional<LuckyDrawResponse> findByEventId(String eventId) {
+        // 1. Tìm LuckyDraw từ Repository
+        LuckyDraw luckyDraw = luckyDrawRepository.findByEventIdAndIsDeletedFalse(eventId)
+                .orElseThrow(() -> new ResponseStatusException(
+                        HttpStatus.NOT_FOUND, "Không tìm thấy vòng quay cho sự kiện: " + eventId));
+
+        // 2. Thu thập tất cả ID cần lấy Profile (Người tạo + Danh sách người thắng)
+        Set<String> allAccountIds = new HashSet<>();
+
+        if (luckyDraw.getCreatedByAccountId() != null) {
+            allAccountIds.add(luckyDraw.getCreatedByAccountId());
+        }
+
+        if (luckyDraw.getResults() != null) {
+            luckyDraw.getResults().forEach(res -> {
+                if (!res.isClaimed() && res.getWinnerProfileId() != null) {
+                    allAccountIds.add(res.getWinnerProfileId());
+                }
+            });
+        }
+
+        // 3. Gọi Identity Service lấy thông tin User hàng loạt
+        Map<String, UserDto> userMap = new HashMap<>();
+        if (!allAccountIds.isEmpty()) {
+            try {
+                // Chuyển Set sang List để gọi IdentityClient
+                List<UserDto> users = identityClient.getUsersByIds(new ArrayList<>(allAccountIds));
+                userMap = users.stream().collect(Collectors.toMap(UserDto::getId, u -> u));
+            } catch (Exception e) {
+                // Ghi log lỗi thay vì throw exception để tránh sập trang nếu Identity Service gặp sự cố nhẹ
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Lỗi không gọi sang identity-service: " + e.getMessage());
+            }
+        }
+
+        // 4. Map kết quả (Enrich data)
+        Map<String, UserDto> finalUserMap = userMap;
+
+        List<LuckyDrawResponse.DrawResultEnriched> enrichedResults = luckyDraw.getResults().stream()
+                // CHỈ LẤY những kết quả chưa bị xóa
+                .filter(res -> !res.isClaimed())
+                .map(res -> {
+                    // --- Bước A: Convert Prize Entity -> DTO ---
+                    PrizeDto pDto = null;
+                    if (res.getPrize() != null) {
+                        pDto = PrizeDto.builder()
+                                .id(res.getPrize().getId())
+                                .prizeName(res.getPrize().getName())
+                                .quantity(res.getPrize().getQuantity())
+                                .description(res.getPrize().getDescription())
+                                .build();
+                    }
+
+                    // --- Bước B: Convert DrawResult Entity -> DTO ---
+                    DrawResultDto resDto = DrawResultDto.builder()
+                            .id(res.getId())
+                            .winner(finalUserMap.get(res.getWinnerProfileId()))
+                            .winTime(res.getDrawTime())
+                            .prize(pDto)
+                            .build();
+
+                    return new LuckyDrawResponse.DrawResultEnriched(resDto);
+                })
+                .collect(Collectors.toList());
+
+        // 5. Trả về kết quả đã được đóng gói vào DTO
+        return Optional.of(LuckyDrawResponse.builder()
+                .luckyDraw(convertToDto(luckyDraw)) // <--- Convert ở đây
+                .creator(finalUserMap.get(luckyDraw.getCreatedByAccountId()))
+                .enrichedResults(enrichedResults)
+                .build());
+    }
+
+    private LuckyDrawDto convertToDto(LuckyDraw entity) {
+        if (entity == null) return null;
+
+        List<PrizeDto> prizeDtos = entity.getPrizes().stream()
+                .map(p -> new PrizeDto(p.getId(), p.getName(), p.getQuantity(), p.getDescription()))
+                .collect(Collectors.toList());
+
+        return LuckyDrawDto.builder()
+                .id(entity.getId())
+                .eventId(entity.getEventId())
+                .title(entity.getTitle())
+                .description(entity.getDescription())
+                .status(entity.getStatus().name())
+                .allowMultipleWins(entity.isAllowMultipleWins())
+                .startTime(entity.getStartTime())
+                .endTime(entity.getEndTime())
+                .prizes(prizeDtos)
+                .build();
     }
 }

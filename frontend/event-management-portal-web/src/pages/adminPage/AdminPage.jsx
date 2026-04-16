@@ -12,7 +12,7 @@ const AdminLayout = () => {
         <HeaderAdmin />
 
         {/* Main Content Area */}
-        <div className="p-6 md:p-8 flex-1 overflow-y-auto custom-scrollbar">
+        <div className="flex-1 overflow-y-auto custom-scrollbar">
           <Outlet />
         </div>
       </div>

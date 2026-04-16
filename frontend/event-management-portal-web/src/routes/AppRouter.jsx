@@ -37,6 +37,8 @@ import AdminPostManagement from "../components/admin/AdminPostManagement";
 import NotificationUserPage from "../components/notification/Notification";
 import AdminNotifications from "../components/admin/AdminNotifications";
 import LecturerNotifications from "../pages/lecturePage/LecturerNotifications";
+import EventDetailPage from "../components/events/EventDetailPage";
+import PostDetail from "../components/events/PostDetail";
 
 const AppRouter = () => {
   return (
@@ -79,7 +81,9 @@ const AppRouter = () => {
       <Route path="/admin" element={<AdminLayout />}>
         <Route index element={<Dashboard />} />
         <Route path="events" element={<EventPage />} />
-        <Route path="media" element={<AdminPostManagement />} />
+        <Route path="events/:id" element={<EventDetailPage />} />
+        <Route path="posts" element={<AdminPostManagement />} />
+        <Route path="posts/:id" element={<PostDetail />} />
         <Route path="summaries" element={
           <div className="p-8 text-2xl font-bold text-slate-400 text-center mt-20">Trang Quản lý bài tổng kết đang phát triển...</div>
         } />

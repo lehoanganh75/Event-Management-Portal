@@ -8,6 +8,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 import src.main.luckydrawservice.dto.DrawResultResponse;
 import src.main.luckydrawservice.dto.LuckyDrawCreateRequest;
+import src.main.luckydrawservice.dto.LuckyDrawResponse;
 import src.main.luckydrawservice.entity.DrawEntry;
 import src.main.luckydrawservice.entity.LuckyDraw;
 import src.main.luckydrawservice.service.LuckyDrawService;
@@ -32,7 +33,7 @@ public class LuckyDrawController {
     }
 
     @GetMapping("/events/{eventId}")
-    public ResponseEntity<Optional<LuckyDraw>> getLuckyDrawByEventId(@PathVariable String eventId) {
+    public ResponseEntity<Optional<LuckyDrawResponse>> getLuckyDrawByEventId(@PathVariable String eventId) {
         return ResponseEntity.ok(luckyDrawService.findByEventId(eventId));
     }
 

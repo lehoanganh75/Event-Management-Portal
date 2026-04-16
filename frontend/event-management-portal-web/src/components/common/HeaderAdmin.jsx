@@ -1,58 +1,57 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Bell, ChevronDown, LogOut, User, Settings, Check, X, CheckCircle, Calendar, Clock, AlertCircle, XCircle, Info } from 'lucide-react';
+import { Bell, ChevronDown, LogOut, User, Settings, CheckCircle, Calendar, Clock, X, Check, Info, XCircle } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { notificationApi } from "../../api/notificationApi"; // SỬA: Import có ngoặc nhọn
-import { authApi } from "../../api/authApi";
+import { notificationApi } from "../../api/notificationApi"; 
+import { useAuth } from "../../context/AuthContext"; // Import useAuth chuẩn
 
 const roleMap = {
   SUPER_ADMIN: "Quản Trị Viên Cao Cấp",
   ADMIN: "Quản Trị Viên",
-  ORGANIZER: "Ban Tổ Chức",
-  MEMBER: "Thành Viên",
-  EVENT_PARTICIPANT: "Người Tham Gia",
-  GUEST: "Khách",
+  LECTURER: "Giảng Viên / Tổ Chức",
+  STUDENT: "Sinh Viên",
 };
 
 const HeaderAdmin = () => {
   const navigate = useNavigate();
-  const [currentUser, setCurrentUser] = useState(null);
+  
+  // 1. LẤY DỮ LIỆU VÀ HÀM TỪ AUTH CONTEXT
+  const { user, logout, isAuthenticated } = useAuth();
+
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [isNotificationOpen, setIsNotificationOpen] = useState(false);
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoadingNotifications, setIsLoadingNotifications] = useState(false);
   const [isMarkingAll, setIsMarkingAll] = useState(false);
   const [logoutToastVisible, setLogoutToastVisible] = useState(false);
+  
   const notificationRef = useRef(null);
   const menuRef = useRef(null);
 
-  const getUserId = () => {
-    const userData = localStorage.getItem("user");
-    if (userData) {
-      const user = JSON.parse(userData);
-      return user.id || user.accountId || user.userId;
-    }
-    return null;
-  };
-
+  // 2. FETCH THÔNG BÁO DỰA TRÊN USER TỪ CONTEXT
   useEffect(() => {
-    const userData = localStorage.getItem("user");
-    if (userData) {
-      setCurrentUser(JSON.parse(userData));
-    }
-  }, []);
+    if (isAuthenticated && user?.id) {
+      const fetchNoti = async () => {
+        try {
+          const [unreadRes, recentRes] = await Promise.all([
+            notificationApi.get.unreadCount(user.id),
+            notificationApi.get.recent(user.id, 5)
+          ]);
+          setUnreadCount(unreadRes.data);
+          setNotifications(recentRes.data || []);
+        } catch (error) {
+          console.error("Lỗi fetch thông báo:", error);
+        }
+      };
 
- useEffect(() => {
-    const userId = getUserId();
-    if (currentUser && userId) {
-      fetchUnreadCount(userId);
-      fetchRecentNotifications(userId);
-      const interval = setInterval(() => fetchUnreadCount(userId), 30000);
+      fetchNoti();
+      const interval = setInterval(fetchNoti, 30000);
       return () => clearInterval(interval);
     }
-  }, [currentUser]);
+  }, [isAuthenticated, user]);
 
+  // Click outside listener
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (notificationRef.current && !notificationRef.current.contains(event.target)) {
@@ -66,75 +65,35 @@ const HeaderAdmin = () => {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  useEffect(() => {
-    let timer;
-    if (logoutToastVisible) {
-      timer = setTimeout(() => setLogoutToastVisible(false), 3000);
-    }
-    return () => clearTimeout(timer);
-  }, [logoutToastVisible]);
-
-  const getCurrentUserId = () => {
-    if (currentUser?.id) return currentUser.id;
-    if (currentUser?.accountId) return currentUser.accountId;
-    if (currentUser?.account?.id) return currentUser.account.id;
-    if (currentUser?.userId) return currentUser.userId;
-    
-    const accessToken = localStorage.getItem("accessToken");
-    if (accessToken) {
-      try {
-        const payload = JSON.parse(atob(accessToken.split('.')[1]));
-        return payload.accountId || payload.sub || payload.userId || payload.id;
-      } catch (e) {
-        console.error("Lỗi decode token:", e);
-      }
-    }
-    return null;
-  };
-
-  // 2. Fetch thông báo sử dụng api object mới
-  const fetchUnreadCount = async (userId) => {
-    if (!userId) return;
+  // 3. XỬ LÝ ĐĂNG XUẤT QUA CONTEXT
+  const handleLogoutAction = async () => {
     try {
-      const response = await notificationApi.get.unreadCount(userId);
-      setUnreadCount(response.data);
+      await logout(); // Hàm này trong AuthContext đã lo việc gọi API và xóa LocalStorage
+      setIsDropdownOpen(false);
+      setLogoutToastVisible(true);
+      
+      // Chuyển hướng về trang login sau khi hiện toast thành công
+      setTimeout(() => navigate("/login"), 1000);
     } catch (error) {
-      console.error("Lỗi lấy số lượng thông báo:", error);
+      console.error("Lỗi đăng xuất:", error);
     }
   };
 
-  const fetchRecentNotifications = async (userId) => {
-    if (!userId) return;
-    setIsLoading(true);
-    try {
-      // Dùng nhóm get.recent đã định nghĩa
-      const response = await notificationApi.get.recent(userId, 5);
-      setNotifications(response.data || []);
-    } catch (error) {
-      setNotifications([]);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  // 3. Xử lý logic Thông báo
+  // Logic đánh dấu đã đọc
   const handleMarkAsRead = async (id) => {
     try {
       await notificationApi.actions.markAsRead(id);
-      setNotifications(prev => 
-        prev.map((n) => (n.id === id ? { ...n, read: true } : n))
-      );
-      setUnreadCount((prev) => Math.max(0, prev - 1));
+      setNotifications(prev => prev.map(n => n.id === id ? { ...n, read: true } : n));
+      setUnreadCount(prev => Math.max(0, prev - 1));
     } catch (error) { console.error(error); }
   };
 
   const handleMarkAllAsRead = async () => {
-    const userId = getUserId();
-    if (!userId) return;
+    if (!user?.id) return;
     setIsMarkingAll(true);
     try {
-      await notificationApi.actions.markAllRead(userId);
-      setNotifications(prev => prev.map((n) => ({ ...n, read: true })));
+      await notificationApi.actions.markAllRead(user.id);
+      setNotifications(prev => prev.map(n => ({ ...n, read: true })));
       setUnreadCount(0);
     } catch (error) { console.error(error); } 
     finally { setIsMarkingAll(false); }
@@ -142,299 +101,143 @@ const HeaderAdmin = () => {
 
   const handleViewAll = () => {
     setIsNotificationOpen(false);
-    const userRole = currentUser?.roles?.[0];
-    if (userRole === 'SUPER_ADMIN' || userRole === 'ADMIN') {
+    if (user?.role === 'SUPER_ADMIN' || user?.role === 'ADMIN') {
       navigate("/admin/notifications");
-    } else if (userRole === 'ORGANIZER') {
-      navigate("/lecturer/notifications");
     } else {
-      navigate("/notifications");
+      navigate("/lecturer/notifications");
     }
+  };
+
+  // UI Helpers
+  const getPrimaryRole = () => roleMap[user?.role] || "Quản trị viên";
+  
+  const formatTime = (dateString) => {
+    if (!dateString) return "";
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffInMinutes = Math.floor((now - date) / (1000 * 60));
+    if (diffInMinutes < 1) return "Vừa xong";
+    if (diffInMinutes < 60) return `${diffInMinutes} phút trước`;
+    if (diffInMinutes < 1440) return `${Math.floor(diffInMinutes / 60)} giờ trước`;
+    return date.toLocaleDateString("vi-VN");
   };
 
   const getNotificationIcon = (type) => {
     const icons = {
       'EVENT_APPROVED': <CheckCircle size={18} className="text-green-500" />,
       'EVENT_REJECTED': <XCircle size={18} className="text-red-500" />,
-      'REGISTRATION_CONFIRMED': <Calendar size={18} className="text-blue-500" />,
-      'CHECKIN_REMINDER': <Clock size={18} className="text-orange-500" />,
       'SYSTEM': <Info size={18} className="text-purple-500" />,
-      'APPROVAL': <CheckCircle size={18} className="text-emerald-500" />,
     };
     return icons[type] || <Bell size={18} className="text-slate-400" />;
   };
 
-  const formatTime = (dateString) => {
-    if (!dateString) return "";
-    const date = new Date(dateString);
-    const now = new Date();
-    const diffInMs = now - date;
-    const diffInMinutes = Math.floor(diffInMs / (1000 * 60));
-    
-    if (diffInMinutes < 1) return "Vừa xong";
-    if (diffInMinutes < 60) return `${diffInMinutes} phút trước`;
-    if (diffInMinutes < 1440) return `${Math.floor(diffInMinutes / 60)} giờ trước`;
-    if (diffInMinutes < 43200) return `${Math.floor(diffInMinutes / 1440)} ngày trước`;
-    
-    return date.toLocaleDateString("vi-VN", {
-      day: "2-digit",
-      month: "2-digit",
-      year: "numeric",
-    });
-  };
-
-  const getNotificationBgColor = (notification) => {
-    if (!notification.read) {
-      return "bg-gradient-to-r from-blue-50/80 to-transparent";
-    }
-    return "hover:bg-slate-50";
-  };
-
-  const getPrimaryRole = () => {
-    return roleMap[currentUser?.roles?.[0]] || "Thành viên";
-  };
-
-  // 4. Xử lý Đăng xuất an toàn qua API
-  const handleLogout = async () => {
-    try {
-      const refreshToken = localStorage.getItem("refreshToken");
-      if (refreshToken) {
-        await authApi.logout(refreshToken);
-      }
-    } catch (error) {
-      console.error("Lỗi đăng xuất:", error);
-    } finally {
-      localStorage.clear();
-      setCurrentUser(null);
-      setIsDropdownOpen(false);
-      setLogoutToastVisible(true);
-      setTimeout(() => navigate("/login"), 1500);
-    }
-  };
-
   return (
     <>
-      <header className="h-16 bg-white/95 backdrop-blur-sm border-b border-slate-200/70 flex items-center justify-between px-6 md:px-8 sticky top-0 z-30 shadow-[0_2px_12px_rgba(0,0,0,0.04)] transition-all duration-200">
+      <header className="h-16 bg-white/95 backdrop-blur-sm border-b border-slate-200 flex items-center justify-between px-6 md:px-8 sticky top-0 z-30 shadow-sm">
         <div className="flex items-center gap-4">
-          <div 
-            onClick={() => navigate("/admin")} 
-            className="cursor-pointer transition-all duration-300 hover:opacity-80"
-          >
-            <h1 className="text-base font-bold text-slate-800 tracking-tight uppercase">
-              EMS Admin Portal
-            </h1>
-            <p className="text-[11px] font-medium text-slate-500 italic">
-              Industrial University of Ho Chi Minh City
-            </p>
+          <div onClick={() => navigate("/admin")} className="cursor-pointer">
+            <h1 className="text-base font-black text-slate-800 tracking-tight uppercase">EMS Admin Portal</h1>
+            <p className="text-[10px] font-bold text-slate-400 italic leading-none">Industrial University of Ho Chi Minh City</p>
           </div>
         </div>
 
-        <div className="flex items-center gap-5 md:gap-7">
+        <div className="flex items-center gap-5">
+          {/* Notification Bell */}
           <div className="relative" ref={notificationRef}>
             <button 
               onClick={() => setIsNotificationOpen(!isNotificationOpen)}
-              className="relative p-2.5 text-slate-500 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-all duration-200"
+              className="relative p-2 text-slate-500 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-all"
             >
               <Bell size={20} />
               {unreadCount > 0 && (
-                <motion.span
-                  initial={{ scale: 0 }}
-                  animate={{ scale: 1 }}
-                  className="absolute top-1 right-1 min-w-[18px] h-[18px] bg-gradient-to-r from-red-500 to-red-600 text-white text-[10px] font-bold rounded-full flex items-center justify-center px-1 shadow-lg"
-                >
+                <span className="absolute top-1 right-1 min-w-[18px] h-[18px] bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center px-1">
                   {unreadCount > 99 ? "99+" : unreadCount}
-                </motion.span>
+                </span>
               )}
             </button>
 
             <AnimatePresence>
               {isNotificationOpen && (
-                <motion.div
-                  initial={{ opacity: 0, y: -10, scale: 0.95 }}
-                  animate={{ opacity: 1, y: 0, scale: 1 }}
-                  exit={{ opacity: 0, y: -10, scale: 0.95 }}
-                  transition={{ duration: 0.2 }}
+                <motion.div 
+                  initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 10 }}
                   className="absolute right-0 mt-3 w-96 bg-white rounded-2xl shadow-2xl border border-slate-100 overflow-hidden z-50"
                 >
-                  <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100 bg-gradient-to-r from-blue-50 to-white">
-                    <div className="flex items-center gap-2">
-                      <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-blue-600 rounded-xl flex items-center justify-center">
-                        <Bell size={16} className="text-white" />
-                      </div>
-                      <div>
-                        <h3 className="font-bold text-slate-800">Thông báo</h3>
-                        {unreadCount > 0 && (
-                          <p className="text-xs text-red-500">{unreadCount} thông báo chưa đọc</p>
-                        )}
-                      </div>
-                    </div>
+                  <div className="flex items-center justify-between px-5 py-4 border-b border-slate-50 bg-slate-50/50">
+                    <h3 className="font-bold text-slate-800 text-sm">Thông báo</h3>
                     {unreadCount > 0 && (
-                      <button
-                        onClick={handleMarkAllAsRead}
-                        disabled={isMarkingAll}
-                        className="text-xs font-semibold text-blue-600 hover:text-blue-700 flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 hover:bg-blue-100 rounded-lg transition-all disabled:opacity-50"
-                      >
-                        {isMarkingAll ? (
-                          <div className="w-3 h-3 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
-                        ) : (
-                          <Check size={12} />
-                        )}
-                        Đánh dấu đã đọc
+                      <button onClick={handleMarkAllAsRead} disabled={isMarkingAll} className="text-[10px] font-bold text-blue-600 uppercase tracking-tight">
+                        {isMarkingAll ? "Đang xử lý..." : "Đánh dấu đã đọc"}
                       </button>
                     )}
                   </div>
-
-                  <div className="max-h-[480px] overflow-y-auto divide-y divide-slate-50">
-                    {isLoading ? (
-                      <div className="py-12 text-center">
-                        <div className="w-8 h-8 border-2 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-3" />
-                        <p className="text-sm text-slate-400">Đang tải...</p>
-                      </div>
-                    ) : notifications.length > 0 ? (
-                      notifications.map((notification, index) => (
-                        <motion.div
-                          key={notification.id}
-                          initial={{ opacity: 0, x: -20 }}
-                          animate={{ opacity: 1, x: 0 }}
-                          transition={{ delay: index * 0.05 }}
-                          onClick={() => !notification.read && handleMarkAsRead(notification.id)}
-                          className={`px-5 py-4 cursor-pointer transition-all duration-200 ${getNotificationBgColor(notification)} ${
-                            !notification.read ? "border-l-4 border-l-blue-500" : ""
-                          }`}
+                  <div className="max-h-[400px] overflow-y-auto">
+                    {notifications.length > 0 ? (
+                      notifications.map(n => (
+                        <div 
+                          key={n.id} 
+                          onClick={() => !n.read && handleMarkAsRead(n.id)}
+                          className={`p-4 border-b border-slate-50 cursor-pointer transition-colors ${!n.read ? 'bg-blue-50/30' : 'hover:bg-slate-50'}`}
                         >
-                          <div className="flex items-start gap-3">
-                            <div className="flex-shrink-0 mt-0.5">
-                              {getNotificationIcon(notification.type)}
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-start justify-between gap-2 mb-1">
-                                <p className={`text-sm ${!notification.read ? "font-semibold text-slate-800" : "font-medium text-slate-700"}`}>
-                                  {notification.title}
-                                </p>
-                                {!notification.read && (
-                                  <div className="w-2 h-2 bg-blue-500 rounded-full flex-shrink-0 mt-1.5" />
-                                )}
+                           <div className="flex gap-3">
+                              {getNotificationIcon(n.type)}
+                              <div className="flex-1">
+                                <p className={`text-xs ${!n.read ? 'font-bold text-slate-800' : 'text-slate-600'}`}>{n.title}</p>
+                                <p className="text-[11px] text-slate-500 line-clamp-2 mt-0.5">{n.message}</p>
+                                <p className="text-[9px] text-slate-400 mt-1 font-medium">{formatTime(n.createdAt)}</p>
                               </div>
-                              <p className="text-xs text-slate-500 leading-relaxed mb-2 line-clamp-2">
-                                {notification.message}
-                              </p>
-                              <div className="flex items-center gap-2">
-                                <Clock size={10} className="text-slate-400" />
-                                <p className="text-[10px] text-slate-400">
-                                  {formatTime(notification.createdAt)}
-                                </p>
-                              </div>
-                            </div>
-                          </div>
-                        </motion.div>
+                           </div>
+                        </div>
                       ))
                     ) : (
-                      <div className="py-12 text-center">
-                        <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                          <Bell size={28} className="text-slate-400" />
-                        </div>
-                        <p className="text-sm font-medium text-slate-500 mb-1">
-                          Không có thông báo
-                        </p>
-                        <p className="text-xs text-slate-400">
-                          Bạn sẽ nhận được thông báo khi có hoạt động mới
-                        </p>
-                      </div>
+                      <div className="p-10 text-center text-slate-400 text-xs font-medium">Không có thông báo mới</div>
                     )}
                   </div>
-
-                  {notifications.length > 0 && (
-                    <div className="px-5 hover:cursor-pointer py-3 border-t border-slate-100 bg-slate-50/50">
-                      <button
-                        onClick={handleViewAll}
-                        className="w-full flex items-center justify-center gap-2 text-sm font-semibold text-blue-600 hover:text-blue-700 py-2 transition-colors group"
-                      >
-                        Xem tất cả thông báo
-                        <ChevronDown size={16} className="rotate-[-90deg] group-hover:translate-x-1 transition-transform" />
-                      </button>
-                    </div>
-                  )}
+                  <button onClick={handleViewAll} className="w-full py-3 text-[11px] font-bold text-slate-500 hover:text-blue-600 bg-slate-50/50 transition-colors uppercase tracking-widest">
+                    Xem tất cả
+                  </button>
                 </motion.div>
               )}
             </AnimatePresence>
           </div>
 
+          {/* User Menu */}
           <div className="relative" ref={menuRef}>
             <div 
-              className="flex items-center gap-3 group cursor-pointer"
+              className="flex items-center gap-3 cursor-pointer group"
               onClick={() => setIsDropdownOpen(!isDropdownOpen)}
             >
               <div className="text-right hidden md:block">
-                <p className="text-sm font-bold text-slate-800 leading-tight">
-                  {currentUser?.fullName || currentUser?.username || "Admin IUH"}
-                </p>
-                <p className="text-[10px] font-bold text-blue-600 uppercase tracking-tighter">
-                  {getPrimaryRole()}
-                </p>
+                <p className="text-xs font-black text-slate-800 leading-none">{user?.fullName || user?.username}</p>
+                <p className="text-[9px] font-bold text-blue-600 uppercase mt-1 tracking-tighter">{getPrimaryRole()}</p>
               </div>
-
-              <div className="relative">
-                <div className="w-10 h-10 rounded-xl overflow-hidden border-2 border-blue-50 shadow-sm ring-1 ring-slate-200/60 transition-transform group-hover:scale-105 duration-200">
-                  {currentUser?.avatarUrl ? (
-                    <img src={currentUser.avatarUrl} alt="Admin" className="w-full h-full object-cover" />
-                  ) : (
-                    <div className="w-full h-full bg-gradient-to-r from-blue-500 to-blue-600 text-white flex items-center justify-center font-bold text-lg">
-                      {currentUser?.username?.charAt(0).toUpperCase() || "A"}
-                    </div>
-                  )}
-                </div>
-                <span className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 bg-green-500 rounded-full border-2 border-white shadow-sm" />
+              <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-slate-100 to-slate-200 border-2 border-white shadow-sm overflow-hidden relative">
+                {user?.avatarUrl ? (
+                  <img src={user.avatarUrl} className="w-full h-full object-cover" alt="avatar" />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center font-black text-slate-500 bg-slate-100 uppercase">
+                    {user?.username?.charAt(0)}
+                  </div>
+                )}
+                <span className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-green-500 border-2 border-white rounded-full" />
               </div>
-
-              <ChevronDown 
-                size={16} 
-                className={`text-slate-400 transition-transform duration-300 ${isDropdownOpen ? 'rotate-180' : ''}`} 
-              />
+              <ChevronDown size={14} className={`text-slate-400 transition-transform ${isDropdownOpen ? 'rotate-180' : ''}`} />
             </div>
 
             <AnimatePresence>
               {isDropdownOpen && (
-                <motion.div
-                  initial={{ opacity: 0, y: -10, scale: 0.95 }}
-                  animate={{ opacity: 1, y: 0, scale: 1 }}
-                  exit={{ opacity: 0, y: -10, scale: 0.95 }}
-                  transition={{ duration: 0.2 }}
-                  className="absolute right-0 mt-3 w-56 bg-white rounded-2xl shadow-2xl border border-slate-100 py-2 z-20 overflow-hidden"
+                <motion.div 
+                  initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 10 }}
+                  className="absolute right-0 mt-3 w-52 bg-white rounded-2xl shadow-2xl border border-slate-100 py-2 z-20 overflow-hidden"
                 >
-                  <div className="px-4 py-3 border-b border-slate-50 md:hidden">
-                    <p className="text-sm font-bold text-slate-800">{currentUser?.fullName || currentUser?.username}</p>
-                    <p className="text-[10px] text-blue-600 font-bold">{getPrimaryRole()}</p>
-                  </div>
-                  
-                  <button 
-                    onClick={() => {
-                      navigate("/admin/profile");
-                      setIsDropdownOpen(false);
-                    }}
-                    className="w-full px-4 py-2.5 text-left text-sm font-semibold text-slate-600 hover:bg-slate-50 flex items-center gap-3 transition-colors"
-                  >
-                    <User size={18} className="text-slate-400" />
-                    Hồ sơ cá nhân
+                  <button onClick={() => { navigate("/admin/profile"); setIsDropdownOpen(false); }} className="w-full px-4 py-2.5 text-left text-xs font-bold text-slate-600 hover:bg-slate-50 flex items-center gap-3 transition-colors">
+                    <User size={16} className="text-slate-400" /> Hồ sơ Admin
                   </button>
-                  <button 
-                    onClick={() => {
-                      navigate("/admin/settings");
-                      setIsDropdownOpen(false);
-                    }}
-                    className="w-full px-4 py-2.5 text-left text-sm font-semibold text-slate-600 hover:bg-slate-50 flex items-center gap-3 transition-colors"
-                  >
-                    <Settings size={18} className="text-slate-400" />
-                    Cài đặt hệ thống
+                  <button onClick={() => { navigate("/admin/settings"); setIsDropdownOpen(false); }} className="w-full px-4 py-2.5 text-left text-xs font-bold text-slate-600 hover:bg-slate-50 flex items-center gap-3 transition-colors">
+                    <Settings size={16} className="text-slate-400" /> Cấu hình hệ thống
                   </button>
-                  
-                  <div className="h-px bg-slate-100 my-1 mx-2" />
-                  
-                  <button 
-                    onClick={handleLogout}
-                    className="w-full px-4 py-2.5 text-left text-sm font-bold text-red-500 hover:bg-red-50 flex items-center gap-3 transition-colors"
-                  >
-                    <LogOut size={18} />
-                    Đăng xuất
+                  <div className="h-px bg-slate-50 my-1 mx-2" />
+                  <button onClick={handleLogoutAction} className="w-full px-4 py-2.5 text-left text-xs font-black text-rose-500 hover:bg-rose-50 flex items-center gap-3 transition-colors uppercase tracking-widest">
+                    <LogOut size={16} /> Đăng xuất
                   </button>
                 </motion.div>
               )}
@@ -443,33 +246,14 @@ const HeaderAdmin = () => {
         </div>
       </header>
 
+      {/* Logout Toast */}
       <AnimatePresence>
         {logoutToastVisible && (
-          <motion.div
-            initial={{ opacity: 0, x: 100 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: 100 }}
-            className="fixed top-6 right-6 z-[200]"
+          <motion.div initial={{ opacity: 0, x: 50 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 50 }}
+            className="fixed top-6 right-6 z-[100] bg-emerald-600 text-white px-6 py-4 rounded-2xl shadow-2xl flex items-center gap-3 border border-white/20 backdrop-blur-md"
           >
-            <div className="relative overflow-hidden w-full max-w-xl bg-gradient-to-r from-emerald-600 via-green-600 to-teal-600 text-white rounded-2xl shadow-2xl shadow-green-900/40 border border-white/10 backdrop-blur-xl">
-              <div className="flex items-start gap-4 p-6">
-                <div className="shrink-0">
-                  <div className="w-12 h-12 flex items-center justify-center rounded-full bg-white/15 backdrop-blur-md border border-white/20 shadow-inner">
-                    <CheckCircle size={26} className="text-white drop-shadow-md" />
-                  </div>
-                </div>
-                <div className="flex-1">
-                  <p className="font-semibold text-lg tracking-tight">Thành công</p>
-                  <p className="mt-1 text-white/90 text-sm leading-relaxed">Đăng xuất thành công!</p>
-                </div>
-                <button 
-                  onClick={() => setLogoutToastVisible(false)} 
-                  className="shrink-0 p-2 rounded-full hover:bg-white/15 transition duration-200"
-                >
-                  <X size={20} className="text-white/80 hover:text-white" />
-                </button>
-              </div>
-            </div>
+            <CheckCircle size={20} />
+            <span className="text-sm font-bold uppercase tracking-wide">Đăng xuất thành công</span>
           </motion.div>
         )}
       </AnimatePresence>

@@ -15,395 +15,318 @@ import {
   Megaphone,
   Newspaper,
   RefreshCw,
-  Calendar
+  Calendar,
+  Loader2,
+  Eye,
+  MoreVertical
 } from "lucide-react";
 
-// IMPORT CONTEXT
 import { useAuth } from "../../context/AuthContext";
-import { useEvent } from "../../context/EventContext";
+import { useEvents } from "../../context/EventContext";
+import { useNavigate } from "react-router-dom";
 
 const AdminPostManagement = ({ eventId, eventTitle }) => {
-  // LẤY DATA VÀ SERVICE TỪ CONTEXT
   const { user } = useAuth();
   const { 
     posts, 
+    loading, 
     fetchAllPosts, 
-    createPost, 
-    updatePost, 
-    deletePost,
-    events: eventService 
-  } = useEvent();
+    deletePost 
+  } = useEvents();
 
-  const [allEvents, setAllEvents] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const navigate = useNavigate();
+
+  /* STATE */
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [typeFilter, setTypeFilter] = useState("all");
   const [currentPage, setCurrentPage] = useState(1);
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [modalMode, setModalMode] = useState("create");
-  const [selectedPost, setSelectedPost] = useState(null);
-  const [formData, setFormData] = useState({
-    title: "",
-    content: "",
-    postType: "ANNOUNCEMENT",
-    status: "DRAFT",
-    publishedAt: null
-  });
+  const [activeTab, setActiveTab] = useState("Tất cả");
 
   const ITEMS_PER_PAGE = 10;
 
-  // Các loại bài đăng (Giữ nguyên)
+  /* CONFIG */
   const POST_TYPES = {
-    ANNOUNCEMENT: { label: "Thông báo", color: "blue", icon: Megaphone },
-    NEWS: { label: "Tin tức", color: "green", icon: Newspaper },
-    UPDATE: { label: "Cập nhật", color: "orange", icon: RefreshCw },
-    RECAP: { label: "Tổng kết", color: "purple", icon: FileText },
-    FEEDBACK: { label: "Phản hồi", color: "yellow", icon: MessageCircle }
+    ANNOUNCEMENT: { label: "Thông báo", icon: Megaphone, color: "bg-amber-100 text-amber-700" },
+    NEWS: { label: "Tin tức", icon: Newspaper, color: "bg-blue-100 text-blue-700" },
+    UPDATE: { label: "Cập nhật", icon: RefreshCw, color: "bg-purple-100 text-purple-700" },
+    RECAP: { label: "Tổng kết", icon: FileText, color: "bg-emerald-100 text-emerald-700" },
+    FEEDBACK: { label: "Phản hồi", icon: MessageCircle, color: "bg-pink-100 text-pink-700" }
   };
 
-  // Trạng thái bài đăng (Giữ nguyên)
   const POST_STATUS = {
-    DRAFT: { label: "Nháp", color: "gray", icon: FileText },
-    PENDING: { label: "Chờ duyệt", color: "yellow", icon: Clock },
-    PUBLISHED: { label: "Đã đăng", color: "green", icon: CheckCircle },
-    REJECTED: { label: "Từ chối", color: "red", icon: XCircle },
-    SCHEDULED: { label: "Đã lên lịch", color: "blue", icon: Calendar }
+    PUBLISHED: { label: "Đã đăng", color: "bg-emerald-100 text-emerald-700" },
+    PENDING: { label: "Chờ duyệt", color: "bg-amber-100 text-amber-700" }, // Màu vàng/cam cho trạng thái chờ
+    DRAFT: { label: "Bản nháp", color: "bg-gray-100 text-gray-700" },
+    REJECTED: { label: "Bị từ chối", color: "bg-red-100 text-red-700" }
   };
 
+  /* LOAD DATA */
   const loadData = useCallback(async () => {
-    setLoading(true);
-    try {
-      // Gọi fetch bài đăng từ Context
-      await fetchAllPosts({ size: 1000 });
-      // Lấy danh sách sự kiện từ service trong context
-      const res = await eventService.getAllEvents();
-      setAllEvents(res.data || []);
-    } catch (error) {
-      console.error("Error fetching data:", error);
-    } finally {
-      setLoading(false);
-    }
-  }, [fetchAllPosts, eventService]);
+    await fetchAllPosts({ size: 1000 });
+  }, [fetchAllPosts]);
 
   useEffect(() => {
     if (user) loadData();
-  }, [user, eventId, loadData]);
+  }, [user, loadData]);
 
-  const filteredPosts = (posts || []).filter(post => {
-    const matchSearch = searchTerm === "" || 
-      post.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      post.content?.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchStatus = statusFilter === "all" || post.status === statusFilter;
-    const matchType = typeFilter === "all" || post.postType === typeFilter;
-    return matchSearch && matchStatus && matchType;
-  });
+  /* FILTER LOGIC */
+ const filteredPosts = useMemo(() => {
+    // Đảm bảo posts luôn là mảng để tránh lỗi .filter
+    return (posts || []).filter((post) => {
+      // 1. Logic tìm kiếm (Search)
+      const searchLower = searchTerm.toLowerCase();
+      const matchSearch =
+        !searchTerm || 
+        post.title?.toLowerCase().includes(searchLower) ||
+        post.content?.toLowerCase().includes(searchLower);
 
-  // Pagination (Giữ nguyên)
+      // 2. Logic lọc theo Tab (Ánh xạ Tab sang Status)
+      let matchTab = true;
+      switch (activeTab) {
+        case "Đã đăng":
+          matchTab = post.status === "PUBLISHED";
+          break;
+        case "Chờ duyệt":
+          matchTab = post.status === "PENDING";
+          break;
+        case "Bản nháp":
+          matchTab = post.status === "DRAFT";
+          break;
+        case "Bị từ chối":
+          matchTab = post.status === "REJECTED";
+          break;
+        default: // "Tất cả"
+          matchTab = true;
+      }
+
+      // 3. Logic lọc theo Dropdown Status (Nếu dropdown chọn "ALL" thì bỏ qua)
+      const matchStatus = statusFilter === "all" || post.status === statusFilter;
+
+      // 4. Logic lọc theo Dropdown Loại bài đăng (Type)
+      const matchType = typeFilter === "all" || post.postType === typeFilter;
+
+      // Trả về kết quả kết hợp tất cả điều kiện
+      return matchSearch && matchTab && matchStatus && matchType;
+    });
+  }, [posts, searchTerm, statusFilter, typeFilter, activeTab]);
+
+  /* PAGINATION LOGIC */
   const totalPages = Math.ceil(filteredPosts.length / ITEMS_PER_PAGE);
   const paginatedPosts = filteredPosts.slice(
     (currentPage - 1) * ITEMS_PER_PAGE,
     currentPage * ITEMS_PER_PAGE
   );
 
-  // Save post (Sửa logic lấy accountId từ AuthContext)
-  const handleSavePost = async () => {
-    try {
-      const payload = { 
-        ...formData, 
-        createdByAccountId: user?.id || user?.accountId,
-        eventId: formData.eventId || eventId 
-      };
-      
-      if (modalMode === "create") {
-        await createPost(payload);
-      } else {
-        await updatePost(selectedPost.id, payload);
-      }
-      
-      await fetchAllPosts({ size: 1000 }); // Refresh data
-      setIsModalOpen(false);
-      alert(modalMode === "create" ? "Tạo bài đăng thành công!" : "Cập nhật thành công!");
-    } catch (error) {
-      alert(error.response?.data?.message || "Có lỗi xảy ra!");
-    }
-  };
-
-  // Delete post (Dùng hàm từ Context)
   const handleDeletePost = async (postId) => {
-    if (!window.confirm("Bạn có chắc muốn xóa bài đăng này?")) return;
-    try {
-      await deletePost(postId);
-      await fetchAllPosts({ size: 1000 });
-      alert("Xóa bài đăng thành công!");
-    } catch (error) {
-      alert("Lỗi khi xóa bài đăng.");
-    }
+    if (!window.confirm("Bạn có chắc chắn muốn xóa bài đăng này?")) return;
+    await deletePost(postId);
+    await loadData();
   };
 
-  // Stats (Giữ nguyên logic)
-  const stats = {
-    total: posts.length,
-    published: posts.filter(p => p.status === "PUBLISHED").length,
-    draft: posts.filter(p => p.status === "DRAFT").length,
-    pending: posts.filter(p => p.status === "PENDING").length,
-    totalComments: posts.reduce((sum, post) => sum + (post.comments?.length || 0), 0)
-  };
-
-  // ==================== UI HOÀN TOÀN GIỮ NGUYÊN ====================
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex justify-between items-center">
-        <div>
-          <h2 className="text-2xl font-bold text-gray-800">
-            Quản lý bài đăng
-          </h2>
-          <p className="text-gray-500 text-sm">
-            Sự kiện: {eventTitle} • {stats.total} bài đăng
-          </p>
+    <div className="p-6 bg-slate-50 min-h-screen">
+      
+      {/* HEADER */}
+      <div className="flex justify-between items-center mb-6">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center text-white shadow-lg shadow-blue-200">
+            <FileText size={20} />
+          </div>
+          <div>
+            <h1 className="text-2xl font-semibold text-slate-800">Quản lý bài đăng</h1>
+            <p className="text-sm text-slate-500">{eventTitle || "Tất cả sự kiện"} • {filteredPosts.length} bài viết</p>
+          </div>
         </div>
-        <button
-          onClick={() => {
-            setModalMode("create");
-            setFormData({ title: "", content: "", postType: "ANNOUNCEMENT", status: "DRAFT", publishedAt: null, eventId: eventId || "" });
-            setIsModalOpen(true);
-          }}
-          className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
-        >
+
+        <button className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-lg text-sm font-medium transition-all shadow-md shadow-blue-100">
           <Plus size={18} />
-          Tạo bài đăng
+          Tạo bài đăng mới
         </button>
       </div>
 
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <StatCard label="Tổng số" value={stats.total} icon={FileText} color="blue" />
-        <StatCard label="Đã đăng" value={stats.published} icon={CheckCircle} color="green" />
-        <StatCard label="Nháp" value={stats.draft} icon={FileText} color="gray" />
-        <StatCard label="Bình luận" value={stats.totalComments} icon={MessageCircle} color="purple" />
+      {/* TABS */}
+      <div className="flex border-b mb-6 overflow-x-auto pb-1 gap-2">
+        {["Tất cả", "Đã đăng", "Chờ duyệt", "Bản nháp"].map((tab) => (
+          <button
+            key={tab}
+            onClick={() => {
+              setActiveTab(tab);
+              setCurrentPage(1);
+            }}
+            className={`px-6 py-3 text-sm font-medium whitespace-nowrap border-b-2 transition-all ${
+              activeTab === tab
+                ? "border-blue-600 text-blue-600"
+                : "border-transparent text-gray-500 hover:text-gray-700"
+            }`}
+          >
+            {tab}
+          </button>
+        ))}
       </div>
 
-      {/* Filters */}
-      <div className="bg-white rounded-lg shadow p-4">
-        <div className="flex flex-col md:flex-row gap-4">
-          <div className="flex-1 relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={18} />
-            <input
-              type="text"
-              placeholder="Tìm kiếm bài đăng..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
+      {/* SEARCH & FILTER BAR */}
+      <div className="bg-white border border-gray-200 rounded-2xl p-4 mb-6 flex flex-wrap gap-3 items-center shadow-sm">
+        <div className="relative flex-1 min-w-[300px]">
+          <Search className="absolute left-4 top-3.5 text-gray-400" size={18} />
+          <input
+            className="pl-11 pr-4 py-3 w-full border border-gray-100 bg-slate-50 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all"
+            placeholder="Tìm kiếm bài viết..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+          />
+        </div>
+
+        <select
+          className="border border-gray-100 bg-slate-50 px-4 py-3 rounded-xl text-sm focus:outline-none focus:border-blue-500 min-w-[160px]"
+          value={typeFilter}
+          onChange={(e) => setTypeFilter(e.target.value)}
+        >
+          <option value="all">Mọi loại bài đăng</option>
+          {Object.entries(POST_TYPES).map(([key, value]) => (
+            <option key={key} value={key}>{value.label}</option>
+          ))}
+        </select>
+
+        <button 
+          onClick={() => {
+            setSearchTerm("");
+            setStatusFilter("all");
+            setTypeFilter("all");
+            setActiveTab("Tất cả");
+          }}
+          className="px-5 py-3 text-gray-600 hover:bg-gray-100 rounded-xl text-sm font-medium transition-all"
+        >
+          Đặt lại
+        </button>
+      </div>
+
+      {/* TABLE */}
+      <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden shadow-sm">
+        {loading ? (
+          <div className="p-20 text-center">
+            <Loader2 className="animate-spin mx-auto text-blue-600" size={40} />
+            <p className="mt-3 text-gray-500 font-medium">Đang tải dữ liệu bài đăng...</p>
           </div>
-          
-          <select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-            className="px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-          >
-            <option value="all">Tất cả trạng thái</option>
-            {Object.entries(POST_STATUS).map(([key, { label }]) => (
-              <option key={key} value={key}>{label}</option>
-            ))}
-          </select>
-          
-          <select
-            value={typeFilter}
-            onChange={(e) => setTypeFilter(e.target.value)}
-            className="px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-          >
-            <option value="all">Tất cả loại</option>
-            {Object.entries(POST_TYPES).map(([key, { label }]) => (
-              <option key={key} value={key}>{label}</option>
-            ))}
-          </select>
-        </div>
-      </div>
-
-      {/* Loading State */}
-      {loading && (
-        <div className="flex justify-center items-center py-12">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-        </div>
-      )}
-
-      {/* Posts Table */}
-      {!loading && (
-        <div className="bg-white rounded-lg shadow overflow-hidden">
-          <table className="w-full">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Bài đăng</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Loại</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Trạng thái</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tương tác</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Ngày tạo</th>
-                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Thao tác</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-200">
-              {paginatedPosts.map(post => (
-                <tr key={post.id} className="hover:bg-gray-50 transition-colors">
-                  <td className="px-6 py-4">
-                    <div>
-                      <div className="font-medium text-gray-900">{post.title}</div>
-                      <div className="text-sm text-gray-500 line-clamp-1">{post.content}</div>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4">
-                    <TypeBadge type={post.postType} postTypes={POST_TYPES} />
-                  </td>
-                  <td className="px-6 py-4">
-                    <StatusBadge status={post.status} postStatus={POST_STATUS} />
-                  </td>
-                  <td className="px-6 py-4">
-                    <div className="flex items-center gap-3 text-sm text-gray-500">
-                      <span className="flex items-center gap-1">
-                        <MessageCircle size={14} />
-                        {post.comments?.length || 0}
-                      </span>
-                      <span className="flex items-center gap-1">
-                        <ThumbsUp size={14} />
-                        {post.likes || 0}
-                      </span>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 text-sm text-gray-500">
-                    {post.createdAt ? new Date(post.createdAt).toLocaleDateString("vi-VN") : "N/A"}
-                  </td>
-                  <td className="px-6 py-4 text-right">
-                    <div className="flex items-center justify-end gap-2">
-                      <button
-                        onClick={() => {
-                          setSelectedPost(post);
-                          setFormData({ ...post, eventId: post.eventId || post.event?.id || "" });
-                          setModalMode("edit");
-                          setIsModalOpen(true);
-                        }}
-                        className="p-1 text-blue-600 hover:bg-blue-50 rounded transition-colors"
-                        title="Chỉnh sửa"
-                      >
-                        <Edit2 size={16} />
-                      </button>
-                      
-                      <button
-                        onClick={() => handleDeletePost(post.id)}
-                        className="p-1 text-red-600 hover:bg-red-50 rounded transition-colors"
-                        title="Xóa"
-                      >
-                        <Trash2 size={16} />
-                      </button>
-                    </div>
-                  </td>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="bg-slate-50 border-b border-gray-200">
+                <tr>
+                  <th className="p-4 text-left font-semibold text-slate-700">Tiêu đề bài viết</th>
+                  <th className="p-4 text-left font-semibold text-slate-700">Loại</th>
+                  <th className="p-4 text-left font-semibold text-slate-700">Ngày tạo</th>
+                  <th className="p-4 text-left font-semibold text-slate-700">Trạng thái</th>
+                  <th className="p-4 text-center font-semibold text-slate-700">Hành động</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-          
-          {/* Pagination */}
-          {totalPages > 1 && (
-            <div className="px-6 py-4 border-t flex justify-between items-center">
-              <p className="text-sm text-gray-500">
-                Trang {currentPage} / {totalPages}
-              </p>
-              <div className="flex gap-2">
-                <button
-                  onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                  disabled={currentPage === 1}
-                  className="p-2 border rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                >
-                  <ChevronLeft size={16} />
-                </button>
-                <button
-                  onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-                  disabled={currentPage === totalPages}
-                  className="p-2 border rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                >
-                  <ChevronRight size={16} />
-                </button>
-              </div>
-            </div>
-          )}
-        </div>
-      )}
+              </thead>
 
-      {/* Modal */}
-      {isModalOpen && (
-        <PostModal
-          mode={modalMode}
-          formData={formData}
-          setFormData={setFormData}
-          onSave={handleSavePost}
-          onClose={() => setIsModalOpen(false)}
-          postTypes={POST_TYPES}
-          postStatus={POST_STATUS}
-          userEvents={allEvents}
-        />
-      )}
-    </div>
-  );
-};
-
-// CÁC SUB-COMPONENT GIỮ NGUYÊN HOÀN TOÀN
-const TypeBadge = ({ type, postTypes }) => {
-  const typeConfig = postTypes[type];
-  if (!typeConfig) return null;
-  const colors = { blue: "bg-blue-100 text-blue-700", green: "bg-green-100 text-green-700", orange: "bg-orange-100 text-orange-700", purple: "bg-purple-100 text-purple-700", yellow: "bg-yellow-100 text-yellow-700" };
-  return <span className={`px-2 py-1 text-xs rounded-full ${colors[typeConfig.color] || "bg-gray-100"}`}>{typeConfig.label}</span>;
-};
-
-const StatusBadge = ({ status, postStatus }) => {
-  const statusConfig = postStatus[status];
-  if (!statusConfig) return null;
-  const IconComponent = statusConfig.icon;
-  const colors = { green: "text-green-600", gray: "text-gray-600", yellow: "text-yellow-600", red: "text-red-600", blue: "text-blue-600" };
-  return (
-    <span className={`flex items-center gap-1 text-sm ${colors[statusConfig.color] || "text-gray-600"}`}>
-      {IconComponent && <IconComponent size={14} />}
-      {statusConfig.label}
-    </span>
-  );
-};
-
-const StatCard = ({ label, value, icon: Icon, color }) => {
-  const bgs = { blue: "bg-blue-100", green: "bg-green-100", gray: "bg-gray-100", purple: "bg-purple-100" };
-  const texts = { blue: "text-blue-600", green: "text-green-600", gray: "text-gray-600", purple: "text-purple-600" };
-  return (
-    <div className="bg-white rounded-lg shadow p-4">
-      <div className="flex items-center justify-between">
-        <div className={`p-2 ${bgs[color] || "bg-gray-100"} rounded-lg`}>
-          <Icon size={20} className={texts[color] || "text-gray-600"} />
-        </div>
-        <p className="text-2xl font-bold">{value}</p>
-      </div>
-      <p className="text-sm text-gray-500 mt-2">{label}</p>
-    </div>
-  );
-};
-
-const PostModal = ({ mode, formData, setFormData, onSave, onClose, postTypes, postStatus, userEvents }) => (
-  <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={onClose}>
-    <div className="bg-white rounded-lg w-full max-w-2xl max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
-      <form onSubmit={(e) => { e.preventDefault(); onSave(); }}>
-        <div className="p-6 border-b"><h3 className="text-lg font-bold">{mode === "create" ? "Tạo bài đăng mới" : "Chỉnh sửa bài đăng"}</h3></div>
-        <div className="p-6 space-y-4">
-          <div><label className="block text-sm font-medium mb-1">Tiêu đề *</label><input type="text" value={formData.title || ""} onChange={(e) => setFormData({ ...formData, title: e.target.value })} className="w-full px-3 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-blue-500" required /></div>
-          <div><label className="block text-sm font-medium mb-1">Nội dung *</label><textarea value={formData.content || ""} onChange={(e) => setFormData({ ...formData, content: e.target.value })} rows={8} className="w-full px-3 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-blue-500" required /></div>
-          <div><label className="block text-sm font-medium mb-1">Sự kiện áp dụng</label><select value={formData.eventId || ""} onChange={(e) => setFormData({ ...formData, eventId: e.target.value })} className="w-full px-3 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-blue-500"><option value="">-- Chọn sự kiện --</option>{userEvents?.map((ev) => (<option key={ev.id} value={ev.id}>{ev.title}</option>))}</select></div>
-          <div className="grid grid-cols-2 gap-4">
-            <div><label className="block text-sm font-medium mb-1">Loại</label><select value={formData.postType} onChange={(e) => setFormData({ ...formData, postType: e.target.value })} className="w-full px-3 py-2 border rounded-lg outline-none">{Object.entries(postTypes).map(([k, { label }]) => (<option key={k} value={k}>{label}</option>))}</select></div>
-            <div><label className="block text-sm font-medium mb-1">Trạng thái</label><select value={formData.status} onChange={(e) => setFormData({ ...formData, status: e.target.value })} className="w-full px-3 py-2 border rounded-lg outline-none">{Object.entries(postStatus).map(([k, { label }]) => (<option key={k} value={k}>{label}</option>))}</select></div>
+              <tbody className="divide-y divide-gray-100">
+                {paginatedPosts.length > 0 ? (
+                  paginatedPosts.map((post) => (
+                    <tr key={post.id} className="hover:bg-slate-50/80 transition-colors">
+                      <td className="p-4">
+                        <div className="max-w-[300px]">
+                          <p className="font-medium text-slate-800 truncate">{post.title}</p>
+                          <p className="text-xs text-gray-400 truncate mt-0.5">{post.content?.substring(0, 60)}...</p>
+                        </div>
+                      </td>
+                      <td className="p-4">
+                        <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium ${POST_TYPES[post.postType]?.color || "bg-gray-100"}`}>
+                          {post.postType && React.createElement(POST_TYPES[post.postType]?.icon || FileText, { size: 12 })}
+                          {POST_TYPES[post.postType]?.label || post.postType}
+                        </span>
+                      </td>
+                      <td className="p-4 text-gray-600">
+                        <div className="flex flex-col">
+                          <span className="text-slate-700 font-medium">{new Date(post.createdAt || Date.now()).toLocaleDateString('vi-VN')}</span>
+                          <span className="text-[10px] text-gray-400">{new Date(post.createdAt || Date.now()).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}</span>
+                        </div>
+                      </td>
+                      <td className="p-4">
+                        <span className={`px-3 py-1 rounded-full text-xs font-semibold ${POST_STATUS[post.status]?.color || "bg-gray-100"}`}>
+                          {POST_STATUS[post.status]?.label || post.status}
+                        </span>
+                      </td>
+                      <td className="p-4">
+                        <div className="flex justify-center gap-1">
+                          <button 
+                            onClick={() => navigate(`/admin/posts/${post.id}`)} // Đường dẫn tới trang PostDetail
+                            className="p-2 hover:bg-blue-50 rounded-lg text-gray-500 hover:text-blue-600 transition-all" 
+                            title="Xem chi tiết"
+                          >
+                            <Eye size={18} />
+                          </button>
+                          <button className="p-2 hover:bg-amber-50 rounded-lg text-gray-500 hover:text-amber-600 transition-all" title="Chỉnh sửa">
+                            <Edit2 size={18} />
+                          </button>
+                          <button 
+                            onClick={() => handleDeletePost(post.id)}
+                            className="p-2 hover:bg-red-50 rounded-lg text-gray-500 hover:text-red-600 transition-all" 
+                            title="Xóa bài"
+                          >
+                            <Trash2 size={18} />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td colSpan={5} className="p-20 text-center">
+                      <div className="flex flex-col items-center">
+                        <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center text-slate-400 mb-4">
+                          <Search size={32} />
+                        </div>
+                        <p className="text-gray-500 font-medium">Không tìm thấy bài viết nào khớp với bộ lọc</p>
+                      </div>
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
           </div>
+        )}
+      </div>
+
+      {/* PAGINATION */}
+      {totalPages > 1 && (
+        <div className="flex justify-center items-center gap-3 mt-8">
+          <button
+            onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+            disabled={currentPage === 1}
+            className="p-2.5 border border-gray-200 rounded-xl hover:bg-white hover:shadow-sm disabled:opacity-30 transition-all"
+          >
+            <ChevronLeft size={20} />
+          </button>
+          
+          <div className="flex gap-2">
+            {[...Array(totalPages)].map((_, i) => (
+              <button
+                key={i + 1}
+                onClick={() => setCurrentPage(i + 1)}
+                className={`w-10 h-10 rounded-xl text-sm font-semibold transition-all ${
+                  currentPage === i + 1 
+                    ? "bg-blue-600 text-white shadow-md shadow-blue-200" 
+                    : "bg-white border border-gray-200 text-slate-600 hover:border-blue-300"
+                }`}
+              >
+                {i + 1}
+              </button>
+            ))}
+          </div>
+
+          <button
+            onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+            disabled={currentPage === totalPages}
+            className="p-2.5 border border-gray-200 rounded-xl hover:bg-white hover:shadow-sm disabled:opacity-30 transition-all"
+          >
+            <ChevronRight size={20} />
+          </button>
         </div>
-        <div className="p-6 border-t flex justify-end gap-3">
-          <button type="button" onClick={onClose} className="px-4 py-2 border rounded-lg">Hủy</button>
-          <button type="submit" className="px-4 py-2 bg-blue-600 text-white rounded-lg">{mode === "create" ? "Tạo bài đăng" : "Cập nhật"}</button>
-        </div>
-      </form>
+      )}
     </div>
-  </div>
-);
+  );
+};
 
 export default AdminPostManagement;

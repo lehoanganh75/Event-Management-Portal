@@ -1,6 +1,6 @@
 package com.eventservice.service.impl;
 
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.*;
 import org.springframework.stereotype.Service;
 import com.eventservice.entity.Event;
@@ -16,13 +16,21 @@ import java.util.ArrayList;
 import java.util.List;
 
 @Service
+@RequiredArgsConstructor
 public class EventTemplateServiceImpl implements EventTemplateService {
+    private final EventTemplateRepository templateRepository;
+    private final EventRepository eventRepository;
 
-    @Autowired
-    private EventTemplateRepository templateRepository;
+    @Override
+    public List<EventTemplate> getAllTemplates() {
+        return  templateRepository.findAll();
+    }
 
-    @Autowired
-    private EventRepository eventRepository;
+    @Override
+    public EventTemplate getTemplatesById(String id) {
+        return templateRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy bản mẫu với ID: " + id));
+    }
 
     @Override
     public Event createFromTemplate(String templateId, String accountId) {
@@ -60,26 +68,6 @@ public class EventTemplateServiceImpl implements EventTemplateService {
         event.setUpdatedAt(LocalDateTime.now());
 
         return eventRepository.save(event);
-    }
-
-    @Override
-    public Page<EventTemplate> getAllTemplates(String orgId, String search, Pageable pageable) {
-        String searchKeyword = search == null ? "" : search;
-
-        Sort sort = Sort.by(Sort.Direction.DESC, "usageCount")
-                .and(Sort.by(Sort.Direction.DESC, "createdAt"));
-
-        Pageable sorted = PageRequest.of(
-                pageable.getPageNumber(),
-                pageable.getPageSize(),
-                sort
-        );
-
-        return templateRepository.findByOrganizationIdAndTemplateNameContainingIgnoreCase(
-                orgId,
-                searchKeyword,
-                sorted
-        );
     }
 
     @Override
@@ -128,12 +116,6 @@ public class EventTemplateServiceImpl implements EventTemplateService {
     @Override
     public void deleteTemplate(String id) {
         templateRepository.deleteById(id);
-    }
-
-    @Override
-    public EventTemplate getTemplateById(String id) {
-        return templateRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Không tìm thấy bản mẫu với ID: " + id));
     }
 
     @Override

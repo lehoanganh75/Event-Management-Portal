@@ -16,7 +16,7 @@ import {
 } from "lucide-react";
 
 // 1. SỬ DỤNG CONTEXT THAY VÌ IMPORT API TRỰC TIẾP
-import { useEvent } from "../../context/EventContext";
+import { useEvents } from "../../context/EventContext";
 
 const ChooseModeStep = ({ onChoose }) => (
   <div className="p-8">
@@ -70,7 +70,7 @@ const ChooseModeStep = ({ onChoose }) => (
 );
 
 const SelectPlanStep = ({ onSelectPlan, onBack }) => {
-  const { events } = useEvent();
+  const { events } = useEvents();
   const [plans, setPlans] = useState([]);
   const [fetching, setFetching] = useState(true);
   const [selected, setSelected] = useState(null);

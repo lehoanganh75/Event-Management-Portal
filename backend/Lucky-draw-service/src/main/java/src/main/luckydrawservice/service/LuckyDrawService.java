@@ -1,8 +1,8 @@
 package src.main.luckydrawservice.service;
 
-import org.springframework.transaction.annotation.Transactional;
 import src.main.luckydrawservice.dto.DrawResultResponse;
 import src.main.luckydrawservice.dto.LuckyDrawCreateRequest;
+import src.main.luckydrawservice.dto.LuckyDrawResponse;
 import src.main.luckydrawservice.entity.DrawEntry;
 import src.main.luckydrawservice.entity.LuckyDraw;
 
@@ -26,5 +26,5 @@ public interface LuckyDrawService {
 
     Optional<DrawEntry> findByLuckyDrawIdAndUserProfileId(String luckyDrawId, String userProfileId);
 
-    Optional<LuckyDraw> findByEventId(String eventId);
+    Optional<LuckyDrawResponse> findByEventId(String eventId);
 }

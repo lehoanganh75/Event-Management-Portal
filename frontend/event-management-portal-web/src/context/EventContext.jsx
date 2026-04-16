@@ -1,275 +1,200 @@
-// src/context/EventContext.jsx
 import React, { createContext, useContext, useState, useCallback } from 'react';
 import eventService from '../services/eventService';
-import { useAuth } from './AuthContext';
 
 const EventContext = createContext();
 
-export const useEvent = () => {
+export const useEvents = () => {
     const context = useContext(EventContext);
-    if (!context) {
-        throw new Error('useEvent must be used within an EventProvider');
-    }
+    if (!context) throw new Error('useEvents must be used within EventProvider');
     return context;
 };
 
 export const EventProvider = ({ children }) => {
-    // ==================== STATE ====================
-    const { user } = useAuth();
+    const [userAll, setUserAll] = useState([]);
+    const [ongoing, setOngoing] = useState([]);
+    const [upcoming, setUpcoming] = useState([]);
+    const [featured, setFeatured] = useState([]);
+    const [adminAll, setAdminAll] = useState([]);
     const [myEvents, setMyEvents] = useState([]);
-    const [myPlans, setMyPlans] = useState([]);
-    const [pendingPlans, setPendingPlans] = useState([]);
-    const [eventDetail, setEventDetail] = useState(null);
-    const [presenters, setPresenters] = useState([]);
-    const [participants, setParticipants] = useState([]);
-    const [organizers, setOrganizers] = useState([]);
-    const [registrations, setRegistrations] = useState([]);
-    const [todayEvents, setTodayEvents] = useState([]);
-    
-    // THÊM STATE CHO BÀI VIẾT (POSTS)
     const [posts, setPosts] = useState([]);
-    const [postDetail, setPostDetail] = useState(null);
-
-    const [loading, setLoading] = useState({
-        myEvents: false,
-        myPlans: false,
-        pendingPlans: false,
-        eventDetail: false,
-        presenters: false,
-        participants: false,
-        organizers: false,
-        posts: false, // Loading cho danh sách bài viết
-        action: false,
-    });
-
+    
+    const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
 
-    // ==================== HELPERS ====================
-    const setLoadingState = (key, value) => {
-        setLoading(prev => ({ ...prev, [key]: value }));
-    };
-
-    const handleError = (err, actionName = 'Unknown action') => {
-        console.error(`EventContext - ${actionName}:`, err);
-        const errorMsg = err.response?.data?.message || err.message || 'Có lỗi xảy ra';
-        setError(errorMsg);
-        return null;
-    };
-
-    // ==================== FETCH FUNCTIONS ====================
-    
-    // THÊM HÀM LẤY TẤT CẢ BÀI VIẾT (Cho trang AdminPostManagement)
-    const fetchAllPosts = useCallback(async (params) => {
-        setLoadingState('posts', true);
+    const fetchAllEvents = useCallback(async () => {
+        setLoading(true);
         try {
-            const res = await eventService.getAllPosts(params);
-            // Đối với Page trả về từ Spring Boot: res.data.content
-            const data = res.data?.content || res.data || [];
-            setPosts(data);
-            return data;
+            const res = await eventService.getEventsForUser();
+            setUserAll(res.data || []);
         } catch (err) {
-            handleError(err, 'fetchAllPosts');
-            return [];
+            setError("Lỗi tải sự kiện đang diễn ra");
         } finally {
-            setLoadingState('posts', false);
+            setLoading(false);
         }
     }, []);
 
-    const fetchMyEvents = useCallback(async () => {
-        setLoadingState('myEvents', true);
+    // 1. Lấy sự kiện đang diễn ra
+    const fetchOngoing = useCallback(async () => {
+        setLoading(true);
         try {
-            const res = await eventService.getMyEvents();
+            const res = await eventService.getOngoingEvents();
+            setOngoing(res.data || []);
+        } catch (err) {
+            setError("Lỗi tải sự kiện đang diễn ra");
+        } finally {
+            setLoading(false);
+        }
+    }, []);
+
+    // 2. Lấy sự kiện sắp tới (trong tuần)
+    const fetchUpcoming = useCallback(async () => {
+        setLoading(true);
+        try {
+            const res = await eventService.getUpcomingEvents();
+            setUpcoming(res.data || []);
+        } catch (err) {
+            setError("Lỗi tải sự kiện sắp tới");
+        } finally {
+            setLoading(false);
+        }
+    }, []);
+
+    // 3. Lấy sự kiện nổi bật
+    const fetchFeatured = useCallback(async () => {
+        setLoading(true);
+        try {
+            const res = await eventService.getFeaturedEvents();
+            setFeatured(res.data || []);
+        } catch (err) {
+            setError("Lỗi tải sự kiện nổi bật");
+        } finally {
+            setLoading(false);
+        }
+    }, []);
+
+    // 4. Lấy sự kiện cá nhân (Dành cho Member/Lecturer)
+    const fetchMyEvents = useCallback(async (role = 'ALL') => {
+        setLoading(true);
+        try {
+            const res = await eventService.getMyEvents(role);
             setMyEvents(res.data || []);
-            return res.data;
         } catch (err) {
-            handleError(err, 'fetchMyEvents');
-            return [];
+            setError("Lỗi tải sự kiện của tôi");
         } finally {
-            setLoadingState('myEvents', false);
+            setLoading(false);
         }
     }, []);
 
-    // Giữ nguyên các hàm fetch cũ của bạn...
-    const fetchMyPlans = useCallback(async () => {
-        setLoadingState('myPlans', true);
+    // 5. Lấy toàn bộ sự kiện (Dành cho Admin)
+    const fetchAdminAll = useCallback(async () => {
+        setLoading(true);
         try {
-            const res = await eventService.getMyPlans();
-            setMyPlans(res.data || []);
-            return res.data;
+            const res = await eventService.getAdminAllEvents();
+            setAdminAll(res.data || []);
         } catch (err) {
-            handleError(err, 'fetchMyPlans');
-            return [];
+            setError("Lỗi tải danh sách quản trị");
         } finally {
-            setLoadingState('myPlans', false);
+            setLoading(false);
         }
     }, []);
 
-    const fetchPendingPlans = useCallback(async () => {
-        setLoadingState('pendingPlans', true);
+    // Lấy tất cả bài đăng
+    const fetchAllPosts = useCallback(async (params = {}) => {
+        setLoading(true);
+        setError(null);
         try {
-            const res = await eventService.getPlansPendingApproval();
-            setPendingPlans(res.data || []);
-            return res.data;
+            const response = await eventService.getAllPosts(params);
+            setPosts(response.data.content || response.data); // hỗ trợ cả Page và List
+            return response.data;
         } catch (err) {
-            handleError(err, 'fetchPendingPlans');
-            return [];
+            setError(err.response?.data?.message || "Không thể tải bài đăng");
+            console.error(err);
+            throw err;
         } finally {
-            setLoadingState('pendingPlans', false);
+            setLoading(false);
         }
     }, []);
 
-    const fetchEventDetail = useCallback(async (eventId) => {
-        setLoadingState('eventDetail', true);
+    // Lấy chi tiết 1 bài đăng
+    const fetchPostById = useCallback(async (id) => {
+        setLoading(true);
         try {
-            const res = await eventService.getEventById(eventId);
-            setEventDetail(res.data);
-            return res.data;
+            const response = await eventService.getPostById(id);
+            return response.data;
         } catch (err) {
-            handleError(err, 'fetchEventDetail');
-            return null;
+            setError("Không thể tải chi tiết bài đăng");
+            throw err;
         } finally {
-            setLoadingState('eventDetail', false);
+            setLoading(false);
         }
     }, []);
 
-    const fetchMyData = useCallback(async () => {
-        if (!user?.id && !user?.accountId) return;
-        setLoadingState('myEvents', true);
-        try {
-            const res = await eventService.getMyEvents();
-            const data = res.data || [];
-            setMyEvents(data);
-            const todayStr = new Date().toDateString();
-            const todays = data.filter((ev) => {
-                if (!ev.startTime) return false;
-                return new Date(ev.startTime).toDateString() === todayStr;
-            });
-            setTodayEvents(todays);
-            return data;
-        } catch (err) {
-            handleError(err, 'fetchMyData');
-            setMyEvents([]);
-            return [];
-        } finally {
-            setLoadingState('myEvents', false);
-        }
-    }, [user?.id, user?.accountId]);
-
-    // ==================== ACTION FUNCTIONS ====================
-    
-    // THÊM CÁC HÀM THAO TÁC BÀI VIẾT (POSTS)
+    // Tạo bài đăng mới
     const createPost = useCallback(async (postData) => {
-        setLoadingState('action', true);
+        setLoading(true);
         try {
-            const res = await eventService.createPost(postData);
-            return res.data;
+            const response = await eventService.createPost(postData);
+            // Refresh danh sách sau khi tạo
+            await fetchAllPosts();
+            return response.data;
         } catch (err) {
-            handleError(err, 'createPost');
+            setError("Không thể tạo bài đăng");
             throw err;
         } finally {
-            setLoadingState('action', false);
+            setLoading(false);
         }
-    }, []);
+    }, [fetchAllPosts]);
 
-    const updatePost = useCallback(async (id, postData) => {
-        setLoadingState('action', true);
+    // Cập nhật bài đăng
+    const updatePost = useCallback(async (id, postDetails) => {
+        setLoading(true);
         try {
-            const res = await eventService.updatePost(id, postData);
-            return res.data;
+            const response = await eventService.updatePost(id, postDetails);
+            await fetchAllPosts(); // Refresh
+            return response.data;
         } catch (err) {
-            handleError(err, 'updatePost');
+            setError("Không thể cập nhật bài đăng");
             throw err;
         } finally {
-            setLoadingState('action', false);
+            setLoading(false);
         }
-    }, []);
+    }, [fetchAllPosts]);
 
+    // Xóa bài đăng
     const deletePost = useCallback(async (id) => {
-        setLoadingState('action', true);
+        setLoading(true);
         try {
             await eventService.deletePost(id);
-            return true;
+            await fetchAllPosts(); // Refresh
         } catch (err) {
-            handleError(err, 'deletePost');
+            setError("Không thể xóa bài đăng");
             throw err;
         } finally {
-            setLoadingState('action', false);
+            setLoading(false);
         }
-    }, []);
+    }, [fetchAllPosts]);
 
-    // Giữ nguyên các action cũ (createPlan, approvePlan, rejectPlan, registerToEvent, inviteParticipants...)
-    const approvePlan = useCallback(async (planId) => {
-        setLoadingState('action', true);
-        try {
-            const res = await eventService.approvePlan(planId);
-            return res.data;
-        } catch (err) {
-            handleError(err, 'approvePlan');
-            throw err;
-        } finally {
-            setLoadingState('action', false);
-        }
-    }, []);
-
-    const rejectPlan = useCallback(async (planId, reason = '') => {
-        setLoadingState('action', true);
-        try {
-            const res = await eventService.rejectPlan(planId, reason);
-            return res.data;
-        } catch (err) {
-            handleError(err, 'rejectPlan');
-            throw err;
-        } finally {
-            setLoadingState('action', false);
-        }
-    }, []);
-
-    // Lấy tất cả mẫu kế hoạch
-
-    // ==================== UTILS ====================
-    const clearError = useCallback(() => setError(null), []);
-    const resetEventDetail = useCallback(() => setEventDetail(null), []);
-
-    // ==================== CONTEXT VALUE ====================
     const value = {
-        // Data
+        userAll,
+        ongoing,
+        upcoming,
+        featured,
         myEvents,
-        myPlans,
-        pendingPlans,
-        eventDetail,
-        presenters,
-        participants,
-        organizers,
-        registrations,
-        todayEvents,
-        posts, // Xuất danh sách bài viết
-        postDetail,
-
-        // Loading & Error
+        adminAll,
+        posts,
         loading,
         error,
-        clearError,
-
-        // Fetch methods
+        fetchAllEvents,
+        fetchOngoing,
+        fetchUpcoming,
+        fetchFeatured,
         fetchMyEvents,
-        fetchMyPlans,
-        fetchPendingPlans,
-        fetchEventDetail,
-        fetchMyData,
-        fetchAllPosts, // Xuất hàm lấy bài viết
-
-        // Action methods
-        approvePlan,
-        rejectPlan,
-        createPost, // Xuất hàm tạo bài viết
-        updatePost, // Xuất hàm sửa bài viết
-        deletePost, // Xuất hàm xóa bài viết
-
-        // Utils
-        resetEventDetail,
-
-        // Full service access
-        events: eventService,
+        fetchAdminAll,
+        fetchAllPosts,
+        fetchPostById,
+        createPost,
+        updatePost,
+        deletePost,
     };
 
     return (

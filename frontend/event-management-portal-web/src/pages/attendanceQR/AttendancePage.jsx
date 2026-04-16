@@ -8,7 +8,7 @@ import { useLocation } from "react-router-dom";
 import jsQR from "jsqr";
 
 // 1. IMPORT CONTEXT
-import { useEvent } from "../../context/EventContext";
+import { useEvents } from "../../context/EventContext";
 import Header from "../../components/common/Header";
 import Footer from "../../components/common/Footer";
 
@@ -16,8 +16,8 @@ const AttendancePage = () => {
   const location = useLocation();
   const isLecturerView = location.pathname.includes("/lecturer");
 
-  // 2. LẤY SERVICE TỪ USEEVENT
-  const { events } = useEvent();
+  // 2. LẤY SERVICE TỪ useEvents
+  const { events } = useEvents();
 
   const [scanning, setScanning] = useState(false);
   const [scannedStatus, setScannedStatus] = useState(null);

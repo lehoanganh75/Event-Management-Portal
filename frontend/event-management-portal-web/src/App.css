@@ -1,3 +1,9 @@
+@import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700;900&display=swap');
+
+.font-roboto {
+  font-family: 'Roboto', system-ui, sans-serif;
+}
+
 #root {
   margin: 0 auto;
 }
@@ -340,4 +346,12 @@
 .filter-tag:hover {
   transform: scale(1.05);
   box-shadow: 0 2px 8px rgba(147, 51, 234, 0.2);
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
 }

@@ -20,7 +20,7 @@ import { motion, AnimatePresence } from "framer-motion";
 
 // 1. IMPORT CONTEXT THAY VÌ API TRỰC TIẾP
 import { useAuth } from "../../context/AuthContext";
-import { useEvent } from "../../context/EventContext";
+import { useEvents } from "../../context/EventContext";
 import { useNotification } from "../../context/NotificationContext";
 
 const STATUS_LABELS = {
@@ -62,7 +62,7 @@ const PlansPage = () => {
     approvePlan, 
     rejectPlan, 
     loading: eventLoading 
-  } = useEvent();
+  } = useEvents();
   const { service: notificationService } = useNotification();
 
   const [plans, setPlans] = useState([]);
