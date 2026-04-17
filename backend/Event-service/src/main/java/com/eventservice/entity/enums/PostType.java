@@ -1,0 +1,8 @@
+package com.eventservice.entity.enums;
+
+public enum PostType {
+    ANNOUNCEMENT,
+    UPDATE,
+    REMINDER,
+    NEWS
+}

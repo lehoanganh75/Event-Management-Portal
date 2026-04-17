@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useParams } from "react-router-dom"; 
 import { Clock, Check, MoreVertical, Loader2 } from "lucide-react";
-import notificationApi from "../../api/notificationApi";
 
 const NotificationPage = () => {
   const { userId: urlUserId } = useParams();

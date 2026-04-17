@@ -111,7 +111,7 @@ const DepartmentsRolesPage = () => {
   };
 
   return (
-    <div className="space-y-6 bg-slate-50/50 min-h-screen">
+    <div className="space-y-6 bg-slate-50/50 min-h-screen p-6">
       <AnimatePresence>
         {toast.show && (
           <motion.div initial={{ opacity: 0, x: 100 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 100 }}

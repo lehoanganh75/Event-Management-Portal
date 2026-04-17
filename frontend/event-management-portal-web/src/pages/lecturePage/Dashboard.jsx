@@ -35,7 +35,6 @@ import {
   LineChart,
   Line,
 } from "recharts";
-import { getAllEvents, getTotalParticipants } from "../../api/eventApi";
 import { useNavigate } from "react-router-dom";
 
 const Dashboard = () => {

@@ -23,7 +23,7 @@ import {
   Send,
   X
 } from "lucide-react";
-import notificationApi from "../../api/notificationApi";
+import { notificationApi } from "../../api/notificationApi"; // Chú ý: dùng { notificationApi } nếu export const
 import { motion, AnimatePresence } from "framer-motion";
 
 const AdminNotifications = () => {
@@ -67,37 +67,26 @@ const AdminNotifications = () => {
   }, [searchTerm, filterType, filterStatus]);
 
   const fetchNotifications = async (isRefresh = false) => {
-    if (isRefresh) {
-      setIsRefreshing(true);
-    } else {
-      setIsLoading(true);
-    }
-
+    isRefresh ? setIsRefreshing(true) : setIsLoading(true);
     try {
-
+      // axiosClient tự đính kèm Token Admin
       const response = await notificationApi.getAllNotifications();
       setNotifications(response.data || []);
     } catch (error) {
-      console.error("Error fetching notifications:", error);
+      console.error("Lỗi fetch:", error);
       setNotifications([]);
     } finally {
-      if (isRefresh) {
-        setIsRefreshing(false);
-      } else {
-        setIsLoading(false);
-      }
+      isRefresh ? setIsRefreshing(false) : setIsLoading(false);
     }
   };
 
   const handleMarkAsRead = async (id) => {
     try {
       await notificationApi.markAsRead(id);
-      setNotifications(
-        notifications.map((n) => (n.id === id ? { ...n, read: true } : n))
+      setNotifications(prev => 
+        prev.map((n) => (n.id === id ? { ...n, read: true } : n))
       );
-    } catch (error) {
-      console.error("Error marking as read:", error);
-    }
+    } catch (error) { console.error(error); }
   };
 
   const handleMarkAllAsRead = async () => {
@@ -144,49 +133,28 @@ const AdminNotifications = () => {
 
   const handleSendNotification = async (e) => {
     e.preventDefault();
-    
-    if (!formData.title.trim() || !formData.message.trim()) {
-      alert("Vui lòng nhập đầy đủ tiêu đề và nội dung");
-      return;
-    }
+    if (!formData.title.trim() || !formData.message.trim()) return;
 
     setIsSending(true);
     try {
-      let targetUserIds = [];
-      
-      if (formData.targetUsers === "specific" && formData.userIds) {
-        targetUserIds = formData.userIds.split(",").map(id => id.trim());
-      }
-
       const payload = {
         title: formData.title,
         message: formData.message,
         type: formData.type,
         actionUrl: formData.actionUrl || null,
-        targetUsers: formData.targetUsers === "all" ? "all" : targetUserIds
+        // Chuyển đổi targetUsers sang format backend cần (ví dụ "ALL" hoặc danh sách ID)
+        recipientIds: formData.targetUsers === "all" ? null : formData.userIds.split(",").map(id => id.trim())
       };
 
       await notificationApi.sendNotification(payload);
       
-      // Reset form
-      setFormData({
-        title: "",
-        message: "",
-        type: "SYSTEM",
-        targetUsers: "all",
-        userIds: "",
-        actionUrl: ""
-      });
-      
       setIsSendModalOpen(false);
+      setFormData({ title: "", message: "", type: "SYSTEM", targetUsers: "all", userIds: "", actionUrl: "" });
       fetchNotifications(true);
-      alert("Gửi thông báo thành công!");
+      alert("Gửi thành công!");
     } catch (error) {
-      console.error("Error sending notification:", error);
-      alert("Có lỗi xảy ra khi gửi thông báo");
-    } finally {
-      setIsSending(false);
-    }
+      alert("Lỗi khi gửi thông báo");
+    } finally { setIsSending(false); }
   };
 
   const formatTime = (dateString) => {

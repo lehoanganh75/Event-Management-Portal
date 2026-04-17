@@ -1,55 +1,63 @@
-import React, { useRef, useState, useEffect } from 'react';
+import { luckyDrawService } from "@/services/luckydraw";
+import { DrawResultResponse, LuckyDraw, Prize } from "@/types/event";
+import { Ionicons } from "@expo/vector-icons";
+import { Audio } from "expo-av";
+import { useLocalSearchParams, useRouter } from "expo-router";
+import { StatusBar } from "expo-status-bar";
+import React, { useEffect, useRef, useState } from "react";
 import {
-  View,
+  ActivityIndicator,
+  Animated,
+  Dimensions,
+  Easing,
+  StyleSheet,
   Text,
   TouchableOpacity,
-  Dimensions,
-  Animated,
-  Easing,
-  Modal,
-  ActivityIndicator,
-  StyleSheet,
-} from 'react-native';
-import Svg, { Path, G, Text as SvgText, Circle } from 'react-native-svg';
-import { Ionicons } from '@expo/vector-icons';
-import axios from 'axios';
-import { Audio } from 'expo-av';
+  View,
+} from "react-native";
+import ConfettiCannon from "react-native-confetti-cannon";
+import Svg, { G, Path, Text as SvgText } from "react-native-svg";
 
-const { width } = Dimensions.get('window');
+const { width } = Dimensions.get("window");
 const WHEEL_SIZE = width * 0.85;
 const RADIUS = WHEEL_SIZE / 2;
 
 const defaultColors = [
-  "#FF6B6B", "#4ECDC4", "#FFE66D", "#A8E6CF", "#FF8B94", "#C7CEEA",
-  "#95E1D3", "#F38181", "#B8E994", "#F8C291"
+  "#FF6B6B",
+  "#4ECDC4",
+  "#FFE66D",
+  "#A8E6CF",
+  "#FF8B94",
+  "#C7CEEA",
+  "#95E1D3",
+  "#F38181",
+  "#B8E994",
+  "#F8C291",
 ];
 
-interface Prize {
-  id: string;
-  name: string;
-}
+export default function LuckyDrawScreen() {
+  const { id } = useLocalSearchParams<{ id: string }>(); // Đây là luckyDrawId
+  const router = useRouter();
 
-interface Props {
-  visible: boolean;
-  onClose: () => void;
-  luckDrawId: string;
-}
-
-const LuckyWheelModal: React.FC<Props> = ({ visible, onClose, luckDrawId }) => {
-  const [luckyDrawData, setLuckyDrawData] = useState<any>(null);
+  const [luckyDrawData, setLuckyDrawData] = useState<LuckyDraw | null>(null);
   const [spinning, setSpinning] = useState(false);
-  const [result, setResult] = useState<string | null>(null);
+  const [winner, setWinner] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [toast, setToast] = useState({ show: false, message: "", type: "success" });
 
   const spinAnim = useRef(new Animated.Value(0)).current;
   const soundRef = useRef<Audio.Sound | null>(null);
 
-  // Load âm thanh tick
+  // 1. Load âm thanh
   useEffect(() => {
     async function loadSound() {
-      const { sound } = await Audio.Sound.createAsync(require('../assets/sounds/tick.mp3'));
-      soundRef.current = sound;
+      try {
+        const { sound } = await Audio.Sound.createAsync(
+          require("@/assets/sounds/tick.mp3"), // Đảm bảo bạn có file này
+        );
+        soundRef.current = sound;
+      } catch (e) {
+        console.log("Không tìm thấy file âm thanh tick.mp3");
+      }
     }
     loadSound();
     return () => {
@@ -57,23 +65,46 @@ const LuckyWheelModal: React.FC<Props> = ({ visible, onClose, luckDrawId }) => {
     };
   }, []);
 
-  const showNotification = (message: string, type: "success" | "error" = "error") => {
-    setToast({ show: true, message, type });
-    setTimeout(() => setToast({ ...toast, show: false }), 4000);
-  };
-
+  // 2. Fetch dữ liệu vòng quay từ Backend
   useEffect(() => {
-    const fetchLuckyDraw = async () => {
-      try {
+    if (id) {
+      luckyDrawService
+        .getByEventId(id)
+        .then((data) => setLuckyDrawData(data))
+        .catch((err) => console.error("Lỗi fetch vòng quay:", err))
+        .finally(() => setIsLoading(false));
+    }
+  }, [id]);
 
-      } catch (error) {
-        console.error("Lỗi lấy dữ liệu vòng quay:", error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-    if (visible && luckDrawId) fetchLuckyDraw();
-  }, [visible, luckDrawId]);
+  const startDraw = async () => {
+    if (spinning || !id) return;
+
+    setSpinning(true);
+    setWinner(null);
+    spinAnim.setValue(0);
+
+    try {
+      // Gọi API bốc thăm thực tế
+      const result: DrawResultResponse = await luckyDrawService.spin(id);
+
+      // Tính toán góc quay (quay ít nhất 5 vòng + góc đến giải thưởng)
+      // Trong ví dụ này ta quay ngẫu nhiên vì Backend đã chọn winner,
+      // nhưng để chuyên nghiệp ta giả lập vòng quay dừng ở vị trí đẹp.
+      Animated.timing(spinAnim, {
+        toValue: 360 * 5 + Math.random() * 360,
+        duration: 4000,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: true,
+      }).start(() => {
+        setWinner(result.message);
+        setSpinning(false);
+      });
+    } catch (error: any) {
+      setSpinning(false);
+      const msg = error.response?.data?.message || "Lỗi khi quay thưởng";
+      alert(msg);
+    }
+  };
 
   const renderWheel = () => {
     if (!luckyDrawData?.prizes?.length) return null;
@@ -81,7 +112,11 @@ const LuckyWheelModal: React.FC<Props> = ({ visible, onClose, luckDrawId }) => {
     const angleBySegment = 360 / prizes.length;
 
     return (
-      <Svg width={WHEEL_SIZE} height={WHEEL_SIZE} viewBox={`0 0 ${WHEEL_SIZE} ${WHEEL_SIZE}`}>
+      <Svg
+        width={WHEEL_SIZE}
+        height={WHEEL_SIZE}
+        viewBox={`0 0 ${WHEEL_SIZE} ${WHEEL_SIZE}`}
+      >
         <G rotation={-90} origin={`${RADIUS}, ${RADIUS}`}>
           {prizes.map((prize: Prize, index: number) => {
             const startAngle = index * angleBySegment;
@@ -95,20 +130,30 @@ const LuckyWheelModal: React.FC<Props> = ({ visible, onClose, luckDrawId }) => {
 
             return (
               <G key={index}>
-                <Path d={pathData} fill={defaultColors[index % defaultColors.length]} stroke="#fff" strokeWidth="2" />
-                <G rotation={startAngle + angleBySegment / 2} origin={`${RADIUS}, ${RADIUS}`}>
+                <Path
+                  d={pathData}
+                  fill={defaultColors[index % defaultColors.length]}
+                  stroke="#fff"
+                  strokeWidth="2"
+                />
+                <G
+                  rotation={startAngle + angleBySegment / 2}
+                  origin={`${RADIUS}, ${RADIUS}`}
+                >
                   <SvgText
-                    x={RADIUS + RADIUS * 0.7}
+                    x={RADIUS + RADIUS * 0.65}
                     y={RADIUS}
                     fill="#fff"
-                    fontSize="12"
+                    fontSize="10"
                     fontWeight="bold"
                     textAnchor="middle"
                     alignmentBaseline="middle"
                     rotation={90}
-                    origin={`${RADIUS + RADIUS * 0.7}, ${RADIUS}`}
+                    origin={`${RADIUS + RADIUS * 0.65}, ${RADIUS}`}
                   >
-                    {prize.name.length > 12 ? prize.name.substring(0, 10) + "..." : prize.name}
+                    {prize.name.length > 15
+                      ? prize.name.substring(0, 12) + "..."
+                      : prize.name}
                   </SvgText>
                 </G>
               </G>
@@ -119,125 +164,159 @@ const LuckyWheelModal: React.FC<Props> = ({ visible, onClose, luckDrawId }) => {
     );
   };
 
-  const spin = async () => {
-    if (spinning || !luckyDrawData?.prizes) return;
-
-    try {
-      const res = await axios.post(`http://localhost:8083/api/lucky-draws/${luckDrawId}/spin`);
-      const winData = res.data;
-      const prizes = luckyDrawData.prizes;
-      const winningIndex = prizes.findIndex((p: any) => p.id === winData.prize?.id);
-
-      const segmentAngle = 360 / prizes.length;
-      const randomOffset = segmentAngle * 0.3 + Math.random() * (segmentAngle * 0.4);
-      
-      // Tính toán góc xoay: 10 vòng + góc tới phần thưởng (xoay ngược chiều kim đồng hồ)
-      const targetRotation = 360 * 10 + (360 - (winningIndex * segmentAngle + segmentAngle / 2));
-
-      setSpinning(true);
-      setResult(null);
-      spinAnim.setValue(0);
-
-      Animated.timing(spinAnim, {
-        toValue: targetRotation,
-        duration: 5000,
-        easing: Easing.out(Easing.quad),
-        useNativeDriver: true,
-      }).start(() => {
-        setSpinning(false);
-        setResult(winData.message);
-        soundRef.current?.stopAsync();
-      });
-
-      // Phát âm thanh khi quay (giả lập)
-      soundRef.current?.replayAsync();
-
-    } catch (error: any) {
-      const errorMsg = error.response?.data?.message || "Hệ thống bận, thử lại sau!";
-      showNotification(errorMsg, "error");
-    }
-  };
-
-  const rotateInterpolate = spinAnim.interpolate({
-    inputRange: [0, 360],
-    outputRange: ['0deg', '360deg'],
-  });
+  if (isLoading) {
+    return (
+      <View style={styles.center}>
+        <ActivityIndicator size="large" color="#1a3a6b" />
+      </View>
+    );
+  }
 
   return (
-    <Modal visible={visible} transparent animationType="fade">
-      <View className="flex-1 justify-center items-center bg-black/70 px-4">
-        
-        {/* TOAST NOTIFICATION */}
-        {toast.show && (
-          <View className={`absolute top-12 z-50 flex-row items-center px-6 py-3 rounded-2xl ${toast.type === 'success' ? 'bg-emerald-500' : 'bg-rose-500'}`}>
-            <Ionicons name={toast.type === 'success' ? "checkmark-circle" : "alert-circle"} size={20} color="white" />
-            <Text className="text-white font-bold ml-2">{toast.message}</Text>
-          </View>
-        )}
+    <View style={styles.container}>
+      <StatusBar style="dark" />
+      <View style={styles.header}>
+        <TouchableOpacity onPress={() => router.back()}>
+          <Ionicons name="arrow-back" size={26} color="#1e293b" />
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>{luckyDrawData?.title}</Text>
+        <View style={{ width: 26 }} />
+      </View>
 
-        <View className="relative w-full bg-[#2D1B69] rounded-[40px] p-6 items-center border border-white/10 overflow-hidden">
-          <TouchableOpacity onPress={onClose} className="absolute top-4 right-4 z-50 w-10 h-10 bg-white/10 rounded-full items-center justify-center">
-            <Ionicons name="close" size={24} color="white" />
-          </TouchableOpacity>
+      <View style={styles.content}>
+        <View style={styles.wheelWrapper}>
+          <View style={styles.pointer} />
+          <Animated.View
+            style={{
+              transform: [
+                {
+                  rotate: spinAnim.interpolate({
+                    inputRange: [0, 360],
+                    outputRange: ["0deg", "360deg"],
+                  }),
+                },
+              ],
+            }}
+          >
+            <View style={styles.wheelBorder}>{renderWheel()}</View>
+          </Animated.View>
+        </View>
 
-          <View className="mb-6 items-center">
-            <View className="bg-yellow-400 px-4 py-1 rounded-full mb-3">
-              <Text className="text-[#2D1B69] text-[10px] font-black uppercase tracking-widest">{luckyDrawData?.title || "MINIGAME"}</Text>
-            </View>
-            <Text className="text-white text-3xl font-black text-center">Vòng Quay{"\n"}<Text className="text-yellow-400">May Mắn</Text></Text>
-          </View>
-
-          {isLoading ? (
-            <ActivityIndicator size="large" color="#facc15" />
-          ) : (
-            <View className="items-center justify-center relative">
-              {/* Kim chỉ phần thưởng */}
-              <View className="absolute top-[-15] z-30 shadow-xl">
-                <View style={styles.pointer} />
+        <View style={styles.resultArea}>
+          {winner ? (
+            <>
+              <Text style={styles.congratText}>🎉 KẾT QUẢ:</Text>
+              <View style={styles.winnerCard}>
+                <Text style={styles.winnerName}>{winner}</Text>
               </View>
-
-              <Animated.View style={{ transform: [{ rotate: rotateInterpolate }] }}>
-                <View className="border-[8px] border-yellow-400 rounded-full shadow-2xl">
-                  {renderWheel()}
-                </View>
-              </Animated.View>
-
-              <TouchableOpacity
-                onPress={spin}
-                disabled={spinning}
-                activeOpacity={0.8}
-                className="absolute w-20 h-20 bg-yellow-400 rounded-full items-center justify-center border-4 border-[#1e1247] shadow-inner"
-              >
-                <Text className="text-[#2D1B69] font-black text-sm">{spinning ? "..." : "QUAY"}</Text>
-              </TouchableOpacity>
-            </View>
-          )}
-
-          {result && (
-            <View className="mt-8 bg-yellow-400/20 border border-yellow-400/40 rounded-2xl p-4 w-full">
-              <Text className="text-yellow-300 font-bold mb-1 text-center italic">🎉 Kết quả:</Text>
-              <Text className="text-xl font-black text-yellow-400 uppercase text-center">{result}</Text>
-            </View>
+              <ConfettiCannon count={150} origin={{ x: width / 2, y: 0 }} />
+            </>
+          ) : (
+            <Text style={styles.hintText}>
+              {spinning ? "Đang quay thưởng..." : "Nhấn nút để bắt đầu"}
+            </Text>
           )}
         </View>
+
+        <TouchableOpacity
+          style={[styles.spinBtn, spinning && { backgroundColor: "#cbd5e1" }]}
+          onPress={startDraw}
+          disabled={spinning}
+        >
+          <Text style={styles.spinBtnText}>
+            {spinning ? "..." : "QUAY NGAY"}
+          </Text>
+        </TouchableOpacity>
       </View>
-    </Modal>
+    </View>
   );
-};
+}
 
 const styles = StyleSheet.create({
-    pointer: {
-        width: 0,
-        height: 0,
-        backgroundColor: 'transparent',
-        borderStyle: 'solid',
-        borderLeftWidth: 15,
-        borderRightWidth: 15,
-        borderTopWidth: 30,
-        borderLeftColor: 'transparent',
-        borderRightColor: 'transparent',
-        borderTopColor: '#facc15',
-    },
+  container: { flex: 1, backgroundColor: "#fff" },
+  center: { flex: 1, justifyContent: "center", alignItems: "center" },
+  header: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 16,
+    paddingTop: 55,
+    paddingBottom: 15,
+    borderBottomWidth: 1,
+    borderBottomColor: "#f1f5f9",
+  },
+  headerTitle: {
+    fontSize: 16,
+    fontWeight: "800",
+    color: "#1e293b",
+    flex: 1,
+    textAlign: "center",
+  },
+  content: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "space-around",
+    padding: 20,
+  },
+  wheelWrapper: {
+    alignItems: "center",
+    justifyContent: "center",
+    position: "relative",
+  },
+  pointer: {
+    position: "absolute",
+    top: -20,
+    zIndex: 10,
+    width: 0,
+    height: 0,
+    borderLeftWidth: 15,
+    borderRightWidth: 15,
+    borderTopWidth: 30,
+    borderLeftColor: "transparent",
+    borderRightColor: "transparent",
+    borderTopColor: "#ef4444",
+  },
+  wheelBorder: {
+    borderWidth: 8,
+    borderColor: "#1e293b",
+    borderRadius: WHEEL_SIZE / 2 + 8,
+    elevation: 10,
+    backgroundColor: "#fff",
+  },
+  resultArea: {
+    height: 120,
+    alignItems: "center",
+    justifyContent: "center",
+    width: "100%",
+  },
+  congratText: {
+    color: "#f59e0b",
+    fontWeight: "900",
+    fontSize: 14,
+    marginBottom: 8,
+  },
+  winnerCard: {
+    backgroundColor: "#1a3a6b",
+    padding: 15,
+    borderRadius: 15,
+    width: "100%",
+    alignItems: "center",
+  },
+  winnerName: {
+    color: "#fff",
+    fontSize: 18,
+    fontWeight: "900",
+    textAlign: "center",
+  },
+  hintText: { color: "#94a3b8", fontSize: 15, fontWeight: "600" },
+  spinBtn: {
+    backgroundColor: "#1a3a6b",
+    width: "100%",
+    height: 60,
+    borderRadius: 20,
+    alignItems: "center",
+    justifyContent: "center",
+    elevation: 5,
+  },
+  spinBtnText: { color: "#fff", fontSize: 18, fontWeight: "900" },
 });
-
-export default LuckyWheelModal;

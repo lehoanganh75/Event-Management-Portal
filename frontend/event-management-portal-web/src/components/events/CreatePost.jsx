@@ -1,8 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { ArrowLeft, Save, Send, Upload, X, AlertCircle } from "lucide-react";
-import postApi from "../../api/eventPostApi";
-import { getMyEvents } from "../../api/eventApi";
 
 const CreatePost = () => {
   const navigate = useNavigate();

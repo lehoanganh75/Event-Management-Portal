@@ -1,20 +1,19 @@
-import React, { useState } from 'react';
+import { useAuth } from "@/contexts/AuthContext"; // Import useAuth
+import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
+import { Image } from "expo-image";
+import { useRouter } from "expo-router"; // Dùng useRouter của expo-router
+import React, { useState } from "react";
 import {
-  View,
+  Modal,
+  Platform,
+  StyleSheet,
   Text,
   TouchableOpacity,
-  Modal,
-  Dimensions,
-  Platform,
-} from 'react-native';
-import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
-import { useNavigation } from '@react-navigation/native';
-import { Image } from 'expo-image';
-
-const { width } = Dimensions.get('window');
+  View,
+} from "react-native";
 
 const roleMap: any = {
-  SUPER_ADMIN: "Quản Trị Viên Cao Cấp",
+  SUPER_ADMIN: "Quản Trị Viên",
   ADMIN: "Quản Trị Viên",
   ORGANIZER: "Ban Tổ Chức",
   MEMBER: "Thành Viên",
@@ -23,239 +22,361 @@ const roleMap: any = {
 };
 
 interface HeaderProps {
-  currentUser?: any;
   unreadCount?: number;
-  onLogout?: () => void;
-  onNavigate?: (screen: string) => void;
 }
 
-const Header: React.FC<HeaderProps> = ({
-  currentUser,
-  unreadCount = 0,
-  onLogout,
-  onNavigate,
-}) => {
-  const navigation = useNavigation<any>();
-
+const Header: React.FC<HeaderProps> = ({ unreadCount = 0 }) => {
+  const { user, logout } = useAuth(); // Lấy user và logout từ Context
+  const router = useRouter();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
-  const [logoutToastVisible, setLogoutToastVisible] = useState(false);
 
-  const logo_iuh = require('../assets/images/logo_iuh.png');
+  const logo_iuh = require("../assets/images/logo_iuh.png");
 
   const getPrimaryRole = () => {
-    const role = currentUser?.roles?.[0];
-    return roleMap[role] || "Thành viên";
+    return roleMap[user?.role || "GUEST"] || "Khách hàng";
   };
 
-  const handleLogout = () => {
-    setIsLogoutModalOpen(false);
+  const handleLogout = async () => {
     setIsMenuOpen(false);
-    setLogoutToastVisible(true);
-
-    setTimeout(() => {
-      setLogoutToastVisible(false);
-      if (onLogout) onLogout();
-      else navigation.reset({ index: 0, routes: [{ name: 'Login' }] });
-    }, 1500);
+    await logout(); // Gọi hàm logout của Context (đã bao gồm redirect về login)
   };
 
   return (
     <>
-      {/* 1. Top Mini Bar (Thông tin hệ thống) */}
-      <View className="bg-[#1a479a] pt-12 pb-2 px-4">
-        <View className="flex-row justify-between items-center">
-          <View className="flex-row items-center">
-            <View className="w-1.5 h-1.5 bg-green-400 rounded-full mr-2" />
-            <Text className="text-white text-[10px] font-medium opacity-90">
-              Hệ thống Quản lý Sự kiện IUH
-            </Text>
+      {/* 1. Top Mini Bar - Thông tin hệ thống */}
+      <View style={styles.topMiniBar}>
+        <View style={styles.rowBetween}>
+          <View style={styles.rowItems}>
+            <View style={styles.onlineDot} />
+            <Text style={styles.systemText}>IUH Event Portal</Text>
           </View>
-
-          <View className="flex-row items-center">
-            <TouchableOpacity className="flex-row items-center mr-4">
+          <View style={styles.rowItems}>
+            <TouchableOpacity style={styles.miniLink}>
               <Ionicons name="help-circle-outline" size={14} color="#fff" />
-              <Text className="text-white text-[9px] ml-1">Hỗ trợ</Text>
             </TouchableOpacity>
-            <View className="flex-row items-center">
+            <View style={styles.rowItems}>
               <Ionicons name="globe-outline" size={14} color="#fff" />
-              <Text className="text-white text-[9px] ml-1">VN</Text>
+              <Text style={styles.miniLinkText}>VN</Text>
             </View>
           </View>
         </View>
       </View>
 
-      {/* 2. Main Header Bar (Logo & User) */}
-      <View className="bg-white border-b border-slate-100 px-4 py-2.5 flex-row items-center justify-between shadow-sm">
-        
-        {/* Logo Area - Đã fix kích thước không bị tràn */}
-        <TouchableOpacity 
-          onPress={() => navigation.navigate('Home')} 
+      {/* 2. Main Header Bar */}
+      <View style={styles.mainHeader}>
+        {/* Logo Area */}
+        <TouchableOpacity
+          onPress={() => router.push("/(tabs)/home")}
           activeOpacity={0.7}
-          className="flex-1 justify-center"
+          style={styles.logoContainer}
         >
-          <Image
-            source={logo_iuh}
-            className="h-10 w-32" // Kích thước chuẩn cho mobile
-            contentFit="contain"
-          />
+          <Image source={logo_iuh} style={styles.logo} contentFit="contain" />
         </TouchableOpacity>
 
         {/* Right Side Controls */}
-        <View className="flex-row items-center">
-          {currentUser && (
-            <TouchableOpacity
-              onPress={() => {/* Mở thông báo */}}
-              className="p-2 mr-1"
-            >
-              <View className="relative">
-                <Ionicons name="notifications-outline" size={22} color="#334155" />
-                {unreadCount > 0 && (
-                  <View className="absolute -top-1 -right-1 bg-red-500 min-w-[16px] h-[16px] rounded-full items-center justify-center px-1 border border-white">
-                    <Text className="text-white text-[8px] font-bold">
-                      {unreadCount > 99 ? '99' : unreadCount}
-                    </Text>
-                  </View>
-                )}
-              </View>
-            </TouchableOpacity>
-          )}
+        <View style={styles.rightControls}>
+          {/* Notifications */}
+          <TouchableOpacity
+            onPress={() =>
+              user
+                ? router.push("/notifications" as any)
+                : router.push("/login")
+            }
+            style={styles.iconButton}
+          >
+            <View>
+              <Ionicons
+                name="notifications-outline"
+                size={24}
+                color="#334155"
+              />
+              {user && unreadCount > 0 && (
+                <View style={styles.notifBadge}>
+                  <Text style={styles.badgeText}>
+                    {unreadCount > 99 ? "99" : unreadCount}
+                  </Text>
+                </View>
+              )}
+            </View>
+          </TouchableOpacity>
 
-          {/* User Profile / Login Button */}
-          {currentUser ? (
+          {/* User Avatar / Login Button */}
+          {user ? (
             <TouchableOpacity
               onPress={() => setIsMenuOpen(true)}
-              className="flex-row items-center bg-slate-50 py-1 pl-1 pr-2 rounded-full border border-slate-100"
+              style={styles.profileArea}
             >
-              <View className="relative">
-                {currentUser.avatarUrl ? (
+              <View style={styles.avatarWrapper}>
+                {user.avatarUrl ? (
                   <Image
-                    source={{ uri: currentUser.avatarUrl }}
-                    className="w-8 h-8 rounded-full"
+                    source={{ uri: user.avatarUrl }}
+                    style={styles.avatar}
                   />
                 ) : (
-                  <View className="w-8 h-8 bg-[#1a479a] rounded-full items-center justify-center">
-                    <Text className="text-white font-bold text-xs">
-                      {currentUser.username?.charAt(0).toUpperCase()}
+                  <View style={styles.avatarPlaceholder}>
+                    <Text style={styles.avatarInitial}>
+                      {user.fullName?.charAt(0).toUpperCase()}
                     </Text>
                   </View>
                 )}
-                <View className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-green-500 border-2 border-white rounded-full" />
+                <View style={styles.activeIndicator} />
               </View>
-              <Ionicons name="chevron-down" size={14} color="#64748b" className="ml-1" />
             </TouchableOpacity>
           ) : (
             <TouchableOpacity
-              onPress={() => navigation.navigate('Login')}
-              className="bg-[#1a479a] px-4 py-2 rounded-lg flex-row items-center"
+              onPress={() => router.push("/login")}
+              style={styles.loginBtn}
             >
-              <Text className="text-white font-bold text-xs uppercase">Đăng nhập</Text>
+              <Text style={styles.loginBtnText}>Đăng nhập</Text>
             </TouchableOpacity>
           )}
         </View>
       </View>
 
-      {/* 3. User Menu Bottom Sheet (Modal) */}
-      <Modal
-        visible={isMenuOpen}
-        transparent
-        animationType="slide"
-        onRequestClose={() => setIsMenuOpen(false)}
-      >
+      {/* 3. User Menu Bottom Sheet */}
+      <Modal visible={isMenuOpen} transparent animationType="slide">
         <TouchableOpacity
           activeOpacity={1}
           onPress={() => setIsMenuOpen(false)}
-          className="flex-1 bg-black/40 justify-end"
+          style={styles.modalOverlay}
         >
-          <View className="bg-white rounded-t-[32px] overflow-hidden pb-8 shadow-2xl">
-            <View className="w-12 h-1 bg-slate-200 self-center mt-3 rounded-full" />
-            
-            {/* User Profile Summary */}
-            <View className="p-6 flex-row items-center border-b border-slate-50">
-              <View className="w-14 h-14 bg-blue-50 rounded-2xl items-center justify-center border border-blue-100">
-                <Text className="text-[#1a479a] text-2xl font-black">
-                   {currentUser?.username?.charAt(0).toUpperCase()}
-                </Text>
+          <View style={styles.menuSheet}>
+            <View style={styles.dragHandle} />
+
+            <View style={styles.userSummary}>
+              <View style={styles.largeAvatar}>
+                {user?.avatarUrl ? (
+                  <Image
+                    source={{ uri: user.avatarUrl }}
+                    style={styles.largeAvatarImg}
+                  />
+                ) : (
+                  <Text style={styles.largeAvatarText}>
+                    {user?.fullName?.charAt(0).toUpperCase()}
+                  </Text>
+                )}
               </View>
-              <View className="ml-4">
-                <Text className="font-bold text-lg text-slate-800">{currentUser?.fullName || currentUser?.username}</Text>
-                <View className="flex-row items-center mt-0.5">
-                  <MaterialCommunityIcons name="shield-check" size={14} color="#1a479a" />
-                  <Text className="text-blue-700 text-xs font-semibold ml-1">{getPrimaryRole()}</Text>
+              <View style={{ marginLeft: 16, flex: 1 }}>
+                <Text style={styles.userNameText} numberOfLines={1}>
+                  {user?.fullName}
+                </Text>
+                <View style={styles.roleBadge}>
+                  <MaterialCommunityIcons
+                    name="shield-check"
+                    size={14}
+                    color="#1a479a"
+                  />
+                  <Text style={styles.roleText}>{getPrimaryRole()}</Text>
                 </View>
               </View>
             </View>
 
-            {/* Navigation Options */}
-            <View className="px-4 mt-2">
-              <TouchableOpacity 
-                onPress={() => { setIsMenuOpen(false); navigation.navigate('UserProfile'); }}
-                className="flex-row items-center p-4 rounded-2xl active:bg-slate-50"
+            <View style={styles.menuItems}>
+              <TouchableOpacity
+                onPress={() => {
+                  setIsMenuOpen(false);
+                  router.push("/(tabs)/profile");
+                }}
+                style={styles.menuItem}
               >
-                <Ionicons name="person-outline" size={20} color="#64748b" />
-                <Text className="text-slate-700 font-semibold ml-4">Thông tin cá nhân</Text>
+                <View style={styles.menuIconBox}>
+                  <Ionicons name="person-outline" size={20} color="#1a479a" />
+                </View>
+                <Text style={styles.menuItemText}>Thông tin cá nhân</Text>
               </TouchableOpacity>
 
-              <TouchableOpacity 
-                onPress={() => { setIsMenuOpen(false); navigation.navigate('MyEvents'); }}
-                className="flex-row items-center p-4 rounded-2xl active:bg-slate-50"
+              <TouchableOpacity
+                onPress={() => {
+                  setIsMenuOpen(false);
+                  router.push("/my-events" as any);
+                }}
+                style={styles.menuItem}
               >
-                <Ionicons name="calendar-outline" size={20} color="#64748b" />
-                <Text className="text-slate-700 font-semibold ml-4">Sự kiện đã tham gia</Text>
+                <View style={styles.menuIconBox}>
+                  <Ionicons name="calendar-outline" size={20} color="#1a479a" />
+                </View>
+                <Text style={styles.menuItemText}>Lịch trình của tôi</Text>
               </TouchableOpacity>
 
-              <TouchableOpacity 
-                onPress={() => { setIsMenuOpen(false); setIsLogoutModalOpen(true); }}
-                className="flex-row items-center p-4 rounded-2xl active:bg-rose-50 mt-2"
+              <TouchableOpacity
+                onPress={handleLogout}
+                style={[styles.menuItem, { marginTop: 10 }]}
               >
-                <Ionicons name="log-out-outline" size={20} color="#ef4444" />
-                <Text className="text-rose-500 font-bold ml-4">Đăng xuất</Text>
+                <View
+                  style={[styles.menuIconBox, { backgroundColor: "#fff1f2" }]}
+                >
+                  <Ionicons name="log-out-outline" size={20} color="#ef4444" />
+                </View>
+                <Text style={[styles.menuItemText, { color: "#ef4444" }]}>
+                  Đăng xuất
+                </Text>
               </TouchableOpacity>
             </View>
           </View>
         </TouchableOpacity>
       </Modal>
-
-      {/* 4. Logout Confirmation Modal */}
-      <Modal visible={isLogoutModalOpen} transparent animationType="fade">
-        <View className="flex-1 bg-black/60 items-center justify-center p-6">
-          <View className="bg-white w-full rounded-[30px] p-8 items-center shadow-2xl">
-            <View className="w-16 h-16 bg-rose-50 rounded-full items-center justify-center mb-4">
-              <Ionicons name="alert-circle" size={32} color="#ef4444" />
-            </View>
-            <Text className="text-lg font-bold text-slate-800">Xác nhận đăng xuất?</Text>
-            <Text className="text-slate-500 text-center mt-2 mb-8">
-              Bạn có chắc chắn muốn thoát khỏi hệ thống IUH Event không?
-            </Text>
-            <View className="flex-row gap-3">
-              <TouchableOpacity 
-                onPress={() => setIsLogoutModalOpen(false)}
-                className="flex-1 bg-slate-100 py-4 rounded-2xl items-center"
-              >
-                <Text className="text-slate-600 font-bold">Hủy</Text>
-              </TouchableOpacity>
-              <TouchableOpacity 
-                onPress={handleLogout}
-                className="flex-1 bg-rose-500 py-4 rounded-2xl items-center shadow-sm shadow-rose-300"
-              >
-                <Text className="text-white font-bold">Đăng xuất</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      </Modal>
-
-      {/* 5. Success Toast */}
-      {logoutToastVisible && (
-        <View className="absolute top-14 left-4 right-4 z-[9999]">
-          <View className="bg-emerald-600 rounded-2xl p-4 flex-row items-center shadow-lg">
-            <Ionicons name="checkmark-circle" size={24} color="white" />
-            <Text className="text-white font-bold ml-3 flex-1">Đăng xuất thành công!</Text>
-          </View>
-        </View>
-      )}
     </>
   );
 };
+
+const styles = StyleSheet.create({
+  topMiniBar: {
+    backgroundColor: "#1a479a",
+    paddingTop: Platform.OS === "ios" ? 50 : 10,
+    paddingBottom: 8,
+    paddingHorizontal: 20,
+  },
+  rowBetween: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  rowItems: { flexDirection: "row", alignItems: "center" },
+  onlineDot: {
+    width: 6,
+    height: 6,
+    backgroundColor: "#4ade80",
+    borderRadius: 3,
+    marginRight: 6,
+  },
+  systemText: { color: "white", fontSize: 10, fontWeight: "600", opacity: 0.9 },
+  miniLink: { marginRight: 15 },
+  miniLinkText: {
+    color: "white",
+    fontSize: 10,
+    marginLeft: 4,
+    fontWeight: "bold",
+  },
+
+  mainHeader: {
+    backgroundColor: "white",
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    borderBottomWidth: 1,
+    borderBottomColor: "#f1f5f9",
+    elevation: 4,
+    shadowColor: "#000",
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+  },
+  logoContainer: { flex: 1 },
+  logo: { height: 32, width: 100 },
+  rightControls: { flexDirection: "row", alignItems: "center" },
+  iconButton: { padding: 8 },
+  notifBadge: {
+    position: "absolute",
+    top: 2,
+    right: 2,
+    backgroundColor: "#ef4444",
+    minWidth: 16,
+    height: 16,
+    borderRadius: 8,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1.5,
+    borderColor: "white",
+  },
+  badgeText: { color: "white", fontSize: 8, fontWeight: "bold" },
+
+  profileArea: { marginLeft: 8 },
+  avatarWrapper: { position: "relative" },
+  avatar: { width: 36, height: 36, borderRadius: 18 },
+  avatarPlaceholder: {
+    width: 36,
+    height: 36,
+    backgroundColor: "#1a479a",
+    borderRadius: 18,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  avatarInitial: { color: "white", fontWeight: "bold", fontSize: 16 },
+  activeIndicator: {
+    position: "absolute",
+    bottom: 0,
+    right: 0,
+    width: 10,
+    height: 10,
+    backgroundColor: "#22c55e",
+    borderRadius: 5,
+    borderWidth: 2,
+    borderColor: "white",
+  },
+
+  loginBtn: {
+    backgroundColor: "#eff6ff",
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "#dbeafe",
+  },
+  loginBtnText: { color: "#1a479a", fontWeight: "bold", fontSize: 12 },
+
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.4)",
+    justifyContent: "flex-end",
+  },
+  menuSheet: {
+    backgroundColor: "white",
+    borderTopLeftRadius: 30,
+    borderTopRightRadius: 30,
+    paddingBottom: 40,
+    paddingHorizontal: 20,
+  },
+  dragHandle: {
+    width: 40,
+    height: 5,
+    backgroundColor: "#e2e8f0",
+    alignSelf: "center",
+    marginTop: 12,
+    borderRadius: 3,
+    marginBottom: 20,
+  },
+  userSummary: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingBottom: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: "#f1f5f9",
+  },
+  largeAvatar: {
+    width: 60,
+    height: 60,
+    backgroundColor: "#eff6ff",
+    borderRadius: 20,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+    borderColor: "#dbeafe",
+    overflow: "hidden",
+  },
+  largeAvatarImg: { width: "100%", height: "100%" },
+  largeAvatarText: { color: "#1a479a", fontSize: 26, fontWeight: "900" },
+  userNameText: { fontSize: 18, fontWeight: "bold", color: "#1e293b" },
+  roleBadge: { flexDirection: "row", alignItems: "center", marginTop: 4 },
+  roleText: {
+    color: "#64748b",
+    fontSize: 13,
+    marginLeft: 4,
+    fontWeight: "500",
+  },
+
+  menuItems: { marginTop: 15 },
+  menuItem: { flexDirection: "row", alignItems: "center", paddingVertical: 12 },
+  menuIconBox: {
+    width: 40,
+    height: 40,
+    backgroundColor: "#f0f7ff",
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 15,
+  },
+  menuItemText: { fontSize: 15, fontWeight: "600", color: "#334155" },
+});
 
 export default Header;

@@ -139,34 +139,12 @@ const NotificationPage = () => {
       setIsLoading(true);
     }
 
-    notificationApi
-      .getNotificationsByUser(currentUserId)
-      .then((res) => {
-        console.log("📦 Notifications received:", res.data);
-        // Debug: Kiểm tra type của từng notification
-        if (res.data && res.data.length > 0) {
-          res.data.forEach(n => {
-            console.log(`- Type: ${n.type}, Title: ${n.title}`);
-          });
-        }
-        setNotifications(res.data || []);
-      })
-      .catch((err) => {
-        console.error("Error fetching notifications:", err);
-        setNotifications([]);
-      })
-      .finally(() => {
-        if (isRefresh) {
-          setIsRefreshing(false);
-        } else {
-          setIsLoading(false);
-        }
-      });
+    notificationApi.get.byUser(currentUserId)
   };
 
   const handleMarkAsRead = async (id) => {
     try {
-      await notificationApi.markAsRead(id);
+      await notificationApi.actions.markAsRead(id);
       setNotifications(
         notifications.map((n) => (n.id === id ? { ...n, read: true } : n)),
       );
@@ -177,7 +155,7 @@ const NotificationPage = () => {
 
   const handleMarkAllAsRead = async () => {
     try {
-      await notificationApi.markAllAsRead(currentUserId);
+      await notificationApi.actions.markAllRead(currentUserId);
       setNotifications(notifications.map((n) => ({ ...n, read: true })));
     } catch (err) {
       console.error("Error marking all as read:", err);
@@ -196,7 +174,7 @@ const NotificationPage = () => {
 
   const handleDelete = async (id) => {
     try {
-      await notificationApi.deleteNotification(id);
+      await notificationApi.delete.byId(id);
       setNotifications(notifications.filter((n) => n.id !== id));
     } catch (err) {
       console.error("Error deleting notification:", err);

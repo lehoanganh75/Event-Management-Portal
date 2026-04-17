@@ -13,7 +13,8 @@ import {
 
 import { DocumentContent } from "./DocumentContent";
 import { exportToWord } from "./WordExporter";
-import { eventTemplateApi } from "../../api/eventTemplateApi";
+// SỬA: Import từ contentApi thay vì eventTemplateApi (tránh lỗi 404)
+import { contentApi } from "../../api/contentApi";
 
 export const PreviewStep = ({
   onEdit,
@@ -48,7 +49,6 @@ export const PreviewStep = ({
   };
 
   const handleSaveTemplate = async () => {
-    console.log("templateId:", data.templateId);
     if (!templateName.trim()) {
       toast.warning("Vui lòng nhập tên bản mẫu!");
       return;
@@ -67,46 +67,26 @@ export const PreviewStep = ({
         defaultMaxParticipants: Number(data.maxParticipants) || 50,
         templateType: data.eventType || "OTHER",
         defaultCoverImage: data.coverImage || "",
-        themes: data.themes || [],
         faculty: data.faculty || "",
         major: data.major || "",
         configData: JSON.stringify({
           programItems: data.programItems || [],
-          participants: data.participants || [],
           presenters: data.presenters || [],
           organizers: data.organizers || [],
           attendees: data.attendees || [],
           targetObjects: data.targetObjects || [],
-          recipients: data.recipients || [],
           customFields: data.customFields || [],
         }),
-        usageCount: 0,
-        isPublic: false,
       };
 
-      const newTemplate =
-        await eventTemplateApi.createTemplate(templatePayload);
+      // SỬA: Gọi qua contentApi mới đã gộp
+      await contentApi.templates.create(templatePayload);
 
-      if (data?.templateId) {
-        try {
-          await eventTemplateApi.applyTemplate(data.templateId, "anonymous");
-        } catch (e) {
-          console.warn("Không tăng usage template:", e);
-        }
-      }
-
-      toast.success(
-        data.templateId
-          ? `Đã tạo bản mẫu mới "${templateName}" thành công!`
-          : `Đã lưu bản mẫu "${templateName}" thành công!`,
-      );
-
+      toast.success(`Đã lưu bản mẫu "${templateName}" thành công!`);
       setShowTemplateModal(false);
       setTemplateName("");
     } catch (err) {
-      toast.error(
-        "Lưu bản mẫu thất bại: " + (err.message || "Lỗi không xác định"),
-      );
+      toast.error("Lưu bản mẫu thất bại!");
       console.error(err);
     } finally {
       setSavingTemplate(false);

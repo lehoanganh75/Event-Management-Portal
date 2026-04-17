@@ -17,8 +17,6 @@ import {
   Send,
   Loader2,
 } from "lucide-react";
-import { createEvent } from "../../api/eventApi";
-import notificationApi from "../../api/notificationApi";
 import axios from "axios";
 
 const fi = "'Inter','Segoe UI',sans-serif";

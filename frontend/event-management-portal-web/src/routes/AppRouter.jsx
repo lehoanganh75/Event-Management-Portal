@@ -18,6 +18,7 @@ import QuestionReviewPage from "../../src/components/events/Questionreviewpage";
 import PollManagerPage from "../../src/components/events/Pollmanagerpage";
 import MyEventsPage from "../components/user/MyEventsPage";
 import DashboardLecture from "../pages/lecturePage/Dashboard";
+import ResetPassword from "../components/forgotPassword/ResetPassword";
 
 import ManagePosts from "../pages/lecturePage/ManagePosts";
 import CreatePost from "../components/events/CreatePost";
@@ -36,6 +37,10 @@ import AdminPostManagement from "../components/admin/AdminPostManagement";
 import NotificationUserPage from "../components/notification/Notification";
 import AdminNotifications from "../components/admin/AdminNotifications";
 import LecturerNotifications from "../pages/lecturePage/LecturerNotifications";
+import EventDetailPage from "../components/events/EventDetailPage";
+import PostDetail from "../components/events/PostDetail";
+import NewsPage from "../components/NewsPage";
+import EventPostList from "../components/EventPostList";
 
 const AppRouter = () => {
   return (
@@ -50,6 +55,9 @@ const AppRouter = () => {
       <Route path="/my-events" element={<MyEventsPage />} />
       <Route path="/notifications" element={<NotificationUserPage />} />
       <Route path="/notifications/:userId" element={<NotificationUserPage />} />
+      <Route path="/reset-password" element={<ResetPassword />} />
+      <Route path="/news" element={<NewsPage />} />
+      <Route path="/news/:eventId" element={<EventPostList />} />
       
       <Route path="/lecturer" element={<LecturerLayout />}>
         <Route index element={<Navigate to="events/dashboard" replace />} />
@@ -77,7 +85,9 @@ const AppRouter = () => {
       <Route path="/admin" element={<AdminLayout />}>
         <Route index element={<Dashboard />} />
         <Route path="events" element={<EventPage />} />
-        <Route path="media" element={<AdminPostManagement />} />
+        <Route path="events/:id" element={<EventDetailPage />} />
+        <Route path="posts" element={<AdminPostManagement />} />
+        <Route path="posts/:id" element={<PostDetail />} />
         <Route path="summaries" element={
           <div className="p-8 text-2xl font-bold text-slate-400 text-center mt-20">Trang Quản lý bài tổng kết đang phát triển...</div>
         } />

@@ -1,47 +1,34 @@
-import React from 'react';
-import { View, ScrollView, SafeAreaView } from 'react-native';
-import { StatusBar } from 'expo-status-bar';
-import Header from './Header'; 
-import Footer from './Footer';
+import { StatusBar } from "expo-status-bar";
+import React from "react";
+import { Platform, StyleSheet, View } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+import Footer from "./Footer";
+import Header from "./Header";
 
 interface LayoutProps {
-    children: React.ReactNode;
-    user?: any;
-    onLogin?: () => void;
-    onLogout?: () => void;
-    headerProps?: any;
-    showFooter?: boolean; 
+  children: React.ReactNode;
+  user?: any;
+  onLogin?: () => void;
+  onLogout?: () => void;
+  headerProps?: any;
+  showFooter?: boolean;
 }
 
-const Layout = ({ 
-    children, 
-    user, 
-    onLogin, 
-    onLogout, 
-    headerProps = {}, 
-    showFooter = true 
-}: LayoutProps) => {
+const Layout = ({ children, user, onLogin, onLogout, headerProps = {} }: LayoutProps) => {
   return (
-    <SafeAreaView className="flex-1 bg-white">
-      <StatusBar style="dark" />
+    <SafeAreaView style={styles.container}>
+      <Header currentUser={user} onLogin={onLogin} onLogout={onLogout} {...headerProps} />
       
-      {/* 1. Header luôn cố định ở trên cùng */}
-      <Header
-        user={user}
-        onLogin={onLogin}
-        onLogout={onLogout}
-        {...headerProps}
-      />
-
-      {/* 2. Phần nội dung chính (Main) - không dùng ScrollView ở đây để tránh
-          xung đột cuộn khi các screen con có ScrollView riêng */}
-      <View className="flex-1 w-full">
+      <View style={styles.main}>
         {children}
-        {/* 3. Footer nằm cuối nội dung (nếu screen con cuộn, footer sẽ theo sau) */}
-        {showFooter && <Footer />}
       </View>
     </SafeAreaView>
   );
 };
+
+const styles = StyleSheet.create({
+  container: { flex: 1, backgroundColor: '#fff' },
+  main: { flex: 1 }, // Để children chiếm toàn bộ không gian
+});
 
 export default Layout;
