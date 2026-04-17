@@ -33,51 +33,79 @@ public class EventPostServiceImpl implements EventPostService {
     }
 
     @Override
+    public List<PostDetailResponse> getPostsByEvent(String eventId) {
+        List<EventPost> eventPosts = eventPostRepository.findByEventIdAndIsDeletedFalse(eventId);
+        if (eventPosts.isEmpty()) return Collections.emptyList();
+
+        // 1. Gom tất cả Account IDs từ TẤT CẢ các bài post để gọi Identity 1 lần duy nhất
+        Set<String> allAccountIds = new HashSet<>();
+        for (EventPost post : eventPosts) {
+            allAccountIds.add(post.getAuthorAccountId());
+            collectAccountIds(post.getComments(), allAccountIds);
+        }
+
+        // 2. Fetch User Map (Batching)
+        Map<String, UserDto> userMap = fetchUsersMap(allAccountIds);
+
+        // 3. Map sang DTO
+        return eventPosts.stream()
+                .map(post -> mapToPostDetailResponse(post, userMap))
+                .collect(Collectors.toList());
+    }
+
+    @Override
     public PostDetailResponse getPostDetail(String id) {
-        // 1. Lấy Entity
         EventPost post = eventPostRepository.findByIdAndIsDeletedFalse(id)
                 .orElseThrow(() -> new RuntimeException("Bài viết không tồn tại!"));
 
-        // 2. Thu thập TẤT CẢ accountId từ bài viết và toàn bộ comment (kể cả reply)
         Set<String> accountIds = new HashSet<>();
         accountIds.add(post.getAuthorAccountId());
         collectAccountIds(post.getComments(), accountIds);
 
-        // 3. Gọi Identity Service 1 lần để lấy Map User (Xử lý lỗi tập trung)
-        // Giả sử bạn tạo thêm 1 hàm fetchUsersMap để gọi Identity lấy List User
         Map<String, UserDto> userMap = fetchUsersMap(accountIds);
 
-        // 4. Build Response và map User từ userMap đã có sẵn trong bộ nhớ
-        PostDetailResponse response = new PostDetailResponse();
+        return mapToPostDetailResponse(post, userMap);
+    }
 
-        response.setId(post.getId());
-        response.setSlug(post.getSlug());
-        response.setTitle(post.getTitle());
-        response.setContent(post.getContent());
-        response.setPostType(post.getPostType());
-        response.setStatus(post.getStatus());
-        response.setPinned(post.isPinned());
-        response.setAllowComments(post.isAllowComments());
-        response.setViewCount(post.getViewCount());
-        response.setPublishedAt(post.getPublishedAt());
-        response.setCreatedAt(post.getCreatedAt());
-        response.setUpdatedAt(post.getUpdatedAt());
-        response.setDeleted(post.isDeleted());
+// --- PRIVATE HELPER METHODS (Dùng chung cho cả 2 method trên) ---
 
-        // Nếu map không có author, dùng default
-        response.setAuthor(userMap.getOrDefault(post.getAuthorAccountId(), getDefaultUser(post.getAuthorAccountId())));
+    /**
+     * Hàm trung tâm để chuyển đổi từ Entity sang DTO
+     */
+    private PostDetailResponse mapToPostDetailResponse(EventPost post, Map<String, UserDto> userMap) {
+        PostDetailResponse res = new PostDetailResponse();
+        // Copy properties đơn giản
+        res.setId(post.getId());
+        res.setSlug(post.getSlug());
+        res.setTitle(post.getTitle());
+        res.setContent(post.getContent());
+        res.setPostType(post.getPostType());
+        res.setStatus(post.getStatus());
+        res.setPinned(post.isPinned());
+        res.setAllowComments(post.isAllowComments());
+        res.setViewCount(post.getViewCount());
+        res.setPublishedAt(post.getPublishedAt());
+        res.setCreatedAt(post.getCreatedAt());
+        res.setUpdatedAt(post.getUpdatedAt());
+        res.setDeleted(post.isDeleted());
 
-        List<CommentResponse> commentResponses = post.getComments().stream()
-                .filter(c -> c.getParentComment() == null)
-                .map(c -> convertToCommentDto(c, userMap)) // Truyền Map vào để lookup
-                .collect(Collectors.toList());
+        // Mapping Author
+        res.setAuthor(userMap.getOrDefault(post.getAuthorAccountId(), getDefaultUser(post.getAuthorAccountId())));
 
-        response.setComments(commentResponses);
-        return response;
+        // Mapping Comments (Chỉ lấy comment cha)
+        if (post.getComments() != null) {
+            res.setComments(post.getComments().stream()
+                    .filter(c -> c.getParentComment() == null)
+                    .map(c -> convertToCommentDto(c, userMap))
+                    .collect(Collectors.toList()));
+        }
+
+        return res;
     }
 
     // Hàm bổ trợ để gom ID
     private void collectAccountIds(List<PostComment> comments, Set<String> ids) {
+        if (comments == null) return;
         for (PostComment c : comments) {
             ids.add(c.getCommenterAccountId());
             if (c.getReplies() != null) collectAccountIds(c.getReplies(), ids);

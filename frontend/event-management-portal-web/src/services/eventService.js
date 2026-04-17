@@ -59,6 +59,8 @@ const eventService = {
     getOngoingEvents: () => publicApi.get('/events/ongoing'),
     getUpcomingEvents: () => publicApi.get('/events/upcoming-week'),
     getFeaturedEvents: () => publicApi.get('/events/featured'),
+    getCompletedEvents: () => publicApi.get('events/news'),
+    getEventPosts: (eventId) => publicApi.get(`/posts/detail/${eventId}`),
 
     // Sử dụng privateApi: Bắt buộc check token/refresh token
     getEventById: (id) => privateApi.get(`/events/${id}`),

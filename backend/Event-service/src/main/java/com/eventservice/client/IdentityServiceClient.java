@@ -13,7 +13,8 @@ import java.util.List;
         configuration = FeignClientConfig.class
 )
 public interface IdentityServiceClient {
-
+    @GetMapping("/profiles/batch")
+    List<UserDto> getUsersByIds(@RequestParam("ids") List<String> ids);
 
     @GetMapping("/profiles/invite")
     UserDto getUsersById(@RequestParam("id") String id);

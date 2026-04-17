@@ -30,4 +30,8 @@ public interface EventPostRepository extends JpaRepository<EventPost, String> {
 
     // Tìm posts theo accountId với điều kiện eventId (nếu cần)
     List<EventPost> findByAuthorAccountIdAndEventId(String authorAccountId, String eventId);
+
+    List<EventPost> findByEventIdAndIsDeletedFalseOrderByIsPinnedDescPublishedAtDesc(String eventId);
+
+    List<EventPost> findByEventIdAndIsDeletedFalse(String eventId);
 }

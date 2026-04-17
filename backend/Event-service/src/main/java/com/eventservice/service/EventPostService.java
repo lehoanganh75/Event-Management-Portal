@@ -16,6 +16,8 @@ public interface EventPostService {
     Page<EventPost> getAllPosts(String title, PostStatus status, Pageable pageable);
 
 
+    List<PostDetailResponse> getPostsByEvent(String eventId);
+
     PostDetailResponse getPostDetail(String id);
 
     // 3. Thêm mới bài viết

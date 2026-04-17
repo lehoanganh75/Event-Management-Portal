@@ -35,7 +35,14 @@ public class SecurityConfig {
                 .csrf(csrf -> csrf.disable())
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/events", "/events/ongoing", "/events/upcoming-week", "/events/featured").permitAll()
+                        .requestMatchers(
+                                "/events",
+                                "/events/ongoing",
+                                "/events/upcoming-week",
+                                "/events/featured",
+                                "/events/news",
+                                "/posts/detail/**"
+                        ).permitAll()
                         .anyRequest().authenticated()
                 )
                 .oauth2ResourceServer(oauth2 -> oauth2

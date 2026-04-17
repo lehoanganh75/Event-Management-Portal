@@ -62,6 +62,11 @@ public class EventController {
         return ResponseEntity.ok(eventService.getFeaturedEvents());
     }
 
+    @GetMapping("/news")
+    public ResponseEntity<List<Event>> getCompletedEvents() {
+        return ResponseEntity.ok(eventService.getCompletedEvents());
+    }
+
     // --- 2. NHÓM QUẢN TRỊ (DÀNH CHO ADMIN) ---
 
     @GetMapping("/admin/all")

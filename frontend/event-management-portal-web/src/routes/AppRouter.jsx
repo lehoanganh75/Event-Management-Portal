@@ -39,6 +39,8 @@ import AdminNotifications from "../components/admin/AdminNotifications";
 import LecturerNotifications from "../pages/lecturePage/LecturerNotifications";
 import EventDetailPage from "../components/events/EventDetailPage";
 import PostDetail from "../components/events/PostDetail";
+import NewsPage from "../components/NewsPage";
+import EventPostList from "../components/EventPostList";
 
 const AppRouter = () => {
   return (
@@ -54,6 +56,8 @@ const AppRouter = () => {
       <Route path="/notifications" element={<NotificationUserPage />} />
       <Route path="/notifications/:userId" element={<NotificationUserPage />} />
       <Route path="/reset-password" element={<ResetPassword />} />
+      <Route path="/news" element={<NewsPage />} />
+      <Route path="/news/:eventId" element={<EventPostList />} />
       
       <Route path="/lecturer" element={<LecturerLayout />}>
         <Route index element={<Navigate to="events/dashboard" replace />} />

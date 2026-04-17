@@ -39,6 +39,12 @@ public class EventPostController {
         return ResponseEntity.ok(eventPostService.getPostDetail(id));
     }
 
+    @GetMapping("/detail/{eventId}")
+    public ResponseEntity<List<PostDetailResponse>> getEventPosts(@PathVariable String eventId) {
+        List<PostDetailResponse> posts = eventPostService.getPostsByEvent(eventId);
+        return ResponseEntity.ok(posts);
+    }
+
     @PostMapping
     public ResponseEntity<EventPost> createPost(@RequestBody PostRequestDto postDto) {
         EventPost createdPost = eventPostService.createPost(postDto);

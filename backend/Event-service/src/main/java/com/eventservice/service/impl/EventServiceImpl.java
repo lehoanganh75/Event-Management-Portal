@@ -74,6 +74,12 @@ public class EventServiceImpl implements EventService {
         return enrichEvents(events);
     }
 
+    @Override
+    public List<Event> getCompletedEvents() {
+        List<Event> events = eventRepository.findByStatus(EventStatus.COMPLETED);
+        return enrichEvents(events);
+    }
+
     // Lấy sự kiện sắp diễn ra trong tuần này
     @Override
     public List<Event> getUpcomingEventsThisWeek() {

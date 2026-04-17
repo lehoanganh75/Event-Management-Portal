@@ -82,4 +82,6 @@ public interface EventRepository extends JpaRepository<Event, String> {
     long countRegistrationsByEventId(@Param("eventId") String eventId);
 
     List<Event> findByStatusInAndIsDeletedFalseOrderByRegistrationDeadlineAsc(List<EventStatus> publicStatuses);
+
+    List<Event> findByStatus(EventStatus eventStatus);
 }

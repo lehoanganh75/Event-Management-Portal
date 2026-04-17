@@ -18,6 +18,8 @@ public interface EventService {
     // Lấy sự kiện đang diễn ra hôm nay
     List<Event> getOngoingEvents();
 
+    List<Event> getCompletedEvents();
+
     // Lấy sự kiện sắp diễn ra trong tuần này
     List<Event> getUpcomingEventsThisWeek();
 

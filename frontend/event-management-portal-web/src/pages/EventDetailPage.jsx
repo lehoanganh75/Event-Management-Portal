@@ -5,18 +5,18 @@ import {
   Calendar,
   MapPin,
   Clock,
-  Hourglass,
-  AlertCircle,
+  Users,
+  QrCode,
+  Share2,
+  MessageCircle,
+  XCircle,
   Star,
   CheckCircle,
-  QrCode,
-  XCircle,
 } from "lucide-react";
-
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 
 import eventService from "../services/eventService";
-import TicketDetail from "../components/ticket/TicketDetail";   
+import TicketDetail from "../components/ticket/TicketDetail";
 
 export default function EventDetail() {
   const { eventId } = useParams();
@@ -46,7 +46,7 @@ export default function EventDetail() {
   const formatDateTime = (iso) => {
     if (!iso) return "Chưa cập nhật";
     const d = new Date(iso);
-    return `${d.toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" })} • ${d.toLocaleDateString("vi-VN")}`;
+    return `${d.toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" })} • ${d.toLocaleDateString("vi-VN", { day: "2-digit", month: "2-digit", year: "numeric" })}`;
   };
 
   const isDeadlinePassed = (deadline) => {
@@ -59,20 +59,14 @@ export default function EventDetail() {
 
     const role = event.currentUserRole || {};
 
-    // 1. Nếu là Quản lý
     if (role.creator || role.approver || role.organizer) {
       navigate(`/manage-event/${event.id}`);
       return;
     }
 
-    // 2. Nếu đã đăng ký → Logic ẨN/HIỆN (Toggle)
     if (role.registered) {
-      if (showTicket) {
-        // Nếu đang hiện thì ẩn đi
-        setShowTicket(false);
-      } else {
-        // Nếu đang ẩn thì hiện lên và scroll xuống
-        setShowTicket(true);
+      setShowTicket(!showTicket);
+      if (!showTicket) {
         setTimeout(() => {
           document.getElementById("ticket-section")?.scrollIntoView({
             behavior: "smooth",
@@ -83,16 +77,14 @@ export default function EventDetail() {
       return;
     }
 
-    // 3. Chưa đăng ký → Thực hiện đăng ký
     if (!window.confirm(`Bạn muốn đăng ký tham gia "${event.title}"?`)) return;
 
     setIsRegistering(true);
     try {
       await eventService.registerEvent(event.id);
       alert("Đăng ký thành công!");
-      
-      await fetchEvent(); // Tải lại để lấy role.registered = true
-      setShowTicket(true); // Đăng ký xong thì hiện vé luôn
+      await fetchEvent(); // Refresh để cập nhật role
+      setShowTicket(true);
     } catch (error) {
       alert(error.response?.data?.message || "Đăng ký thất bại");
     } finally {
@@ -115,12 +107,8 @@ export default function EventDetail() {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="text-center">
-          <AlertCircle size={64} className="mx-auto text-gray-300" />
-          <h2 className="mt-4 text-xl font-semibold text-gray-700">Không tìm thấy sự kiện</h2>
-          <button
-            onClick={() => navigate(-1)}
-            className="mt-6 px-6 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition"
-          >
+          <p className="text-xl font-semibold text-gray-700">Không tìm thấy sự kiện</p>
+          <button onClick={() => navigate(-1)} className="mt-6 px-6 py-3 bg-blue-600 text-white rounded-xl">
             Quay lại
           </button>
         </div>
@@ -131,202 +119,268 @@ export default function EventDetail() {
   const role = event.currentUserRole || {};
 
   return (
-    <div className="bg-gray-50 min-h-screen pb-24">
-      {/* HERO SECTION */}
-      <div className="relative h-[420px] md:h-[480px]">
-        <img src={event.coverImage} alt={event.title} className="w-full h-full object-cover" />
-        <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-black/30 to-black/70" />
+    <div className="bg-gray-50 min-h-screen pb-12">
+      {/* ==================== HERO SECTION ==================== */}
+      <div className="relative h-[460px] overflow-hidden">
+        <img
+          src={event.coverImage || "https://via.placeholder.com/1200x600/1a1a2e/ffffff?text=AI+Robot"}
+          alt={event.title}
+          className="w-full h-full object-cover"
+        />
+        <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-black/50 to-black/80" />
 
         <button
           onClick={() => navigate(-1)}
-          className="absolute top-6 left-6 bg-white/90 hover:bg-white p-3 rounded-2xl shadow-lg transition z-20 flex items-center gap-2"
+          className="absolute top-6 left-6 bg-white/90 hover:bg-white px-5 py-3 rounded-2xl flex items-center gap-2 shadow-lg z-20"
         >
           <ArrowLeft size={20} />
-          <span className="font-medium">Quay lại</span>
+          Quay lại
         </button>
 
-        <div className="absolute bottom-0 left-0 right-0 p-6 md:p-10 text-white">
-          <div className="flex flex-wrap gap-3 mb-4">
-            <span className="bg-yellow-400 text-yellow-900 text-xs font-bold px-4 py-1.5 rounded-full uppercase tracking-wider">
-              {event.type}
-            </span>
-            <span className="bg-blue-600 text-white text-xs font-bold px-4 py-1.5 rounded-full uppercase tracking-wider">
-              {event.eventTopic}
-            </span>
+        <div className="absolute bottom-0 left-0 right-0 p-8 md:p-12 text-white">
+          <div className="inline-block bg-orange-500 text-white text-sm font-bold px-6 py-1.5 rounded-full mb-4">
+            HỘI THẢO
           </div>
-          <h1 className="text-3xl md:text-5xl font-bold leading-tight">{event.title}</h1>
+          <h1 className="text-4xl md:text-5xl font-bold leading-tight">
+            {event.title}
+          </h1>
+
+          <div className="flex flex-wrap gap-x-8 gap-y-3 mt-6 text-sm">
+            <div className="flex items-center gap-2">
+              <Calendar size={20} />
+              {formatDateTime(event.startTime)}
+            </div>
+            <div className="flex items-center gap-2">
+              <MapPin size={20} />
+              {event.location} • {event.eventMode}
+            </div>
+          </div>
         </div>
       </div>
 
       <div className="max-w-6xl mx-auto px-4 md:px-6 -mt-8 relative z-10">
-        {/* ROLE BADGES */}
-        <div className="flex gap-3 mb-6">
-          {role.creator && (
-            <div className="flex items-center gap-2 bg-orange-50 border border-orange-200 text-orange-700 px-5 py-2 rounded-2xl text-sm font-semibold">
-              <Star size={18} /> Chủ trì
-            </div>
-          )}
-          {role.registered && (
-            <div className="flex items-center gap-2 bg-emerald-50 border border-emerald-200 text-emerald-700 px-5 py-2 rounded-2xl text-sm font-semibold">
-              <CheckCircle size={18} /> Đã đăng ký
-            </div>
-          )}
-        </div>
-
-        {/* Nội dung Event */}
         <div className="grid lg:grid-cols-12 gap-8">
-          {/* LEFT - Info + Description + Presenters */}
+          {/* ==================== LEFT COLUMN ==================== */}
           <div className="lg:col-span-8 space-y-8">
-            <div className="bg-white rounded-3xl shadow-sm border border-gray-100 p-8">
-              <h2 className="text-2xl font-bold mb-6">Thông tin sự kiện</h2>
-              {/* ... giữ nguyên phần info card của bạn ... */}
-              <div className="space-y-6">
-                {/* Thời gian, địa điểm, hạn đăng ký... */}
-                <div className="flex items-start gap-5">
-                  <div className="w-12 h-12 bg-blue-50 rounded-2xl flex items-center justify-center flex-shrink-0">
-                    <Calendar className="text-blue-600" size={24} />
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-500 font-medium">Thời gian bắt đầu</p>
-                    <p className="text-lg font-semibold text-gray-800 mt-1">{formatDateTime(event.startTime)}</p>
-                  </div>
-                </div>
-
-                <div className="flex items-start gap-5">
-                  <div className="w-12 h-12 bg-rose-50 rounded-2xl flex items-center justify-center flex-shrink-0">
-                    <MapPin className="text-rose-600" size={24} />
-                  </div>
-                  <div className="flex-1">
-                    <p className="text-sm text-gray-500 font-medium">Địa điểm • {event.eventMode}</p>
-                    <p className="text-lg font-semibold text-gray-800 mt-1">{event.location}</p>
-                  </div>
-                </div>
-
-                {event.registrationDeadline && (
-                  <div className="flex items-start gap-5">
-                    <div className={`w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0 ${isDeadlinePassed(event.registrationDeadline) ? "bg-red-50" : "bg-green-50"}`}>
-                      <Hourglass className={isDeadlinePassed(event.registrationDeadline) ? "text-red-600" : "text-green-600"} size={24} />
-                    </div>
-                    <div>
-                      <p className="text-sm text-gray-500 font-medium">Hạn chót đăng ký</p>
-                      <p className={`text-lg font-semibold mt-1 ${isDeadlinePassed(event.registrationDeadline) ? "text-red-600" : "text-gray-800"}`}>
-                        {formatDateTime(event.registrationDeadline)}
-                      </p>
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              <div className="mt-10 pt-8 border-t border-gray-100">
-                <h3 className="font-semibold text-lg mb-3">Giới thiệu sự kiện</h3>
-                <p className="text-gray-600 leading-relaxed whitespace-pre-line">{event.description}</p>
-              </div>
+            {/* Thông tin chi tiết */}
+            <div className="bg-white rounded-3xl shadow-sm p-8">
+              <h2 className="text-2xl font-bold mb-6">Thông tin chi tiết</h2>
+              <p className="text-gray-600 leading-relaxed whitespace-pre-line">
+                {event.description}
+              </p>
 
               {event.notes && (
                 <div className="mt-6 bg-amber-50 border border-amber-200 p-5 rounded-2xl flex gap-4">
-                  <AlertCircle className="text-amber-600 mt-0.5" size={24} />
+                  <Clock className="text-amber-600 mt-1" size={24} />
                   <div>
                     <p className="font-semibold text-amber-800">Lưu ý quan trọng</p>
-                    <p className="text-amber-700 mt-1">{event.notes}</p>
+                    <p className="text-amber-700">{event.notes}</p>
                   </div>
                 </div>
               )}
             </div>
 
-            {/* Diễn giả */}
-            {event.presenters && event.presenters.length > 0 && (
-              <div className="bg-white rounded-3xl shadow-sm border border-gray-100 p-8">
-                <h2 className="text-2xl font-bold mb-6">Diễn giả khách mời</h2>
-                <div className="grid md:grid-cols-2 gap-6">
-                  {event.presenters.map((presenter) => (
-                    <div key={presenter.id} className="flex gap-5 bg-gray-50 p-5 rounded-2xl border border-gray-100">
-                      <img src={presenter.avatarUrl} alt={presenter.fullName} className="w-20 h-20 rounded-2xl object-cover" />
-                      <div className="flex-1">
-                        <h4 className="font-bold text-lg">{presenter.fullName}</h4>
-                        <p className="text-gray-600 text-sm mt-1">{presenter.position}</p>
+            {/* Nội dung chính + Diễn giả */}
+            <div className="bg-white rounded-3xl shadow-sm p-8">
+              <h3 className="font-semibold text-xl mb-4">Nội dung chính</h3>
+              <ul className="list-disc pl-6 space-y-2 text-gray-700 mb-10">
+                <li>Tổng quan về Generative AI và ứng dụng thực tiễn.</li>
+                <li>Cơ hội và thách thức cho nhân lực ngành CNTT.</li>
+                <li>Demo các công cụ AI hỗ trợ học tập và nghiên cứu.</li>
+                <li>Thảo luận với chuyên gia về tác động của AI trong ngành nghề tương lai.</li>
+              </ul>
+
+              <h3 className="font-semibold text-xl mb-4">Diễn giả</h3>
+              <div className="grid md:grid-cols-2 gap-6">
+                {event.presenters && event.presenters.length > 0 ? (
+                  event.presenters.map((presenter, index) => (
+                    <div key={index} className="flex gap-4 bg-gray-50 p-5 rounded-2xl">
+                      <img
+                        src={presenter.avatarUrl || "https://via.placeholder.com/80x80"}
+                        alt={presenter.fullName}
+                        className="w-16 h-16 rounded-2xl object-cover"
+                      />
+                      <div>
+                        <p className="font-bold">{presenter.fullName}</p>
+                        <p className="text-sm text-gray-600">{presenter.position}</p>
+                        <p className="text-xs text-gray-500 mt-1">{presenter.department}</p>
                       </div>
                     </div>
-                  ))}
-                </div>
+                  ))
+                ) : (
+                  <p className="text-gray-500">Chưa có thông tin diễn giả</p>
+                )}
               </div>
-            )}
+            </div>
+
+            {/* Lịch trình sự kiện */}
+            <div className="bg-white rounded-3xl shadow-sm p-8">
+              <h2 className="text-2xl font-bold mb-6">Lịch trình sự kiện</h2>
+              
+              <div className="space-y-6">
+                {event.sessions && event.sessions.length > 0 ? (
+                  event.sessions
+                    .sort((a, b) => a.orderIndex - b.orderIndex) // Sắp xếp theo thứ tự
+                    .map((session) => {
+                      const start = new Date(session.startTime);
+                      const end = new Date(session.endTime);
+
+                      return (
+                        <div key={session.id} className="flex gap-6 border-l-4 border-blue-500 pl-6 py-1">
+                          {/* Thời gian */}
+                          <div className="w-28 flex-shrink-0">
+                            <div className="font-mono text-sm font-semibold text-gray-800">
+                              {start.toLocaleTimeString("vi-VN", { 
+                                hour: "2-digit", 
+                                minute: "2-digit" 
+                              })}
+                              {" - "}
+                              {end.toLocaleTimeString("vi-VN", { 
+                                hour: "2-digit", 
+                                minute: "2-digit" 
+                              })}
+                            </div>
+                            <div className="text-xs text-gray-500 mt-1">
+                              {start.toLocaleDateString("vi-VN", { 
+                                day: "2-digit", 
+                                month: "2-digit" 
+                              })}
+                            </div>
+                          </div>
+
+                          {/* Nội dung */}
+                          <div className="flex-1">
+                            <div className="flex items-center gap-3 mb-2">
+                              <h4 className="font-semibold text-lg leading-tight">
+                                {session.title}
+                              </h4>
+                              <span className={`text-xs font-medium px-3 py-1 rounded-full 
+                                ${session.type === "KEYNOTE" ? "bg-purple-100 text-purple-700" : 
+                                  session.type === "WORKSHOP" ? "bg-blue-100 text-blue-700" : 
+                                  session.type === "BREAK" ? "bg-amber-100 text-amber-700" : 
+                                  "bg-gray-100 text-gray-600"}`}>
+                                {session.type}
+                              </span>
+                            </div>
+
+                            <p className="text-gray-600 text-[15px] leading-relaxed">
+                              {session.description}
+                            </p>
+
+                            <div className="flex items-center gap-2 mt-3 text-sm text-gray-500">
+                              <MapPin size={16} />
+                              <span>{session.room}</span>
+                              {session.maxParticipants && (
+                                <span className="ml-auto text-xs bg-gray-100 px-2 py-0.5 rounded">
+                                  Tối đa {session.maxParticipants} người
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })
+                ) : (
+                  <div className="text-center py-12 text-gray-400">
+                    Chưa có lịch trình sự kiện nào được cập nhật.
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
 
-          {/* RIGHT SIDEBAR - Nút hành động */}
-          <div className="lg:col-span-4">
-            <div className="space-y-6 sticky top-6">
-              {/* Card chứa nút bấm chính */}
-              <div className="bg-white rounded-3xl shadow-sm border border-gray-100 p-8">
-                <div className="mb-8">
-                  <div className="flex justify-between text-sm mb-2">
-                    <span className="text-gray-500">Số lượng tham gia</span>
-                    <span className="font-semibold text-gray-800">
-                      {event.registeredCount} / {event.maxParticipants}
-                    </span>
-                  </div>
-                  <div className="h-2.5 bg-gray-100 rounded-full overflow-hidden">
-                    <div
-                      className="h-full bg-blue-600 rounded-full transition-all duration-500"
-                      style={{ width: `${(event.registeredCount / event.maxParticipants) * 100}%` }}
-                    />
-                  </div>
+          {/* ==================== RIGHT SIDEBAR ==================== */}
+          <div className="lg:col-span-4 space-y-6">
+            
+            {/* Card chính (Sticky) - chỉ chứa thông tin + nút + tương tác */}
+            <div className="bg-white rounded-3xl shadow-sm p-8 z-10">
+              
+              {/* Số lượng tham gia */}
+              <div className="mb-8">
+                <div className="flex justify-between text-sm mb-2">
+                  <span className="text-gray-500">Số lượng tham gia</span>
+                  <span className="font-semibold text-gray-800">
+                    {event.registeredCount || 0} / {event.maxParticipants || 500}
+                  </span>
                 </div>
-
-               <button
-                  onClick={handleMainAction}
-                  // Disable nếu đang xử lý HOẶC (Chưa đăng ký/không phải quản lý VÀ đã hết hạn)
-                  disabled={
-                    isRegistering || 
-                    (!role.registered && !role.creator && !role.approver && !role.organizer && isDeadlinePassed(event.registrationDeadline))
-                  }
-                  className={`w-full h-14 rounded-2xl font-bold text-base flex items-center justify-center gap-3 transition-all shadow-lg active:scale-95 ${
-                    role.creator || role.approver || role.organizer
-                      ? "bg-zinc-900 text-white" // Style Quản lý
-                      : role.registered
-                      ? showTicket
-                        ? "bg-slate-100 text-slate-600 shadow-none border border-slate-200" // Đang mở vé
-                        : "bg-emerald-600 text-white shadow-emerald-200" // Đã đăng ký nhưng đang ẩn vé
-                      : isDeadlinePassed(event.registrationDeadline)
-                      ? "bg-gray-200 text-gray-400 shadow-none cursor-not-allowed" // Style Hết hạn
-                      : "bg-blue-600 text-white shadow-blue-200" // Style Đăng ký bình thường
-                  } disabled:opacity-70`}
-                >
-                  {isRegistering ? (
-                    <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                  ) : role.creator || role.approver || role.organizer ? (
-                    "QUẢN LÝ SỰ KIỆN"
-                  ) : role.registered ? (
-                    <>
-                      {showTicket ? "ĐÓNG VÉ CỦA TÔI" : "XEM VÉ CỦA TÔI"}
-                      <motion.div animate={{ rotate: showTicket ? 180 : 0 }}>
-                        {showTicket ? <XCircle size={22} /> : <QrCode size={22} />}
-                      </motion.div>
-                    </>
-                  ) : isDeadlinePassed(event.registrationDeadline) ? (
-                    <>
-                      HẾT HẠN ĐĂNG KÝ
-                      <Clock size={20} />
-                    </>
-                  ) : (
-                    "ĐĂNG KÝ THAM GIA"
-                  )}
-                </button>
-
-                {/* HIỂN THỊ VÉ NGAY DƯỚI NÚT BẤM (Nếu là Mobile hoặc muốn nằm trong card) */}
+                <div className="h-2.5 bg-gray-100 rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-blue-600 rounded-full transition-all duration-500"
+                    style={{
+                      width: `${Math.min(((event.registeredCount || 0) / (event.maxParticipants || 500)) * 100, 100)}%`,
+                    }}
+                  />
+                </div>
               </div>
 
-              {/* ==================== VÉ HIỂN THỊ NGAY DƯỚI NÚT BẤM ==================== */}
-              {showTicket && (
-                <motion.div 
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  id="ticket-section" 
-                  className="w-full"
-                >
-                  <TicketDetail eventId={event.id} />
-                </motion.div>
-              )}
+              {/* Nút hành động chính */}
+              <button
+                onClick={handleMainAction}
+                disabled={
+                  isRegistering ||
+                  (!role.registered && 
+                  !role.creator && 
+                  !role.approver && 
+                  !role.organizer && 
+                  isDeadlinePassed(event.registrationDeadline))
+                }
+                className={`w-full h-14 rounded-2xl font-bold text-base flex items-center justify-center gap-3 transition-all shadow-lg active:scale-95 ${
+                  role.creator || role.approver || role.organizer
+                    ? "bg-zinc-900 text-white"
+                    : role.registered
+                    ? showTicket
+                      ? "bg-slate-100 text-slate-600 border border-slate-200"
+                      : "bg-emerald-600 text-white"
+                    : isDeadlinePassed(event.registrationDeadline)
+                    ? "bg-gray-200 text-gray-400 cursor-not-allowed"
+                    : "bg-blue-600 text-white shadow-blue-200"
+                }`}
+              >
+                {isRegistering ? (
+                  <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                ) : role.creator || role.approver || role.organizer ? (
+                  "QUẢN LÝ SỰ KIỆN"
+                ) : role.registered ? (
+                  <>
+                    {showTicket ? "ĐÓNG VÉ CỦA TÔI" : "XEM VÉ CỦA TÔI"}
+                    <motion.div animate={{ rotate: showTicket ? 180 : 0 }}>
+                      {showTicket ? <XCircle size={22} /> : <QrCode size={22} />}
+                    </motion.div>
+                  </>
+                ) : isDeadlinePassed(event.registrationDeadline) ? (
+                  "HẾT HẠN ĐĂNG KÝ"
+                ) : (
+                  "ĐĂNG KÝ THAM GIA"
+                )}
+              </button>
+
+              {/* Tham gia tương tác */}
+              <div className="mt-8 bg-white border border-gray-200 rounded-3xl p-6">
+                <div className="flex items-center gap-3 mb-4">
+                  <MessageCircle className="text-green-600" size={24} />
+                  <span className="font-semibold">Tham gia tương tác</span>
+                </div>
+                <p className="text-sm text-gray-600 mb-5">
+                  Đặt câu hỏi và tham gia bình chọn ngay trong ngày hội thảo
+                </p>
+                <button className="w-full py-3 bg-gradient-to-r from-green-500 to-emerald-600 text-white rounded-2xl font-medium hover:brightness-105 transition">
+                  Đặt câu hỏi
+                </button>
+              </div>
             </div>
+
+            {/* ==================== PHẦN VÉ - Tách riêng, không sticky ==================== */}
+            {showTicket && (
+              <motion.div
+                initial={{ opacity: 0, y: 30 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.4 }}
+                id="ticket-section"
+                className="pt-4"   // Tạo khoảng cách với card bên trên
+              >
+                <TicketDetail eventId={event.id} />
+              </motion.div>
+            )}
           </div>
         </div>
       </div>
