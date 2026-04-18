@@ -41,9 +41,26 @@ public class SecurityConfig {
                         .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/events").permitAll()
                         .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/events/featured").permitAll()
                         .requestMatchers(
+<<<<<<< Updated upstream:backend/Event-service/src/main/java/src/main/eventservice/config/SecurityConfig.java
                                 "/api/events/**"
                         ).authenticated()
                         .anyRequest().permitAll()
+=======
+                                "/events",
+                                "/events/ongoing",
+                                "/events/upcoming-week",
+                                "/events/featured",
+                                "/events/news",
+                                "/posts/detail/**",
+                                "/api/v1/chat/sessions",
+                                "/api/v1/chat/messages",
+                                "/api/v1/chat/sessions/*/quick-replies",
+                                "/api/v1/chat/sessions/*/rate",
+                                "/api/v1/chat/sessions/*/end",
+                                "/ws/chat/**"
+                        ).permitAll()
+                        .anyRequest().authenticated()
+>>>>>>> Stashed changes:backend/Event-service/src/main/java/com/eventservice/config/SecurityConfig.java
                 )
                 .oauth2ResourceServer(oauth2 -> oauth2
                         .jwt(jwt -> jwt

@@ -36,11 +36,20 @@ import AdminPostManagement from "../components/admin/AdminPostManagement";
 import NotificationUserPage from "../components/notification/Notification";
 import AdminNotifications from "../components/admin/AdminNotifications";
 import LecturerNotifications from "../pages/lecturePage/LecturerNotifications";
+<<<<<<< Updated upstream:frontend/src/routes/AppRouter.jsx
+=======
+import EventDetailPage from "../components/events/EventDetailPage";
+import PostDetail from "../components/events/PostDetail";
+import NewsPage from "../components/NewsPage";
+import EventPostList from "../components/EventPostList";
+import CalendarPage from "../pages/calendar/CalendarPage";
+>>>>>>> Stashed changes:frontend/event-management-portal-web/src/routes/AppRouter.jsx
 
 const AppRouter = () => {
   return (
     <Routes>
       <Route path="/" element={<VangLaiPage />} />
+      <Route path="/calendar" element={<CalendarPage />} />
       <Route path="/login" element={<LoginPage />} />
       <Route path="/register" element={<RegisterPage />} />
       <Route path="/forgot-password" element={<ForgotPassword />} />

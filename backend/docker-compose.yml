@@ -75,8 +75,13 @@ services:
     ports:
       - "8080:8080"
     environment:
+<<<<<<< Updated upstream
       EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://discovery-server:8761/eureka/
       SPRING_DATASOURCE_URL: jdbc:mariadb://mariadb:3306/analytics_db
+=======
+      EUREKA_CLIENT_ENABLED: "false"
+      SPRING_DATASOURCE_URL: jdbc:mariadb://mariadb:3306/analytics_db?createDatabaseIfNotExist=true
+>>>>>>> Stashed changes
       SPRING_DATASOURCE_USERNAME: root
       SPRING_DATASOURCE_PASSWORD: root
     depends_on:
