@@ -67,6 +67,7 @@ services:
     ports:
       - "8081:8081"
     environment:
+      EUREKA_CLIENT_ENABLED: "false"
       SPRING_DATASOURCE_URL: jdbc:mariadb://mariadb:3306/analytics_db?createDatabaseIfNotExist=true
       SPRING_DATASOURCE_USERNAME: root
       SPRING_DATASOURCE_PASSWORD: root

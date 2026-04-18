@@ -6,6 +6,22 @@ export const API_ENDPOINTS = {
         AUTH: '/identity/auth',
         PROFILES: '/identity/profiles',
         ACCOUNTS: '/identity/accounts'
+    },
+    NOTIFICATIONS: '/notification/notifications',
+    EVENTS: {
+        BASE: '/event/events',
+        PLANS: '/event/plans',
+        ADMIN: '/event/admin',
+        REGISTRATIONS: {
+            BASE: '/event/registrations',
+            CANCEL: '/event/registrations/cancel',
+            CHECK: (eventId) => `/event/registrations/check/${eventId}`,
+            REGISTER: (eventId) => `/event/registrations/${eventId}`,
+            GET_QR: (registrationId) => `/event/registrations/${registrationId}/qr`
+        }
+    },
+    LUCKY_DRAW: {
+        ENTRIES: (drawId) => `/lucky-draw/entries/${drawId}`
     }
 };
 

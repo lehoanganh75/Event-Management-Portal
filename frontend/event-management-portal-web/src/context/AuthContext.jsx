@@ -128,7 +128,6 @@ export const AuthProvider = ({ children }) => {
         updateAccount,
         deleteAccount, 
         updateAccountStatus,
-        register: authService.register,
         forgotPassword: authService.forgotPassword,
         resetPassword: authService.resetPassword,
     };

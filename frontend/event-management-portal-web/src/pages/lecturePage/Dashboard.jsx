@@ -36,6 +36,7 @@ import {
   Line,
 } from "recharts";
 import { useNavigate } from "react-router-dom";
+import { eventApi } from "../../api/eventApi";
 
 const Dashboard = () => {
   const [loading, setLoading] = useState(true);
@@ -50,12 +51,9 @@ const Dashboard = () => {
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      const [eventsRes, totalParticipants] = await Promise.all([
-        getAllEvents(),
-        getTotalParticipants(),
-      ]);
-
+      const eventsRes = await eventApi.events.getAll();
       const allEvents = eventsRes.data || [];
+      const totalParticipants = allEvents.reduce((sum, e) => sum + (e.registeredCount || 0), 0);
       const active = allEvents.filter(
         (e) => e.status === "ONGOING" || e.status === "PUBLISHED",
       ).length;

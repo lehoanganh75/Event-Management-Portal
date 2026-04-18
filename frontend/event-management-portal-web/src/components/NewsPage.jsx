@@ -61,7 +61,7 @@ export default function NewsPage() {
         <div className="bg-[#1e3a8a] text-white py-8">
           <div className="max-w-7xl mx-auto px-6">
             <button
-              onClick={() => navigate(-1)}
+              onClick={() => navigate("/")}
               className="flex items-center gap-2 text-blue-200 hover:text-white mb-4 transition"
             >
               <ArrowLeft size={18} />

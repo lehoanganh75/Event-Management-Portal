@@ -5,16 +5,15 @@ import {
   Calendar,
   MapPin,
   Clock,
-  Users,
   QrCode,
-  Share2,
-  MessageCircle,
   XCircle,
-  Star,
-  CheckCircle,
+  MessageCircle,
 } from "lucide-react";
 import { motion } from "framer-motion";
 
+import Header from "../components/common/Header";
+import Footer from "../components/common/Footer";
+import AIChatBot from "../components/chat/AIChatBot";
 import eventService from "../services/eventService";
 import TicketDetail from "../components/ticket/TicketDetail";
 
@@ -56,7 +55,6 @@ export default function EventDetail() {
 
   const handleMainAction = async () => {
     if (!event) return;
-
     const role = event.currentUserRole || {};
 
     if (role.creator || role.approver || role.organizer) {
@@ -119,11 +117,14 @@ export default function EventDetail() {
   const role = event.currentUserRole || {};
 
   return (
-    <div className="bg-gray-50 min-h-screen pb-12">
+    <div className="min-h-screen bg-gray-50 flex flex-col">
+      <Header />
+      <AIChatBot />
+
       {/* ==================== HERO SECTION ==================== */}
       <div className="relative h-[460px] overflow-hidden">
         <img
-          src={event.coverImage || "https://via.placeholder.com/1200x600/1a1a2e/ffffff?text=AI+Robot"}
+          src={event.coverImage || "https://via.placeholder.com/1200x600/1a1a2e/ffffff?text=IUH+Event"}
           alt={event.title}
           className="w-full h-full object-cover"
         />
@@ -139,12 +140,9 @@ export default function EventDetail() {
 
         <div className="absolute bottom-0 left-0 right-0 p-8 md:p-12 text-white">
           <div className="inline-block bg-orange-500 text-white text-sm font-bold px-6 py-1.5 rounded-full mb-4">
-            HỘI THẢO
+            {event.type || "SỰ KIỆN"}
           </div>
-          <h1 className="text-4xl md:text-5xl font-bold leading-tight">
-            {event.title}
-          </h1>
-
+          <h1 className="text-4xl md:text-5xl font-bold leading-tight">{event.title}</h1>
           <div className="flex flex-wrap gap-x-8 gap-y-3 mt-6 text-sm">
             <div className="flex items-center gap-2">
               <Calendar size={20} />
@@ -152,23 +150,23 @@ export default function EventDetail() {
             </div>
             <div className="flex items-center gap-2">
               <MapPin size={20} />
-              {event.location} • {event.eventMode}
+              {event.location} {event.eventMode ? `• ${event.eventMode}` : ""}
             </div>
           </div>
         </div>
       </div>
 
-      <div className="max-w-6xl mx-auto px-4 md:px-6 -mt-8 relative z-10">
+      {/* CONTENT */}
+      <div className="max-w-6xl mx-auto px-4 md:px-6 -mt-8 relative z-10 pb-12 flex-grow">
         <div className="grid lg:grid-cols-12 gap-8">
-          {/* ==================== LEFT COLUMN ==================== */}
+
+          {/* LEFT COLUMN */}
           <div className="lg:col-span-8 space-y-8">
+
             {/* Thông tin chi tiết */}
             <div className="bg-white rounded-3xl shadow-sm p-8">
               <h2 className="text-2xl font-bold mb-6">Thông tin chi tiết</h2>
-              <p className="text-gray-600 leading-relaxed whitespace-pre-line">
-                {event.description}
-              </p>
-
+              <p className="text-gray-600 leading-relaxed whitespace-pre-line">{event.description}</p>
               {event.notes && (
                 <div className="mt-6 bg-amber-50 border border-amber-200 p-5 rounded-2xl flex gap-4">
                   <Clock className="text-amber-600 mt-1" size={24} />
@@ -180,16 +178,8 @@ export default function EventDetail() {
               )}
             </div>
 
-            {/* Nội dung chính + Diễn giả */}
+            {/* Diễn giả */}
             <div className="bg-white rounded-3xl shadow-sm p-8">
-              <h3 className="font-semibold text-xl mb-4">Nội dung chính</h3>
-              <ul className="list-disc pl-6 space-y-2 text-gray-700 mb-10">
-                <li>Tổng quan về Generative AI và ứng dụng thực tiễn.</li>
-                <li>Cơ hội và thách thức cho nhân lực ngành CNTT.</li>
-                <li>Demo các công cụ AI hỗ trợ học tập và nghiên cứu.</li>
-                <li>Thảo luận với chuyên gia về tác động của AI trong ngành nghề tương lai.</li>
-              </ul>
-
               <h3 className="font-semibold text-xl mb-4">Diễn giả</h3>
               <div className="grid md:grid-cols-2 gap-6">
                 {event.presenters && event.presenters.length > 0 ? (
@@ -213,60 +203,41 @@ export default function EventDetail() {
               </div>
             </div>
 
-            {/* Lịch trình sự kiện */}
+            {/* Lịch trình */}
             <div className="bg-white rounded-3xl shadow-sm p-8">
               <h2 className="text-2xl font-bold mb-6">Lịch trình sự kiện</h2>
-              
               <div className="space-y-6">
                 {event.sessions && event.sessions.length > 0 ? (
                   event.sessions
-                    .sort((a, b) => a.orderIndex - b.orderIndex) // Sắp xếp theo thứ tự
+                    .sort((a, b) => a.orderIndex - b.orderIndex)
                     .map((session) => {
                       const start = new Date(session.startTime);
                       const end = new Date(session.endTime);
-
                       return (
                         <div key={session.id} className="flex gap-6 border-l-4 border-blue-500 pl-6 py-1">
-                          {/* Thời gian */}
                           <div className="w-28 flex-shrink-0">
                             <div className="font-mono text-sm font-semibold text-gray-800">
-                              {start.toLocaleTimeString("vi-VN", { 
-                                hour: "2-digit", 
-                                minute: "2-digit" 
-                              })}
+                              {start.toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" })}
                               {" - "}
-                              {end.toLocaleTimeString("vi-VN", { 
-                                hour: "2-digit", 
-                                minute: "2-digit" 
-                              })}
+                              {end.toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" })}
                             </div>
                             <div className="text-xs text-gray-500 mt-1">
-                              {start.toLocaleDateString("vi-VN", { 
-                                day: "2-digit", 
-                                month: "2-digit" 
-                              })}
+                              {start.toLocaleDateString("vi-VN", { day: "2-digit", month: "2-digit" })}
                             </div>
                           </div>
-
-                          {/* Nội dung */}
                           <div className="flex-1">
                             <div className="flex items-center gap-3 mb-2">
-                              <h4 className="font-semibold text-lg leading-tight">
-                                {session.title}
-                              </h4>
-                              <span className={`text-xs font-medium px-3 py-1 rounded-full 
-                                ${session.type === "KEYNOTE" ? "bg-purple-100 text-purple-700" : 
-                                  session.type === "WORKSHOP" ? "bg-blue-100 text-blue-700" : 
-                                  session.type === "BREAK" ? "bg-amber-100 text-amber-700" : 
-                                  "bg-gray-100 text-gray-600"}`}>
+                              <h4 className="font-semibold text-lg leading-tight">{session.title}</h4>
+                              <span className={`text-xs font-medium px-3 py-1 rounded-full ${
+                                session.type === "KEYNOTE" ? "bg-purple-100 text-purple-700" :
+                                session.type === "WORKSHOP" ? "bg-blue-100 text-blue-700" :
+                                session.type === "BREAK" ? "bg-amber-100 text-amber-700" :
+                                "bg-gray-100 text-gray-600"
+                              }`}>
                                 {session.type}
                               </span>
                             </div>
-
-                            <p className="text-gray-600 text-[15px] leading-relaxed">
-                              {session.description}
-                            </p>
-
+                            <p className="text-gray-600 text-[15px] leading-relaxed">{session.description}</p>
                             <div className="flex items-center gap-2 mt-3 text-sm text-gray-500">
                               <MapPin size={16} />
                               <span>{session.room}</span>
@@ -289,12 +260,9 @@ export default function EventDetail() {
             </div>
           </div>
 
-          {/* ==================== RIGHT SIDEBAR ==================== */}
+          {/* RIGHT SIDEBAR */}
           <div className="lg:col-span-4 space-y-6">
-            
-            {/* Card chính (Sticky) - chỉ chứa thông tin + nút + tương tác */}
-            <div className="bg-white rounded-3xl shadow-sm p-8 z-10">
-              
+            <div className="bg-white rounded-3xl shadow-sm p-8">
               {/* Số lượng tham gia */}
               <div className="mb-8">
                 <div className="flex justify-between text-sm mb-2">
@@ -313,16 +281,13 @@ export default function EventDetail() {
                 </div>
               </div>
 
-              {/* Nút hành động chính */}
+              {/* Nút hành động */}
               <button
                 onClick={handleMainAction}
                 disabled={
                   isRegistering ||
-                  (!role.registered && 
-                  !role.creator && 
-                  !role.approver && 
-                  !role.organizer && 
-                  isDeadlinePassed(event.registrationDeadline))
+                  (!role.registered && !role.creator && !role.approver && !role.organizer &&
+                    isDeadlinePassed(event.registrationDeadline))
                 }
                 className={`w-full h-14 rounded-2xl font-bold text-base flex items-center justify-center gap-3 transition-all shadow-lg active:scale-95 ${
                   role.creator || role.approver || role.organizer
@@ -369,14 +334,14 @@ export default function EventDetail() {
               </div>
             </div>
 
-            {/* ==================== PHẦN VÉ - Tách riêng, không sticky ==================== */}
+            {/* Vé */}
             {showTicket && (
               <motion.div
                 initial={{ opacity: 0, y: 30 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.4 }}
                 id="ticket-section"
-                className="pt-4"   // Tạo khoảng cách với card bên trên
+                className="pt-4"
               >
                 <TicketDetail eventId={event.id} />
               </motion.div>
@@ -384,6 +349,8 @@ export default function EventDetail() {
           </div>
         </div>
       </div>
+
+      <Footer />
     </div>
   );
 }

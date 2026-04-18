@@ -5,6 +5,7 @@ import { Users, MapPin, Loader2, Gift, ChevronLeft, ChevronRight, User, Clock, S
 
 import Layout from "../components/layout/Layout";
 import EventFeed from "../components/events/EventFeed";
+import AIChatBot from "../components/chat/AIChatBot";
 import { useEvents } from "../context/EventContext";
 
 const formatDate = (dateString) => {
@@ -30,6 +31,18 @@ const VangLaiPage = () => {
     fetchFeatured();
   }, [fetchFeatured]);
 
+  useEffect(() => {
+    if (window.location.hash === "#su-kien") {
+      setTimeout(() => {
+        const el = document.getElementById("su-kien");
+        if (el) {
+          const yOffset = -140;
+          const y = el.getBoundingClientRect().top + window.pageYOffset + yOffset;
+          window.scrollTo({ top: y, behavior: "smooth" });
+        }
+      }, 300);
+    }
+  }, []);
   const totalParticipants = useMemo(() => {
     if (!Array.isArray(featured)) return 0;
     return featured.reduce((acc, ev) => acc + (ev.registeredCount || 0), 0);
@@ -62,6 +75,9 @@ const VangLaiPage = () => {
 
   return (
     <Layout onLogin={() => navigate("/login")}>
+      {/* AI Chat Bot */}
+      <AIChatBot />
+      
       <section id="gioi-thieu" className="min-h-screen bg-white scroll-mt-35 font-roboto">
         <div className="relative bg-[#245bb5] text-white overflow-hidden py-16 md:py-24 px-6 md:px-20">
           <div className="absolute inset-0 opacity-10 pointer-events-none">
@@ -286,9 +302,6 @@ const VangLaiPage = () => {
               </h2>
               <div className="w-24 h-2 bg-blue-600 rounded-full mt-6"></div>
             </div>
-
-            {/* Đây là nơi Component EventFeed được gọi */}
-            {/* Nó đã chứa sẵn Sidebar (Search) và các Tab lọc */}
             <EventFeed />
           </div>
         </div>

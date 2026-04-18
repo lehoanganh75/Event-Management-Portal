@@ -41,11 +41,13 @@ import EventDetailPage from "../components/events/EventDetailPage";
 import PostDetail from "../components/events/PostDetail";
 import NewsPage from "../components/NewsPage";
 import EventPostList from "../components/EventPostList";
+import CalendarPage from "../pages/calendar/CalendarPage";
 
 const AppRouter = () => {
   return (
     <Routes>
       <Route path="/" element={<VangLaiPage />} />
+      <Route path="/calendar" element={<CalendarPage />} />
       <Route path="/login" element={<LoginPage />} />
       <Route path="/register" element={<RegisterPage />} />
       <Route path="/forgot-password" element={<ForgotPassword />} />

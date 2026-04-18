@@ -46,6 +46,8 @@ const Header = () => {
   const [isMarkingAll, setIsMarkingAll] = useState(false);
   const [logoutToastVisible, setLogoutToastVisible] = useState(false);
   const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
+  // Navigation state (Scroll Spy)
+  const [activeSection, setActiveSection] = useState("home");
 
   const menuRef = useRef(null);
   const notificationRef = useRef(null);
@@ -87,6 +89,47 @@ const Header = () => {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
+  // Scroll Spy logic
+  useEffect(() => {
+    const handleScroll = () => {
+      if (location.pathname !== "/") return;
+
+      const scrollPosition = window.scrollY;
+      const eventSection = document.getElementById("su-kien");
+      
+      if (eventSection) {
+        const sectionTop = eventSection.offsetTop - 200;
+        if (scrollPosition >= sectionTop) {
+          setActiveSection("events");
+        } else {
+          setActiveSection("home");
+        }
+      } else {
+        // Fallback if element not found
+        if (scrollPosition > 400) {
+          setActiveSection("events");
+        } else {
+          setActiveSection("home");
+        }
+      }
+    };
+
+    if (location.pathname === "/") {
+      window.addEventListener("scroll", handleScroll);
+      // Initial check
+      handleScroll();
+    } else if (location.pathname.startsWith("/events")) {
+      setActiveSection("events");
+    } else if (location.pathname === "/calendar") {
+      setActiveSection("calendar");
+    } else if (location.pathname === "/news") {
+      setActiveSection("news");
+    } else {
+      setActiveSection("");
+    }
+
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, [location.pathname]);
   // Auto hide toast
   useEffect(() => {
     if (logoutToastVisible) {
@@ -95,7 +138,11 @@ const Header = () => {
     }
   }, [logoutToastVisible]);
 
-  const getPrimaryRole = () => roleMap[user?.roles?.[0]] || "Thành viên";
+  const getPrimaryRole = () => {
+    const rawRole = user?.role || user?.roles?.[0] || "";
+    const cleanRole = rawRole.toUpperCase();
+    return roleMap[cleanRole] || roleMap[rawRole] || "Thành viên";
+  };
 
   const hasManagementAccess = () =>
     user?.roles?.some((r) => ["SUPER_ADMIN", "ADMIN"].includes(r));
@@ -160,32 +207,49 @@ const Header = () => {
             <nav className="hidden lg:flex items-center gap-1">
               <Link
                 to="/"
+                onClick={() => {
+                  window.scrollTo({ top: 0, behavior: "smooth" });
+                  setActiveSection("home");
+                }}
                 className={`px-5 py-2.5 rounded-xl text-sm font-medium transition-all ${
-                  isActive("/") ? "bg-blue-600 text-white" : "hover:bg-slate-100 text-slate-700"
+                  activeSection === "home" ? "bg-blue-600 text-white shadow-md" : "hover:bg-slate-100 text-slate-700"
                 }`}
               >
                 Trang chủ
               </Link>
+
               <Link
-                to="/home"
+                to="/#su-kien"
+                onClick={(e) => {
+                  setActiveSection("events");
+                  if (location.pathname === '/') {
+                    const el = document.getElementById("su-kien");
+                    if (el) {
+                      const yOffset = -140;
+                      const y = el.getBoundingClientRect().top + window.pageYOffset + yOffset;
+                      window.scrollTo({ top: y, behavior: "smooth" });
+                    }
+                  }
+                }}
                 className={`px-5 py-2.5 rounded-xl text-sm font-medium transition-all ${
-                  isActive("/home") ? "bg-blue-600 text-white" : "hover:bg-slate-100 text-slate-700"
-                }`}
-              >
-                Giới thiệu
-              </Link>
-              <Link
-                to="/events"
-                className={`px-5 py-2.5 rounded-xl text-sm font-medium transition-all ${
-                  isActive("/events") ? "bg-blue-600 text-white" : "hover:bg-slate-100 text-slate-700"
+                  activeSection === "events" ? "bg-blue-600 text-white shadow-md" : "hover:bg-slate-100 text-slate-700"
                 }`}
               >
                 Sự kiện
               </Link>
+
+              <Link
+                to="/calendar"
+                className={`px-5 py-2.5 rounded-xl text-sm font-medium transition-all ${
+                  activeSection === "calendar" ? "bg-blue-600 text-white shadow-md" : "hover:bg-slate-100 text-slate-700"
+                }`}
+              >
+                Lịch sự kiện
+              </Link>
               <Link
                 to="/news"
                 className={`px-5 py-2.5 rounded-xl text-sm font-medium transition-all ${
-                  isActive("/news") ? "bg-blue-600 text-white" : "hover:bg-slate-100 text-slate-700"
+                  activeSection === "news" ? "bg-blue-600 text-white shadow-md" : "hover:bg-slate-100 text-slate-700"
                 }`}
               >
                 Tin tức
@@ -341,11 +405,17 @@ const Header = () => {
                     className="flex items-center gap-3 cursor-pointer p-1 pr-4 rounded-full hover:bg-slate-100 transition"
                   >
                     <div className="relative">
-                      <img
-                        src={user.avatarUrl || `https://api.dicebear.com/7.x/avataaars/svg?seed=${user.username}`}
-                        alt="avatar"
-                        className="w-9 h-9 rounded-full object-cover border-2 border-white shadow"
-                      />
+                      {user.avatarUrl ? (
+                        <img
+                          src={user.avatarUrl}
+                          alt="avatar"
+                          className="w-9 h-9 rounded-full object-cover border-2 border-white shadow"
+                        />
+                      ) : (
+                        <div className="w-9 h-9 bg-gradient-to-br from-blue-600 to-indigo-600 text-white rounded-full flex items-center justify-center text-sm font-bold shadow-md border-2 border-white">
+                          {user.fullName?.[0]?.toUpperCase() || user.username?.[0]?.toUpperCase() || "U"}
+                        </div>
+                      )}
                       <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 border-2 border-white rounded-full" />
                     </div>
                     <div className="hidden md:block text-left">
@@ -368,8 +438,18 @@ const Header = () => {
                         {/* User Info Header */}
                         <div className="px-6 py-5 bg-gradient-to-br from-blue-50 to-indigo-50 border-b border-slate-100">
                           <div className="flex items-center gap-4">
-                            <div className="w-14 h-14 bg-gradient-to-br from-blue-600 to-indigo-600 text-white rounded-2xl flex items-center justify-center text-3xl font-bold shadow-md ring-4 ring-white">
-                              {user.fullName?.[0]?.toUpperCase() || user.username?.[0]?.toUpperCase() || "U"}
+                            <div className="w-14 h-14 ring-4 ring-white shadow-md rounded-2xl overflow-hidden bg-gradient-to-br from-blue-600 to-indigo-600 flex items-center justify-center">
+                              {user.avatarUrl ? (
+                                <img
+                                  src={user.avatarUrl}
+                                  alt="avatar"
+                                  className="w-full h-full object-cover"
+                                />
+                              ) : (
+                                <span className="text-white text-3xl font-bold">
+                                  {user.fullName?.[0]?.toUpperCase() || user.username?.[0]?.toUpperCase() || "U"}
+                                </span>
+                              )}
                             </div>
                             <div className="flex-1 min-w-0">
                               <p className="font-semibold text-lg text-slate-800 truncate">

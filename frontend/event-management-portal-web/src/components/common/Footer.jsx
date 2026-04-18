@@ -2,9 +2,11 @@ import React from "react";
 import logo_iuh from "../../assets/images/logo_iuh.png";
 import { MapPin, Mail, Phone, MousePointer2, Users } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { useSiteStats, formatCount } from "../../hooks/useSiteStats";
 
 const Footer = () => {
   const navigate = useNavigate();
+  const { totalVisits, online } = useSiteStats();
 
   const openMap = (address) => {
     const encodedAddress = encodeURIComponent(address);
@@ -192,16 +194,21 @@ const Footer = () => {
           </div>
         </div>
 
-        {/* Bottom Strip: Số lượng truy cập & Copyright */}
         <div className="border-t border-white/20 pt-4 mt-6 flex flex-col md:flex-row justify-between items-center text-[13px] opacity-90 gap-4">
           <div className="flex gap-6">
             <span className="flex items-center gap-1">
               <Users size={16} className="text-[#ffcc00]" /> Số lượng truy cập:{" "}
-              <span className="font-bold tracking-wider">288,704,603</span>
+              <span className="font-bold tracking-wider tabular-nums">
+                {formatCount(totalVisits)}
+              </span>
             </span>
             <span className="flex items-center gap-1">
-              <MousePointer2 size={16} className="text-[#ffcc00]" /> Đang
-              online: <span className="font-bold">218</span>
+              <span className="relative flex h-2 w-2 mr-1">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-green-400"></span>
+              </span>
+              <MousePointer2 size={16} className="text-[#ffcc00]" /> Đang online:{" "}
+              <span className="font-bold tabular-nums">{formatCount(online)}</span>
             </span>
           </div>
           <div className="text-center md:text-right">
