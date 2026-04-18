@@ -44,7 +44,7 @@ privateApi.interceptors.response.use(
                 localStorage.setItem('accessToken', accessToken);
                 originalRequest.headers.Authorization = `Bearer ${accessToken}`;
                 return privateApi(originalRequest);
-            } catch (_err) {
+            } catch (err) {
                 localStorage.clear();
                 window.location.href = '/login';
             }

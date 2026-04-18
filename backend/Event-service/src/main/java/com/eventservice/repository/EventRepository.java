@@ -84,7 +84,6 @@ public interface EventRepository extends JpaRepository<Event, String> {
     List<Event> findByStatusInAndIsDeletedFalseOrderByRegistrationDeadlineAsc(List<EventStatus> publicStatuses);
 
     List<Event> findByStatus(EventStatus eventStatus);
-
     @Query("SELECT e FROM Event e WHERE " +
            "(LOWER(e.title) LIKE LOWER(CONCAT('%', :keyword, '%')) OR " +
            "LOWER(e.description) LIKE LOWER(CONCAT('%', :keyword, '%')) OR " +

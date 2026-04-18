@@ -43,7 +43,6 @@ const VangLaiPage = () => {
       }, 300);
     }
   }, []);
-
   const totalParticipants = useMemo(() => {
     if (!Array.isArray(featured)) return 0;
     return featured.reduce((acc, ev) => acc + (ev.registeredCount || 0), 0);
@@ -293,6 +292,16 @@ const VangLaiPage = () => {
 
         <div className="w-full py-20 px-4 md:px-10 bg-[#f8fafc]">
           <div id="su-kien" className="max-w-7xl mx-auto">
+            <div className="mb-12 flex flex-col items-center">
+              <div className="inline-flex items-center gap-2 bg-blue-50 text-blue-700 px-4 py-1.5 rounded-full mb-4">
+                <Sparkles size={16} />
+                <span className="text-xs font-black uppercase tracking-widest">Khám phá hoạt động</span>
+              </div>
+              <h2 className="text-4xl md:text-5xl font-black text-slate-900 text-center uppercase">
+                Hệ sinh thái <span className="text-blue-600">Sự kiện IUH</span>
+              </h2>
+              <div className="w-24 h-2 bg-blue-600 rounded-full mt-6"></div>
+            </div>
             <EventFeed />
           </div>
         </div>

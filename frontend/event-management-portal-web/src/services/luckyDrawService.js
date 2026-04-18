@@ -18,7 +18,6 @@ privateLUCKY_DRAW.interceptors.request.use((config) => {
     return config;
 });
 
-// Tự động Refresh Token cho privateLUCKY_DRAW
 privateLUCKY_DRAW.interceptors.response.use(
     (res) => res,
     async (error) => {
@@ -33,7 +32,7 @@ privateLUCKY_DRAW.interceptors.response.use(
                 
                 originalRequest.headers.Authorization = `Bearer ${res.data.accessToken}`;
                 return privateLUCKY_DRAW(originalRequest);
-            } catch (_err) {
+            } catch (err) {
                 localStorage.clear();
                 window.location.href = '/login';
             }

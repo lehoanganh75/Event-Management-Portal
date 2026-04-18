@@ -12,5 +12,5 @@ public interface DrawEntryRepository extends JpaRepository<DrawEntry, String> {
     Optional<DrawEntry> findFirstByLuckyDrawIdAndUserProfileIdAndStatus(
             String luckyDrawId, String userProfileId, EntryStatus status);
 
-    DrawEntry findByLuckyDrawIdAndUserProfileId(String luckyDrawId, String userProfileId);
+    Optional<DrawEntry> findByLuckyDrawIdAndUserProfileId(String luckyDrawId, String userProfileId);
 }

@@ -46,7 +46,6 @@ const Header = () => {
   const [isMarkingAll, setIsMarkingAll] = useState(false);
   const [logoutToastVisible, setLogoutToastVisible] = useState(false);
   const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
-  
   // Navigation state (Scroll Spy)
   const [activeSection, setActiveSection] = useState("home");
 
@@ -131,7 +130,6 @@ const Header = () => {
 
     return () => window.removeEventListener("scroll", handleScroll);
   }, [location.pathname]);
-
   // Auto hide toast
   useEffect(() => {
     if (logoutToastVisible) {
@@ -239,6 +237,7 @@ const Header = () => {
               >
                 Sự kiện
               </Link>
+
               <Link
                 to="/calendar"
                 className={`px-5 py-2.5 rounded-xl text-sm font-medium transition-all ${

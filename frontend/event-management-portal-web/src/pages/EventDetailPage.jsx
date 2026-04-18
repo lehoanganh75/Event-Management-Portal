@@ -5,9 +5,9 @@ import {
   Calendar,
   MapPin,
   Clock,
-  MessageCircle,
   QrCode,
   XCircle,
+  MessageCircle,
 } from "lucide-react";
 import { motion } from "framer-motion";
 
@@ -81,7 +81,7 @@ export default function EventDetail() {
     try {
       await eventService.registerEvent(event.id);
       alert("Đăng ký thành công!");
-      await fetchEvent();
+      await fetchEvent(); // Refresh để cập nhật role
       setShowTicket(true);
     } catch (error) {
       alert(error.response?.data?.message || "Đăng ký thất bại");
@@ -117,11 +117,11 @@ export default function EventDetail() {
   const role = event.currentUserRole || {};
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 flex flex-col">
       <Header />
       <AIChatBot />
 
-      {/* HERO */}
+      {/* ==================== HERO SECTION ==================== */}
       <div className="relative h-[460px] overflow-hidden">
         <img
           src={event.coverImage || "https://via.placeholder.com/1200x600/1a1a2e/ffffff?text=IUH+Event"}
@@ -157,7 +157,7 @@ export default function EventDetail() {
       </div>
 
       {/* CONTENT */}
-      <div className="max-w-6xl mx-auto px-4 md:px-6 -mt-8 relative z-10 pb-12">
+      <div className="max-w-6xl mx-auto px-4 md:px-6 -mt-8 relative z-10 pb-12 flex-grow">
         <div className="grid lg:grid-cols-12 gap-8">
 
           {/* LEFT COLUMN */}
@@ -263,7 +263,6 @@ export default function EventDetail() {
           {/* RIGHT SIDEBAR */}
           <div className="lg:col-span-4 space-y-6">
             <div className="bg-white rounded-3xl shadow-sm p-8">
-
               {/* Số lượng tham gia */}
               <div className="mb-8">
                 <div className="flex justify-between text-sm mb-2">
@@ -348,7 +347,6 @@ export default function EventDetail() {
               </motion.div>
             )}
           </div>
-
         </div>
       </div>
 

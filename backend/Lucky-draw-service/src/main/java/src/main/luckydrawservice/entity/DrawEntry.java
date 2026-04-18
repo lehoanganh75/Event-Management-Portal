@@ -1,5 +1,6 @@
 package src.main.luckydrawservice.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
@@ -30,5 +31,6 @@ public class DrawEntry {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "lucky_draw_id", nullable = false)
+    @JsonIgnore
     private LuckyDraw luckyDraw;
 }

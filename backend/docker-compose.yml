@@ -2,24 +2,17 @@ version: '3.8'
 
 services:
   mariadb:
-    image: mariadb:latest
-    container_name: mariadb
+    image: mariadb:11
+    container_name: mariadb-server
     restart: always
-    ports:
-      - "3307:3306"
     environment:
       MYSQL_ROOT_PASSWORD: root
+    ports:
+      - "3309:3306"
     volumes:
       - mariadb_data:/var/lib/mysql
-      - ./docker/mysql/init.sql:/docker-entrypoint-initdb.d/init.sql
     networks:
       - micro-network
-    healthcheck:
-      test: [ "CMD", "mariadb-admin", "ping", "-h", "localhost", "-u", "root", "-proot" ]
-      interval: 10s    # Kiểm tra mỗi 10 giây
-      timeout: 10s     # Chờ phản hồi tối đa 10 giây
-      retries: 10      # Thử lại 10 lần trước khi báo lỗi
-      start_period: 60s
 
   mongodb:
     image: mongo:7
@@ -47,140 +40,154 @@ services:
     restart: always
     ports:
       - "9092:9092"
+      - "29092:29092"   # cho host access nếu cần
     environment:
       KAFKA_NODE_ID: 1
       KAFKA_PROCESS_ROLES: broker,controller
-      KAFKA_LISTENERS: PLAINTEXT://:9092,CONTROLLER://:9093
-      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092
+      KAFKA_LISTENERS: PLAINTEXT://:9092,PLAINTEXT_HOST://:29092,CONTROLLER://:9093
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092,PLAINTEXT_HOST://localhost:29092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT,CONTROLLER:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
       KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
-      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT
-      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka-server:9093
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_LOG_DIRS: /tmp/kraft-combined-logs
     networks:
       - micro-network
 
-  discovery-server:
-    build: ./Discovery-service
-    container_name: discovery-server
-    ports:
-      - "8761:8761"
-    networks:
-      - micro-network
-
+# ========================
+# MICROSERVICES
+# ========================
   analytics-service:
     build: ./Analytics-service
     container_name: analytics-service
     restart: always
-    command: [ "sh", "-c", "sleep 15 && java -jar app.jar" ]
     ports:
-      - "8080:8080"
+      - "8081:8081"
     environment:
-<<<<<<< Updated upstream
-      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://discovery-server:8761/eureka/
-      SPRING_DATASOURCE_URL: jdbc:mariadb://mariadb:3306/analytics_db
-=======
       EUREKA_CLIENT_ENABLED: "false"
       SPRING_DATASOURCE_URL: jdbc:mariadb://mariadb:3306/analytics_db?createDatabaseIfNotExist=true
->>>>>>> Stashed changes
       SPRING_DATASOURCE_USERNAME: root
       SPRING_DATASOURCE_PASSWORD: root
     depends_on:
-      mariadb:
-        condition: service_healthy
+      - mariadb
     networks:
       - micro-network
 
   event-service:
     build: ./Event-service
     container_name: event-service
-    command: [ "sh", "-c", "sleep 15 && java -jar app.jar" ]
+    restart: always
     ports:
-      - "8081:8081"
+      - "8082:8082"
+    env_file:
+      - ./Event-service/.env
     environment:
-      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://discovery-server:8761/eureka/
-      SPRING_DATASOURCE_URL: jdbc:mariadb://mariadb:3306/event_db
+      SPRING_DATASOURCE_URL: jdbc:mariadb://mariadb:3306/event_db?createDatabaseIfNotExist=true
       SPRING_DATASOURCE_USERNAME: root
       SPRING_DATASOURCE_PASSWORD: root
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      SPRING_DATA_REDIS_HOST: redis
+      SPRING_DATA_REDIS_PORT: 6379
     depends_on:
-      mariadb:
-        condition: service_healthy
+      - mariadb
+      - kafka
+      - redis
     networks:
       - micro-network
 
   identity-service:
     build: ./Identity-service
     container_name: identity-service
-    command: [ "sh", "-c", "sleep 20 && java -jar app.jar" ]
+    restart: always
     ports:
-      - "8082:8082"
+      - "8083:8083"
+    env_file:
+      - ./Identity-service/.env
     environment:
-      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://discovery-server:8761/eureka/
-      SPRING_DATASOURCE_URL: jdbc:mariadb://mariadb:3306/identity_db
+      SPRING_DATASOURCE_URL: jdbc:mariadb://mariadb:3306/identity_db?createDatabaseIfNotExist=true
       SPRING_DATASOURCE_USERNAME: root
       SPRING_DATASOURCE_PASSWORD: root
-      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
     depends_on:
-      mariadb:
-        condition: service_healthy
-      kafka:
-        condition: service_started
+      - mariadb
     networks:
       - micro-network
 
   lucky-draw-service:
     build: ./Lucky-draw-service
     container_name: lucky-draw-service
-    command: [ "sh", "-c", "sleep 20 && java -jar app.jar" ]
+    restart: always
     ports:
-      - "8083:8083"
+      - "8084:8084"
+    env_file:
+        - ./Lucky-draw-service/.env
     environment:
-      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://discovery-server:8761/eureka/
-      SPRING_DATASOURCE_URL: jdbc:mariadb://mariadb:3306/lucky_draw_db
+      SPRING_DATASOURCE_URL: jdbc:mariadb://mariadb:3306/lucky_draw_db?createDatabaseIfNotExist=true
       SPRING_DATASOURCE_USERNAME: root
       SPRING_DATASOURCE_PASSWORD: root
-      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
     depends_on:
-      mariadb:
-        condition: service_healthy
+      - mariadb
     networks:
       - micro-network
 
   notification-service:
     build: ./Notification-service
     container_name: notification-service
-    command: [ "sh", "-c", "sleep 20 && java -jar app.jar" ]
+    restart: always
     ports:
-      - "8084:8084"
+      - "8085:8085"
+    env_file:
+      - ./Notification-service/.env
     environment:
-      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://discovery-server:8761/eureka/
-      SPRING_DATASOURCE_URL: jdbc:mariadb://mariadb:3306/notification_db
+      SPRING_DATASOURCE_URL: jdbc:mariadb://mariadb:3306/notification_db?createDatabaseIfNotExist=true
       SPRING_DATASOURCE_USERNAME: root
       SPRING_DATASOURCE_PASSWORD: root
       SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
     depends_on:
-      mariadb:
-        condition: service_healthy
-      kafka:
-        condition: service_started
+      - mariadb
+      - kafka
     networks:
       - micro-network
 
-  gateway-service:
-    build: ./Gateway-service
-    container_name: gateway-service
+# ========================
+# KONG API GATEWAY
+# ========================
+  kong:
+    image: kong:3.6
+    container_name: kong-server
+    restart: always
     ports:
-      - "8888:8888"
+      - "8000:8000"
+      - "8001:8001"
     environment:
-      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://discovery-server:8761/eureka/
+      KONG_DATABASE: "off"
+      KONG_DECLARATIVE_CONFIG: /kong/kong.yml
+      KONG_PROXY_ACCESS_LOG: /dev/stdout
+      KONG_ADMIN_ACCESS_LOG: /dev/stdout
+      KONG_ADMIN_LISTEN: 0.0.0.0:8001
+    volumes:
+      - ./kong/kong.yml:/kong/kong.yml
     depends_on:
-      - discovery-server
+      - analytics-service
+      - event-service
+      - identity-service
+      - lucky-draw-service
+      - notification-service
     networks:
       - micro-network
 
+# ========================
+# NETWORK
+# ========================
 networks:
   micro-network:
     driver: bridge
 
+# ========================
+# VOLUME
+# ========================
 volumes:
   mariadb_data:
   mongo_data:

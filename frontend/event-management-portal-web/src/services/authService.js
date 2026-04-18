@@ -36,7 +36,7 @@ privateIdentity.interceptors.response.use(
                 
                 originalRequest.headers.Authorization = `Bearer ${res.data.accessToken}`;
                 return privateIdentity(originalRequest);
-            } catch (_err) {
+            } catch (err) {
                 localStorage.clear();
                 window.location.href = '/login';
             }
