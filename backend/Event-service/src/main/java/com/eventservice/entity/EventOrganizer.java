@@ -44,4 +44,16 @@ public class EventOrganizer {
     @JoinColumn(name = "event_id", nullable = false)
     @JsonIgnore
     private Event event;
+
+    public EventOrganizer copy() {
+        return EventOrganizer.builder()
+                .accountId(this.accountId)
+                .fullName(this.fullName)
+                .email(this.email)
+                .position(this.position)
+                .role(this.role)
+                .isDeleted(this.isDeleted)
+                .organization(this.organization)
+                .build();
+    }
 }

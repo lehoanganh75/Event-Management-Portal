@@ -14,8 +14,11 @@ import java.util.Map;
 @Service
 public class EventAnalyticServiceImpl implements EventAnalyticService {
 
-    @Autowired
-    private EventAnalyticsRepository repository;
+    private final EventAnalyticsRepository repository;
+
+    public EventAnalyticServiceImpl(EventAnalyticsRepository repository) {
+        this.repository = repository;
+    }
 
     @Transactional
     @Override

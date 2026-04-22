@@ -1,80 +1,36 @@
-import axios from 'axios';
-
-const IDENTITY_URL = 'http://localhost:8083';
-
-// --- INSTANCE 1: DÀNH CHO PUBLIC (Auth) ---
-const publicIdentity = axios.create({
-    baseURL: IDENTITY_URL,
-    headers: { 'Content-Type': 'application/json' },
-});
-
-// --- INSTANCE 2: DÀNH CHO PRIVATE (Profiles & Admin) ---
-const privateIdentity = axios.create({
-    baseURL: IDENTITY_URL,
-    headers: { 'Content-Type': 'application/json' },
-});
-
-// Gắn token cho privateIdentity
-privateIdentity.interceptors.request.use((config) => {
-    const token = localStorage.getItem('accessToken');
-    if (token) config.headers.Authorization = `Bearer ${token}`;
-    return config;
-});
-
-// Tự động Refresh Token cho privateIdentity
-privateIdentity.interceptors.response.use(
-    (res) => res,
-    async (error) => {
-        const originalRequest = error.config;
-        if (error.response?.status === 401 && !originalRequest._retry) {
-            originalRequest._retry = true;
-            try {
-                const refreshToken = localStorage.getItem('refreshToken');
-                // Gọi API refresh dùng instance PUBLIC để tránh loop
-                const res = await publicIdentity.post('/auth/refresh', { refreshToken });
-                localStorage.setItem('accessToken', res.data.accessToken);
-                
-                originalRequest.headers.Authorization = `Bearer ${res.data.accessToken}`;
-                return privateIdentity(originalRequest);
-            } catch (err) {
-                localStorage.clear();
-                window.location.href = '/login';
-            }
-        }
-        return Promise.reject(error);
-    }
-);
+import axiosClient from '../api/axiosClient';
 
 const authService = {
-    register: (data) => publicIdentity.post('/auth/register', data),
-    login: (data) => publicIdentity.post('/auth/login', data),
-    logout: (refreshToken) => publicIdentity.post('/auth/logout', null, { params: { refreshToken } }),
-    verifyOtp: (username, otp) => publicIdentity.post("/auth/verify-otp", {
-        username,
-        otp
-    }),
-    forgotPassword: (email) => publicIdentity.post('/auth/forgot-password', null, { params: { email } }),
-    resetPassword: (token, newPassword) => publicIdentity.post('/auth/reset-password', null, { params: { token, newPassword } }),
+    // --- GROUP 1: AUTH (Public) ---
+    register: (data) => axiosClient.post('/identity/auth/register', data),
+    checkEmail: (email) => axiosClient.get('/identity/auth/check-email', { params: { email } }),
+    checkUsername: (username) => axiosClient.get('/identity/auth/check-username', { params: { username } }),
+    login: (data) => axiosClient.post('/identity/auth/login', data),
+    logout: (refreshToken) => axiosClient.post('/identity/auth/logout', null, { params: { refreshToken } }),
+    verifyOtp: (username, otp) => axiosClient.post("/identity/auth/verify-otp", { username, otp }),
+    resendOtp: (username) => axiosClient.post("/identity/auth/resend-otp", null, { params: { username } }),
+    forgotPassword: (email) => axiosClient.post('/identity/auth/forgot-password', null, { params: { email } }),
+    resetPassword: (token, newPassword) => axiosClient.post('/identity/auth/reset-password', null, { params: { token, newPassword } }),
     
-
-    getMyProfile: () => privateIdentity.get('/profiles/me'),
-    updateMyProfile: (updatedData) => privateIdentity.put('/profiles/me', updatedData),
-
-    getAllAccounts: () => privateIdentity.get('/accounts'),
-    getAccountById: (id) => privateIdentity.get(`/accounts/${id}`),
-    updateAccount: (id, data) => privateIdentity.put(`/accounts/${id}`, data),
-    updateAccountStatus: (id, status) => privateIdentity.put(`/accounts/${id}/status`, { status }),
-    updateAccountRoles: (id, role) => privateIdentity.put(`/accounts/${id}/roles`, role, {
-        headers: { 'Content-Type': 'text/plain' }
-    }),
-    deleteAccount: (id) => privateIdentity.delete(`/accounts/${id}`),
-
-    searchUsers: (keyword) => privateIdentity.get('/profiles/search', { params: { keyword } }),
-    getUsersByIds: (ids) => privateIdentity.get('/profiles/batch', {
+    // --- GROUP 2: PROFILES ---
+    getMyProfile: (options = {}) => axiosClient.get('/identity/profiles/me', options),
+    updateMyProfile: (updatedData) => axiosClient.put('/identity/profiles/me', updatedData),
+    searchUsers: (keyword) => axiosClient.get('/identity/profiles/search', { params: { keyword } }),
+    getUsersByIds: (ids) => axiosClient.get('/identity/profiles/batch', {
         params: { ids },
         paramsSerializer: { indexes: null } 
     }),
-    getUserById: (id) => privateIdentity.get('/profiles/invite', { params: { id } }),
+    getUserById: (id) => axiosClient.get('/identity/profiles/invite', { params: { id } }),
+
+    // --- GROUP 3: ACCOUNTS (Admin) ---
+    getAllAccounts: () => axiosClient.get('/identity/accounts'),
+    getAccountById: (id) => axiosClient.get(`/identity/accounts/${id}`),
+    updateAccount: (id, data) => axiosClient.put(`/identity/accounts/${id}`, data),
+    updateAccountStatus: (id, status) => axiosClient.put(`/identity/accounts/${id}/status`, { status }),
+    updateAccountRoles: (id, role) => axiosClient.put(`/identity/accounts/${id}/roles`, role, {
+        headers: { 'Content-Type': 'text/plain' }
+    }),
+    deleteAccount: (id) => axiosClient.delete(`/identity/accounts/${id}`),
 };
 
-export default authService;
+export default authService;

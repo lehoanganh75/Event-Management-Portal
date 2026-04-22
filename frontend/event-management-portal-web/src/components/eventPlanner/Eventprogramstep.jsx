@@ -22,6 +22,7 @@ import {
   GripVertical,
   Edit2,
   Info,
+  Check,
 } from "lucide-react";
 import axios from "axios";
 import { userApi } from "../../api/userApi"; // Import API mới tách
@@ -280,17 +281,19 @@ function PeopleSearch({ onSelect, accentColor = "blue" }) {
     }
   };
 
+
   const pick = (u) => {
+    const email = u.email || u.account?.email || "";
     onSelect({
       id: u.id,
       name: u.fullName,
-      fullName: u.fullName, 
-      email: u.account?.email || "",
+      fullName: u.fullName,
+      email: email,
       dept: u.majorName || "",
       avatar: (u.fullName || "").charAt(0).toUpperCase() || "NG",
-      role: u.account?.roles?.[0] || "MEMBER",
+      role: u.account?.role || u.role || "MEMBER",
       loginCode: u.loginCode,
-      phone: u.phone,
+      phone: u.phone || "",
     });
     setQ(""); setRes([]); setDone(false);
   };
@@ -417,8 +420,20 @@ function PeopleSearch({ onSelect, accentColor = "blue" }) {
                   >
                     {u.fullName}
                   </p>
-                  <p style={{ fontSize: 12, color: "#aaa", margin: 0 }}>
-                    {u.loginCode} · {u.account?.email}
+                  <p style={{ fontSize: 12, color: "#aaa", margin: 0, display: "flex", gap: 6, flexWrap: "wrap" }}>
+                    <span>{u.loginCode}</span>
+                    {(u.email || u.account?.email) && (
+                      <>
+                        <span style={{ color: "#eee" }}>|</span>
+                        <span>{u.email || u.account?.email}</span>
+                      </>
+                    )}
+                    {u.phone && (
+                      <>
+                        <span style={{ color: "#eee" }}>|</span>
+                        <span>{u.phone}</span>
+                      </>
+                    )}
                   </p>
                 </div>
                 <span

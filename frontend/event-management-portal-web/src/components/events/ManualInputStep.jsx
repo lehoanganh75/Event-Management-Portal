@@ -12,6 +12,8 @@ import {
   Award,
   Check,
 } from "lucide-react";
+import { eventApi } from "../../api/eventApi";
+import ImageUpload from "../common/ImageUpload.jsx";
 
 const Field = ({ label, icon, required, error, hint, children }) => (
   <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
@@ -723,6 +725,11 @@ export const ManualInputStep = ({
               }
             />
           </Field>
+
+          <ImageUpload
+            value={formData.coverImage}
+            onChange={(url) => setFormData({ ...formData, coverImage: url })}
+          />
         </Section>
 
         <Section title="Đối tượng & quy mô">

@@ -70,7 +70,7 @@ const AdminNotifications = () => {
     isRefresh ? setIsRefreshing(true) : setIsLoading(true);
     try {
       // axiosClient tự đính kèm Token Admin
-      const response = await notificationApi.getAllNotifications();
+      const response = await notificationApi.get.allForAdmin();
       setNotifications(response.data || []);
     } catch (error) {
       console.error("Lỗi fetch:", error);
@@ -82,7 +82,7 @@ const AdminNotifications = () => {
 
   const handleMarkAsRead = async (id) => {
     try {
-      await notificationApi.markAsRead(id);
+      await notificationApi.actions.markAsRead(id);
       setNotifications(prev => 
         prev.map((n) => (n.id === id ? { ...n, read: true } : n))
       );
@@ -91,7 +91,7 @@ const AdminNotifications = () => {
 
   const handleMarkAllAsRead = async () => {
     try {
-      await notificationApi.markAllAsRead();
+      await notificationApi.actions.markAllReadAdmin();
       setNotifications(
         notifications.map((n) => ({ ...n, read: true }))
       );
@@ -103,7 +103,7 @@ const AdminNotifications = () => {
   const handleDelete = async (id) => {
     if (window.confirm("Bạn có chắc chắn muốn xóa thông báo này?")) {
       try {
-        await notificationApi.deleteNotification(id);
+        await notificationApi.delete.byId(id);
         setNotifications(notifications.filter(n => n.id !== id));
       } catch (error) {
         console.error("Error deleting notification:", error);
@@ -123,7 +123,7 @@ const AdminNotifications = () => {
 
     if (window.confirm(`Bạn có chắc chắn muốn xóa ${selectedIds.length} thông báo?`)) {
       try {
-        await Promise.all(selectedIds.map(id => notificationApi.deleteNotification(id)));
+        await notificationApi.delete.batch(selectedIds);
         setNotifications(notifications.filter(n => !selectedIds.includes(n.id)));
       } catch (error) {
         console.error("Error bulk deleting:", error);
@@ -146,7 +146,7 @@ const AdminNotifications = () => {
         recipientIds: formData.targetUsers === "all" ? null : formData.userIds.split(",").map(id => id.trim())
       };
 
-      await notificationApi.sendNotification(payload);
+      await notificationApi.create.send(payload);
       
       setIsSendModalOpen(false);
       setFormData({ title: "", message: "", type: "SYSTEM", targetUsers: "all", userIds: "", actionUrl: "" });

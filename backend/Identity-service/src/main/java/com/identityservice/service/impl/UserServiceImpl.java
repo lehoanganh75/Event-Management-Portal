@@ -15,10 +15,14 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 @Service
-@RequiredArgsConstructor
 public class UserServiceImpl implements UserService {
     private final UserRepository userRepository;
     private final AccountRepository accountRepository;
+
+    public UserServiceImpl(UserRepository userRepository, AccountRepository accountRepository) {
+        this.userRepository = userRepository;
+        this.accountRepository = accountRepository;
+    }
 
     @Override
     public User getProfileByUserId(String userId) {
@@ -34,6 +38,11 @@ public class UserServiceImpl implements UserService {
         userProfile.setDateOfBirth(updatedProfile.getDateOfBirth());
         userProfile.setGender(updatedProfile.getGender());
         userProfile.setMajorName(updatedProfile.getMajorName());
+        userProfile.setLoginCode(updatedProfile.getLoginCode());
+        userProfile.setPhone(updatedProfile.getPhone());
+        userProfile.setOrganizationId(updatedProfile.getOrganizationId());
+        userProfile.setOrganizationName(updatedProfile.getOrganizationName());
+        userProfile.setPosition(updatedProfile.getPosition());
         return userRepository.save(userProfile);
     }
 

@@ -1,4 +1,5 @@
 import { formatDate } from "../../utils/dateUtils";
+import { notificationApi } from "../../api/notificationApi";
 
 const eventTypeVi = {
   WORKSHOP: "Workshop",
@@ -373,7 +374,7 @@ const buildDocumentXml = (data) => {
 </w:document>`;
 };
 
-export const exportToWord = async (data) => {
+export const exportToWord = async (data, userProfileId) => {
   if (!window.JSZip) {
     await new Promise((resolve, reject) => {
       const s = document.createElement("script");
@@ -421,4 +422,19 @@ export const exportToWord = async (data) => {
   a.click();
   document.body.removeChild(a);
   URL.revokeObjectURL(url);
+
+  // Gửi thông báo realtime/lưu lịch sử
+  if (userProfileId) {
+    try {
+      await notificationApi.create.send({
+        userProfileId: userProfileId,
+        type: "GENERAL",
+        title: "📄 Xuất file Word thành công",
+        message: `Kế hoạch "${eventTitle}" đã được tải xuống máy của bạn.`,
+        actionUrl: "#", // Có thể dẫn tới mục quản lý file nếu có
+      });
+    } catch (err) {
+      console.error("Lỗi khi gửi thông báo xuất file:", err);
+    }
+  }
 };

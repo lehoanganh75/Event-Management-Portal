@@ -1,5 +1,6 @@
 import React from "react";
-import { Routes, Route, Navigate } from "react-router-dom";
+import { Routes, Route, Navigate, useLocation } from "react-router-dom";
+import { AnimatePresence } from "framer-motion";
 
 // Import các trang chung (Public)
 import VangLaiPage from "../pages/VangLaiPage";
@@ -22,6 +23,7 @@ import ResetPassword from "../components/forgotPassword/ResetPassword";
 
 import ManagePosts from "../pages/lecturePage/ManagePosts";
 import CreatePost from "../components/events/CreatePost";
+import { EventCreator } from "../components/events/EventCreator";
 import AdminLayout from "../pages/adminPage/AdminPage";
 import Dashboard from "../components/admin/Dashboard";
 import EventPage from "../components/admin/EventPage";
@@ -44,12 +46,15 @@ import EventPostList from "../components/EventPostList";
 import CalendarPage from "../pages/calendar/CalendarPage";
 
 const AppRouter = () => {
+  const location = useLocation();
+
   return (
-    <Routes>
-      <Route path="/" element={<VangLaiPage />} />
-      <Route path="/calendar" element={<CalendarPage />} />
-      <Route path="/login" element={<LoginPage />} />
-      <Route path="/register" element={<RegisterPage />} />
+    <AnimatePresence mode="sync">
+      <Routes location={location} key={location.pathname}>
+        <Route path="/" element={<VangLaiPage />} />
+        <Route path="/calendar" element={<CalendarPage />} />
+        <Route path="/login" element={<LoginPage />} />
+        <Route path="/register" element={<RegisterPage />} />
       <Route path="/forgot-password" element={<ForgotPassword />} />
       <Route path="/attendance" element={<AttendancePage />} />
       <Route path="/events/:eventId" element={<EventDetail />} />
@@ -87,6 +92,7 @@ const AppRouter = () => {
       <Route path="/admin" element={<AdminLayout />}>
         <Route index element={<Dashboard />} />
         <Route path="events" element={<EventPage />} />
+        <Route path="events/create" element={<EventCreator onBack={() => window.history.back()} />} />
         <Route path="events/:id" element={<EventDetailPage />} />
         <Route path="posts" element={<AdminPostManagement />} />
         <Route path="posts/:id" element={<PostDetail />} />
@@ -103,7 +109,8 @@ const AppRouter = () => {
       </Route>
 
       <Route path="*" element={<NotFound404 />} />
-    </Routes>
+      </Routes>
+    </AnimatePresence>
   );
 };
 

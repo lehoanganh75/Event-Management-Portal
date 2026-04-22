@@ -53,11 +53,10 @@ export const notificationApi = {
     create: {
         // Gửi thông báo (Admin dùng để broadcast hoặc gửi cụ thể)
         send: (payload) => {
-            // Loại bỏ các field rỗng để payload sạch hơn
             const cleanPayload = Object.fromEntries(
                 Object.entries(payload).filter(([_, v]) => v !== null && v !== undefined && v !== "")
             );
-            return axiosClient.post(`${API_ENDPOINTS.NOTIFICATIONS}/send`, cleanPayload);
+            return axiosClient.post(`${API_ENDPOINTS.NOTIFICATIONS}`, cleanPayload);
         },
 
         bulk: (request) => 

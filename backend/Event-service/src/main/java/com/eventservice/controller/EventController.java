@@ -23,6 +23,13 @@ import com.eventservice.entity.EventParticipant;
 import com.eventservice.entity.EventPresenter;
 import com.eventservice.entity.enums.EventStatus;
 import com.eventservice.entity.enums.EventType;
+import com.eventservice.repository.OrganizationRepository;
+import com.eventservice.repository.EventTemplateRepository;
+import com.eventservice.entity.Organization;
+import com.eventservice.entity.EventTemplate;
+
+import java.util.*;
+import java.util.stream.Collectors;
 
 import java.util.Arrays;
 import java.util.List;
@@ -39,6 +46,8 @@ public class EventController {
     private final EventPresenterService presenterService;
     private final EventParticipantService participantService;
     private final EventOrganizerService organizerService;
+    private final OrganizationRepository organizationRepository;
+    private final EventTemplateRepository templateRepository;
 
     // --- 1. NHÓM CÔNG KHAI (DÀNH CHO USER & GUEST) ---
 
@@ -90,7 +99,7 @@ public class EventController {
             @PathVariable String id,
             @AuthenticationPrincipal Jwt jwt
     ) {
-        String accountId = jwt.getSubject();
+        String accountId = (jwt != null) ? jwt.getSubject() : null;
         return ResponseEntity.ok(eventService.getEventById(id, accountId));
     }
 
@@ -155,8 +164,24 @@ public class EventController {
         try {
             Event event = new Event();
 
-            EventOrganizer eventOrganizer = new EventOrganizer();
-            eventOrganizer.setFullName(request.getOrganizationId());
+            // Mapping Organization (Required)
+            String orgId = request.getOrganizationId();
+            if (orgId == null || orgId.equals("org-it")) {
+                // Fallback: Tìm organization đầu tiên hoặc xử lý theo nghiệp vụ
+                orgId = organizationRepository.findAll().stream()
+                        .findFirst()
+                        .map(Organization::getId)
+                        .orElse(null);
+            }
+            
+            if (orgId != null) {
+                organizationRepository.findById(orgId).ifPresent(event::setOrganization);
+            }
+
+            // Mapping Template (Optional)
+            if (request.getTemplateId() != null && !request.getTemplateId().equals("0")) {
+                templateRepository.findById(request.getTemplateId()).ifPresent(event::setTemplate);
+            }
 
             String title = request.getTitle();
             if (title == null || title.trim().isEmpty()) {
@@ -168,7 +193,14 @@ public class EventController {
             event.setEventTopic(request.getEventTopic());
             event.setLocation(request.getLocation());
             event.setEventMode(request.getEventMode());
-            event.setType(EventType.valueOf(request.getType()));
+            
+            // Safe Enum mapping
+            try {
+                event.setType(EventType.valueOf(request.getType().toUpperCase()));
+            } catch (Exception e) {
+                event.setType(EventType.OTHER);
+            }
+
             event.setStartTime(request.getStartTime());
             event.setEndTime(request.getEndTime());
             event.setRegistrationDeadline(request.getRegistrationDeadline());
@@ -179,56 +211,72 @@ public class EventController {
             event.setNotes(request.getNotes());
             event.setCustomFieldsJson(request.getCustomFieldsJson());
             event.setCreatedByAccountId(request.getCreatedByAccountId());
+            
+            // Map faculty and major
+            event.setFaculty(request.getFaculty());
+            event.setMajor(request.getMajor());
             event.setTargetObjects(request.getTargetObjects());
 
-//            if (request.getPresenters() != null) {
-//                log.info("Converting {} presenters", request.getPresenters().size());
-//                List<EventPresenter> presenters = request.getPresenters().stream()
-//                        .map(dto -> {
-//                            EventPresenter p = new EventPresenter();
-//                            p.setFullName(dto.getFullName());
-//                            p.setEmail(dto.getEmail());
-//                            p.setPosition(dto.getPosition());
-//                            p.setDepartment(dto.getDepartment());
-//                            p.setSession(dto.getSession());
-//                            return p;
-//                        })
-//                        .collect(Collectors.toList());
-//                event.setPresenters(presenters);
-//            }
+            if (request.getPresenters() != null) {
+                log.info("Converting {} presenters", request.getPresenters().size());
+                Set<EventPresenter> presenters = request.getPresenters().stream()
+                        .map(dto -> {
+                            EventPresenter p = new EventPresenter();
+                            p.setFullName(dto.getFullName());
+                            p.setEmail(dto.getEmail());
+                            p.setPosition(dto.getPosition());
+                            p.setDepartment(dto.getDepartment());
+                            p.setSession(dto.getSession());
+                            return p;
+                        })
+                        .collect(Collectors.toSet());
+                event.setPresenters(presenters);
+            }
 
-//            if (request.getOrganizers() != null) {
-//                log.info("Converting {} organizers", request.getOrganizers().size());
-//                List<EventOrganizer> organizers = request.getOrganizers().stream()
-//                        .map(dto -> {
-//                            EventOrganizer o = new EventOrganizer();
-//                            o.setFullName(dto.getFullName());
-//                            o.setEmail(dto.getEmail());
-//                            o.setPosition(dto.getPosition());
-//                            o.setRole(dto.getRole());
-//                            return o;
-//                        })
-//                        .collect(Collectors.toList());
-//                event.setOrganizers(organizers);
-//            }
+            if (request.getOrganizers() != null) {
+                log.info("Converting {} organizers", request.getOrganizers().size());
+                Set<EventOrganizer> organizers = request.getOrganizers().stream()
+                        .map(dto -> {
+                            EventOrganizer o = new EventOrganizer();
+                            o.setFullName(dto.getFullName());
+                            o.setEmail(dto.getEmail());
+                            o.setPosition(dto.getPosition());
+                            
+                            // Safe role mapping
+                            try {
+                                String roleStr = dto.getRole();
+                                if (roleStr != null) {
+                                    o.setRole(OrganizerRole.valueOf(roleStr.toUpperCase()));
+                                } else {
+                                    o.setRole(OrganizerRole.MEMBER);
+                                }
+                            } catch (Exception e) {
+                                o.setRole(OrganizerRole.MEMBER);
+                            }
+                            
+                            return o;
+                        })
+                        .collect(Collectors.toSet());
+                event.setOrganizers(organizers);
+            }
 
-//            if (request.getParticipants() != null) {
-//                log.info("Converting {} participants", request.getParticipants().size());
-//                List<EventParticipant> participants = request.getParticipants().stream()
-//                        .map(dto -> {
-//                            EventParticipant p = new EventParticipant();
-//                            p.setFullName(dto.getFullName());
-//                            p.setEmail(dto.getEmail());
-//                            p.setTitle(dto.getTitle());
-//                            p.setPosition(dto.getPosition());
-//                            p.setDepartment(dto.getDepartment());
-//                            p.setOrganization(dto.getOrganization());
-//                            p.setNotes(dto.getNotes());
-//                            return p;
-//                        })
-//                        .collect(Collectors.toList());
-//                event.setParticipants(participants);
-//            }
+            if (request.getParticipants() != null) {
+                log.info("Converting {} participants", request.getParticipants().size());
+                Set<EventParticipant> participants = request.getParticipants().stream()
+                        .map(dto -> {
+                            EventParticipant p = new EventParticipant();
+                            p.setFullName(dto.getFullName());
+                            p.setEmail(dto.getEmail());
+                            p.setTitle(dto.getTitle());
+                            p.setPosition(dto.getPosition());
+                            p.setDepartment(dto.getDepartment());
+                            p.setOrganization(dto.getOrganization());
+                            p.setNotes(dto.getNotes());
+                            return p;
+                        })
+                        .collect(Collectors.toSet());
+                event.setParticipants(participants);
+            }
 
             event.setStatus(EventStatus.DRAFT);
 

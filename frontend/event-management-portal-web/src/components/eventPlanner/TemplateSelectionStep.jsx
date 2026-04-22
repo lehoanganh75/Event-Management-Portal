@@ -12,6 +12,7 @@ import {
   ArrowRight,
   Check,
 } from "lucide-react";
+import { toast } from "react-toastify";
 import { contentApi } from "../../api/contentApi";
 
 const SmartSuggestionPanel = ({ templates, onSelect, onClose }) => {
@@ -448,7 +449,7 @@ Hãy gợi ý tối đa 3 mẫu phù hợp nhất. Trả về JSON (không markd
   );
 };
 
-const TemplateCard = ({ template: t, isSelected, isEmpty, onSelect }) => {
+const TemplateCard = ({ template: t, isSelected, isEmpty, onSelect, onToggleStar }) => {
   const [hovered, setHovered] = useState(false);
 
   return (
@@ -473,37 +474,77 @@ const TemplateCard = ({ template: t, isSelected, isEmpty, onSelect }) => {
     >
       {isSelected && (
         <div
-          style={{
-            position: "absolute",
-            top: 12,
-            right: 12,
-            width: 18,
-            height: 18,
-            borderRadius: "50%",
-            background: "#2563eb",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-          }}
+          className="absolute top-3 right-3 w-5 h-5 bg-blue-600 rounded-full flex items-center justify-center z-10"
         >
-          <Check size={10} color="#fff" strokeWidth={3} />
+          <Check size={12} color="#fff" strokeWidth={3} />
         </div>
       )}
 
-      {t.templateType && (
-        <p
-          style={{
-            fontSize: 10,
-            fontWeight: 600,
-            color: "#bbb",
-            textTransform: "uppercase",
-            letterSpacing: "0.06em",
-            margin: "0 0 10px",
-          }}
-        >
-          {t.templateType}
-        </p>
-      )}
+      {/* Header with Type, Star and Status */}
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          {t.templateType && (
+            <p
+              style={{
+                fontSize: 10,
+                fontWeight: 700,
+                color: "#3b82f6",
+                textTransform: "uppercase",
+                letterSpacing: "0.06em",
+                margin: 0,
+                background: "#eff6ff",
+                padding: "2px 8px",
+                borderRadius: 4,
+              }}
+            >
+              {t.templateType}
+            </p>
+          )}
+
+          {/* Star Icon moved here to avoid overlap */}
+          {t.id !== "0" && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onToggleStar && onToggleStar(t.id);
+              }}
+              style={{
+                padding: "2px",
+                border: "none",
+                background: "none",
+                cursor: "pointer",
+                display: "flex",
+                alignItems: "center",
+                transition: "all .15s",
+              }}
+              title={t.isStarred ? "Bỏ đánh dấu sao" : "Đánh dấu sao"}
+            >
+              <Star 
+                size={16} 
+                color={t.isStarred ? "#f59e0b" : "#ccc"} 
+                fill={t.isStarred ? "#f59e0b" : "none"}
+              />
+            </button>
+          )}
+        </div>
+        
+        {t.id !== "0" && (
+          <span
+            style={{
+              fontSize: 10,
+              fontWeight: 800,
+              padding: "2px 8px",
+              borderRadius: 4,
+              textTransform: "uppercase",
+              letterSpacing: "0.02em",
+              background: t.isPublic ? "#c21807" : "#0f172a",
+              color: "#fff",
+            }}
+          >
+            {t.isPublic ? "Bản mẫu IUH" : "Nội bộ"}
+          </span>
+        )}
+      </div>
 
       <p
         style={{
@@ -538,23 +579,34 @@ const TemplateCard = ({ template: t, isSelected, isEmpty, onSelect }) => {
           style={{
             display: "flex",
             alignItems: "center",
-            gap: 4,
+            gap: 12,
             marginTop: "auto",
           }}
         >
-          <TrendingUp
-            size={12}
-            color={t.usageCount > 50 ? "#22c55e" : "#bbb"}
-          />
-          <span
-            style={{
-              fontSize: 11,
-              fontWeight: 600,
-              color: t.usageCount > 50 ? "#16a34a" : "#aaa",
-            }}
-          >
-            {t.usageCount || 0} lượt dùng
-          </span>
+          <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+            <TrendingUp
+              size={12}
+              color={t.usageCount > 50 ? "#22c55e" : "#bbb"}
+            />
+            <span
+              style={{
+                fontSize: 11,
+                fontWeight: 600,
+                color: t.usageCount > 50 ? "#16a34a" : "#aaa",
+              }}
+            >
+              {t.usageCount || 0} lượt dùng
+            </span>
+          </div>
+
+          {t.isStarred && (
+            <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+              <Star size={12} color="#f59e0b" fill="#f59e0b" />
+              <span style={{ fontSize: 11, fontWeight: 700, color: "#d97706" }}>
+                Ưu tiên
+              </span>
+            </div>
+          )}
         </div>
       )}
     </div>
@@ -637,6 +689,40 @@ export const TemplateSelectionStep = ({
   const handleSelect = (template) => {
     setSelectedTemplateId(template.id);
     onTemplateSelect(template);
+  };
+
+  const handleToggleStar = async (id) => {
+    // Optimistic Update
+    const originalContent = [...pageData.content];
+    setPageData(prev => {
+      const newContent = prev.content.map(t => 
+        t.id === id ? { ...t, isStarred: !t.isStarred } : t
+      ).sort((a, b) => {
+        // Starred always first
+        if (a.id === "0") return -1;
+        if (b.id === "0") return 1;
+        
+        // Priority: isStarred(desc) > usageCount(desc) > createdAt(desc)
+        if (!!a.isStarred !== !!b.isStarred) return b.isStarred ? 1 : -1;
+        if ((b.usageCount || 0) !== (a.usageCount || 0)) return (b.usageCount || 0) - (a.usageCount || 0);
+        
+        const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+        const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+        return dateB - dateA;
+      });
+      return { ...prev, content: newContent };
+    });
+
+    try {
+      await contentApi.templates.toggleStar(id);
+      // toast.success("Đã cập nhật ưu tiên");
+    } catch (error) {
+      console.error("Lỗi khi thay đổi trạng thái sao:", error);
+      // Revert if error
+      setPageData(prev => ({ ...prev, content: originalContent }));
+      const errorMsg = error.response?.data?.message || error.message || "Lỗi kết nối";
+      toast.error(`Không thể cập nhật: ${errorMsg}`);
+    }
   };
 
   const getDisplayTemplates = () => {
@@ -826,24 +912,25 @@ export const TemplateSelectionStep = ({
         </button>
       </div>
 
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(3, 1fr)",
-          gap: 10,
-          opacity: loading ? 0.5 : 1,
-          transition: "opacity .2s",
-        }}
-      >
-        {displayed.map((t) => (
-          <TemplateCard
-            key={t.id}
-            template={t}
-            isSelected={selectedTemplateId === t.id}
-            isEmpty={t.id === "0"}
-            onSelect={handleSelect}
-          />
-        ))}
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))",
+            gap: 20,
+            opacity: loading ? 0.5 : 1,
+            transition: "opacity .2s",
+          }}
+        >
+          {displayed.map((t) => (
+            <TemplateCard
+              key={t.id}
+              template={t}
+              isEmpty={t.id === "0"}
+              isSelected={selectedTemplateId === t.id}
+              onSelect={handleSelect}
+              onToggleStar={handleToggleStar}
+            />
+          ))}
 
         {displayed.length === 0 && (
           <div

@@ -4,9 +4,7 @@ import { X, Send, Loader2, Sparkles, ChevronDown, RotateCcw, Star, ThumbsUp,
          ClipboardList, Lightbulb, Search, AlertCircle, RefreshCw } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useNavigate } from "react-router-dom";
-import axios from "axios";
-
-const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:8082";
+import axiosClient from "../../api/axiosClient";
 
 // ✨ Icon: IUH logo + Gemini badge
 const ChatIcon = ({ size = 48 }) => (
@@ -158,7 +156,7 @@ export default function AIChatBot() {
   const initChat = useCallback(async () => {
     try {
       const stored = localStorage.getItem("ai_chat_session_id");
-      const res = await axios.post(`${API_BASE}/api/v1/chat/sessions`, {
+      const res = await axiosClient.post(`/event/api/v1/chat/sessions`, {
         sessionId: stored,
         contextType: "GENERAL_INQUIRY"
       });
@@ -212,7 +210,7 @@ export default function AIChatBot() {
     setLoading(true);
 
     try {
-      const res = await axios.post(`${API_BASE}/api/v1/chat/messages`, {
+      const res = await axiosClient.post(`/event/api/v1/chat/messages`, {
         sessionId: sessionId,
         content: text,
         messageType: "TEXT"
@@ -220,6 +218,14 @@ export default function AIChatBot() {
 
       if (res.data?.result) {
         const msg = res.data.result;
+        
+        // ✨ Cập nhật sessionId mới nếu backend vừa tự tạo lại (do reset DB chẳng hạn)
+        if (msg.sessionId && msg.sessionId !== sessionId) {
+          console.log("Session ID shifted from", sessionId, "to", msg.sessionId);
+          setSessionId(msg.sessionId);
+          localStorage.setItem("ai_chat_session_id", msg.sessionId);
+        }
+
         setMessages(prev => [...prev, {
           id: msg.id || Date.now() + 1,
           role: "assistant",
@@ -230,14 +236,17 @@ export default function AIChatBot() {
       }
     } catch (err) {
       console.error("Send message failed:", err);
-      const error = parseGeminiError(err);
-      if (error.seconds > 0) {
-        setRetryInfo({ seconds: error.seconds, pendingMsg: text });
+      
+      // Handle special 500 session missing case
+      if (err.response?.status === 500) {
+        setSessionId(null);
+        localStorage.removeItem("ai_chat_session_id");
       }
+
       setMessages(prev => [...prev, {
         id: Date.now() + 1,
         role: "assistant",
-        content: error.type === "key" ? "Lỗi cấu hình API Key. Vui lòng liên hệ quản trị viên." : "Hệ thống đang bận. Vui lòng thử lại sau.",
+        content: "Hệ thống AI đang tạm thời gián đoạn. Vui lòng thử lại sau giây lát.",
         ts: new Date().toISOString(),
         isError: true
       }]);

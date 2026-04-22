@@ -26,7 +26,13 @@ export const eventApi = {
   // --- NHÓM SỰ KIỆN (EVENTS) ---
   events: {
     // Tự động xử lý cả Page object (Spring Data) và Array
-    getAll: () => axiosClient.get(API_ENDPOINTS.EVENTS.BASE)
+    getAll: (params = {}) => axiosClient.get(API_ENDPOINTS.EVENTS.BASE, { params })
+        .then(res => ({ 
+            ...res, 
+            data: (Array.isArray(res.data) ? res.data : res.data?.content || []).map(transformBaseData) 
+        })),
+
+    getMyEvents: () => axiosClient.get(`${API_ENDPOINTS.EVENTS.BASE}/my-events`)
         .then(res => ({ 
             ...res, 
             data: (Array.isArray(res.data) ? res.data : res.data?.content || []).map(transformBaseData) 
@@ -41,11 +47,25 @@ export const eventApi = {
     update: (id, data) => axiosClient.put(`${API_ENDPOINTS.EVENTS.BASE}/${id}`, data),
     
     delete: (id) => axiosClient.delete(`${API_ENDPOINTS.EVENTS.BASE}/${id}`),
+
+    cancel: (id, reason) => axiosClient.patch(`${API_ENDPOINTS.EVENTS.BASE}/${id}/cancel`, null, { params: { reason } }),
+
+    submitApproval: (id) => axiosClient.post(`${API_ENDPOINTS.EVENTS.BASE}/plans/${id}/submit`), // Theo backend hiện tại
+
+    create: (data) => axiosClient.post(API_ENDPOINTS.EVENTS.BASE, data),
+    getAdminAll: () => axiosClient.get(`${API_ENDPOINTS.EVENTS.BASE}/admin/all`)
+        .then(res => ({ 
+            ...res, 
+            data: (Array.isArray(res.data) ? res.data : res.data?.content || []).map(transformBaseData) 
+        })),
   },
 
   // --- NHÓM KẾ HOẠCH (PLANS) ---
   plans: {
     getAll: (params = {}) => axiosClient.get(API_ENDPOINTS.EVENTS.PLANS, { params }),
+
+    getMyPlans: () => axiosClient.get(`${API_ENDPOINTS.EVENTS.PLANS}/my`)
+        .then(res => ({ ...res, data: (res.data || []).map(transformBaseData) })),
 
     getById: (id) => axiosClient.get(`${API_ENDPOINTS.EVENTS.PLANS}/${id}`)
         .then(res => ({ ...res, data: transformBaseData(res.data) })),
@@ -55,6 +75,10 @@ export const eventApi = {
     update: (id, data) => axiosClient.put(`${API_ENDPOINTS.EVENTS.PLANS}/${id}`, data),
 
     submit: (id) => axiosClient.post(`${API_ENDPOINTS.EVENTS.PLANS}/${id}/submit`),
+
+    createEvent: (id, eventDetails = {}) => axiosClient.post(`${API_ENDPOINTS.EVENTS.PLANS}/${id}/create-event`, eventDetails),
+
+    delete: (id) => axiosClient.delete(`${API_ENDPOINTS.EVENTS.PLANS}/${id}`),
   },
 
   // --- NHÓM ĐĂNG KÝ (REGISTRATIONS) ---

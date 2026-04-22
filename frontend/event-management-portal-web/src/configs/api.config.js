@@ -5,13 +5,17 @@ export const API_ENDPOINTS = {
     IDENTITY: {
         AUTH: '/identity/auth',
         PROFILES: '/identity/profiles',
+        SEARCH_PROFILES: '/identity/profiles/search',
         ACCOUNTS: '/identity/accounts'
     },
     NOTIFICATIONS: '/notification/notifications',
+    POSTS: '/event/posts',
+    TEMPLATES: '/event/templates',
     EVENTS: {
         BASE: '/event/events',
         PLANS: '/event/plans',
         ADMIN: '/event/admin',
+        ORGANIZATIONS: '/event/organizations',
         REGISTRATIONS: {
             BASE: '/event/registrations',
             CANCEL: '/event/registrations/cancel',

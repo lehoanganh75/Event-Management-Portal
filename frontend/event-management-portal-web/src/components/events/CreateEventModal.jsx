@@ -80,11 +80,10 @@ const SelectPlanStep = ({ onSelectPlan, onBack }) => {
     const fetchApprovedPlans = async () => {
       setFetching(true);
       try {
-        // Gọi qua service của Context (đã fix path /events/events/plans/status/...)
-        // Ở đây dùng getPlansByStatus để lấy các bản đã APPROVED
-        const res = await events.getPlansPendingApproval(); // Hoặc tạo method riêng getApprovedPlans
+        // Sử dụng getPlansByStatus để lấy các bản đã PLAN_APPROVED
+        const res = await events.getPlansByStatus('PLAN_APPROVED'); 
         
-        // Giả sử res.data là danh sách plans
+        // Nếu API này không lọc theo accountId, nó sẽ trả về toàn bộ kế hoạch đã duyệt
         setPlans(Array.isArray(res.data) ? res.data : []);
       } catch (error) {
         console.error("Lỗi lấy danh sách kế hoạch:", error);
@@ -131,7 +130,7 @@ const SelectPlanStep = ({ onSelectPlan, onBack }) => {
         />
       </div>
 
-      {loading ? (
+      {fetching ? (
         <div className="flex justify-center py-12">
           <Loader2 className="animate-spin text-blue-600" size={32} />
         </div>

@@ -18,6 +18,8 @@ import {
   Loader2,
 } from "lucide-react";
 import axios from "axios";
+import { eventApi } from "../../api/eventApi";
+import ImageUpload from "../common/ImageUpload.jsx";
 
 const fi = "'Inter','Segoe UI',sans-serif";
 
@@ -642,9 +644,9 @@ export const EventReviewStep = ({
         const user = JSON.parse(userData);
         return {
           accountId:
-            user.id || user.accountId || user.account?.id || user.userId,
+            user.accountId || user.account?.id || user.id || user.userId,
           name: user.fullName || user.name || "Người dùng",
-          email: user.email,
+          email: user.email || user.account?.email,
         };
       }
     } catch (error) {
@@ -689,7 +691,7 @@ export const EventReviewStep = ({
       for (const admin of adminAccounts) {
         if (!admin.id) continue;
         try {
-          await notificationApi.createNotification({
+          await notificationApi.create.send({
             userProfileId: admin.id,
             type: "EVENT_SUBMITTED",
             title: "Sự kiện mới cần phê duyệt",
@@ -703,7 +705,7 @@ export const EventReviewStep = ({
           console.error(`Lỗi gửi thông báo admin ${admin.id}:`, e);
         }
       }
-      await notificationApi.createNotification({
+      await notificationApi.create.send({
         userProfileId: currentUser.accountId,
         type: "EVENT_SUBMITTED",
         title: "Gửi phê duyệt thành công",
@@ -743,30 +745,20 @@ export const EventReviewStep = ({
         hasLuckyDraw: data.hasLuckyDraw || false,
         faculty: data.faculty || "",
         major: data.major || "",
-        organizerUnit: data.organizerUnit || data.faculty || "",
-        participants: Array.isArray(data.participants) ? data.participants : [],
-        recipients: Array.isArray(data.recipients) ? data.recipients : [],
-        customRecipients: Array.isArray(data.customRecipients)
-          ? data.customRecipients
-          : [],
-        presenters: data.presenters.map((p) =>
-          typeof p === "string" ? p : p.name || p.fullName,
-        ),
-        organizingCommittee: data.organizers.map((o) =>
-          typeof o === "string" ? o : o.name || o.fullName,
-        ),
-        attendees: data.attendees.map((a) =>
-          typeof a === "string" ? a : a.name || a.fullName,
-        ),
-        targetObjects: Array.isArray(data.targetObjects)
-          ? data.targetObjects
-          : [],
-        programItems: Array.isArray(data.programItems) ? data.programItems : [],
         notes: (data.notes || "").trim(),
         coverImage: data.coverImage || "",
         createdByAccountId: currentUser.accountId,
         status: "EVENT_PENDING_APPROVAL",
+        
+        // Chỉ gửi các trường JSON mà Entity hỗ trợ mapping trực tiếp
+        targetObjects: Array.isArray(data.targetObjects) ? data.targetObjects : [],
+        recipients: Array.isArray(data.recipients) ? data.recipients.map(r => typeof r === 'string' ? {name: r} : r) : [],
       };
+
+      // XÓA CÁC TRƯỜNG KHÔNG CÓ TRONG ENTITY HOẶC GÂY LỖI MAPPING (Set Of Entities)
+      // Các trường này sẽ được backend xử lý riêng hoặc copy từ Plan
+      // presenters, organizers, participants, attendees, programItems, organizingCommittee, customRecipients, organizerUnit
+
 
       Object.keys(payload).forEach((key) => {
         if (
@@ -778,7 +770,14 @@ export const EventReviewStep = ({
         }
       });
 
-      const response = await createEvent(payload);
+      let response;
+      if (data._selectedPlanId || data.planId) {
+        const pId = data._selectedPlanId || data.planId;
+        response = await eventApi.plans.createEvent(pId, payload);
+      } else {
+        response = await eventApi.events.create(payload);
+      }
+      
       const createdEvent = response.data;
       const eventId = createdEvent?.id;
       const eventTitle = payload.title;
@@ -910,14 +909,21 @@ export const EventReviewStep = ({
               <Badge label={typeLabel} type={data.eventType} />
             </div>
           </div>
-          <div
-            style={{
-              padding: "24px 28px",
-              display: "flex",
-              flexDirection: "column",
-              gap: 20,
-            }}
-          >
+          <div style={{ padding: "0 28px 20px" }}>
+              <ImageUpload 
+                value={data.coverImage} 
+                onChange={(url) => set("coverImage", url)} 
+                label="Ảnh bìa sự kiện (Review)"
+              />
+            </div>
+            <div
+              style={{
+                padding: "24px 28px",
+                display: "flex",
+                flexDirection: "column",
+                gap: 20,
+              }}
+            >
             <EditableField
               label="Tên sự kiện"
               value={data.eventTitle || data.title}

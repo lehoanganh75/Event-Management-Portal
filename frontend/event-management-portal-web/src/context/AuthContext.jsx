@@ -16,7 +16,6 @@ export const AuthProvider = ({ children }) => {
     const [isAuthenticated, setIsAuthenticated] = useState(false);
     const [accounts, setAccounts] = useState([]);
 
-    // ==================== KHỞI TẠO USER ====================
     const loadUser = useCallback(async () => {
         const token = localStorage.getItem('accessToken');
         if (!token) {
@@ -25,13 +24,14 @@ export const AuthProvider = ({ children }) => {
         }
 
         try {
-            // Sử dụng hàm lấy profile (đã được cấu hình privateIdentity tự refresh token)
-            const res = await authService.getMyProfile();
+            // Sử dụng _silent: true để tránh redirect sang /login nếu token hết hạn
+            const res = await authService.getMyProfile({ _silent: true });
             setUser(res.data);
             setIsAuthenticated(true);
         } catch (error) {
-            console.error("Không thể khôi phục phiên đăng nhập");
-            localStorage.clear();
+            console.warn("Phiên đăng nhập hết hạn, tiếp tục với tư cách khách.");
+            localStorage.removeItem('accessToken');
+            localStorage.removeItem('refreshToken');
             setUser(null);
             setIsAuthenticated(false);
         } finally {
@@ -128,8 +128,11 @@ export const AuthProvider = ({ children }) => {
         updateAccount,
         deleteAccount, 
         updateAccountStatus,
+        resendOtp: authService.resendOtp,
         forgotPassword: authService.forgotPassword,
         resetPassword: authService.resetPassword,
+        checkEmail: authService.checkEmail,
+        checkUsername: authService.checkUsername,
     };
 
     return (

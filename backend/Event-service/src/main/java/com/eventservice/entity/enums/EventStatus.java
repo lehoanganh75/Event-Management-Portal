@@ -8,5 +8,7 @@ public enum EventStatus {
     PUBLISHED,                      // Sự kiện đã được phê duyệt và công khai
     ONGOING,                        // Sự kiện đang diễn ra
     COMPLETED,                      // Sự kiện đã kết thúc
-    CANCELLED                       // Sự kiện đã bị hủy
+    CANCELLED,
+    REJECTED,
+    CONVERTED // Sự kiện đã bị hủy
 }

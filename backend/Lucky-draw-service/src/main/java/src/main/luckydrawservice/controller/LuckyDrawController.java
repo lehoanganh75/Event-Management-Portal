@@ -18,9 +18,12 @@ import java.util.Optional;
 
 @RestController
 @RequestMapping("/lucky-draws")
-@RequiredArgsConstructor
 public class LuckyDrawController {
     private final LuckyDrawService luckyDrawService;
+
+    public LuckyDrawController(LuckyDrawService luckyDrawService) {
+        this.luckyDrawService = luckyDrawService;
+    }
 
     @GetMapping
     public ResponseEntity<List<LuckyDraw>> getAllLuckyDraws() {

@@ -3,13 +3,14 @@ import { API_ENDPOINTS } from "../configs/api.config";
 
 export const userApi = {
     searchProfiles: (keyword) => 
-        axiosClient.get(API_ENDPOINTS.AUTH.SEARCH_PROFILES, {
+        axiosClient.get(API_ENDPOINTS.IDENTITY.SEARCH_PROFILES, {
             params: { keyword }
         }),
     
+    getMe: () => axiosClient.get(`${API_ENDPOINTS.IDENTITY.PROFILES}/me`),
+    updateMe: (data) => axiosClient.put(`${API_ENDPOINTS.IDENTITY.PROFILES}/me`, data),
+    
     accounts: {
-        getAll: () => axiosClient.get(`${API_BASE_URL}/accounts`), // Cần API_BASE_URL từ config
-        update: (id, data) => axiosClient.put(`${API_BASE_URL}/accounts/${id}`, data),
         delete: (id) => axiosClient.delete(`${API_BASE_URL}/accounts/${id}`),
         updateStatus: (id, status) => axiosClient.put(`${API_BASE_URL}/accounts/${id}/status`, { status }),
     }

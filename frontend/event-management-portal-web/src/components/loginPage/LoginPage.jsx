@@ -11,6 +11,7 @@ import {
   X,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { motion } from "framer-motion";
 import logo_iuh from "../../assets/images/logo_iuh.png";
 import ErrorNotification from "../notification/ErrorNotification";
 import { useAuth } from "../../context/AuthContext";
@@ -163,9 +164,17 @@ const LoginPage = () => {
             message={errorMessage}
           />
 
-          <div className="w-full bg-white rounded-3xl shadow-[0_8px_40px_rgba(0,0,0,0.1)] overflow-hidden flex min-h-150">
+          <motion.div 
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            className="w-full bg-white rounded-3xl shadow-[0_8px_40px_rgba(0,0,0,0.1)] overflow-hidden flex min-h-150"
+          >
             {/* LEFT — Branding */}
-            <div className="hidden lg:flex lg:w-[52%] bg-[#1a3a6b] flex-col justify-between p-10 relative overflow-hidden">
+            <motion.div 
+              layoutId="branding-panel"
+              className="hidden lg:flex lg:w-[52%] bg-[#1a3a6b] flex-col justify-between p-10 relative overflow-hidden"
+            >
               <div className="absolute inset-0 opacity-10">
                 <div className="absolute top-0 right-0 w-72 h-72 bg-white rounded-full -translate-y-1/2 translate-x-1/2" />
                 <div className="absolute bottom-0 left-0 w-96 h-96 bg-white rounded-full translate-y-1/2 -translate-x-1/2" />
@@ -178,14 +187,6 @@ const LoginPage = () => {
                     alt="IUH"
                     className="h-10 brightness-0 invert"
                   />
-                  <div>
-                    <p className="text-white font-bold text-sm leading-none">
-                      IUH
-                    </p>
-                    <p className="text-blue-200 text-xs mt-0.5">
-                      Đại học Công nghiệp TP.HCM
-                    </p>
-                  </div>
                 </div>
 
                 <h2 className="text-white text-3xl font-bold leading-tight mb-3">
@@ -233,10 +234,13 @@ const LoginPage = () => {
                   Hàng nghìn người dùng tin tưởng sử dụng
                 </p>
               </div>
-            </div>
+            </motion.div>
 
             {/* RIGHT — Form */}
-            <div className="flex-1 flex flex-col justify-center px-8 py-10 lg:px-12">
+            <motion.div 
+              layoutId="form-panel"
+              className="flex-1 flex flex-col justify-center px-8 py-10 lg:px-12"
+            >
               <div className="lg:hidden flex flex-col items-center mb-8">
                 <img
                   src={logo_iuh}
@@ -372,8 +376,8 @@ const LoginPage = () => {
                   Liên hệ bộ phận hỗ trợ
                 </button>
               </div>
-            </div>
-          </div>
+            </motion.div>
+          </motion.div>
         </div>
       </div>
     </div>

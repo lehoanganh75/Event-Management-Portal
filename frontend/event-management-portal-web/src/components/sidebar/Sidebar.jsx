@@ -96,15 +96,6 @@ const Sidebar = () => {
         })}
       </nav>
 
-      {/* Footer */}
-      <div className="p-6 pt-4 border-t border-slate-200/60 mt-auto bg-linear-to-t from-slate-50/80 to-transparent">
-        <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-4 text-center shadow-sm border border-slate-200/50">
-          <p className="text-xs font-semibold text-slate-700">© 2026 EMS System</p>
-          <p className="text-[10px] text-slate-400 mt-1 font-medium">
-            Super Admin • Version 2.1
-          </p>
-        </div>
-      </div>
     </aside>
   );
 };

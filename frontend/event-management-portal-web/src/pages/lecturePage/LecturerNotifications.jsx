@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { notificationApi } from "../../api/notificationApi";
 import {
   Bell,
   Search,
@@ -144,7 +145,7 @@ const LecturerNotifications = () => {
 
     try {
       console.log("Fetching notifications for user:", userId);
-      const response = await notificationApi.getNotificationsByUser(userId);
+      const response = await notificationApi.get.byUser(userId);
       console.log("Notifications response:", response);
       
       // Xử lý response với nhiều format khác nhau
@@ -188,7 +189,7 @@ const LecturerNotifications = () => {
 
   const handleMarkAsRead = async (id) => {
     try {
-      await notificationApi.markAsRead(id);
+      await notificationApi.actions.markAsRead(id);
       setNotifications(
         notifications.map((n) => (n.id === id ? { ...n, read: true } : n))
       );
@@ -201,7 +202,7 @@ const LecturerNotifications = () => {
     if (!userId) return;
     
     try {
-      await notificationApi.markAllAsRead(userId);
+      await notificationApi.actions.markAllRead(userId);
       setNotifications(
         notifications.map((n) => ({ ...n, read: true }))
       );
@@ -213,7 +214,7 @@ const LecturerNotifications = () => {
   const handleDelete = async (id) => {
     if (window.confirm("Bạn có chắc chắn muốn xóa thông báo này?")) {
       try {
-        await notificationApi.deleteNotification(id);
+        await notificationApi.delete.byId(id);
         setNotifications(notifications.filter(n => n.id !== id));
       } catch (error) {
         console.error("Error deleting notification:", error);
@@ -261,7 +262,8 @@ const LecturerNotifications = () => {
       'REGISTRATION_CONFIRMED': 'bg-blue-100 text-blue-700',
       'CHECKIN_SUCCESS': 'bg-emerald-100 text-emerald-700',
       'CHECKIN_REMINDER': 'bg-orange-100 text-orange-700',
-      'SYSTEM': 'bg-slate-100 text-slate-600'
+      'SYSTEM': 'bg-slate-100 text-slate-600',
+      'GENERAL': 'bg-blue-100 text-blue-700'
     };
     return types[type] || 'bg-slate-100 text-slate-600';
   };
@@ -280,7 +282,8 @@ const LecturerNotifications = () => {
       'REGISTRATION_CONFIRMED': <Users size={18} className="text-blue-500" />,
       'CHECKIN_SUCCESS': <CheckCircle size={18} className="text-emerald-500" />,
       'CHECKIN_REMINDER': <Clock size={18} className="text-orange-500" />,
-      'SYSTEM': <Info size={18} className="text-slate-500" />
+      'SYSTEM': <Info size={18} className="text-slate-500" />,
+      'GENERAL': <Bell size={18} className="text-blue-500" />
     };
     return icons[type] || <Bell size={18} className="text-slate-400" />;
   };

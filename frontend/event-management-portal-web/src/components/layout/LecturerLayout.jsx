@@ -16,15 +16,26 @@ import {
   Plus,
   MessageSquare,
   Vote,
+  UserCog,
+  GraduationCap,
+  Layout,
+  RotateCw,
+  Shield,
+  Briefcase
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import Header from "../common/Header";
+import { useAuth } from "../../context/AuthContext";
 
 const LecturerLayout = () => {
+  const { user } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
   const [isCollapsed, setIsCollapsed] = useState(false);
-  const [openMenus, setOpenMenus] = useState({ "/lecturer/events/my-events": true });
+  const [openMenus, setOpenMenus] = useState({ 
+    "/lecturer/events/my-events": true,
+    "admin-section": false 
+  });
   const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
 
   const toggleMenu = (path) => {
@@ -74,12 +85,42 @@ const LecturerLayout = () => {
       path: "/lecturer/notifications",
       icon: Bell,
     },
+  ];
+
+  const adminItems = [
     {
-      name: "Cài đặt",
-      path: "/lecturer/profile",
-      icon: Settings,
+      name: "Trang Quản trị",
+      path: "/admin",
+      icon: Shield,
+    },
+    {
+      name: "Quản lý tài khoản",
+      path: "/admin/accounts",
+      icon: UserCog,
+    },
+    {
+      name: "Quản lý khoa & Vai trò",
+      path: "/admin/departments",
+      icon: GraduationCap,
+    },
+    {
+      name: "Quản lý mẫu kế hoạch",
+      path: "/admin/templates",
+      icon: Layout,
+    },
+    {
+      name: "Quản lý bài truyền thông",
+      path: "/admin/posts",
+      icon: Briefcase,
+    },
+    {
+      name: "Quản lý vòng quay",
+      path: "/admin/spinner",
+      icon: RotateCw,
     },
   ];
+
+  const hasAdminRole = user?.roles?.some(r => r === "ADMIN" || r === "SUPER_ADMIN");
 
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col font-sans">
@@ -217,24 +258,51 @@ const LecturerLayout = () => {
                 </div>
               );
             })}
-          </nav>
 
-          <div className={`p-10 mt-auto border-t border-slate-50 flex flex-col gap-2 ${isCollapsed ? "items-center" : ""}`}>
-            <button
-              onClick={() => setIsLogoutModalOpen(true)}
-              className={`flex items-center gap-3 text-slate-500 font-bold hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-all ${
-                isCollapsed ? "h-12 w-12 justify-center" : "px-4 py-3 text-xs w-full"
-              }`}
-            >
-              <LogOut size={20} />
-              {!isCollapsed && <span>Đăng xuất</span>}
-            </button>
-            <div className="text-center py-2">
-              <p className="text-[9px] text-slate-300 font-bold uppercase tracking-tighter">
-                {isCollapsed ? "v1.0" : "System v1.0.2 • 2026"}
-              </p>
-            </div>
-          </div>
+            {/* QUẢN TRỊ HỆ THỐNG SECTION */}
+            {hasAdminRole && (
+              <div className="pt-4 mt-4 border-t border-slate-100">
+                {!isCollapsed && (
+                  <p className="px-4 text-[10px] font-bold text-blue-500 uppercase tracking-widest mb-4">
+                    Quản trị hệ thống
+                  </p>
+                )}
+                {adminItems.map((item) => {
+                  const isActive = location.pathname === item.path || (item.path !== "/admin" && location.pathname.startsWith(item.path));
+                  const Icon = item.icon;
+
+                  return (
+                    <Link
+                      key={item.path}
+                      to={item.path}
+                      className={`group relative flex items-center rounded-xl transition-all mb-1 ${
+                        isCollapsed ? "justify-center h-12 w-12 mx-auto" : "px-4 py-3 justify-between"
+                      } ${
+                        isActive
+                          ? "bg-blue-600 text-white shadow-lg shadow-blue-100"
+                          : "text-slate-500 hover:bg-blue-50 hover:text-blue-700"
+                      }`}
+                    >
+                      <div className="flex items-center gap-3">
+                        <Icon size={20} strokeWidth={isActive ? 2.5 : 2} />
+                        {!isCollapsed && (
+                          <span className="text-[13px] font-semibold whitespace-nowrap">
+                            {item.name}
+                          </span>
+                        )}
+                      </div>
+                      
+                      {isCollapsed && (
+                        <div className="absolute left-14 scale-0 group-hover:scale-100 transition-all origin-left bg-blue-600 text-white text-xs px-3 py-2 rounded-lg font-medium whitespace-nowrap z-50 shadow-xl pointer-events-none">
+                          {item.name}
+                        </div>
+                      )}
+                    </Link>
+                  );
+                })}
+              </div>
+            )}
+          </nav>
         </aside>
 
         <div className="flex-1 overflow-hidden">

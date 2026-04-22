@@ -18,7 +18,8 @@ public class EmailServiceImpl implements EmailService {
     private final TemplateEngine templateEngine;
 
     @Override
-    public void sendEventInviteEmailAsync(String targetEmail, String inviteUrl, String eventName, String fullName) {
+    public void sendEventInviteEmailAsync(String targetEmail, String inviteUrl, String eventName, String fullName,
+                                  String startTime, String endTime, String location, String description) {
         try {
             MimeMessage message = mailSender.createMimeMessage();
             MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
@@ -27,6 +28,10 @@ public class EmailServiceImpl implements EmailService {
             context.setVariable("fullName", fullName);
             context.setVariable("eventName", eventName);
             context.setVariable("inviteUrl", inviteUrl);
+            context.setVariable("startTime", startTime);
+            context.setVariable("endTime", endTime);
+            context.setVariable("location", location);
+            context.setVariable("description", description);
             context.setVariable("expirySeconds", RedisConstant.INVITE_EXPIRY_SECONDS);
 
             String html = templateEngine.process("email/event-invite", context);

@@ -122,7 +122,7 @@ const EventPage = () => {
 
         <div className="flex gap-3">
           <button
-            onClick={() => navigate("/create-event")}
+            onClick={() => navigate("/admin/events/create")}
             className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-lg text-sm font-medium transition-all"
           >
             <Plus size={18} />

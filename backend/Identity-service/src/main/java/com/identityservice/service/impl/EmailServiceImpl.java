@@ -12,10 +12,14 @@ import org.thymeleaf.spring6.SpringTemplateEngine;
 import com.identityservice.service.EmailService;
 
 @Service
-@RequiredArgsConstructor
 public class EmailServiceImpl implements EmailService {
     private final JavaMailSender mailSender;
     private final SpringTemplateEngine templateEngine;
+
+    public EmailServiceImpl(JavaMailSender mailSender, SpringTemplateEngine templateEngine) {
+        this.mailSender = mailSender;
+        this.templateEngine = templateEngine;
+    }
 
     @Override
     @Async

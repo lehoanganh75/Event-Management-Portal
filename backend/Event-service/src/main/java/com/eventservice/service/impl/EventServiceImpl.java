@@ -21,12 +21,15 @@ import org.springframework.web.server.ResponseStatusException;
 import com.eventservice.client.IdentityServiceClient;
 import com.eventservice.constant.RedisConstant;
 import com.eventservice.dto.NotificationEvent;
+import com.eventservice.kafka.NotificationProducer;
 import com.eventservice.dto.PlanResponseDto;
 import com.eventservice.dto.UserDto;
 import com.eventservice.service.EmailService;
 import com.eventservice.service.EventService;
 
 import java.time.LocalDateTime;
+import java.text.Normalizer;
+import java.util.regex.Pattern;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
@@ -44,6 +47,7 @@ public class EventServiceImpl implements EventService {
     private final EventParticipantRepository participantRepository;
     private final EventRegistrationRepository registrationRepository;
     private final EventInvitationRepository invitationRepository;
+    private final NotificationProducer notificationProducer;
 
     private final LuckyDrawClient luckyDrawClient;
 
@@ -117,17 +121,26 @@ public class EventServiceImpl implements EventService {
     public List<Event> findMyEventsByRole(String accountId, String roleType) {
         Set<Event> combined = getRawEventsByRole(accountId, roleType);
 
-        // Chuyển sang List để sắp xếp
+        // Convert to List for sorting
         List<Event> result = new ArrayList<>(combined);
 
-        // Sắp xếp: Mới nhất lên đầu (dựa trên startTime, nếu null thì dùng createdAt)
+        // Sorting: Newest first (startTime, or createdAt if startTime is null)
         result.sort((e1, e2) -> {
             LocalDateTime t1 = (e1.getStartTime() != null) ? e1.getStartTime() : e1.getCreatedAt();
             LocalDateTime t2 = (e2.getStartTime() != null) ? e2.getStartTime() : e2.getCreatedAt();
+            if (t1 == null || t2 == null) return 0;
             return t2.compareTo(t1);
         });
 
-        // Cuối cùng đi qua hàm enrich để lấy UserDto và RegistrationCount
+        // Initialize collections and enrich
+        for (Event event : result) {
+            // Force initialize lazy collections to prevent LazyInitializationException
+            event.setPresenters(new HashSet<>(presenterRepository.findByEventId(event.getId())));
+            event.setOrganizers(new HashSet<>(organizerRepository.findByEventId(event.getId())));
+            event.setParticipants(new HashSet<>(participantRepository.findByEventId(event.getId())));
+            enrichEventWithRegistrationCount(event);
+        }
+
         return enrichEvents(result);
     }
 
@@ -296,6 +309,7 @@ public class EventServiceImpl implements EventService {
 
         switch (type) {
             case "ORGANIZER":
+                combined.addAll(eventRepository.findEventsByOrganizerAccountId(accountId));
                 break;
             case "PRESENTER":
                 combined.addAll(eventRepository.findEventsByPresenterAccountId(accountId));
@@ -319,7 +333,7 @@ public class EventServiceImpl implements EventService {
                 combined.addAll(eventRepository.findByApprovedByAccountIdAndIsDeletedFalse(accountId));
                 break;
         }
-        return combined;
+        return combined.stream().filter(e -> !e.isDeleted()).collect(Collectors.toSet());
     }
 
     @Transactional
@@ -372,6 +386,27 @@ public class EventServiceImpl implements EventService {
         event.setArchived(false);
         event.setFinalized(false);
         if (event.getStatus() == null) event.setStatus(EventStatus.DRAFT);
+
+        // Increment Template Usage Count if present
+        if (event.getTemplate() != null) {
+            EventTemplate template = event.getTemplate();
+            template.setUsageCount(template.getUsageCount() + 1);
+            eventTemplateRepository.save(template);
+            log.info("Incremented usageCount for template: {}", template.getId());
+
+            // Send real-time notification about usage
+            if (event.getCreatedByAccountId() != null && !event.getCreatedByAccountId().equals("anonymous")) {
+                NotificationEvent usageNotification = NotificationEvent.builder()
+                        .recipientId(event.getCreatedByAccountId())
+                        .title("Đã áp dụng bản mẫu")
+                        .message("Bản mẫu \"" + template.getTemplateName() + "\" đã được ghi nhận thêm 1 lượt sử dụng!")
+                        .type("GENERAL")
+                        .relatedEntityId(template.getId())
+                        .actionUrl("/lecturer/templates")
+                        .build();
+                notificationProducer.sendNotification(usageNotification);
+            }
+        }
 
         Event savedEvent = eventRepository.save(event);
 
@@ -491,6 +526,32 @@ public class EventServiceImpl implements EventService {
         event.setDeleted(false);
         if (event.getStatus() == null) event.setStatus(EventStatus.DRAFT);
 
+        // Generate Slug (Required by DB)
+        if (event.getSlug() == null || event.getSlug().isEmpty()) {
+            event.setSlug(generateSlug(event.getTitle()));
+        }
+
+        // Increment Template Usage Count if present
+        if (event.getTemplate() != null) {
+            EventTemplate template = event.getTemplate();
+            template.setUsageCount(template.getUsageCount() + 1);
+            eventTemplateRepository.save(template);
+            log.info("Incremented usageCount for template: {}", template.getId());
+
+            // Send real-time notification about usage
+            if (event.getCreatedByAccountId() != null && !event.getCreatedByAccountId().equals("anonymous")) {
+                NotificationEvent usageNotification = NotificationEvent.builder()
+                        .recipientId(event.getCreatedByAccountId())
+                        .title("Đã áp dụng bản mẫu")
+                        .message("Bản mẫu \"" + template.getTemplateName() + "\" đã được ghi nhận thêm 1 lượt sử dụng!")
+                        .type("GENERAL")
+                        .relatedEntityId(template.getId())
+                        .actionUrl("/lecturer/templates")
+                        .build();
+                notificationProducer.sendNotification(usageNotification);
+            }
+        }
+
         // ===== LƯU EVENT TRƯỚC =====
         Event savedEvent = eventRepository.save(event);
 
@@ -579,7 +640,28 @@ public class EventServiceImpl implements EventService {
         if (plan.getStatus() != EventStatus.DRAFT)
             throw new RuntimeException("Chỉ có thể gửi duyệt bản DRAFT");
         plan.setStatus(EventStatus.PLAN_PENDING_APPROVAL);
-        return eventRepository.save(plan);
+        Event savedPlan = eventRepository.save(plan);
+
+        // Notify Admins
+        try {
+            List<String> adminIds = identityClient.getAdminAccountIds();
+            log.info("#### [EVENT SERVICE] Notifying {} admins about new plan submission: {}", adminIds.size(), savedPlan.getId());
+            for (String adminId : adminIds) {
+                NotificationEvent notification = NotificationEvent.builder()
+                        .recipientId(adminId)
+                        .title("Kế hoạch mới cần phê duyệt")
+                        .message("Giảng viên vừa gửi một kế hoạch mới cần phê duyệt: \"" + savedPlan.getTitle() + "\"")
+                        .type("PLAN_SUBMITTED")
+                        .relatedEntityId(savedPlan.getId())
+                        .actionUrl("/admin/plans")
+                        .build();
+                notificationProducer.sendNotification(notification);
+            }
+        } catch (Exception e) {
+            log.error("#### [EVENT SERVICE] Failed to notify admins about plan submission: {}", e.getMessage());
+        }
+
+        return savedPlan;
     }
 
     @Transactional
@@ -590,16 +672,86 @@ public class EventServiceImpl implements EventService {
             throw new RuntimeException("Kế hoạch không ở trạng thái chờ duyệt");
         plan.setStatus(EventStatus.PLAN_APPROVED);
         plan.setApprovedByAccountId(approverId);
-        return eventRepository.save(plan);
+        Event savedPlan = eventRepository.save(plan);
+
+        // 1. Thông báo cho người tạo kế hoạch (Giảng viên)
+        if (savedPlan.getCreatedByAccountId() != null) {
+            log.info("#### [EVENT SERVICE] Triggering notification for approved plan: {} to creator: {}", savedPlan.getId(), savedPlan.getCreatedByAccountId());
+            NotificationEvent creatorNotification = NotificationEvent.builder()
+                    .recipientId(savedPlan.getCreatedByAccountId())
+                    .title("Kế hoạch đã được duyệt")
+                    .message("Kế hoạch \"" + savedPlan.getTitle() + "\" của bạn đã được quản trị viên duyệt.")
+                    .type("PLAN_APPROVED")
+                    .relatedEntityId(savedPlan.getId())
+                    .actionUrl("/lecturer/events")
+                    .build();
+            notificationProducer.sendNotification(creatorNotification);
+        }
+
+        // 2. Thông báo cho tất cả Admin
+        try {
+            List<String> adminIds = identityClient.getAdminAccountIds();
+            log.info("#### [EVENT SERVICE] Notifying {} admins about plan approval: {}", adminIds.size(), savedPlan.getId());
+            for (String adminId : adminIds) {
+                NotificationEvent adminNotification = NotificationEvent.builder()
+                        .recipientId(adminId)
+                        .title("Kế hoạch đã được phê duyệt")
+                        .message("Kế hoạch \"" + savedPlan.getTitle() + "\" đã được phê duyệt thành công.")
+                        .type("PLAN_APPROVED")
+                        .relatedEntityId(savedPlan.getId())
+                        .actionUrl("/admin/plans")
+                        .build();
+                notificationProducer.sendNotification(adminNotification);
+            }
+        } catch (Exception e) {
+            log.error("#### [EVENT SERVICE] Failed to notify admins about plan approval: {}", e.getMessage());
+        }
+
+        return savedPlan;
     }
 
     @Transactional
     @Override
     public Event rejectPlan(String id, String approverId, String reason) {
         Event plan = eventRepository.findById(id).orElseThrow();
-        plan.setStatus(EventStatus.CANCELLED);
+        plan.setStatus(EventStatus.REJECTED);
         plan.setNotes(reason);
-        return eventRepository.save(plan);
+        Event savedPlan = eventRepository.save(plan);
+
+        // 1. Thông báo cho người tạo kế hoạch (Giảng viên)
+        if (savedPlan.getCreatedByAccountId() != null) {
+            log.info("#### [EVENT SERVICE] Triggering notification for rejected plan: {} to creator: {}", savedPlan.getId(), savedPlan.getCreatedByAccountId());
+            NotificationEvent creatorNotification = NotificationEvent.builder()
+                    .recipientId(savedPlan.getCreatedByAccountId())
+                    .title("Kế hoạch bị từ chối")
+                    .message("Kế hoạch \"" + savedPlan.getTitle() + "\" của bạn đã bị từ chối. Lý do: " + (reason != null ? reason : "Không có lý do cụ thể."))
+                    .type("PLAN_REJECTED")
+                    .relatedEntityId(savedPlan.getId())
+                    .actionUrl("/lecturer/events")
+                    .build();
+            notificationProducer.sendNotification(creatorNotification);
+        }
+
+        // 2. Thông báo cho tất cả Admin
+        try {
+            List<String> adminIds = identityClient.getAdminAccountIds();
+            log.info("#### [EVENT SERVICE] Notifying {} admins about plan rejection: {}", adminIds.size(), savedPlan.getId());
+            for (String adminId : adminIds) {
+                NotificationEvent adminNotification = NotificationEvent.builder()
+                        .recipientId(adminId)
+                        .title("Kế hoạch đã bị từ chối")
+                        .message("Kế hoạch \"" + savedPlan.getTitle() + "\" đã bị từ chối.")
+                        .type("PLAN_REJECTED")
+                        .relatedEntityId(savedPlan.getId())
+                        .actionUrl("/admin/plans")
+                        .build();
+                notificationProducer.sendNotification(adminNotification);
+            }
+        } catch (Exception e) {
+            log.error("#### [EVENT SERVICE] Failed to notify admins about plan rejection: {}", e.getMessage());
+        }
+
+        return savedPlan;
     }
 
     @Transactional
@@ -607,7 +759,7 @@ public class EventServiceImpl implements EventService {
     public Event createEventFromPlan(String planId, Event eventDetails) {
         Event plan = eventRepository.findById(planId).orElseThrow();
         if (plan.getStatus() != EventStatus.PLAN_APPROVED)
-            throw new RuntimeException("Kế hoạch chưa được duyệt");
+            throw new RuntimeException("Kế hoạch chưa được duyệt hoặc đã được chuyển đổi");
 
         Event newEvent = new Event();
         newEvent.setTitle(Optional.ofNullable(eventDetails.getTitle()).orElse(plan.getTitle()));
@@ -619,17 +771,63 @@ public class EventServiceImpl implements EventService {
                 ? eventDetails.getMaxParticipants() : plan.getMaxParticipants());
         newEvent.setCreatedByAccountId(eventDetails.getCreatedByAccountId());
         newEvent.setStatus(EventStatus.EVENT_PENDING_APPROVAL);
+        newEvent.setSlug(generateSlug(newEvent.getTitle()));
         newEvent.setCreatedAt(LocalDateTime.now());
+        newEvent.setOrganization(plan.getOrganization());
+        newEvent.setTemplate(plan.getTemplate());
+        newEvent.setCustomFieldsJson(plan.getCustomFieldsJson());
+        newEvent.setEventTopic(plan.getEventTopic());
+        newEvent.setType(plan.getType());
 
         if (plan.getTargetObjects() != null) {
-            newEvent.setTargetObjects(plan.getTargetObjects());
+            newEvent.setTargetObjects(new ArrayList<>(plan.getTargetObjects()));
         }
 
         if (plan.getRecipients() != null) {
-            newEvent.setRecipients(plan.getRecipients());
+            newEvent.setRecipients(new ArrayList<>(plan.getRecipients()));
         }
 
-        return eventRepository.save(newEvent);
+        Event savedEvent = eventRepository.save(newEvent);
+
+        // Copy Presenters & Organizers from Plan if they exist
+        List<EventPresenter> presenters = presenterRepository.findByEventId(plan.getId());
+        for (EventPresenter p : presenters) {
+            EventPresenter newP = p.copy(); // Assuming a copy method exists, or just create new
+            newP.setEvent(savedEvent);
+            presenterRepository.save(newP);
+        }
+
+        List<EventOrganizer> organizers = organizerRepository.findByEventId(plan.getId());
+        for (EventOrganizer o : organizers) {
+            EventOrganizer newO = o.copy();
+            newO.setEvent(savedEvent);
+            organizerRepository.save(newO);
+        }
+
+        // Hide old plan by changing status
+        plan.setStatus(EventStatus.CONVERTED);
+        eventRepository.save(plan);
+
+        // Notify Admins
+        try {
+            List<String> adminIds = identityClient.getAdminAccountIds();
+            log.info("#### [EVENT SERVICE] Notifying {} admins about new event submission: {}", adminIds.size(), savedEvent.getId());
+            for (String adminId : adminIds) {
+                NotificationEvent notification = NotificationEvent.builder()
+                        .recipientId(adminId)
+                        .title("Sự kiện mới cần phê duyệt")
+                        .message("Giảng viên vừa tạo một sự kiện mới cần phê duyệt: \"" + savedEvent.getTitle() + "\"")
+                        .type("EVENT_SUBMITTED")
+                        .relatedEntityId(savedEvent.getId())
+                        .actionUrl("/admin/events")
+                        .build();
+                notificationProducer.sendNotification(notification);
+            }
+        } catch (Exception e) {
+            log.error("#### [EVENT SERVICE] Failed to notify admins about event submission: {}", e.getMessage());
+        }
+
+        return savedEvent;
     }
 
     @Transactional
@@ -638,13 +836,86 @@ public class EventServiceImpl implements EventService {
         Event event = eventRepository.findById(id).orElseThrow();
         event.setStatus(EventStatus.PUBLISHED);
         event.setApprovedByAccountId(approverId);
-        return eventRepository.save(event);
+        Event savedEvent = eventRepository.save(event);
+
+        // 1. Thông báo cho người tạo sự kiện (Giảng viên)
+        if (savedEvent.getCreatedByAccountId() != null) {
+            log.info("#### [EVENT SERVICE] Triggering notification for approved event: {} to creator: {}", savedEvent.getId(), savedEvent.getCreatedByAccountId());
+            NotificationEvent creatorNotification = NotificationEvent.builder()
+                    .recipientId(savedEvent.getCreatedByAccountId())
+                    .title("Sự kiện đã được duyệt")
+                    .message("Sự kiện \"" + savedEvent.getTitle() + "\" của bạn đã được công bố chính thức.")
+                    .type("EVENT_CREATED")
+                    .relatedEntityId(savedEvent.getId())
+                    .actionUrl("/lecturer/events")
+                    .build();
+            notificationProducer.sendNotification(creatorNotification);
+        }
+
+        // 2. Thông báo cho tất cả Admin
+        try {
+            List<String> adminIds = identityClient.getAdminAccountIds();
+            log.info("#### [EVENT SERVICE] Notifying {} admins about event approval: {}", adminIds.size(), savedEvent.getId());
+            for (String adminId : adminIds) {
+                NotificationEvent adminNotification = NotificationEvent.builder()
+                        .recipientId(adminId)
+                        .title("Sự kiện đã được công bố")
+                        .message("Sự kiện \"" + savedEvent.getTitle() + "\" đã được phê duyệt và công bố thành công.")
+                        .type("EVENT_CREATED")
+                        .relatedEntityId(savedEvent.getId())
+                        .actionUrl("/admin/events")
+                        .build();
+                notificationProducer.sendNotification(adminNotification);
+            }
+        } catch (Exception e) {
+            log.error("#### [EVENT SERVICE] Failed to notify admins about event approval: {}", e.getMessage());
+        }
+
+        return savedEvent;
     }
 
     @Override
     @Transactional
     public Event rejectEvent(String id, String approverId, String reason) {
-        throw new UnsupportedOperationException("Chức năng từ chối sự kiện chưa được triển khai");
+        Event event = eventRepository.findById(id).orElseThrow();
+        event.setStatus(EventStatus.REJECTED);
+        event.setNotes(reason);
+        Event savedEvent = eventRepository.save(event);
+
+        // 1. Thông báo cho người tạo sự kiện (Giảng viên)
+        if (savedEvent.getCreatedByAccountId() != null) {
+            log.info("#### [EVENT SERVICE] Triggering notification for rejected event: {} to creator: {}", savedEvent.getId(), savedEvent.getCreatedByAccountId());
+            NotificationEvent creatorNotification = NotificationEvent.builder()
+                    .recipientId(savedEvent.getCreatedByAccountId())
+                    .title("Sự kiện bị từ chối")
+                    .message("Sự kiện \"" + savedEvent.getTitle() + "\" của bạn đã bị quản trị viên từ chối. Lý do: " + (reason != null ? reason : "Không có lý do cụ thể."))
+                    .type("PLAN_REJECTED")
+                    .relatedEntityId(savedEvent.getId())
+                    .actionUrl("/lecturer/events")
+                    .build();
+            notificationProducer.sendNotification(creatorNotification);
+        }
+
+        // 2. Thông báo cho tất cả Admin
+        try {
+            List<String> adminIds = identityClient.getAdminAccountIds();
+            log.info("#### [EVENT SERVICE] Notifying {} admins about event rejection: {}", adminIds.size(), savedEvent.getId());
+            for (String adminId : adminIds) {
+                NotificationEvent adminNotification = NotificationEvent.builder()
+                        .recipientId(adminId)
+                        .title("Sự kiện đã bị từ chối")
+                        .message("Sự kiện \"" + savedEvent.getTitle() + "\" đã bị từ chối.")
+                        .type("PLAN_REJECTED")
+                        .relatedEntityId(savedEvent.getId())
+                        .actionUrl("/admin/events")
+                        .build();
+                notificationProducer.sendNotification(adminNotification);
+            }
+        } catch (Exception e) {
+            log.error("#### [EVENT SERVICE] Failed to notify admins about event rejection: {}", e.getMessage());
+        }
+
+        return savedEvent;
     }
 
     @Transactional
@@ -669,7 +940,23 @@ public class EventServiceImpl implements EventService {
         Event event = eventRepository.findById(id).orElseThrow();
         event.setStatus(EventStatus.CANCELLED);
         if (reason != null) event.setNotes(reason);
-        return eventRepository.save(event);
+        Event savedEvent = eventRepository.save(event);
+
+        // Send Notification
+        if (savedEvent.getCreatedByAccountId() != null) {
+            log.info("#### [EVENT SERVICE] Triggering notification for cancelled event: {} to recipient: {}", savedEvent.getId(), savedEvent.getCreatedByAccountId());
+            NotificationEvent notification = NotificationEvent.builder()
+                    .recipientId(savedEvent.getCreatedByAccountId())
+                    .title("Sự kiện đã bị hủy")
+                    .message("Sự kiện \"" + savedEvent.getTitle() + "\" đã bị hủy. Lý do: " + (reason != null ? reason : "Không có lý do cụ thể."))
+                    .type("PLAN_REJECTED") // Use Rejected icon/color
+                    .relatedEntityId(savedEvent.getId())
+                    .actionUrl("/lecturer/events")
+                    .build();
+            notificationProducer.sendNotification(notification);
+        }
+
+        return savedEvent;
     }
 
     private boolean isPlanStatus(EventStatus status) {
@@ -712,47 +999,47 @@ public class EventServiceImpl implements EventService {
 
     @Override
     public List<PlanResponseDto> getPlansByAccountId(String accountId) {
-//        List<EventStatus> statuses = List.of(
-//                EventStatus.DRAFT, EventStatus.PLAN_PENDING_APPROVAL,
-//                EventStatus.PLAN_APPROVED, EventStatus.CANCELLED);
-//
-//        List<Event> plans = eventRepository.findByStatusInAndIsDeletedFalseAndCreatedByAccountId(statuses, accountId);
-//
-//        for (Event plan : plans) {
-//            List<EventPresenter> presenters = presenterRepository.findByEventId(plan.getId());
-//            plan.setPresenters(presenters);
-//
-//            List<EventOrganizer> organizers = organizerRepository.findByEventId(plan.getId());
-//            plan.setOrganizers(organizers);
-//
-//            List<EventParticipant> participants = participantRepository.findByEventId(plan.getId());
-//            plan.setParticipants(participants);
-//
-//            enrichEventWithRegistrationCount(plan);
-//        }
-//
-//        Set<String> userIds = plans.stream()
-//                .flatMap(e -> Stream.of(e.getCreatedByAccountId(), e.getApprovedByAccountId()))
-//                .filter(Objects::nonNull)
-//                .filter(id -> !id.isBlank())
-//                .collect(Collectors.toSet());
-//
-//        Map<String, UserDto> userMap = Collections.emptyMap();
-//        try {
-//            if (!userIds.isEmpty()) {
-//                userMap = identityClient.getUsersByIds(new ArrayList<>(userIds)).stream()
-//                        .collect(Collectors.toMap(UserDto::getId, u -> u, (o, n) -> o));
-//            }
-//        } catch (Exception e) {
-//        }
-//
-//        Map<String, UserDto> finalUserMap = userMap;
-//        return plans.stream()
-//                .map(e -> PlanResponseDto.from(e,
-//                        finalUserMap.get(e.getCreatedByAccountId()),
-//                        finalUserMap.get(e.getApprovedByAccountId())))
-//                .collect(Collectors.toList());
-        return null;
+        List<EventStatus> statuses = List.of(
+                EventStatus.DRAFT, EventStatus.PLAN_PENDING_APPROVAL,
+                EventStatus.PLAN_APPROVED);
+
+        List<Event> plans = eventRepository.findByStatusInAndIsDeletedFalseAndCreatedByAccountId(statuses, accountId);
+
+        for (Event plan : plans) {
+            List<EventPresenter> presenters = presenterRepository.findByEventId(plan.getId());
+            plan.setPresenters(new HashSet<>(presenters));
+
+            List<EventOrganizer> organizers = organizerRepository.findByEventId(plan.getId());
+            plan.setOrganizers(new HashSet<>(organizers));
+
+            List<EventParticipant> participants = participantRepository.findByEventId(plan.getId());
+            plan.setParticipants(new HashSet<>(participants));
+
+            enrichEventWithRegistrationCount(plan);
+        }
+
+        Set<String> userIds = plans.stream()
+                .flatMap(e -> Stream.of(e.getCreatedByAccountId(), e.getApprovedByAccountId()))
+                .filter(Objects::nonNull)
+                .filter(id -> !id.isBlank())
+                .collect(Collectors.toSet());
+
+        Map<String, UserDto> userMap = Collections.emptyMap();
+        try {
+            if (!userIds.isEmpty()) {
+                userMap = identityClient.getUsersByIds(new ArrayList<>(userIds)).stream()
+                        .collect(Collectors.toMap(UserDto::getId, u -> u, (o, n) -> o));
+            }
+        } catch (Exception e) {
+            log.error("Failed to fetch users: {}", e.getMessage());
+        }
+
+        Map<String, UserDto> finalUserMap = userMap;
+        return plans.stream()
+                .map(e -> PlanResponseDto.from(e,
+                        finalUserMap.get(e.getCreatedByAccountId()),
+                        finalUserMap.get(e.getApprovedByAccountId())))
+                .collect(Collectors.toList());
     }
 
     @Override
@@ -861,9 +1148,23 @@ public class EventServiceImpl implements EventService {
         // 6. Gửi Email thông báo (Async)
         invitations.forEach(invitation -> {
             String inviteUrl = String.format("http://localhost:8082/events/%s/accept-invite?token=%s",
-                    eventId, inviteToken);
-            System.out.println("Email: " + invitation.getInviteeEmail() + ", URL: " + inviteUrl);
-            emailService.sendEventInviteEmailAsync(invitation.getInviteeEmail(), inviteUrl, event.getTitle(), invitation.getMessage());
+                    eventId, invitation.getToken());
+            
+            String startTimeStr = event.getStartTime() != null ? event.getStartTime().toString() : "Chưa xác định";
+            String endTimeStr = event.getEndTime() != null ? event.getEndTime().toString() : "Chưa xác định";
+            String location = event.getLocation() != null ? event.getLocation() : "Trực tuyến";
+            String description = event.getDescription() != null ? event.getDescription() : "";
+
+            emailService.sendEventInviteEmailAsync(
+                    invitation.getInviteeEmail(), 
+                    inviteUrl, 
+                    event.getTitle(), 
+                    invitation.getInviteeName(),
+                    startTimeStr,
+                    endTimeStr,
+                    location,
+                    description
+            );
 
             NotificationEvent notificationEvent = NotificationEvent.builder()
                     .recipientId(invitation.getInviteeAccountId())
@@ -944,5 +1245,22 @@ public class EventServiceImpl implements EventService {
         response.put("role", newOrganizer.getRole().toString());
         response.put("eventName", invitation.getEvent().getTitle());
         return response;
+    }
+
+    private String generateSlug(String title) {
+        if (title == null || title.trim().isEmpty()) {
+            return "event-" + UUID.randomUUID().toString().substring(0, 8);
+        }
+        
+        String nfdNormalizedString = Normalizer.normalize(title, Normalizer.Form.NFD);
+        Pattern pattern = Pattern.compile("\\p{InCombiningDiacriticalMarks}+");
+        String base = pattern.matcher(nfdNormalizedString).replaceAll("")
+                .toLowerCase()
+                .replaceAll("[^a-z0-9]+", "-")
+                .replaceAll("^-+|-+$", "");
+        
+        if (base.isEmpty()) base = "event";
+        
+        return base + "-" + UUID.randomUUID().toString().substring(0, 8);
     }
 }

@@ -57,4 +57,20 @@ public class EventPresenter {
     @JoinColumn(name = "event_id", nullable = false)
     @JsonIgnore
     private Event event;
+
+    public EventPresenter copy() {
+        return EventPresenter.builder()
+                .presenterAccountId(this.presenterAccountId)
+                .fullName(this.fullName)
+                .email(this.email)
+                .phone(this.phone)
+                .avatarUrl(this.avatarUrl)
+                .position(this.position)
+                .department(this.department)
+                .bio(this.bio)
+                .linkedInUrl(this.linkedInUrl)
+                .session(this.session)
+                .isDeleted(this.isDeleted)
+                .build();
+    }
 }

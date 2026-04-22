@@ -60,6 +60,21 @@ public class EventTemplate {
 
     private boolean isPublic = false; // Mẫu dùng chung hay nội bộ
 
+    @Transient
+    @Getter(AccessLevel.NONE)
+    @Setter(AccessLevel.NONE)
+    private boolean userStarred = false;
+
+    @com.fasterxml.jackson.annotation.JsonGetter("isStarred")
+    public boolean isStarred() {
+        return userStarred;
+    }
+
+    @com.fasterxml.jackson.annotation.JsonSetter("isStarred")
+    public void setStarred(boolean starred) {
+        this.userStarred = starred;
+    }
+
     @ElementCollection
     @CollectionTable(
             name = "event_template_themes",
@@ -82,6 +97,5 @@ public class EventTemplate {
     // --- Ownership ---
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "organization_id")
-    @JsonIgnore
     private Organization organization;
 }

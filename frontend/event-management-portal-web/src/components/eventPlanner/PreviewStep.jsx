@@ -9,7 +9,10 @@ import {
   Maximize2,
   X,
   Star,
+  Send,
+  ClipboardCheck,
 } from "lucide-react";
+import { useAuth } from "../../context/AuthContext";
 
 import { DocumentContent } from "./DocumentContent";
 import { exportToWord } from "./WordExporter";
@@ -30,11 +33,12 @@ export const PreviewStep = ({
   const [templateName, setTemplateName] = useState("");
   const [savingTemplate, setSavingTemplate] = useState(false);
   const [exporting, setExporting] = useState(false);
+  const { user } = useAuth();
 
   const handleExportWord = async () => {
     setExporting(true);
     try {
-      await exportToWord(data);
+      await exportToWord(data, user?.id);
       toast.success("Xuất file Word thành công!");
     } catch (e) {
       toast.error("Xuất file thất bại: " + e.message);
@@ -60,7 +64,7 @@ export const PreviewStep = ({
       const templatePayload = {
         templateName: templateName.trim(),
         description: (data.eventPurpose || data.description || "").trim(),
-        organizationId: data.organizationId || "org-it",
+        organization: data.organizationId && data.organizationId !== "org-it" ? { id: data.organizationId } : null,
         defaultTitle: (data.eventTitle || data.title || "").trim(),
         defaultLocation: data.location || "",
         defaultEventMode: data.eventMode || "OFFLINE",
@@ -69,14 +73,14 @@ export const PreviewStep = ({
         defaultCoverImage: data.coverImage || "",
         faculty: data.faculty || "",
         major: data.major || "",
-        configData: JSON.stringify({
+        configData: {
           programItems: data.programItems || [],
           presenters: data.presenters || [],
           organizers: data.organizers || [],
           attendees: data.attendees || [],
           targetObjects: data.targetObjects || [],
           customFields: data.customFields || [],
-        }),
+        },
       };
 
       // SỬA: Gọi qua contentApi mới đã gộp
@@ -119,23 +123,43 @@ export const PreviewStep = ({
               CÔNG CỤ QUẢN LÝ
             </p>
 
-            <button
-              onClick={() => onSave && onSave(data)}
-              disabled={isSubmitting}
-              className="w-full bg-emerald-600 text-white py-3 rounded-xl font-bold text-sm flex items-center justify-center gap-2 hover:bg-emerald-700 transition-all shadow-md shadow-emerald-100 disabled:opacity-60"
-            >
-              {isSubmitting ? (
-                <>
-                  <RefreshCw size={18} className="animate-spin" />
-                  Đang xử lý...
-                </>
-              ) : (
-                <>
-                  <Save size={18} />
-                  {mode === "event" ? "Gửi phê duyệt" : "Lưu kế hoạch"}
-                </>
-              )}
-            </button>
+            <div className="space-y-2">
+              <button
+                onClick={() => onSave && onSave(data, "DRAFT")}
+                disabled={isSubmitting}
+                className="w-full bg-emerald-600 text-white py-3 rounded-xl font-bold text-sm flex items-center justify-center gap-2 hover:bg-emerald-700 transition-all shadow-md shadow-emerald-100 disabled:opacity-60"
+              >
+                {isSubmitting ? (
+                  <>
+                    <RefreshCw size={18} className="animate-spin" />
+                    Đang xử lý...
+                  </>
+                ) : (
+                  <>
+                    <Save size={18} />
+                    Lưu bản nháp
+                  </>
+                )}
+              </button>
+
+              <button
+                onClick={() => onSave && onSave(data, "PLAN_PENDING_APPROVAL")}
+                disabled={isSubmitting}
+                className="w-full bg-indigo-600 text-white py-3 rounded-xl font-bold text-sm flex items-center justify-center gap-2 hover:bg-indigo-700 transition-all shadow-md shadow-indigo-100 disabled:opacity-60"
+              >
+                {isSubmitting ? (
+                  <>
+                    <RefreshCw size={18} className="animate-spin" />
+                    Đang xử lý...
+                  </>
+                ) : (
+                  <>
+                    <Send size={18} />
+                    Lưu & Gửi phê duyệt
+                  </>
+                )}
+              </button>
+            </div>
 
             <button
               onClick={handleExportWord}
@@ -219,20 +243,36 @@ export const PreviewStep = ({
             <button
               onClick={() => {
                 setIsFullscreen(false);
-                onSave && onSave(data);
+                onSave && onSave(data, "DRAFT");
               }}
               disabled={isSubmitting}
-              className="px-10 py-3 bg-emerald-500 text-white rounded-xl font-black flex items-center gap-2 hover:bg-emerald-600 active:scale-95 transition-all disabled:opacity-60"
+              className="px-8 py-3 bg-emerald-500 text-white rounded-xl font-black flex items-center gap-2 hover:bg-emerald-600 active:scale-95 transition-all disabled:opacity-60"
             >
               {isSubmitting ? (
                 <>
-                  <RefreshCw size={20} className="animate-spin" />
-                  Đang xử lý...
+                  <RefreshCw size={20} className="animate-spin" /> ...
                 </>
               ) : (
                 <>
-                  <Save size={20} />
-                  {mode === "event" ? "XÁC NHẬN GỬI" : "XÁC NHẬN LƯU"}
+                  <Save size={20} /> LƯU NHÁP
+                </>
+              )}
+            </button>
+            <button
+              onClick={() => {
+                setIsFullscreen(false);
+                onSave && onSave(data, "PLAN_PENDING_APPROVAL");
+              }}
+              disabled={isSubmitting}
+              className="px-10 py-3 bg-indigo-500 text-white rounded-xl font-black flex items-center gap-2 hover:bg-indigo-600 active:scale-95 transition-all disabled:opacity-60"
+            >
+              {isSubmitting ? (
+                <>
+                  <RefreshCw size={20} className="animate-spin" /> ...
+                </>
+              ) : (
+                <>
+                  <Send size={20} /> GỬI PHÊ DUYỆT
                 </>
               )}
             </button>

@@ -6,7 +6,6 @@ import io.jsonwebtoken.SignatureAlgorithm;
 import io.jsonwebtoken.io.Decoders;
 import io.jsonwebtoken.security.Keys;
 import jakarta.annotation.PostConstruct;
-import lombok.Getter;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import com.identityservice.dto.UserPrincipal;
@@ -19,7 +18,6 @@ import java.util.Map;
 import java.util.function.Function;
 
 @Component
-@Getter
 public class JwtUtils {
     @Value("${jwt.secret}")
     private String secretKey;
@@ -36,6 +34,22 @@ public class JwtUtils {
     protected void init() {
         byte[] keyBytes = Decoders.BASE64.decode(secretKey);
         this.key = Keys.hmacShaKeyFor(keyBytes);
+    }
+
+    public String getSecretKey() {
+        return secretKey;
+    }
+
+    public long getAccessExpiration() {
+        return accessExpiration;
+    }
+
+    public long getRefreshExpiration() {
+        return refreshExpiration;
+    }
+
+    public SecretKey getKey() {
+        return key;
     }
 
     public String generateAccessToken(UserPrincipal userPrincipal) {

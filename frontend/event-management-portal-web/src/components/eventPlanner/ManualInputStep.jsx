@@ -321,7 +321,6 @@ export const ManualInputStep = ({
     major: externalFormData?.major || "",
     recipients: externalFormData?.recipients || [],
     customRecipients: externalFormData?.customRecipients || [],
-    participants: externalFormData?.participants || [],
     notes: externalFormData?.notes || "",
     themes: externalFormData?.themes || [],
     programItems: externalFormData?.programItems || [],
@@ -452,8 +451,10 @@ export const ManualInputStep = ({
       formData.customRecipients.length === 0
     )
       e.recipients = "Vui lòng chọn ít nhất một nơi nhận";
-    if (formData.participants.length === 0)
+    if (targetObjects.length === 0)
       e.participants = "Vui lòng chọn ít nhất một đối tượng";
+    if (!formData.maxParticipants || formData.maxParticipants <= 0)
+      e.maxParticipants = "Số lượng người tham gia tối đa phải lớn hơn 0";
 
     setErrors(e);
     return Object.keys(e).length === 0;
@@ -472,32 +473,6 @@ export const ManualInputStep = ({
       onNext(formData);
     }
   };
-
-  const toggleParticipant = (type) =>
-    setFormData((prev) => ({
-      ...prev,
-      participants: prev.participants.includes(type)
-        ? prev.participants.filter((p) => p !== type)
-        : [...prev.participants, type],
-    }));
-
-  const addCustomParticipant = () => {
-    const trimmed = newParticipant.trim();
-    if (trimmed && !formData.participants.includes(trimmed)) {
-      setFormData((prev) => ({
-        ...prev,
-        participants: [...prev.participants, trimmed],
-      }));
-    }
-    setNewParticipant("");
-    setShowAddParticipant(false);
-  };
-
-  const removeCustomParticipant = (p) =>
-    setFormData((prev) => ({
-      ...prev,
-      participants: prev.participants.filter((x) => x !== p),
-    }));
 
   const toggleRecipient = (r) =>
     setFormData((prev) => ({
@@ -961,6 +936,8 @@ export const ManualInputStep = ({
             <Field
               label="Số lượng tối đa"
               icon={<Users size={14} color="#2563eb" />}
+              required
+              error={errors.maxParticipants}
               hint="Hệ thống sẽ tự động đóng đăng ký khi đạt giới hạn."
             >
               <div style={{ position: "relative", width: 160 }}>
@@ -968,6 +945,7 @@ export const ManualInputStep = ({
                   type="number"
                   min="1"
                   placeholder="30"
+                  error={!!errors.maxParticipants}
                   value={formData.maxParticipants || ""}
                   onChange={(e) =>
                     setFormData({

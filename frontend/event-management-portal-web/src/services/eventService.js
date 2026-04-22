@@ -1,84 +1,65 @@
-import axios from 'axios';
-
-const EVENT_URL = "http://localhost:8082";
-
-// --- INSTANCE 1: DÀNH CHO PUBLIC (Không gắn Interceptor chặn lỗi 401) ---
-const publicApi = axios.create({
-    baseURL: EVENT_URL,
-    headers: { 'Content-Type': 'application/json' },
-    timeout: 15000,
-});
-
-// --- INSTANCE 2: DÀNH CHO PRIVATE (Có đầy đủ Interceptor) ---
-const privateApi = axios.create({
-    baseURL: EVENT_URL,
-    headers: { 'Content-Type': 'application/json' },
-    timeout: 15000,
-});
-
-// Request Interceptor cho Private
-privateApi.interceptors.request.use(
-    (config) => {
-        const token = localStorage.getItem('accessToken');
-        if (token) config.headers.Authorization = `Bearer ${token}`;
-        return config;
-    },
-    (error) => Promise.reject(error)
-);
-
-// Response Interceptor cho Private - Xử lý Refresh Token
-privateApi.interceptors.response.use(
-    (response) => response,
-    async (error) => {
-        const originalRequest = error.config;
-        if (error.response?.status === 401 && !originalRequest._retry) {
-            originalRequest._retry = true;
-            try {
-                const refreshToken = localStorage.getItem('refreshToken');
-                if (!refreshToken) throw new Error();
-
-                // Refresh Token gọi sang Auth Service (Port 8080)
-                const res = await axios.post(`http://localhost:8080/auth/refresh`, { refreshToken });
-                const { accessToken } = res.data;
-                
-                localStorage.setItem('accessToken', accessToken);
-                originalRequest.headers.Authorization = `Bearer ${accessToken}`;
-                return privateApi(originalRequest);
-            } catch (err) {
-                localStorage.clear();
-                window.location.href = '/login';
-            }
-        }
-        return Promise.reject(error);
-    }
-);
+import axiosClient from '../api/axiosClient';
 
 const eventService = {
-    // Sử dụng publicApi: Không sợ bị chặn khi token hết hạn
-    getEventsForUser: () => publicApi.get('/events'),
-    getOngoingEvents: () => publicApi.get('/events/ongoing'),
-    getUpcomingEvents: () => publicApi.get('/events/upcoming-week'),
-    getFeaturedEvents: () => publicApi.get('/events/featured'),
-    getCompletedEvents: () => publicApi.get('events/news'),
-    getEventPosts: (eventId) => publicApi.get(`/posts/detail/${eventId}`),
+    // --- GRUOP 1: PUBLIC (Dành cho khách & user) ---
+    getEventsForUser: () => axiosClient.get('/event/events'),
+    getOngoingEvents: () => axiosClient.get('/event/events/ongoing'),
+    getUpcomingEvents: () => axiosClient.get('/event/events/upcoming-week'),
+    getFeaturedEvents: () => axiosClient.get('/event/events/featured'),
+    getCompletedEvents: () => axiosClient.get('/event/events/news'),
+    getEventPosts: (eventId) => axiosClient.get(`/event/posts/detail/${eventId}`),
+    getEventById: (id) => axiosClient.get(`/event/events/${id}`),
 
-    // Sử dụng privateApi: Bắt buộc check token/refresh token
-    getEventById: (id) => privateApi.get(`/events/${id}`),
-    getMyEvents: (role = 'ALL') => privateApi.get('/events/my-events', { params: { role } }),
-    getAdminAllEvents: () => privateApi.get('/events/admin/all'),
-    updateLuckyDraw: (eventId) => privateApi.put(`/events/${eventId}/lucky-draw`),
+    // --- GROUP 2: AUTHENTICATED (Yêu cầu login) ---
+    getMyEvents: (role = 'ALL') => axiosClient.get('/event/events/my-events', { params: { role } }),
+    getAdminAllEvents: () => axiosClient.get('/event/events/admin/all'),
+    updateLuckyDraw: (eventId) => axiosClient.put(`/event/events/${eventId}/lucky-draw`),
     
-    registerEvent: (id) => privateApi.post(`/registrations/register/${id}`),
-    getTicketByEventId: (id) => privateApi.get(`/registrations/${id}`),
+    registerEvent: (id) => axiosClient.post(`/event/registrations/register/${id}`),
+    getTicketByEventId: (id) => axiosClient.get(`/event/registrations/${id}`),
 
-    getAllPosts: (params) => privateApi.get('/posts', { params }),
-    getPostById: (id) => privateApi.get(`/posts/${id}`),
-    createPost: (postData) => privateApi.post('/posts', postData),
-    updatePost: (id, postDetails) => privateApi.put(`/posts/${id}`, postDetails),
-    deletePost: (id) => privateApi.delete(`/posts/${id}`),
+    // --- GROUP 3: POSTS ---
+    getAllPosts: (params) => axiosClient.get('/event/posts', { params }),
+    getPostById: (id) => axiosClient.get(`/event/posts/${id}`),
+    createPost: (postData) => axiosClient.post('/event/posts', postData),
+    updatePost: (id, postDetails) => axiosClient.put(`/event/posts/${id}`, postDetails),
+    deletePost: (id) => axiosClient.delete(`/event/posts/${id}`),
 
-    getTemplates: () => privateApi.get('/templates'),
-    getTemplatesById: (id) => privateApi.get(`/templates/${id}`)
+    // --- GROUP 4: TEMPLATES ---
+    getTemplates: () => axiosClient.get('/event/templates'),
+    getTemplatesById: (id) => axiosClient.get(`/event/templates/${id}`),
+    createTemplate: (data) => axiosClient.post('/event/templates', data),
+    updateTemplate: (id, data) => axiosClient.put(`/event/templates/${id}`, data),
+    deleteTemplate: (id) => axiosClient.delete(`/event/templates/${id}`),
+
+    // --- GROUP 5: PLANS ---
+    getAllPlans: () => axiosClient.get('/event/events/plans'),
+    getMyPlans: () => axiosClient.get('/event/events/plans/my'),
+    getPlansByStatus: (statusName, accountId) => 
+        axiosClient.get(`/event/events/plans/status/${statusName}`, { 
+            params: { accountId } 
+        }),
+
+    createPlan: (planData) => axiosClient.post('/event/events/plans', planData),
+    updatePlan: (id, planDetails) => axiosClient.put(`/event/events/plans/${id}`, planDetails),
+    deletePlan: (id) => axiosClient.delete(`/event/events/plans/${id}`),
+    submitPlanForApproval: (id) => axiosClient.post(`/event/events/plans/${id}/submit`),
+
+    // --- GROUP 6: ADMIN APPROVAL ---
+    getPlansPendingApproval: () => axiosClient.get('/event/events/admin/plans/pending'),
+    getEventsPendingApproval: () => axiosClient.get('/event/events/admin/events/pending'),
+
+    approvePlan: (id) => axiosClient.patch(`/event/events/admin/plans/${id}/approve`),
+    rejectPlan: (id, reason) => 
+        axiosClient.patch(`/event/events/admin/plans/${id}/reject`, null, {
+            params: { reason }
+        }),
+
+    approveEvent: (id) => axiosClient.patch(`/event/events/admin/events/${id}/approve`),
+    rejectEvent: (id, reason) => 
+        axiosClient.patch(`/event/events/admin/events/${id}/reject`, null, {
+            params: { reason }
+        }),
 };
 
 export default eventService;

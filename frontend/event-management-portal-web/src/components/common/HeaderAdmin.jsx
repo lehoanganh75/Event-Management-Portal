@@ -3,7 +3,10 @@ import { Bell, ChevronDown, LogOut, User, Settings, CheckCircle, Calendar, Clock
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { notificationApi } from "../../api/notificationApi"; 
-import { useAuth } from "../../context/AuthContext"; // Import useAuth chuẩn
+import { useAuth } from "../../context/AuthContext"; 
+import { Client } from "@stomp/stompjs";
+import SockJS from "sockjs-client";
+import { toast } from "react-toastify";
 
 const roleMap = {
   SUPER_ADMIN: "Quản Trị Viên Cao Cấp",
@@ -30,26 +33,68 @@ const HeaderAdmin = () => {
   const menuRef = useRef(null);
 
   // 2. FETCH THÔNG BÁO DỰA TRÊN USER TỪ CONTEXT
+  const fetchNoti = async () => {
+    try {
+      const [unreadRes, recentRes] = await Promise.all([
+        notificationApi.get.unreadCount(user.id),
+        notificationApi.get.recent(user.id, 5)
+      ]);
+      setUnreadCount(unreadRes.data);
+      setNotifications(recentRes.data || []);
+    } catch (error) {
+      console.error("Lỗi fetch thông báo:", error);
+    }
+  };
+
   useEffect(() => {
     if (isAuthenticated && user?.id) {
-      const fetchNoti = async () => {
-        try {
-          const [unreadRes, recentRes] = await Promise.all([
-            notificationApi.get.unreadCount(user.id),
-            notificationApi.get.recent(user.id, 5)
-          ]);
-          setUnreadCount(unreadRes.data);
-          setNotifications(recentRes.data || []);
-        } catch (error) {
-          console.error("Lỗi fetch thông báo:", error);
-        }
-      };
-
       fetchNoti();
-      const interval = setInterval(fetchNoti, 30000);
-      return () => clearInterval(interval);
+      
+      const stompClient = new Client({
+        brokerURL: "ws://localhost:8085/ws",
+        webSocketFactory: () => new SockJS("http://localhost:8085/ws"),
+        reconnectDelay: 5000,
+        heartbeatIncoming: 4000,
+        heartbeatOutgoing: 4000,
+        onConnect: () => {
+          console.log("✅ [ADMIN WS] Connected for User ID:", user.id);
+          stompClient.subscribe(`/topic/notifications.${user.id}`, (message) => {
+            if (message.body) {
+              const newNotification = JSON.parse(message.body);
+              console.log("📩 [ADMIN WS] Received notification:", newNotification);
+              
+              setNotifications(prev => [newNotification, ...prev].slice(0, 10));
+              setUnreadCount(prev => prev + 1);
+              
+              toast.info(
+                <div className="flex flex-col gap-1 text-left">
+                  <p className="font-bold text-xs uppercase tracking-tight">{newNotification.title}</p>
+                  <p className="text-[10px] line-clamp-2">{newNotification.message}</p>
+                </div>,
+                { 
+                  position: "top-right", 
+                  autoClose: 5000,
+                  icon: getNotificationIcon(newNotification.type)
+                }
+              );
+            }
+          });
+        },
+        onStompError: (frame) => {
+          console.error("❌ [ADMIN WS] STOMP Error:", frame.headers['message']);
+        },
+        onWebSocketError: (event) => {
+          console.error("❌ [ADMIN WS] WebSocket Error:", event);
+        },
+        onDisconnect: () => {
+          console.log("🔌 [ADMIN WS] Disconnected");
+        }
+      });
+
+      stompClient.activate();
+      return () => stompClient.deactivate();
     }
-  }, [isAuthenticated, user]);
+  }, [isAuthenticated, user?.id]);
 
   // Click outside listener
   useEffect(() => {
@@ -124,8 +169,15 @@ const HeaderAdmin = () => {
 
   const getNotificationIcon = (type) => {
     const icons = {
+      'PLAN_CREATED': <Calendar size={18} className="text-emerald-500" />,
+      'PLAN_SUBMITTED': <Bell size={18} className="text-blue-500" />,
+      'PLAN_APPROVED': <CheckCircle size={18} className="text-green-500" />,
+      'PLAN_REJECTED': <XCircle size={18} className="text-red-500" />,
+      'EVENT_SUBMITTED': <Bell size={18} className="text-orange-500" />,
+      'EVENT_CREATED': <Calendar size={18} className="text-purple-500" />,
       'EVENT_APPROVED': <CheckCircle size={18} className="text-green-500" />,
       'EVENT_REJECTED': <XCircle size={18} className="text-red-500" />,
+      'REGISTRATION_CONFIRMED': <CheckCircle size={18} className="text-blue-500" />,
       'SYSTEM': <Info size={18} className="text-purple-500" />,
     };
     return icons[type] || <Bell size={18} className="text-slate-400" />;
@@ -136,7 +188,7 @@ const HeaderAdmin = () => {
       <header className="h-16 bg-white/95 backdrop-blur-sm border-b border-slate-200 flex items-center justify-between px-6 md:px-8 sticky top-0 z-30 shadow-sm">
         <div className="flex items-center gap-4">
           <div onClick={() => navigate("/admin")} className="cursor-pointer">
-            <h1 className="text-base font-black text-slate-800 tracking-tight uppercase">EMS Admin Portal</h1>
+            <h1 className="text-base font-black text-slate-800 tracking-tight uppercase">Admin Management</h1>
             <p className="text-[10px] font-bold text-slate-400 italic leading-none">Industrial University of Ho Chi Minh City</p>
           </div>
         </div>
@@ -214,8 +266,8 @@ const HeaderAdmin = () => {
                 {user?.avatarUrl ? (
                   <img src={user.avatarUrl} className="w-full h-full object-cover" alt="avatar" />
                 ) : (
-                  <div className="w-full h-full flex items-center justify-center font-black text-slate-500 bg-slate-100 uppercase">
-                    {user?.username?.charAt(0)}
+                  <div className="w-full h-full flex items-center justify-center font-black text-white bg-linear-to-br from-blue-600 to-indigo-600 uppercase shadow-inner">
+                    {user?.fullName?.[0] || user?.username?.[0] || "U"}
                   </div>
                 )}
                 <span className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-green-500 border-2 border-white rounded-full" />

@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
+import { toast } from "react-toastify";
 import {
   LogIn,
   User,
@@ -19,8 +20,11 @@ import {
   CheckCircle,
   XCircle,
   Info,
+  LayoutDashboard,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import { Client } from "@stomp/stompjs";
+import SockJS from "sockjs-client";
 
 import logo_iuh from "../../assets/images/logo_iuh.png";
 import { useAuth } from "../../context/AuthContext";
@@ -70,10 +74,104 @@ const Header = () => {
   useEffect(() => {
     if (isAuthenticated && user?.id) {
       fetchNotifications();
+      
+      // Cấu hình STOMP client
+      const stompClient = new Client({
+        brokerURL: "ws://localhost:8085/ws", // Kết nối trực tiếp đến Notification service
+        // Nếu dùng SockJSfallback
+        webSocketFactory: () => new SockJS("http://localhost:8085/ws"),
+        reconnectDelay: 5000,
+        heartbeatIncoming: 4000,
+        heartbeatOutgoing: 4000,
+        onConnect: () => {
+          console.log("Connected to WebSocket for user:", user.id);
+          // Subscribe vào topic định danh của user
+          stompClient.subscribe(`/topic/notifications.${user.id}`, (message) => {
+                if (message.body) {
+                  const newNotification = JSON.parse(message.body);
+                  console.log("Nhận thông báo mới từ WebSocket:", newNotification);
+                  
+                  // Cập nhật state ngay lập tức
+                  setNotifications(prev => [newNotification, ...prev].slice(0, 10));
+                  setUnreadCount(prev => prev + 1);
+                  
+                  // Hiển thị thông báo góc trên bên phải (Toast)
+                  toast.info(
+                    <div className="flex flex-col gap-1">
+                      <p className="font-bold text-sm">{newNotification.title}</p>
+                      <p className="text-xs line-clamp-2">{newNotification.message}</p>
+                    </div>,
+                    {
+                      position: "top-right",
+                      autoClose: 5000,
+                      hideProgressBar: false,
+                      closeOnClick: true,
+                      pauseOnHover: true,
+                      draggable: true,
+                      icon: <Bell size={18} className="text-blue-500" />
+                    }
+                  );
+                }
+              });
+        },
+        onStompError: (frame) => {
+          console.error("Broker reported error: " + frame.headers["message"]);
+          console.error("Additional details: " + frame.body);
+        },
+      });
+
+      stompClient.activate();
+      
+      return () => {
+        if (stompClient.active) {
+          stompClient.deactivate();
+        }
+      };
+    }
+  }, [isAuthenticated, user?.id, fetchNotifications]);
+
+  const handleMarkAsRead = async (id) => {
+    try {
+      await notificationApi.actions.markAsRead(id);
+      setNotifications(prev => 
+        prev.map(n => n.id === id ? { ...n, read: true } : n)
+      );
+      setUnreadCount(prev => Math.max(0, prev - 1));
+    } catch (error) {
+      console.error("Lỗi đánh dấu đã đọc:", error);
+    }
+  };
+
+  const handleMarkAllAsRead = async () => {
+    if (!user?.id) return;
+    setIsMarkingAll(true);
+    try {
+      await notificationApi.actions.markAllRead(user.id);
+      setNotifications(prev => prev.map(n => ({ ...n, read: true })));
+      setUnreadCount(0);
+      toast.success("Đã đánh dấu tất cả là đã đọc");
+    } catch (error) {
+      console.error("Lỗi đánh dấu tất cả đã đọc:", error);
+      toast.error("Không thể đánh dấu tất cả đã đọc");
+    } finally {
+      setIsMarkingAll(false);
+    }
+  };
+
+  const handleViewAllNotifications = () => {
+    setIsNotificationOpen(false);
+    navigate("/notifications");
+  };
+  /*
+  // Xóa bỏ polling cũ
+  useEffect(() => {
+    if (isAuthenticated && user?.id) {
+      fetchNotifications();
       const interval = setInterval(fetchNotifications, 30000);
       return () => clearInterval(interval);
     }
   }, [isAuthenticated, user?.id, fetchNotifications]);
+  */
 
   // Click outside
   useEffect(() => {
@@ -144,8 +242,47 @@ const Header = () => {
     return roleMap[cleanRole] || roleMap[rawRole] || "Thành viên";
   };
 
-  const hasManagementAccess = () =>
-    user?.roles?.some((r) => ["SUPER_ADMIN", "ADMIN"].includes(r));
+  const getNotificationIcon = (type) => {
+    switch (type) {
+      case "PLAN_CREATED": return <FileText size={18} className="text-emerald-500" />;
+      case "PLAN_SUBMITTED": return <Send size={18} className="text-blue-500" />;
+      case "PLAN_APPROVED": return <CheckCircle size={18} className="text-green-500" />;
+      case "PLAN_REJECTED": return <XCircle size={18} className="text-red-500" />;
+      case "EVENT_SUBMITTED": return <Send size={18} className="text-orange-500" />;
+      case "EVENT_CREATED": return <Calendar size={18} className="text-purple-500" />;
+      case "REGISTRATION_CONFIRMED": return <Mail size={18} className="text-blue-500" />;
+      case "SYSTEM": return <Info size={18} className="text-slate-500" />;
+      case "GENERAL": return <Bell size={18} className="text-blue-500" />;
+      default: return <Bell size={18} className="text-slate-400" />;
+    }
+  };
+
+  const formatTime = (dateString) => {
+    if (!dateString) return "Không xác định";
+    try {
+      const date = new Date(dateString);
+      const now = new Date();
+      const diffInMs = now - date;
+      if (diffInMs < 60000) return "Vừa xong";
+      if (diffInMs < 3600000) return `${Math.floor(diffInMs / 60000)} phút trước`;
+      if (diffInMs < 86400000) return `${Math.floor(diffInMs / 3600000)} giờ trước`;
+      return date.toLocaleDateString("vi-VN", {
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric"
+      });
+    } catch { return "Vừa xong"; }
+  };
+
+  const isSuperAdmin = () => {
+    const roles = user?.roles || (user?.role ? [user.role] : []);
+    return roles.some((r) => r?.toUpperCase() === "SUPER_ADMIN");
+  };
+
+  const isAdminOnly = () => {
+    const roles = user?.roles || (user?.role ? [user.role] : []);
+    return roles.some((r) => r?.toUpperCase() === "ADMIN") && !isSuperAdmin();
+  };
 
   const isActive = (path) => location.pathname === path;
 
@@ -255,12 +392,21 @@ const Header = () => {
                 Tin tức
               </Link>
 
-              {hasManagementAccess() && (
+              {isSuperAdmin() && (
                 <Link
                   to="/admin"
-                  className="ml-4 px-5 py-2.5 rounded-xl text-sm font-medium bg-orange-50 text-orange-600 hover:bg-orange-100"
+                  className="ml-4 px-5 py-2.5 rounded-xl text-sm font-medium bg-orange-50 text-orange-600 hover:bg-orange-100 transition-all border border-orange-100 shadow-sm"
                 >
                   Quản trị
+                </Link>
+              )}
+
+              {isAdminOnly() && (
+                <Link
+                  to="/lecturer"
+                  className="ml-4 px-5 py-2.5 rounded-xl text-sm font-medium bg-blue-50 text-blue-600 hover:bg-blue-100 transition-all border border-blue-100 shadow-sm"
+                >
+                  Quản lý
                 </Link>
               )}
             </nav>
@@ -477,6 +623,28 @@ const Header = () => {
                             <User size={20} className="text-slate-500" />
                             Hồ sơ cá nhân
                           </Link>
+
+                          {isSuperAdmin() && (
+                            <Link
+                              to="/admin"
+                              onClick={() => setIsMenuOpen(false)}
+                              className="flex items-center gap-4 px-5 py-3.5 text-[15px] font-medium text-orange-600 hover:bg-orange-50 rounded-2xl transition-all active:bg-orange-100"
+                            >
+                              <LayoutDashboard size={20} className="text-orange-500" />
+                              Trang Quản trị
+                            </Link>
+                          )}
+
+                          {isAdminOnly() && (
+                            <Link
+                              to="/lecturer"
+                              onClick={() => setIsMenuOpen(false)}
+                              className="flex items-center gap-4 px-5 py-3.5 text-[15px] font-medium text-blue-600 hover:bg-blue-50 rounded-2xl transition-all active:bg-blue-100"
+                            >
+                              <LayoutDashboard size={20} className="text-blue-500" />
+                              Trang Quản lý
+                            </Link>
+                          )}
 
                           <Link
                             to="/my-events"

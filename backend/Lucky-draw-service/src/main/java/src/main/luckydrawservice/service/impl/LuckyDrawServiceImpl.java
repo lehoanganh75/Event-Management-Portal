@@ -24,7 +24,6 @@ import java.util.*;
 import java.util.stream.Collectors;
 
 @Service
-@RequiredArgsConstructor
 public class LuckyDrawServiceImpl implements LuckyDrawService {
     private final PrizeRepository prizeRepository;
     private final LuckyDrawRepository luckyDrawRepository;
@@ -36,6 +35,20 @@ public class LuckyDrawServiceImpl implements LuckyDrawService {
     private final EventClient eventClient;
 
     private final IdentityClient identityClient;
+
+    public LuckyDrawServiceImpl(PrizeRepository prizeRepository,
+                                LuckyDrawRepository luckyDrawRepository,
+                                DrawEntryRepository drawEntryRepository,
+                                DrawResultRepository drawResultRepository,
+                                EventClient eventClient,
+                                IdentityClient identityClient) {
+        this.prizeRepository = prizeRepository;
+        this.luckyDrawRepository = luckyDrawRepository;
+        this.drawEntryRepository = drawEntryRepository;
+        this.drawResultRepository = drawResultRepository;
+        this.eventClient = eventClient;
+        this.identityClient = identityClient;
+    }
 
     @Transactional
     @Override

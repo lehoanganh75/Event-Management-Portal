@@ -12,6 +12,8 @@ import com.notificationservice.entity.Notification;
 import com.notificationservice.entity.NotificationType;
 import com.notificationservice.repository.NotificationRepository;
 import com.notificationservice.service.NotificationService;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 import java.time.LocalDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -19,8 +21,10 @@ import java.util.stream.Collectors;
 @Service
 @RequiredArgsConstructor
 @Transactional
+@Slf4j
 public class NotificationServiceImpl implements NotificationService {
     private final NotificationRepository notificationRepository;
+    private final SimpMessagingTemplate messagingTemplate;
 
     @Override
     public List<Notification> getNotificationsByUser(String userProfileId) {
@@ -60,7 +64,9 @@ public class NotificationServiceImpl implements NotificationService {
         notification.setMessage(message);
         notification.setRead(false);
         notification.setCreatedAt(LocalDateTime.now());
-        return notificationRepository.save(notification);
+        Notification saved = notificationRepository.save(notification);
+        broadcastNotification(saved);
+        return saved;
     }
 
     @Override
@@ -187,7 +193,9 @@ public class NotificationServiceImpl implements NotificationService {
         if (request.getPriority() != null) {
             notification.setPriority(request.getPriority());
         }
-        return notificationRepository.save(notification);
+        Notification saved = notificationRepository.save(notification);
+        broadcastNotification(saved);
+        return saved;
     }
 
     @Override
@@ -248,4 +256,15 @@ public class NotificationServiceImpl implements NotificationService {
     }
 
     
+    private void broadcastNotification(Notification notification) {
+        try {
+            log.info("Broadcasting real-time notification to topic: /topic/notifications.{}", notification.getAccountId());
+            messagingTemplate.convertAndSend(
+                "/topic/notifications." + notification.getAccountId(), 
+                notification
+            );
+        } catch (Exception e) {
+            log.error("Failed to broadcast real-time notification: {}", e.getMessage());
+        }
+    }
 }

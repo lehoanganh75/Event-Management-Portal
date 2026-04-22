@@ -18,7 +18,6 @@ import {
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
-// 1. IMPORT CONTEXT THAY VÌ API TRỰC TIẾP
 import { useAuth } from "../../context/AuthContext";
 import { useEvents } from "../../context/EventContext";
 import { useNotification } from "../../context/NotificationContext";
@@ -52,7 +51,7 @@ const getAvatarColor = (name) => {
   return colors[index];
 };
 
-const ITEMS_PER_PAGE = 8;
+const ITEMS_PER_PAGE = 5;
 
 const PlansPage = () => {
   // 2. LẤY DATA VÀ PHƯƠNG THỨC TỪ CONTEXT
@@ -96,26 +95,11 @@ const PlansPage = () => {
   }, [user, fetchPlans]);
 
   // 3. XỬ LÝ PHÊ DUYỆT / TỪ CHỐI QUA CONTEXT
-  const handleApprove = async (id) => {
-    if (!user) { showToast("Vui lòng đăng nhập lại!", "error"); return; }
-    const plan = plans.find((p) => p.id === id);
+  const handleApprove = async (plan) => {
+    if (!user) return;
     try {
-      await approvePlan(id);
-      showToast(`Đã phê duyệt kế hoạch "${plan?.title}"!`);
-      
-      // Gửi thông báo (Sử dụng service từ NotificationContext)
-      if (plan?.createdByAccountId) {
-        await notificationService.sendRealtimeNotification({
-          userProfileId: plan.createdByAccountId,
-          type: "EVENT_APPROVED",
-          title: "Kế hoạch đã được phê duyệt",
-          message: `Kế hoạch "${plan.title}" đã được phê duyệt thành công.`,
-          relatedEntityId: plan.id,
-          relatedEntityType: "PLAN",
-          actionUrl: `/manage-plans/${plan.id}`,
-        });
-      }
-
+      await approvePlan(plan.id, plan);
+      showToast(`Đã phê duyệt kế hoạch "${plan?.title}" thành công!`, "success");
       fetchPlans();
       setSelectedPlan(null);
     } catch (error) {
@@ -123,26 +107,14 @@ const PlansPage = () => {
     }
   };
 
-  const handleReject = async (id) => {
+  const handleReject = async (plan) => {
+    if (!user) return;
     const reason = prompt("Nhập lý do từ chối kế hoạch này:");
     if (reason === null) return;
-    const plan = plans.find((p) => p.id === id);
+
     try {
-      await rejectPlan(id, reason);
+      await rejectPlan(plan.id, reason, plan);
       showToast(`Đã từ chối kế hoạch "${plan?.title}"!`);
-
-      if (plan?.createdByAccountId) {
-        await notificationService.sendRealtimeNotification({
-          userProfileId: plan.createdByAccountId,
-          type: "EVENT_REJECTED",
-          title: "Kế hoạch bị từ chối",
-          message: `Kế hoạch "${plan.title}" đã bị từ chối. Lý do: ${reason}`,
-          relatedEntityId: plan.id,
-          relatedEntityType: "PLAN",
-          actionUrl: `/manage-plans/${plan.id}`,
-        });
-      }
-
       fetchPlans();
       setSelectedPlan(null);
     } catch (error) {
@@ -260,8 +232,8 @@ const PlansPage = () => {
                         <div className="flex items-center justify-center gap-1.5">
                           {isPending && (
                             <>
-                              <button onClick={() => handleApprove(plan.id)} title="Phê duyệt" className="p-2 text-emerald-600 bg-emerald-50 hover:bg-emerald-100 rounded-lg transition-all cursor-pointer hover:scale-105"><CheckCircle size={16} /></button>
-                              <button onClick={() => handleReject(plan.id)} title="Từ chối" className="p-2 text-rose-600 bg-rose-50 hover:bg-rose-100 rounded-lg transition-all cursor-pointer hover:scale-105"><XCircle size={16} /></button>
+                              <button onClick={() => handleApprove(plan)} title="Phê duyệt" className="p-2 text-emerald-600 bg-emerald-50 hover:bg-emerald-100 rounded-lg transition-all cursor-pointer hover:scale-105"><CheckCircle size={16} /></button>
+                              <button onClick={() => handleReject(plan)} title="Từ chối" className="p-2 text-rose-600 bg-rose-50 hover:bg-rose-100 rounded-lg transition-all cursor-pointer hover:scale-105"><XCircle size={16} /></button>
                             </>
                           )}
                           <button onClick={() => setSelectedPlan(plan)} title="Xem chi tiết" className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all cursor-pointer hover:scale-105"><Eye size={16} /></button>
@@ -318,8 +290,8 @@ const PlansPage = () => {
               </div>
               {(selectedPlan.status?.toUpperCase() === "PLAN_PENDING_APPROVAL" || selectedPlan.status?.toUpperCase() === "PENDING_APPROVAL") && (
                 <div className="px-7 py-5 border-t border-slate-100 flex gap-3 bg-slate-50/50">
-                  <button onClick={() => handleReject(selectedPlan.id)} className="flex-1 py-3 bg-rose-50 text-rose-600 rounded-xl font-bold hover:bg-rose-100 transition-all cursor-pointer flex items-center justify-center gap-2"><XCircle size={16} /> Từ chối</button>
-                  <button onClick={() => handleApprove(selectedPlan.id)} className="flex-1 py-3 bg-emerald-600 text-white rounded-xl font-bold hover:bg-emerald-700 transition-all cursor-pointer flex items-center justify-center gap-2 shadow-lg shadow-emerald-200"><CheckCircle size={16} /> Phê duyệt</button>
+                  <button onClick={() => handleReject(selectedPlan)} className="flex-1 py-3 bg-rose-50 text-rose-600 rounded-xl font-bold hover:bg-rose-100 transition-all cursor-pointer flex items-center justify-center gap-2"><XCircle size={16} /> Từ chối</button>
+                  <button onClick={() => handleApprove(selectedPlan)} className="flex-1 py-3 bg-emerald-600 text-white rounded-xl font-bold hover:bg-emerald-700 transition-all cursor-pointer flex items-center justify-center gap-2 shadow-lg shadow-emerald-200"><CheckCircle size={16} /> Phê duyệt</button>
                 </div>
               )}
             </motion.div>

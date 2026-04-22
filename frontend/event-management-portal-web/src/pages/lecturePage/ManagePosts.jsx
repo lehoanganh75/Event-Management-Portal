@@ -16,8 +16,13 @@ import {
   Newspaper,
   RefreshCw,
   Calendar,
-  X
+  X,
+  Type,
+  Layout,
+  User,
+  Hash
 } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
 import { contentApi } from "../../api/contentApi"; // Import contentApi
 import { eventApi } from "../../api/eventApi";
 
@@ -62,7 +67,7 @@ const PostManagement = ({ eventId, eventTitle }) => {
     const userData = localStorage.getItem("user");
     if (userData) {
       const user = JSON.parse(userData);
-      return user.id || user.accountId || user.userId;
+      return user.accountId || user.account?.id || user.id || user.userId;
     }
     return null;
   };
@@ -73,15 +78,22 @@ const PostManagement = ({ eventId, eventTitle }) => {
       const accountId = getUserId();
       let response;
 
-      // Sử dụng contentApi thay vì fetch
       if (accountId) {
         response = await contentApi.posts.getByUser(accountId);
       } else {
         response = await contentApi.posts.getAll({ size: 100 });
       }
 
-      const data = response.data;
-      setPosts(data.content || data);
+      // Đảm bảo dữ liệu được map qua helper của API để chuẩn hóa các trường (createdAt, date, ...)
+      const rawData = response.data.content || response.data;
+      const mappedData = Array.isArray(rawData) 
+        ? rawData.map(p => ({
+            ...p,
+            date: p.createdAt ? new Date(p.createdAt).toLocaleDateString("vi-VN") : "N/A"
+          }))
+        : [];
+        
+      setPosts(mappedData);
     } catch (error) {
       console.error("Error fetching posts:", error);
     } finally {
@@ -113,7 +125,7 @@ const PostManagement = ({ eventId, eventTitle }) => {
       const accountId = getUserId();
       const payload = { 
         ...formData,
-        createdByAccountId: accountId,
+        accountId: accountId,
         eventId: formData.eventId || eventId 
       };
 
@@ -132,11 +144,14 @@ const PostManagement = ({ eventId, eventTitle }) => {
     }
   };
 
-  const handleDeletePost = async (postId) => {
-    if (!window.confirm("Bạn có chắc muốn xóa bài đăng này?")) return;
+  const [deleteId, setDeleteId] = useState(null);
+
+  const confirmDelete = async () => {
+    if (!deleteId) return;
     try {
-      await contentApi.posts.delete(postId);
+      await contentApi.posts.delete(deleteId);
       fetchPosts();
+      setDeleteId(null);
       alert("Xóa thành công!");
     } catch (error) {
       alert("Lỗi khi xóa bài viết");
@@ -266,8 +281,8 @@ const PostManagement = ({ eventId, eventTitle }) => {
                         </span>
                       </div>
                     </td>
-                    <td className="px-6 py-4 text-xs font-medium text-slate-500">
-                      {post.createdAt ? new Date(post.createdAt).toLocaleDateString("vi-VN") : "N/A"}
+                    <td className="px-6 py-4 text-xs font-bold text-slate-500">
+                      {post.date || "N/A"}
                     </td>
                     <td className="px-6 py-4">
                       <div className="flex items-center justify-center gap-2">
@@ -278,18 +293,18 @@ const PostManagement = ({ eventId, eventTitle }) => {
                             setModalMode("edit");
                             setIsModalOpen(true);
                           }}
-                          className="p-2 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-xl transition-all"
+                          className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-all"
                           title="Chỉnh sửa"
                         >
-                          <Edit2 size={16} />
+                          <Edit2 size={18} />
                         </button>
                         
                         <button
-                          onClick={() => handleDeletePost(post.id)}
+                          onClick={() => setDeleteId(post.id)}
                           className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-all"
                           title="Xóa"
                         >
-                          <Trash2 size={16} />
+                          <Trash2 size={18} />
                         </button>
                       </div>
                     </td>
@@ -341,6 +356,34 @@ const PostManagement = ({ eventId, eventTitle }) => {
           postStatus={POST_STATUS}
           userEvents={userEvents}
         />
+      )}
+
+      {deleteId && (
+        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center z-[100] p-4">
+          <div className="bg-white rounded-3xl shadow-2xl max-w-sm w-full p-8 text-center border border-slate-100">
+            <div className="w-16 h-16 bg-rose-50 rounded-2xl flex items-center justify-center mx-auto mb-6">
+              <Trash2 className="text-rose-500" size={32} />
+            </div>
+            <h3 className="text-xl font-black text-slate-800 mb-2">Xác nhận xóa</h3>
+            <p className="text-slate-500 text-sm font-medium mb-8">
+              Bạn có chắc chắn muốn xóa bài đăng này không? Hành động này không thể hoàn tác.
+            </p>
+            <div className="flex gap-3">
+              <button 
+                onClick={() => setDeleteId(null)}
+                className="flex-1 px-6 py-3 rounded-xl font-bold text-slate-600 hover:bg-slate-50 transition-all border border-slate-100"
+              >
+                Hủy
+              </button>
+              <button 
+                onClick={confirmDelete}
+                className="flex-1 px-6 py-3 rounded-xl font-bold text-white bg-rose-500 hover:bg-rose-600 shadow-lg shadow-rose-200 transition-all"
+              >
+                Xóa ngay
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
@@ -423,115 +466,176 @@ const PostModal = ({ mode, formData, setFormData, onSave, onClose, postTypes, po
   };
   
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={onClose}>
-      <div className="bg-white rounded-lg w-full max-w-2xl max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
-        <form onSubmit={handleSubmit}>
-          <div className="p-6 border-b">
-            <h3 className="text-lg font-bold">
-              {mode === "create" ? "Tạo bài đăng mới" : "Chỉnh sửa bài đăng"}
-            </h3>
+    <AnimatePresence>
+      <motion.div 
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        className="fixed inset-0 bg-slate-900/60 backdrop-blur-md flex items-center justify-center z-[200] p-4 font-sans"
+        onClick={onClose}
+      >
+        <motion.div 
+          initial={{ scale: 0.9, opacity: 0, y: 20 }}
+          animate={{ scale: 1, opacity: 1, y: 0 }}
+          exit={{ scale: 0.9, opacity: 0, y: 20 }}
+          className="bg-white rounded-[2.5rem] shadow-[0_32px_64px_-16px_rgba(0,0,0,0.2)] w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col border border-white/20"
+          onClick={e => e.stopPropagation()}
+        >
+          {/* Header */}
+          <div className="p-8 pb-4 flex items-center justify-between relative">
+            <div className="flex items-center gap-4">
+              <div className={`w-14 h-14 rounded-2xl flex items-center justify-center shadow-lg ${mode === 'create' ? 'bg-blue-600 shadow-blue-200' : 'bg-emerald-600 shadow-emerald-200'}`}>
+                {mode === 'create' ? <Plus className="text-white" size={28} /> : <Edit2 className="text-white" size={28} />}
+              </div>
+              <div>
+                <h3 className="text-2xl font-black text-slate-800 tracking-tight uppercase">
+                  {mode === "create" ? "Tạo bài đăng" : "Chỉnh sửa"}
+                </h3>
+                <p className="text-slate-400 text-xs font-bold uppercase tracking-widest mt-1">Cấu hình nội dung bài viết</p>
+              </div>
+            </div>
+            <button 
+              onClick={onClose}
+              className="w-10 h-10 rounded-full bg-slate-50 flex items-center justify-center text-slate-400 hover:bg-slate-100 transition-all cursor-pointer"
+            >
+              <X size={20} />
+            </button>
           </div>
-          
-          <div className="p-6 space-y-4">
-            {/* Title */}
-            <div>
-              <label className="block text-sm font-medium mb-1">Tiêu đề *</label>
-              <input
-                type="text"
-                value={formData.title || ""}
-                onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="Nhập tiêu đề bài đăng"
-                required
-              />
-            </div>
-            
-            {/* Content */}
-            <div>
-              <label className="block text-sm font-medium mb-1">Nội dung *</label>
-              <textarea
-                value={formData.content || ""}
-                onChange={(e) => setFormData({ ...formData, content: e.target.value })}
-                rows={8}
-                className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="Nhập nội dung bài đăng..."
-                required
-              />
-            </div>
-            
-            {/* Event Selection */}
-            <div>
-              <label className="block text-sm font-medium mb-1">Sự kiện áp dụng</label>
-              <select
-                value={formData.eventId || ""}
-                onChange={(e) => setFormData({ ...formData, eventId: e.target.value })}
-                className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="">-- Chọn sự kiện (Tùy chọn) --</option>
-                {userEvents?.map((ev) => (
-                  <option key={ev.id} value={ev.id}>{ev.title}</option>
-                ))}
-              </select>
+
+          <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-8 pt-4">
+            <div className="space-y-6">
+              {/* Title Section */}
+              <div className="space-y-2">
+                <label className="flex items-center gap-2 text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                  <Type size={12} className="text-blue-500" /> Tiêu đề bài viết
+                </label>
+                <input
+                  type="text"
+                  value={formData.title || ""}
+                  onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                  placeholder="Nhập tiêu đề thu hút..."
+                  className="w-full px-6 py-4 bg-slate-50 border-2 border-transparent rounded-[1.5rem] text-sm font-bold text-slate-700 outline-none focus:bg-white focus:border-blue-500/20 focus:ring-4 focus:ring-blue-500/5 transition-all"
+                  required
+                />
+              </div>
+              
+              {/* Content Section */}
+              <div className="space-y-2">
+                <label className="flex items-center gap-2 text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                  <Layout size={12} className="text-blue-500" /> Nội dung chi tiết
+                </label>
+                <textarea
+                  value={formData.content || ""}
+                  onChange={(e) => setFormData({ ...formData, content: e.target.value })}
+                  rows={6}
+                  placeholder="Viết nội dung bài đăng của bạn tại đây..."
+                  className="w-full px-6 py-4 bg-slate-50 border-2 border-transparent rounded-[1.5rem] text-sm font-semibold text-slate-600 outline-none focus:bg-white focus:border-blue-500/20 focus:ring-4 focus:ring-blue-500/5 transition-all resize-none"
+                  required
+                />
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* Event Selection */}
+                <div className="space-y-2">
+                  <label className="flex items-center gap-2 text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                    <Calendar size={12} className="text-blue-500" /> Sự kiện liên kết
+                  </label>
+                  <div className="relative">
+                    <select
+                      value={formData.eventId || ""}
+                      onChange={(e) => setFormData({ ...formData, eventId: e.target.value })}
+                      className="w-full pl-6 pr-10 py-4 bg-slate-50 border-2 border-transparent rounded-[1.5rem] text-sm font-bold text-slate-700 outline-none focus:bg-white focus:border-blue-500/20 appearance-none cursor-pointer transition-all"
+                    >
+                      <option value="">Không liên kết sự kiện</option>
+                      {userEvents?.map((ev) => (
+                        <option key={ev.id} value={ev.id}>{ev.title}</option>
+                      ))}
+                    </select>
+                    <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
+                      <ChevronRight size={16} className="rotate-90" />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Type Selection */}
+                <div className="space-y-2">
+                  <label className="flex items-center gap-2 text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                    <Hash size={12} className="text-blue-500" /> Phân loại
+                  </label>
+                  <div className="relative">
+                    <select
+                      value={formData.postType || "ANNOUNCEMENT"}
+                      onChange={(e) => setFormData({ ...formData, postType: e.target.value })}
+                      className="w-full pl-6 pr-10 py-4 bg-slate-50 border-2 border-transparent rounded-[1.5rem] text-sm font-bold text-slate-700 outline-none focus:bg-white focus:border-blue-500/20 appearance-none cursor-pointer transition-all"
+                    >
+                      {Object.entries(postTypes).map(([key, { label }]) => (
+                        <option key={key} value={key}>{label}</option>
+                      ))}
+                    </select>
+                    <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
+                      <ChevronRight size={16} className="rotate-90" />
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* Status Selection */}
+                <div className="space-y-2">
+                  <label className="flex items-center gap-2 text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                    <RefreshCw size={12} className="text-blue-500" /> Trạng thái
+                  </label>
+                  <div className="relative">
+                    <select
+                      value={formData.status || "DRAFT"}
+                      onChange={(e) => setFormData({ ...formData, status: e.target.value })}
+                      className="w-full pl-6 pr-10 py-4 bg-slate-50 border-2 border-transparent rounded-[1.5rem] text-sm font-bold text-slate-700 outline-none focus:bg-white focus:border-blue-500/20 appearance-none cursor-pointer transition-all"
+                    >
+                      {Object.entries(postStatus).map(([key, { label }]) => (
+                        <option key={key} value={key}>{label}</option>
+                      ))}
+                    </select>
+                    <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
+                      <ChevronRight size={16} className="rotate-90" />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Published At */}
+                <div className="space-y-2">
+                  <label className="flex items-center gap-2 text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                    <Clock size={12} className="text-blue-500" /> Hẹn giờ đăng
+                  </label>
+                  <input
+                    type="datetime-local"
+                    value={formData.publishedAt ? new Date(formData.publishedAt).toISOString().slice(0, 16) : ""}
+                    onChange={(e) => setFormData({ ...formData, publishedAt: e.target.value ? new Date(e.target.value).toISOString() : null })}
+                    className="w-full px-6 py-4 bg-slate-50 border-2 border-transparent rounded-[1.5rem] text-sm font-bold text-slate-700 outline-none focus:bg-white focus:border-blue-500/20 transition-all cursor-pointer"
+                  />
+                </div>
+              </div>
             </div>
 
-            {/* Post Type */}
-            <div>
-              <label className="block text-sm font-medium mb-1">Loại bài đăng</label>
-              <select
-                value={formData.postType || "ANNOUNCEMENT"}
-                onChange={(e) => setFormData({ ...formData, postType: e.target.value })}
-                className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            {/* Actions */}
+            <div className="mt-12 flex gap-4">
+              <button
+                type="button"
+                onClick={onClose}
+                className="flex-1 py-4 px-6 rounded-[1.5rem] font-black text-slate-500 hover:bg-slate-50 transition-all uppercase text-xs border-2 border-slate-50"
               >
-                {Object.entries(postTypes).map(([key, { label }]) => (
-                  <option key={key} value={key}>{label}</option>
-                ))}
-              </select>
-            </div>
-            
-            {/* Status */}
-            <div>
-              <label className="block text-sm font-medium mb-1">Trạng thái</label>
-              <select
-                value={formData.status || "DRAFT"}
-                onChange={(e) => setFormData({ ...formData, status: e.target.value })}
-                className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                Hủy bỏ
+              </button>
+              <button
+                type="submit"
+                className={`flex-[2] py-4 px-6 rounded-[1.5rem] font-black text-white shadow-xl transition-all active:scale-95 uppercase text-xs ${mode === 'create' ? 'bg-blue-600 hover:bg-blue-700 shadow-blue-100' : 'bg-emerald-600 hover:bg-emerald-700 shadow-emerald-100'}`}
               >
-                {Object.entries(postStatus).map(([key, { label }]) => (
-                  <option key={key} value={key}>{label}</option>
-                ))}
-              </select>
+                {mode === "create" ? "Tạo bài viết ngay" : "Cập nhật thay đổi"}
+              </button>
             </div>
-            
-            {/* Published At */}
-            <div>
-              <label className="block text-sm font-medium mb-1">Thời gian hiển thị (Tùy chọn)</label>
-              <input
-                type="datetime-local"
-                value={formData.publishedAt ? new Date(formData.publishedAt).toISOString().slice(0, 16) : ""}
-                onChange={(e) => setFormData({ ...formData, publishedAt: e.target.value ? new Date(e.target.value).toISOString() : null })}
-                className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-            </div>
-          </div>
-          
-          <div className="p-6 border-t flex justify-end gap-3">
-            <button
-              type="button"
-              onClick={onClose}
-              className="px-4 py-2 border rounded-lg hover:bg-gray-50 transition-colors"
-            >
-              Hủy
-            </button>
-            <button
-              type="submit"
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-            >
-              {mode === "create" ? "Tạo bài đăng" : "Cập nhật"}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
+          </form>
+        </motion.div>
+      </motion.div>
+    </AnimatePresence>
   );
 };
 

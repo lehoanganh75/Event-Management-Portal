@@ -47,6 +47,10 @@ public class Event {
 
     private String eventMode; // ONLINE, OFFLINE, HYBRID
 
+    private String faculty;
+
+    private String major;
+
     // --- TIMING & DEADLINES ---
     private LocalDateTime startTime;
 
@@ -55,7 +59,6 @@ public class Event {
     private LocalDateTime registrationDeadline;
 
     // --- OWNERSHIP & APPROVAL ---
-    // Đã xóa phần trùng lặp ở đây
     private String createdByAccountId;
 
     private String approvedByAccountId;
@@ -126,17 +129,17 @@ public class Event {
     // --- RELATIONSHIPS ---
     // Khởi tạo sẵn ArrayList để tránh NullPointer
     @OneToMany(mappedBy = "event", cascade = CascadeType.ALL, orphanRemoval = true)
-//    @JsonIgnore
+    // @JsonIgnore
     private Set<EventRegistration> registrations = new HashSet<>();
 
     @OneToMany(mappedBy = "event", cascade = CascadeType.ALL, orphanRemoval = true)
     @SQLRestriction("is_deleted = false")
-//    @JsonIgnore
+    // @JsonIgnore
     private Set<EventOrganizer> organizers = new HashSet<>();
 
     @OneToMany(mappedBy = "event", cascade = CascadeType.ALL, orphanRemoval = true)
     @SQLRestriction("is_deleted = false")
-//    @JsonIgnore
+    // @JsonIgnore
     private Set<EventPresenter> presenters = new HashSet<>();
 
     @OneToMany(mappedBy = "event", cascade = CascadeType.ALL, orphanRemoval = true)
@@ -145,7 +148,7 @@ public class Event {
     private Set<EventParticipant> participants = new HashSet<>();
 
     @OneToMany(mappedBy = "event", cascade = CascadeType.ALL, orphanRemoval = true)
-//    @JsonIgnore
+    // @JsonIgnore
     private Set<EventSession> sessions = new HashSet<>();
 
     @OneToMany(mappedBy = "event", cascade = CascadeType.ALL, orphanRemoval = true)
@@ -166,6 +169,6 @@ public class Event {
     @Transient
     private UserDto approver;
 
-    @Transient   // quan trọng: không lưu vào DB
+    @Transient
     private EventCurrentUserRole currentUserRole;
 }

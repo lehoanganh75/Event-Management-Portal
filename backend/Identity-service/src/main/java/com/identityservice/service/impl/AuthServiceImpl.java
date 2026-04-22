@@ -25,7 +25,6 @@ import java.time.LocalDateTime;
 import java.util.*;
 
 @Service
-@RequiredArgsConstructor
 public class AuthServiceImpl implements AuthService {
     private final AccountRepository accountRepository;
     private final RefreshTokenRepository refreshTokenRepository;
@@ -33,8 +32,23 @@ public class AuthServiceImpl implements AuthService {
     private final VerificationTokenRepository verificationTokenRepository;
     private final JwtUtils jwtUtils;
     private final PasswordEncoder passwordEncoder;
-
     private final EmailService emailService;
+
+    public AuthServiceImpl(AccountRepository accountRepository,
+                           RefreshTokenRepository refreshTokenRepository,
+                           PasswordResetTokenRepository passwordResetTokenRepository,
+                           VerificationTokenRepository verificationTokenRepository,
+                           JwtUtils jwtUtils,
+                           PasswordEncoder passwordEncoder,
+                           EmailService emailService) {
+        this.accountRepository = accountRepository;
+        this.refreshTokenRepository = refreshTokenRepository;
+        this.passwordResetTokenRepository = passwordResetTokenRepository;
+        this.verificationTokenRepository = verificationTokenRepository;
+        this.jwtUtils = jwtUtils;
+        this.passwordEncoder = passwordEncoder;
+        this.emailService = emailService;
+    }
 
     @Value("${server.port}")
     private String PORT;
@@ -279,5 +293,38 @@ public class AuthServiceImpl implements AuthService {
         passwordResetTokenRepository.save(resetToken);
 
         System.out.println("Mật khẩu của tài khoản " + account.getUsername() + " đã được thay đổi thành công.");
+    }
+
+    @Override
+    @Transactional
+    public void resendOtp(String username) {
+        Account account = accountRepository.findByUsername(username)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.CONFLICT, "Tên đăng nhập không tồn tại."));
+
+        if (account.getStatus() == AccountStatus.ACTIVE) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Tài khoản đã được kích hoạt.");
+        }
+
+        // Xóa mã cũ
+        verificationTokenRepository.deleteByAccount(account);
+
+        // Tạo mã mới
+        String otp = String.valueOf(new Random().nextInt(899999) + 100000);
+        VerificationToken vToken = createVerificationToken(account, otp);
+        vToken.setExpiryDate(LocalDateTime.now().plusMinutes(5));
+        verificationTokenRepository.save(vToken);
+
+        // Gửi email mới
+        emailService.sendOtpEmail(account.getEmail(), otp, account.getUser().getFullName());
+    }
+
+    @Override
+    public boolean existsByEmail(String email) {
+        return accountRepository.findByEmail(email).isPresent();
+    }
+
+    @Override
+    public boolean existsByUsername(String username) {
+        return accountRepository.findByUsername(username).isPresent();
     }
 }

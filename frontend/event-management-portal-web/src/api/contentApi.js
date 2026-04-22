@@ -81,5 +81,8 @@ export const contentApi = {
 
         delete: (id) => axiosClient.delete(`${API_ENDPOINTS.TEMPLATES}/${id}`)
             .then(res => res.data),
+
+        toggleStar: (id) => axiosClient.patch(`${API_ENDPOINTS.TEMPLATES}/${id}/star`)
+            .then(res => res.data),
     }
 };

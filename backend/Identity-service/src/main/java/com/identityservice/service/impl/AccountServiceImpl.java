@@ -21,11 +21,15 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 @Service
-@RequiredArgsConstructor
 public class AccountServiceImpl implements AccountService {
 
     private final AccountRepository accountRepository;
     private final UserRepository userRepository;
+
+    public AccountServiceImpl(AccountRepository accountRepository, UserRepository userRepository) {
+        this.accountRepository = accountRepository;
+        this.userRepository = userRepository;
+    }
 
     @Override
     public List<AccountAdminDTO> getAllAccountsForAdmin() {
@@ -161,5 +165,9 @@ public class AccountServiceImpl implements AccountService {
         }
 
         return toAdminDTO(accountRepository.save(account));
+    }
+    @Override
+    public List<String> getAdminAccountIds() {
+        return accountRepository.findIdsByRoleIn(List.of(Role.ADMIN, Role.SUPER_ADMIN));
     }
 }

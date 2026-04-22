@@ -3,6 +3,14 @@ import { toast } from "react-toastify";
 import ManualInputStep from "./ManualInputStep";
 import EventReviewStep from "../../components/events/EventReviewstep";
 import { EventProgramStep } from "../../components/eventPlanner/Eventprogramstep";
+import { eventApi } from "../../api/eventApi";
+import { notificationApi } from "../../api/notificationApi";
+import authService from "../../services/authService";
+
+const getCurrentUser = () => {
+  const userStr = localStorage.getItem("user");
+  return userStr ? JSON.parse(userStr) : null;
+};
 
 export const EventCreator = ({
   onBack,
@@ -17,6 +25,57 @@ export const EventCreator = ({
     setFormData((prev) => ({ ...prev, ...newData }));
   };
 
+  const sendNotifications = async (eventId, eventTitle) => {
+    try {
+      const currentUser = getCurrentUser();
+      let adminAccounts = [];
+      try {
+        const res = await authService.getAllAccounts();
+        const allAccounts = res.data || [];
+        const adminRoles = ["ADMIN", "SUPER_ADMIN"];
+        adminAccounts = allAccounts.filter(
+          (account) =>
+            account.roles?.some((role) =>
+              adminRoles.includes(role.toUpperCase())
+            ) && account.id !== currentUser.accountId
+        );
+      } catch (err) {
+        console.error("Lỗi lấy danh sách accounts:", err);
+      }
+
+      for (const admin of adminAccounts) {
+        if (!admin.id) continue;
+        try {
+          await notificationApi.create.send({
+            userProfileId: admin.id,
+            type: "EVENT_SUBMITTED",
+            title: "Sự kiện mới cần phê duyệt",
+            message: `${currentUser.name || "Giảng viên"} đã tạo sự kiện "${eventTitle}" và đang chờ phê duyệt.`,
+            relatedEntityId: eventId,
+            relatedEntityType: "EVENT",
+            actionUrl: `/admin/events/${eventId}`,
+            priority: 3,
+          });
+        } catch (e) {
+          console.error(`Lỗi gửi thông báo admin ${admin.id}:`, e);
+        }
+      }
+
+      await notificationApi.create.send({
+        userProfileId: currentUser.accountId,
+        type: "EVENT_SUBMITTED",
+        title: "Gửi phê duyệt thành công",
+        message: `Sự kiện "${eventTitle}" đã được gửi và đang chờ duyệt.`,
+        relatedEntityId: eventId,
+        relatedEntityType: "EVENT",
+        actionUrl: `/my-events`,
+        priority: 2,
+      });
+    } catch (error) {
+      console.error("Lỗi tổng thể gửi thông báo:", error);
+    }
+  };
+
   const handleSubmit = async (finalData) => {
     setIsSubmitting(true);
     try {
@@ -27,7 +86,7 @@ export const EventCreator = ({
         try {
           const user = JSON.parse(userData);
           accountId =
-            user.id || user.accountId || user.account?.id || user.userId;
+            user.accountId || user.account?.id || user.id || user.userId;
         } catch (error) {
           console.error("Lỗi parse user data:", error);
         }
@@ -72,48 +131,14 @@ export const EventCreator = ({
         major: data.major || "",
         organizerUnit: data.organizerUnit || data.faculty || "",
 
-        participants: Array.isArray(data.participants) ? data.participants : [],
-
-        recipients: Array.isArray(data.recipients) ? data.recipients : [],
-        customRecipients: Array.isArray(data.customRecipients)
-          ? data.customRecipients
-          : [],
-
-        presenters: Array.isArray(data.presenters)
-          ? data.presenters
-              .map((p) => {
-                if (typeof p === "string") return p;
-                return p.name || p.fullName || "";
-              })
-              .filter(Boolean)
-          : [],
-
-        organizers: Array.isArray(data.organizers)
-          ? data.organizers
-              .map((o) => {
-                if (typeof o === "string") return o;
-                return o.name || o.fullName || "";
-              })
-              .filter(Boolean)
-          : [],
-
-        attendees: Array.isArray(data.attendees)
-          ? data.attendees
-              .map((a) => {
-                if (typeof a === "string") return a;
-                return a.name || a.fullName || "";
-              })
-              .filter(Boolean)
-          : [],
-
-        targetObjects: Array.isArray(data.targetObjects)
-          ? data.targetObjects
-          : [],
-
         notes: (data.notes || "").trim(),
         coverImage: data.coverImage || "",
         createdByAccountId: accountId,
         status: "EVENT_PENDING_APPROVAL",
+        targetObjects: Array.isArray(data.targetObjects) ? data.targetObjects : [],
+        recipients: Array.isArray(data.recipients) 
+          ? data.recipients.map(r => typeof r === 'string' ? {name: r} : r) 
+          : [],
       };
 
       Object.keys(payload).forEach((key) => {
@@ -124,7 +149,18 @@ export const EventCreator = ({
 
       console.log("📤 Payload gửi đi:", payload);
 
-      await createEvent(payload);
+      let response;
+      if (fromPlan && data.planId) {
+        response = await eventApi.plans.createEvent(data.planId, payload);
+      } else {
+        response = await eventApi.events.create(payload);
+      }
+
+      const createdEvent = response.data;
+      if (createdEvent?.id) {
+        await sendNotifications(createdEvent.id, payload.title);
+      }
+
       toast.success("✅ Gửi phê duyệt thành công!");
       onBack();
     } catch (error) {

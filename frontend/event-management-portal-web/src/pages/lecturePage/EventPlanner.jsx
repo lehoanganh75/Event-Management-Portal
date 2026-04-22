@@ -6,6 +6,8 @@ import { ManualInputStep } from "../../components/eventPlanner/ManualInputStep";
 import { EventProgramStep } from "../../components/eventPlanner/Eventprogramstep";
 import { PreviewStep } from "../../components/eventPlanner/PreviewStep";
 import axios from "axios";
+import { eventApi } from "../../api/eventApi";
+import { notificationApi } from "../../api/notificationApi";
 
 const INITIAL_FORM_DATA = {
   title: "",
@@ -164,11 +166,26 @@ export const EventPlanner = ({
       let configData = {};
       try {
         if (template.configData) {
-          configData = JSON.parse(template.configData);
+          configData = typeof template.configData === "string" 
+            ? JSON.parse(template.configData) 
+            : template.configData;
         }
       } catch (e) {
         console.error("Lỗi parse configData từ bản mẫu:", e);
       }
+
+      const standardEventTypes = [
+        "WORKSHOP",
+        "SEMINAR",
+        "TALKSHOW",
+        "COMPETITION",
+        "CONFERENCE",
+        "WEBINAR",
+        "CONCERT",
+      ];
+
+      const templateType = template.templateType || "";
+      const isStandardType = standardEventTypes.includes(templateType);
 
       updateFormData({
         title: template.defaultTitle || "",
@@ -180,14 +197,8 @@ export const EventPlanner = ({
         maxParticipants: template.defaultMaxParticipants || 1,
         templateId: template.id,
         templateName: template.templateName,
-        eventType:
-          template.templateType === "Khác"
-            ? "Khác"
-            : template.templateType || "",
-        eventTypeOther:
-          template.templateType === "Khác"
-            ? template.customTemplateType || ""
-            : "",
+        eventType: isStandardType ? templateType : "OTHER",
+        eventTypeOther: isStandardType ? "" : templateType,
         programItems: configData.programItems || [],
         participants: configData.participants || [],
         presenters: configData.presenters || [],
@@ -237,19 +248,22 @@ export const EventPlanner = ({
     return null;
   };
 
-  const sendPlanNotification = async (targetUserId, planId, planTitle) => {
+  const sendPlanNotification = async (targetUserId, planId, planTitle, status) => {
+    const isApproval = status === "PLAN_PENDING_APPROVAL";
     try {
       const payload = {
         userProfileId: targetUserId,
-        type: "SYSTEM",
-        title: "Kế hoạch mới đã được tạo! 🎉",
-        message: `Kế hoạch "${planTitle}" đã được khởi tạo và đang chờ bạn xem xét.`,
+        type: isApproval ? "PLAN_SUBMITTED" : "PLAN_CREATED",
+        title: isApproval ? "🚀 Yêu cầu phê duyệt kế hoạch" : "📝 Đã lưu bản nháp kế hoạch",
+        message: isApproval 
+          ? `Kế hoạch "${planTitle}" đã được gửi và đang chờ bạn phê duyệt.`
+          : `Kế hoạch "${planTitle}" đã được lưu thành công vào bản nháp của bạn.`,
         relatedEntityId: planId,
         relatedEntityType: "PLAN",
         actionUrl: `/manage-plans/${planId}`,
-        priority: 2,
+        priority: isApproval ? 2 : 1,
       };
-      await notificationApi.createNotification(payload);
+      await notificationApi.create.send(payload);
     } catch (error) {
       console.warn(`⚠️ Lỗi gửi thông báo cho ${targetUserId}:`, error.message);
     }
@@ -271,7 +285,7 @@ export const EventPlanner = ({
     return cleaned;
   };
 
-  const handleSave = async () => {
+  const handleSavePlan = async (dataToSave, targetStatus = "DRAFT") => {
     if (!currentAccountId) {
       toast.error(
         "Không tìm thấy thông tin tài khoản. Vui lòng đăng nhập lại!",
@@ -316,7 +330,9 @@ export const EventPlanner = ({
       const toISO = (dt) => {
         if (!dt) return null;
         const date = new Date(dt);
-        return isNaN(date.getTime()) ? null : date.toISOString();
+        if (isNaN(date.getTime())) return null;
+        // LocalDateTime on backend doesn't like the 'Z' (UTC) suffix
+        return date.toISOString().split(".")[0]; 
       };
 
       const eventType = formData.eventType || formData.type || "WORKSHOP";
@@ -410,7 +426,7 @@ export const EventPlanner = ({
         endTime: toISO(formData.endTime),
         registrationDeadline: toISO(formData.registrationDeadline),
         maxParticipants: maxParticipants,
-        status: "DRAFT",
+        status: targetStatus,
         hasLuckyDraw: formData.hasLuckyDraw || false,
         finalized: false,
         archived: false,
@@ -441,17 +457,29 @@ export const EventPlanner = ({
         createdByAccountId: currentAccountId,
       };
 
-      const response = await createPlan(payload, false);
-      const planId = response.data?.id || response.data?.planId;
+      console.log("DEBUG: Payload gửi đi:", payload);
+
+      let response;
+      if (formData.id) {
+        // Cập nhật kế hoạch đã có
+        response = await eventApi.plans.update(formData.id, payload);
+      } else {
+        // Tạo kế hoạch mới
+        response = await eventApi.plans.create(payload, false);
+      }
+      
+      const planId = formData.id || response.data?.id || response.data?.planId;
 
       if (planId) {
-        await sendPlanNotification(currentAccountId, planId, trimmedTitle);
+        // Thông báo cho chính người tạo
+        await sendPlanNotification(currentAccountId, planId, trimmedTitle, targetStatus);
 
+        // Thông báo cho các phòng ban liên quan
         if (formattedRecipients && formattedRecipients.length > 0) {
           const notificationPromises = formattedRecipients.map((recipient) => {
             const targetId =
               recipient.id || recipient.accountId || recipient.name;
-            return sendPlanNotification(targetId, planId, trimmedTitle);
+            return sendPlanNotification(targetId, planId, trimmedTitle, targetStatus);
           });
 
           await Promise.all(notificationPromises);
@@ -461,9 +489,14 @@ export const EventPlanner = ({
         }
       }
 
-      toast.success("✅ Lưu kế hoạch thành công!");
+      if (targetStatus === "DRAFT") {
+        toast.success("✅ Đã lưu bản nháp thành công!");
+      } else {
+        toast.success("🚀 Đã gửi yêu cầu phê duyệt kế hoạch!");
+      }
       onBack();
     } catch (err) {
+      console.error("DEBUG: Lỗi chi tiết từ Server:", err.response?.data || err);
       let errorMessage = "Kiểm tra lại định dạng dữ liệu";
 
       if (err.response?.data) {
@@ -572,7 +605,7 @@ export const EventPlanner = ({
               resetForm();
               setStep(1);
             }}
-            onSave={handleSave}
+            onSave={handleSavePlan}
             isSubmitting={isSaving}
             mode="plan"
             templateFields={[]}

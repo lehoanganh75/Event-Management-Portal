@@ -31,10 +31,14 @@ import {
   Award,
   CheckSquare,
   MessageSquare,
+  Download,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { EventPlanner } from "./EventPlanner";
 import axios from "axios";
+import { eventApi } from "../../api/eventApi";
+import { notificationApi } from "../../api/notificationApi";
+import { exportToWord } from "../../components/eventPlanner/WordExporter";
 
 const STATUS_LABELS = {
   DRAFT: "Bản nháp",
@@ -173,41 +177,17 @@ const ManagePlans = () => {
   const fetchPlans = async () => {
     try {
       setLoading(true);
-      let accountId = null;
-
-      const userData = localStorage.getItem("user");
-      if (userData) {
-        try {
-          const user = JSON.parse(userData);
-          accountId =
-            user.id || user.accountId || user.account?.id || user.userId;
-        } catch (error) {
-          console.error("Lỗi parse user data:", error);
-        }
-      }
-
-      if (!accountId) {
-        const accessToken = localStorage.getItem("accessToken");
-        if (accessToken) {
-          try {
-            const base64Url = accessToken.split(".")[1];
-            const base64 = base64Url.replace(/-/g, "+").replace(/_/g, "/");
-            const payload = JSON.parse(atob(base64));
-            accountId =
-              payload.accountId || payload.sub || payload.userId || payload.id;
-          } catch (e) {
-            console.error("Lỗi decode token:", e);
-          }
-        }
-      }
+      const currentUser = getCurrentUser();
+      const accountId = currentUser?.accountId;
 
       if (accountId) {
-        const response = await getMyPlans(accountId);
-        setPlans(response.data);
+        const response = await eventApi.plans.getMyPlans();
+        setPlans(response.data || []);
       } else {
         showToast("Không tìm thấy thông tin tài khoản", "error");
       }
-    } catch {
+    } catch (error) {
+      console.error("Fetch plans error:", error);
       showToast("Không thể tải danh sách kế hoạch", "error");
     } finally {
       setLoading(false);
@@ -274,18 +254,12 @@ const ManagePlans = () => {
         return;
       }
 
-      const IDENTITY_SERVICE_URL =
-        import.meta.env.VITE_IDENTITY_API_URL || "http://localhost:8082";
       const token = localStorage.getItem("accessToken");
 
       let allAccounts = [];
       try {
-        const accountsResponse = await axios.get(
-          `${IDENTITY_SERVICE_URL}/accounts`,
-          {
-            headers: { Authorization: `Bearer ${token}` },
-          },
-        );
+        // Sử dụng axiosClient với tiền tố /identity/ để interceptor tự động chuyển đến port 8083
+        const accountsResponse = await axiosClient.get("/identity/accounts");
         allAccounts = accountsResponse.data || [];
         console.log("📋 All accounts:", allAccounts);
       } catch (err) {
@@ -294,7 +268,7 @@ const ManagePlans = () => {
 
       const adminRoles = ["ADMIN", "SUPER_ADMIN"];
       const adminAccounts = allAccounts.filter((account) =>
-        account.roles?.some((role) => adminRoles.includes(role.toUpperCase())),
+        adminRoles.includes(account.role?.toUpperCase())
       );
 
       console.log("👥 Admin accounts found:", adminAccounts.length);
@@ -306,12 +280,13 @@ const ManagePlans = () => {
         isAdmin = false,
       ) => {
         try {
+          // Đồng bộ type và title với EventPlanner
           const payload = {
             userProfileId: targetUserId,
-            type: "SYSTEM",
+            type: isAdmin ? "EVENT_SUBMITTED" : "GENERAL", 
             title: isAdmin
-              ? "Kế hoạch mới cần phê duyệt! 📋"
-              : "Đã gửi phê duyệt thành công! ✅",
+              ? "🚀 Kế hoạch mới cần phê duyệt! 📋"
+              : "🚀 Đã gửi phê duyệt thành công! ✅",
             message: isAdmin
               ? `${currentUser.name || "Người dùng"} đã gửi kế hoạch "${planTitle}" để phê duyệt. Vui lòng xem xét.`
               : `Kế hoạch "${planTitle}" đã được gửi và đang chờ phê duyệt. Bạn sẽ nhận được thông báo khi có kết quả.`,
@@ -325,7 +300,8 @@ const ManagePlans = () => {
             `📤 Gửi thông báo đến ${isAdmin ? "admin" : "user"} (ID: ${targetUserId}):`,
             payload,
           );
-          await notificationApi.createNotification(payload);
+          // Sửa đúng tên hàm từ createNotification thành create.send
+          await notificationApi.create.send(payload);
           console.log(`✅ Đã gửi thông báo đến ${targetUserId}`);
         } catch (error) {
           console.warn(
@@ -336,8 +312,9 @@ const ManagePlans = () => {
       };
 
       for (const admin of adminAccounts) {
-        const adminUserId = admin.id || admin.userProfileId;
+        const adminUserId = admin.id || admin.userProfileId || admin.accountId;
         if (!adminUserId) continue;
+        // Tránh gửi trùng nếu user hiện tại cũng là admin đã được gửi ở bước sau
         if (String(adminUserId) === String(currentUser.accountId)) continue;
 
         await sendPlanNotification(adminUserId, planId, planTitle, true);
@@ -382,7 +359,7 @@ const ManagePlans = () => {
         return;
       }
 
-      await submitPlanForApproval(planId);
+      await eventApi.plans.submit(planId);
       await sendNotifications(planId, planToSubmit.title);
       showToast("Đã gửi yêu cầu phê duyệt thành công", "success");
       await fetchPlans();
@@ -434,7 +411,7 @@ const ManagePlans = () => {
     }
 
     try {
-      const response = await updatePlan(selectedPlan.id, selectedPlan);
+      const response = await eventApi.plans.update(selectedPlan.id, selectedPlan);
 
       if (response.status >= 200 && response.status < 300) {
         setPlans(
@@ -457,10 +434,25 @@ const ManagePlans = () => {
     }
   };
 
+  const handleCreateEvent = async (plan) => {
+    try {
+      setSubmittingId(plan.id);
+      await eventApi.plans.createEvent(plan.id);
+      showToast("Đã tạo sự kiện từ kế hoạch thành công", "success");
+      await fetchPlans();
+    } catch (error) {
+      console.error("Create event error:", error);
+      const errorMsg = error.response?.data?.error || "Tạo sự kiện thất bại";
+      showToast(errorMsg, "error");
+    } finally {
+      setSubmittingId(null);
+    }
+  };
+
   const handleConfirmDelete = async () => {
     if (!planToDelete) return;
     try {
-      await deletePlan(planToDelete.id);
+      await eventApi.plans.delete(planToDelete.id);
       setPlans(plans.filter((p) => p.id !== planToDelete.id));
       showToast("Đã xóa kế hoạch thành công", "success");
     } catch {
@@ -653,12 +645,22 @@ const ManagePlans = () => {
                           <Eye size={16} />
                         </button>
                         <button
-                          onClick={() => openModal(p, "edit")}
-                          className="p-2 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-all"
-                          title="Chỉnh sửa"
+                          onClick={() => exportToWord(p)}
+                          className="p-2 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-all"
+                          title="Tải kế hoạch (Word)"
                         >
-                          <Edit2 size={16} />
+                          <Download size={16} />
                         </button>
+                        
+                        {(p.status === "DRAFT" || p.status === "BẢN NHÁP") && (
+                          <button
+                            onClick={() => openModal(p, "edit")}
+                            className="p-2 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-all"
+                            title="Chỉnh sửa"
+                          >
+                            <Edit2 size={16} />
+                          </button>
+                        )}
                         {(p.status === "DRAFT" || p.status === "BẢN NHÁP") && (
                           <button
                             onClick={() => handleSubmitForApproval(p.id)}
@@ -673,27 +675,19 @@ const ManagePlans = () => {
                             )}
                           </button>
                         )}
-                        {p.status === "PLAN_APPROVED" && (
+                          {/* Calendar icon removed from list as per request, available in detail modal */}
+                        {(p.status === "DRAFT" || p.status === "BẢN NHÁP") && (
                           <button
                             onClick={() => {
-                              console.log("Tạo sự kiện từ kế hoạch:", p);
+                              setPlanToDelete(p);
+                              setIsDeleteModalOpen(true);
                             }}
-                            className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all"
-                            title="Tạo sự kiện"
+                            className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-all"
+                            title="Xóa"
                           >
-                            <CalendarIcon size={16} />
+                            <Trash2 size={16} />
                           </button>
                         )}
-                        <button
-                          onClick={() => {
-                            setPlanToDelete(p);
-                            setIsDeleteModalOpen(true);
-                          }}
-                          className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-all"
-                          title="Xóa"
-                        >
-                          <Trash2 size={16} />
-                        </button>
                       </div>
                     </td>
                   </tr>
@@ -853,19 +847,7 @@ const ManagePlans = () => {
                         Gửi phê duyệt
                       </button>
                     )}
-                  {modalMode === "view" &&
-                    (selectedPlan?.status === "PLAN_APPROVED" ||
-                      selectedPlan?.status === "KẾ HOẠCH ĐÃ DUYỆT") && (
-                      <button
-                        onClick={() => {
-                          console.log("Tạo sự kiện từ kế hoạch:", selectedPlan);
-                        }}
-                        className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 transition-all text-sm"
-                      >
-                        <CalendarIcon size={16} />
-                        Tạo sự kiện
-                      </button>
-                    )}
+
                   <button
                     onClick={closeModal}
                     className="p-2 hover:bg-slate-200 rounded-full transition-colors text-slate-400"
