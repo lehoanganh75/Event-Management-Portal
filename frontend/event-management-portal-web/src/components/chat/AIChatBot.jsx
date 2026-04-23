@@ -4,7 +4,7 @@ import { X, Send, Loader2, Sparkles, ChevronDown, RotateCcw, Star, ThumbsUp,
          ClipboardList, Lightbulb, Search, AlertCircle, RefreshCw } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useNavigate } from "react-router-dom";
-import axiosClient from "../../api/axiosClient";
+import eventService from "../../services/eventService";
 
 // ✨ Icon: IUH logo + Gemini badge
 const ChatIcon = ({ size = 48 }) => (
@@ -156,7 +156,7 @@ export default function AIChatBot() {
   const initChat = useCallback(async () => {
     try {
       const stored = localStorage.getItem("ai_chat_session_id");
-      const res = await axiosClient.post(`/event/api/v1/chat/sessions`, {
+      const res = await eventService.createChatSession({
         sessionId: stored,
         contextType: "GENERAL_INQUIRY"
       });
@@ -210,7 +210,7 @@ export default function AIChatBot() {
     setLoading(true);
 
     try {
-      const res = await axiosClient.post(`/event/api/v1/chat/messages`, {
+      const res = await eventService.sendChatMessage({
         sessionId: sessionId,
         content: text,
         messageType: "TEXT"

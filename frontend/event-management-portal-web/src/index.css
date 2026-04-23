@@ -4,8 +4,12 @@
 
 /* ===== Sau đó mới tới CSS khác ===== */
 
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+}
+
 :root {
-  --font-primary: 'universalSans', 'Inter', 'Roboto', 'Open Sans', sans-serif;
+  --font-primary: "Inter", "Roboto", "Open Sans", sans-serif;
 }
 
 #root {

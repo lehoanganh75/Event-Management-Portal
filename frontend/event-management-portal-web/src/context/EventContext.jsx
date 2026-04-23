@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useCallback } from 'react';
 import eventService from '../services/eventService';
-import { notificationApi } from '../api/notificationApi';
+import notificationService from '../services/notificationService';
 import { useAuth } from './AuthContext';
 
 const EventContext = createContext();
@@ -186,7 +186,7 @@ export const EventProvider = ({ children }) => {
             
             // 1. Gửi thông báo cho người tạo (Realtime)
             if (planDetails?.createdByAccountId) {
-                await notificationApi.create.send({
+                await notificationService.sendNotification({
                     userProfileId: planDetails.createdByAccountId,
                     type: "EVENT_APPROVED", // Sử dụng giá trị hợp lệ từ Enum backend
                     title: "🎉 Kế hoạch đã được phê duyệt!",
@@ -200,7 +200,7 @@ export const EventProvider = ({ children }) => {
 
             // 2. Gửi thông báo cho chính Admin (Xác nhận thao tác)
             if (user?.id) {
-                await notificationApi.create.send({
+                await notificationService.sendNotification({
                     userProfileId: user.id,
                     type: "SYSTEM",
                     title: "✅ Đã phê duyệt kế hoạch thành công",
@@ -226,7 +226,7 @@ export const EventProvider = ({ children }) => {
             
             // 1. Gửi thông báo cho người tạo (Realtime)
             if (planDetails?.createdByAccountId) {
-                await notificationApi.create.send({
+                await notificationService.sendNotification({
                     userProfileId: planDetails.createdByAccountId,
                     type: "EVENT_REJECTED", // Sử dụng giá trị hợp lệ từ Enum backend
                     title: "❌ Kế hoạch bị từ chối phê duyệt",
@@ -240,7 +240,7 @@ export const EventProvider = ({ children }) => {
 
             // 2. Gửi thông báo cho chính Admin
             if (user?.id) {
-                await notificationApi.create.send({
+                await notificationService.sendNotification({
                     userProfileId: user.id,
                     type: "SYSTEM",
                     title: "🚫 Đã từ chối kế hoạch",

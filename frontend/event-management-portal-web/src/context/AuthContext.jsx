@@ -71,8 +71,8 @@ export const AuthProvider = ({ children }) => {
 
     const logout = async () => {
         try {
-            // Gọi API logout để hủy token ở phía Server (nếu Backend có hỗ trợ)
-            await authService.logout();
+            const refreshToken = localStorage.getItem('refreshToken');
+            await authService.logout(refreshToken);
         } catch (e) {
             console.warn("Server-side logout failed or not implemented");
         } finally {

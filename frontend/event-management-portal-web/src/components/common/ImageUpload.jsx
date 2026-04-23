@@ -2,7 +2,7 @@
 import React, { useState, useRef } from "react";
 import { Upload, X, ImageIcon, Loader2 } from "lucide-react";
 import { toast } from "react-toastify";
-import axiosClient from "../../api/axiosClient";
+import eventService from "../../services/eventService";
 
 const ImageUpload = ({ value, onChange, label = "Ảnh nền sự kiện", hint = "Dung lượng tối đa 5MB. Định dạng: JPG, PNG, WEBP" }) => {
   const [uploading, setUploading] = useState(false);
@@ -29,13 +29,8 @@ const ImageUpload = ({ value, onChange, label = "Ảnh nền sự kiện", hint 
     formData.append("file", file);
 
     try {
-      // Gọi API upload qua axiosClient
-      // axiosClient sẽ tự động định tuyến sang http://localhost:8082/... dựa trên tiền tố /event/
-      const res = await axiosClient.post("/event/events/upload", formData, {
-        headers: {
-          "Content-Type": "multipart/form-data",
-        },
-      });
+      // Gọi API upload qua eventService
+      const res = await eventService.uploadImage(formData);
 
       if (res.data && res.data.url) {
         onChange(res.data.url);

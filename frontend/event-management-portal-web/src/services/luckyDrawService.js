@@ -1,40 +1,56 @@
 import axios from 'axios';
 
-const LUCKY_DRAW_URL = 'http://localhost:8084';
+const BASE_URL = 'http://localhost:8084';
+const IDENTITY_BASE_URL = 'http://localhost:8083';
 
-const publicLUCKY_DRAW = axios.create({
-    baseURL: LUCKY_DRAW_URL,
+// 1. PUBLIC API
+const publicApi = axios.create({
+    baseURL: BASE_URL,
     headers: { 'Content-Type': 'application/json' },
+    timeout: 15000,
 });
 
-const privateLUCKY_DRAW = axios.create({
-    baseURL: LUCKY_DRAW_URL,
+// 2. PRIVATE API
+const privateApi = axios.create({
+    baseURL: BASE_URL,
     headers: { 'Content-Type': 'application/json' },
+    timeout: 15000,
 });
 
-privateLUCKY_DRAW.interceptors.request.use((config) => {
-    const token = localStorage.getItem('accessToken');
-    if (token) config.headers.Authorization = `Bearer ${token}`;
-    return config;
-});
+// Request Interceptor
+privateApi.interceptors.request.use(
+    (config) => {
+        const token = localStorage.getItem('accessToken');
+        if (token) config.headers.Authorization = `Bearer ${token}`;
+        return config;
+    },
+    (error) => Promise.reject(error)
+);
 
-privateLUCKY_DRAW.interceptors.response.use(
-    (res) => res,
+// Response Interceptor
+privateApi.interceptors.response.use(
+    (response) => response,
     async (error) => {
         const originalRequest = error.config;
         if (error.response?.status === 401 && !originalRequest._retry) {
             originalRequest._retry = true;
             try {
                 const refreshToken = localStorage.getItem('refreshToken');
-                // Gọi API refresh dùng instance PUBLIC để tránh loop
-                const res = await publicLUCKY_DRAW.post('/auth/refresh', { refreshToken });
-                localStorage.setItem('accessToken', res.data.accessToken);
-                
-                originalRequest.headers.Authorization = `Bearer ${res.data.accessToken}`;
-                return privateLUCKY_DRAW(originalRequest);
-            } catch (err) {
-                localStorage.clear();
-                window.location.href = '/login';
+                if (!refreshToken) throw new Error("No refresh token");
+
+                const res = await axios.post(`${IDENTITY_BASE_URL}/auth/refresh`, { refreshToken });
+                const { accessToken, refreshToken: newRefreshToken } = res.data;
+
+                localStorage.setItem('accessToken', accessToken);
+                if (newRefreshToken) localStorage.setItem('refreshToken', newRefreshToken);
+
+                originalRequest.headers.Authorization = `Bearer ${accessToken}`;
+                return privateApi(originalRequest);
+            } catch (refreshError) {
+                localStorage.removeItem('accessToken');
+                localStorage.removeItem('refreshToken');
+                if (!originalRequest._silent) window.location.href = '/login';
+                return Promise.reject(refreshError);
             }
         }
         return Promise.reject(error);
@@ -42,32 +58,31 @@ privateLUCKY_DRAW.interceptors.response.use(
 );
 
 const luckyDrawService = {
-    // ==================== LUCKY DRAW (MAIN) ====================
-    
-    // Lấy tất cả danh sách chương trình may mắn
-    getAll: () => privateLUCKY_DRAW.get('/lucky-draws'),
+    // ==================== CAMPAIGNS ====================
+    getAll: () => privateApi.get('/lucky-draws'),
 
-    // Lấy chi tiết 1 chương trình
-    getById: (id) => privateLUCKY_DRAW.get(`/lucky-draws/${id}`),
+    getById: (id) => privateApi.get(`/lucky-draws/${id}`),
 
-    // Tạo mới chương trình (Dành cho BTC)
-    create: (data) => privateLUCKY_DRAW.post('/lucky-draws', data),
+    create: (data) => privateApi.post('/lucky-draws', data),
 
-    // Cập nhật chương trình
-    update: (id, data) => privateLUCKY_DRAW.put(`/lucky-draws/${id}`, data),
+    update: (id, data) => privateApi.put(`/lucky-draws/${id}`, data),
 
-    // THỰC HIỆN QUAY THƯỞNG (Spin)
-    spin: (luckyDrawId) => privateLUCKY_DRAW.post(`/lucky-draws/${luckyDrawId}/spin`),
+    delete: (id, payload) => privateApi.put(`/lucky-draws/${id}`, payload),
 
-    // ==================== DRAW ENTRIES ====================
+    // ==================== RESULTS ====================
+    getAllResults: () => privateApi.get('/results'),
 
-    // Kiểm tra lượt tham gia của user hiện tại cho 1 chương trình
-    getEntry: (luckyDrawId) => privateLUCKY_DRAW.get(`/lucky-draws/draw-entries/${luckyDrawId}`),
+    getResultsByCampaign: (drawId) => privateApi.get(`/results/lucky-draw/${drawId}`),
 
-    // Đăng ký tham gia chương trình (để có tên trong danh sách quay)
-    joinDraw: (luckyDrawId) => privateLUCKY_DRAW.post(`/lucky-draws/draw-entries/${luckyDrawId}`),
+    // ==================== ACTIONS ====================
+    spin: (luckyDrawId) => privateApi.post(`/lucky-draws/${luckyDrawId}/spin`),
 
-    findLuckyDrawByEventId: (eventId) => privateLUCKY_DRAW.get(`/lucky-draws/events/${eventId}`)
+    // ==================== ENTRIES ====================
+    getEntry: (luckyDrawId) => privateApi.get(`/entries/${luckyDrawId}`),
+
+    joinDraw: (luckyDrawId) => privateApi.post(`/entries/${luckyDrawId}`),
+
+    findLuckyDrawByEventId: (eventId) => privateApi.get(`/lucky-draws/events/${eventId}`)
 };
 
 export default luckyDrawService;
