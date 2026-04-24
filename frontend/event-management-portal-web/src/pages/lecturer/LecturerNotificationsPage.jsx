@@ -84,7 +84,7 @@ const getCurrentUserId = () => {
   return null;
 };
 
-const LecturerNotifications = () => {
+const LecturerNotificationsPage = () => {
   const navigate = useNavigate();
   const [notifications, setNotifications] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -700,4 +700,4 @@ const LecturerNotifications = () => {
   );
 };
 
-export default LecturerNotifications;
+export default LecturerNotificationsPage;

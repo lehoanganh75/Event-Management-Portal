@@ -5,7 +5,7 @@ import authService from "../../services/authService";
 import eventService from "../../services/eventService";
 import { toast } from "react-toastify";
 
-const ProfileUser = () => {
+const LecturerProfilePage = () => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [editMode, setEditMode] = useState(false);
@@ -300,4 +300,4 @@ const EditItem = ({ label, value, icon, isEditing, onChange, placeholder, type =
   </div>
 );
 
-export default ProfileUser;
+export default LecturerProfilePage;

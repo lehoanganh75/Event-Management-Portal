@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
+import { showToast } from "../../utils/toast.jsx";
 import {
   LogIn,
   User,
@@ -96,20 +97,12 @@ const Header = () => {
               setUnreadCount(prev => prev + 1);
 
               // Hiển thị thông báo góc trên bên phải (Toast)
-              toast.info(
-                <div className="flex flex-col gap-1">
-                  <p className="font-bold text-sm">{newNotification.title}</p>
-                  <p className="text-xs line-clamp-2">{newNotification.message}</p>
+              showToast(
+                <div className="flex flex-col gap-0.5">
+                  <p className="font-bold text-[13px]">{newNotification.title}</p>
+                  <p className="text-[11px] opacity-80 line-clamp-2">{newNotification.message}</p>
                 </div>,
-                {
-                  position: "top-right",
-                  autoClose: 5000,
-                  hideProgressBar: false,
-                  closeOnClick: true,
-                  pauseOnHover: true,
-                  draggable: true,
-                  icon: <Bell size={18} className="text-blue-500" />
-                }
+                'info'
               );
             }
           });
@@ -149,7 +142,7 @@ const Header = () => {
       await notificationService.markAllAsRead(user.id);
       setNotifications(prev => prev.map(n => ({ ...n, read: true })));
       setUnreadCount(0);
-      toast.success("Đã đánh dấu tất cả là đã đọc");
+      showToast("Đã đánh dấu tất cả là đã đọc", "success");
     } catch (error) {
       console.error("Lỗi đánh dấu tất cả đã đọc:", error);
       toast.error("Không thể đánh dấu tất cả đã đọc");
@@ -218,13 +211,7 @@ const Header = () => {
 
     return () => window.removeEventListener("scroll", handleScroll);
   }, [location.pathname]);
-  // Auto hide toast
-  useEffect(() => {
-    if (logoutToastVisible) {
-      const timer = setTimeout(() => setLogoutToastVisible(false), 3000);
-      return () => clearTimeout(timer);
-    }
-  }, [logoutToastVisible]);
+  // Removed logoutToastVisible useEffect
 
   const getPrimaryRole = () => {
     const rawRole = user?.role || user?.roles?.[0] || "";
@@ -280,8 +267,8 @@ const Header = () => {
     try {
       await logout();
       setIsLogoutModalOpen(false);
-      setLogoutToastVisible(true);
-      setTimeout(() => navigate("/"), 800);
+      showToast("Đăng xuất thành công. Hẹn gặp lại bạn!", "success");
+      setTimeout(() => navigate("/"), 1500);
     } catch (error) {
       console.error(error);
     }
@@ -708,18 +695,7 @@ const Header = () => {
         )}
       </AnimatePresence>
 
-      {/* Logout Success Toast */}
-      {logoutToastVisible && (
-        <div className="fixed top-6 right-6 z-[200]">
-          <div className="bg-emerald-600 text-white rounded-2xl shadow-2xl px-6 py-4 flex items-center gap-4">
-            <CheckCircle size={28} />
-            <div>
-              <p className="font-semibold">Đăng xuất thành công</p>
-              <p className="text-sm text-emerald-100">Hẹn gặp lại bạn!</p>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Logout Success Toast removed in favor of global showToast */}
     </>
   );
 };

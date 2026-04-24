@@ -1,7 +1,12 @@
 package com.eventservice.entity;
 
 import com.eventservice.dto.EventCurrentUserRole;
+import com.eventservice.dto.UserDto;
+import com.eventservice.entity.enums.EventStatus;
+import com.eventservice.entity.enums.EventType;
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
@@ -9,9 +14,6 @@ import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.annotations.SQLRestriction;
 import org.hibernate.annotations.UpdateTimestamp;
 import org.hibernate.type.SqlTypes;
-import com.eventservice.dto.UserDto;
-import com.eventservice.entity.enums.EventStatus;
-import com.eventservice.entity.enums.EventType;
 
 import java.time.LocalDateTime;
 import java.util.*;
@@ -22,14 +24,15 @@ import java.util.*;
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
-@Builder // Thêm Builder để dễ tạo object trong Service/Test
+@Builder
 public class Event {
+
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
     private String id;
 
     @Column(unique = true, nullable = false)
-    private String slug; // Dùng cho URL đẹp (vd: /event/iuh-tech-day)
+    private String slug;
 
     // --- BASIC INFORMATION ---
     @Column(nullable = false)
@@ -45,55 +48,47 @@ public class Event {
 
     private String location;
 
-    private String eventMode; // ONLINE, OFFLINE, HYBRID
+    private String eventMode;
 
-    private String faculty;
-
-    private String major;
-
-    // --- TIMING & DEADLINES ---
+    // --- TIMING ---
     private LocalDateTime startTime;
 
     private LocalDateTime endTime;
 
     private LocalDateTime registrationDeadline;
 
-    // --- OWNERSHIP & APPROVAL ---
+    // --- OWNERSHIP ---
     private String createdByAccountId;
 
     private String approvedByAccountId;
 
+    // ✅ FIX LOOP JSON
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "organization_id", nullable = false)
-    @JsonIgnore
+    @JsonIgnoreProperties({"events"}) // 🔥 tránh vòng lặp
     private Organization organization;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "template_id")
-    @JsonIgnore
+    @JsonIgnoreProperties({"organization"})
     private EventTemplate template;
 
-    // --- CAPACITY & STATUS ---
+    // --- STATUS ---
     private int maxParticipants;
 
     @Enumerated(EnumType.STRING)
     private EventType type;
 
-    @Builder.Default // Giúp Builder không ghi đè giá trị mặc định
+    @Builder.Default
     @Enumerated(EnumType.STRING)
     private EventStatus status = EventStatus.DRAFT;
 
     @Builder.Default
-    private boolean finalized = false;
-
-    @Builder.Default
-    private boolean archived = false; // Thêm @Builder.Default để Builder của Lombok nhận giá trị này
-
-    @Builder.Default
     private boolean isDeleted = false;
 
-    // --- ADDITIONAL TOOLS & INFO ---
-    private boolean hasLuckyDraw;
+    // --- EXTRA ---
+    @Builder.Default
+    private boolean hasLuckyDraw = false;
 
     @Column(columnDefinition = "TEXT")
     private String notes;
@@ -101,7 +96,7 @@ public class Event {
     @Column(columnDefinition = "TEXT")
     private String additionalInfo;
 
-    // --- AUDIT TIMESTAMPS ---
+    // --- AUDIT ---
     @CreationTimestamp
     @Column(updatable = false)
     private LocalDateTime createdAt;
@@ -109,8 +104,7 @@ public class Event {
     @UpdateTimestamp
     private LocalDateTime updatedAt;
 
-    // --- JSON DATA (FLEXIBLE) ---
-    // Chứa cấu hình form đăng ký hoặc tiêu chí riêng
+    // --- JSON DATA ---
     @Column(columnDefinition = "TEXT")
     private String customFieldsJson;
 
@@ -122,24 +116,45 @@ public class Event {
     @Column(columnDefinition = "JSON")
     private List<Map<String, Object>> recipients;
 
-    // --- TRANSIENT FIELDS ---
-    @Transient // Không lưu vào DB, dùng để tính toán lúc runtime
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(columnDefinition = "JSON")
+    private List<Map<String, Object>> interactions;
+
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(columnDefinition = "JSON")
+    private Map<String, Object> interactionSettings;
+
+    // --- TRANSIENT ---
+    @Transient
+    @JsonProperty("registeredCount")
     private int registeredCount;
 
+    @Transient
+    @JsonProperty("creator")
+    private UserDto creator;
+
+    @Transient
+    @JsonProperty("approver")
+    private UserDto approver;
+
+    @Transient
+    @JsonProperty("currentUserRole")
+    private EventCurrentUserRole currentUserRole;
+
     // --- RELATIONSHIPS ---
-    // Khởi tạo sẵn ArrayList để tránh NullPointer
+
     @OneToMany(mappedBy = "event", cascade = CascadeType.ALL, orphanRemoval = true)
-    // @JsonIgnore
+    @JsonIgnore
     private Set<EventRegistration> registrations = new HashSet<>();
 
     @OneToMany(mappedBy = "event", cascade = CascadeType.ALL, orphanRemoval = true)
     @SQLRestriction("is_deleted = false")
-    // @JsonIgnore
+    @JsonIgnoreProperties("event")
     private Set<EventOrganizer> organizers = new HashSet<>();
 
     @OneToMany(mappedBy = "event", cascade = CascadeType.ALL, orphanRemoval = true)
     @SQLRestriction("is_deleted = false")
-    // @JsonIgnore
+    @JsonIgnoreProperties("event")
     private Set<EventPresenter> presenters = new HashSet<>();
 
     @OneToMany(mappedBy = "event", cascade = CascadeType.ALL, orphanRemoval = true)
@@ -148,7 +163,7 @@ public class Event {
     private Set<EventParticipant> participants = new HashSet<>();
 
     @OneToMany(mappedBy = "event", cascade = CascadeType.ALL, orphanRemoval = true)
-    // @JsonIgnore
+    @JsonIgnoreProperties("event")
     private Set<EventSession> sessions = new HashSet<>();
 
     @OneToMany(mappedBy = "event", cascade = CascadeType.ALL, orphanRemoval = true)
@@ -159,16 +174,11 @@ public class Event {
     @JsonIgnore
     private Set<EventFeedback> feedbacks = new HashSet<>();
 
+    @OneToMany(mappedBy = "event", cascade = CascadeType.ALL, orphanRemoval = true)
+    @JsonIgnoreProperties("event")
+    private Set<EventInvitation> invitations = new HashSet<>();
+
     @OneToOne(mappedBy = "event", cascade = CascadeType.ALL, orphanRemoval = true)
     @JsonIgnore
     private Recap recap;
-
-    @Transient
-    private UserDto creator;
-
-    @Transient
-    private UserDto approver;
-
-    @Transient
-    private EventCurrentUserRole currentUserRole;
 }

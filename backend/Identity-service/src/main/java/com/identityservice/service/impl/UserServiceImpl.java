@@ -95,4 +95,12 @@ public class UserServiceImpl implements UserService {
                 .map(UserDto::from)
                 .orElseThrow(() -> new RuntimeException("User profile not found for ID: " + id));
     }
+
+    @Override
+    public List<UserDto> getUsersByEmails(List<String> emails) {
+        List<User> users = userRepository.findAllByAccountEmailIn(emails);
+        return users.stream()
+                .map(UserDto::from)
+                .collect(Collectors.toList());
+    }
 }

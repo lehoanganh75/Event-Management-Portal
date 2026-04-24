@@ -38,7 +38,7 @@ import {
 import { useNavigate } from "react-router-dom";
 import eventService from "../../services/eventService";
 
-const Dashboard = () => {
+const LecturerDashboard = () => {
   const [loading, setLoading] = useState(true);
   const [events, setEvents] = useState([]);
   const [stats, setStats] = useState({
@@ -541,4 +541,4 @@ const Dashboard = () => {
   );
 };
 
-export default Dashboard;
+export default LecturerDashboard;

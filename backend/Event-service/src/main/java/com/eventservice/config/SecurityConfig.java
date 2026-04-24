@@ -30,109 +30,122 @@ import java.util.Base64;
 @EnableWebSecurity
 @EnableMethodSecurity
 public class SecurityConfig {
-    @Value("${jwt.secret}")
-    private String secretKey;
+        @Value("${jwt.secret}")
+        private String secretKey;
 
-    @Bean
-    public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
-        http
-                .cors(cors -> cors.configurationSource(corsConfigurationSource()))
-                .csrf(csrf -> csrf.disable())
-                .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-                .authorizeHttpRequests(auth -> auth
-                        .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
-                        .requestMatchers(
-                                "/",
-                                "/api/v1/chat/**",
-                                "/posts/detail/**",
+        @Bean
+        public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
+                http
+                                .cors(cors -> cors.configurationSource(corsConfigurationSource()))
+                                .csrf(csrf -> csrf.disable())
+                                .sessionManagement(session -> session
+                                                .sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                                .authorizeHttpRequests(auth -> auth
+                                                .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
+                                                .requestMatchers(
+                                                                "/",
+                                                                "/api/v1/chat/**",
+                                                                "/posts/detail/**",
+                                                                "/v3/api-docs/**",
+                                                                "/swagger-ui/**",
+                                                                "/swagger-ui.html",
+                                                                "/uploads/**",
+                                                                "/error")
+                                                .permitAll()
+                                                .requestMatchers(HttpMethod.GET,
+                                                                "/events",
+                                                                "/events/ongoing",
+                                                                "/events/upcoming-week",
+                                                                "/events/featured",
+                                                                "/events/news",
+                                                                "/events/plans",
+                                                                "/events/*/presenters",
+                                                                "/events/*/participants",
+                                                                "/events/*/organizers",
+                                                                "/events/*/invitations",
+                                                                "/events/*/invitations/**",
+                                                                "/posts",
+                                                                "/posts/{id}",
+                                                                "/posts/detail/{id}"
+                                                ).permitAll()
+                                                .requestMatchers(HttpMethod.GET,
+                                                                "/events/{id}"
+                                                ).authenticated()
+                                                .requestMatchers(HttpMethod.POST,
+                                                                "/events/*/participants/register",
+                                                                "/events/*/accept-invite",
+                                                                "/events/*/reject-invite")
+                                                .permitAll()
+                                                .anyRequest().authenticated())
+                                .oauth2ResourceServer(oauth2 -> oauth2
+                                                .jwt(jwt -> jwt.jwtAuthenticationConverter(
+                                                                jwtAuthenticationConverter()))
+                                                .authenticationEntryPoint(authenticationEntryPoint()))
+                                .exceptionHandling(ex -> ex
+                                                .authenticationEntryPoint(authenticationEntryPoint()));
+
+                return http.build();
+        }
+
+        @Bean
+        public WebSecurityCustomizer webSecurityCustomizer() {
+                return (web) -> web.ignoring().requestMatchers(
                                 "/v3/api-docs/**",
                                 "/swagger-ui/**",
-                                "/swagger-ui.html",
-                                "/uploads/**"
-                        ).permitAll()
-                        .requestMatchers(HttpMethod.GET, 
-                                "/events",
-                                "/events/ongoing",
-                                "/events/upcoming-week",
-                                "/events/featured",
-                                "/events/news",
-                                "/events/{id}",
-                                "/events/plans",
-                                "/events/{id}/presenters",
-                                "/events/{id}/participants",
-                                "/events/{id}/organizers"
-                        ).permitAll()
-                        .requestMatchers(HttpMethod.POST, "/events/{eventId}/participants/register").permitAll()
-                        .anyRequest().authenticated()
-                )
-                .oauth2ResourceServer(oauth2 -> oauth2
-                        .jwt(jwt -> jwt.jwtAuthenticationConverter(jwtAuthenticationConverter()))
-                        .authenticationEntryPoint(authenticationEntryPoint())
-                )
-                .exceptionHandling(ex -> ex
-                        .authenticationEntryPoint(authenticationEntryPoint())
-                );
+                                "/swagger-ui.html");
+        }
 
-        return http.build();
-    }
+        @Bean
+        public AuthenticationEntryPoint authenticationEntryPoint() {
+                return (request, response, authException) -> {
+                        Logger logger = LoggerFactory.getLogger("SecurityConfig");
+                        logger.warn("Security Rejection: Unauthorized access to {} - Error: {}",
+                                        request.getRequestURI(), authException.getMessage());
 
-    @Bean
-    public WebSecurityCustomizer webSecurityCustomizer() {
-        return (web) -> web.ignoring().requestMatchers(
-                "/v3/api-docs/**",
-                "/swagger-ui/**",
-                "/swagger-ui.html"
-        );
-    }
+                        response.setStatus(401);
+                        response.setContentType("application/json");
+                        response.getWriter().write("{\"code\": 401, \"message\": \"Unauthorized: "
+                                        + authException.getMessage() + "\"}");
+                };
+        }
 
-    @Bean
-    public AuthenticationEntryPoint authenticationEntryPoint() {
-        return (request, response, authException) -> {
-            Logger logger = LoggerFactory.getLogger("SecurityConfig");
-            logger.warn("Security Rejection: Unauthorized access to {} - Error: {}", 
-                    request.getRequestURI(), authException.getMessage());
-            
-            response.setStatus(401);
-            response.setContentType("application/json");
-            response.getWriter().write("{\"code\": 401, \"message\": \"Unauthorized: " + authException.getMessage() + "\"}");
-        };
-    }
+        @Bean
+        public JwtAuthenticationConverter jwtAuthenticationConverter() {
+                JwtGrantedAuthoritiesConverter authoritiesConverter = new JwtGrantedAuthoritiesConverter();
+                authoritiesConverter.setAuthoritiesClaimName("role");
+                authoritiesConverter.setAuthorityPrefix("ROLE_");
 
-    @Bean
-    public JwtAuthenticationConverter jwtAuthenticationConverter() {
-        JwtGrantedAuthoritiesConverter authoritiesConverter = new JwtGrantedAuthoritiesConverter();
-        authoritiesConverter.setAuthoritiesClaimName("role");
-        authoritiesConverter.setAuthorityPrefix("ROLE_");
+                JwtAuthenticationConverter converter = new JwtAuthenticationConverter();
+                converter.setJwtGrantedAuthoritiesConverter(authoritiesConverter);
+                return converter;
+        }
 
-        JwtAuthenticationConverter converter = new JwtAuthenticationConverter();
-        converter.setJwtGrantedAuthoritiesConverter(authoritiesConverter);
-        return converter;
-    }
+        @Bean
+        public JwtDecoder jwtDecoder() {
+                byte[] keyBytes = Base64.getDecoder().decode(secretKey);
 
-    @Bean
-    public JwtDecoder jwtDecoder() {
-        byte[] keyBytes = Base64.getDecoder().decode(secretKey);
+                SecretKeySpec secretKeySpec = new SecretKeySpec(keyBytes, "HmacSHA512");
 
-        SecretKeySpec secretKeySpec = new SecretKeySpec(keyBytes, "HmacSHA512");
+                return NimbusJwtDecoder
+                                .withSecretKey(secretKeySpec)
+                                .macAlgorithm(MacAlgorithm.HS512)
+                                .build();
+        }
 
-        return NimbusJwtDecoder
-                .withSecretKey(secretKeySpec)
-                .macAlgorithm(MacAlgorithm.HS512)
-                .build();
-    }
+        @Bean
+        public CorsConfigurationSource corsConfigurationSource() {
+                CorsConfiguration configuration = new CorsConfiguration();
 
-    @Bean
-    public CorsConfigurationSource corsConfigurationSource() {
-        CorsConfiguration configuration = new CorsConfiguration();
+                configuration.setAllowedOrigins(Arrays.asList("http://localhost:5173"));
+                configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
+                configuration.setAllowedHeaders(Arrays.asList("Authorization", "Content-Type", "Cache-Control",
+                                "X-Requested-With", "Accept", "Origin", "Access-Control-Request-Method",
+                                "Access-Control-Request-Headers"));
+                configuration.setAllowCredentials(true);
+                configuration.setMaxAge(3600L);
 
-        configuration.setAllowedOrigins(Arrays.asList("http://localhost:5173"));
-        configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
-        configuration.setAllowedHeaders(Arrays.asList("Authorization", "Content-Type", "Cache-Control", "X-Requested-With", "Accept", "Origin", "Access-Control-Request-Method", "Access-Control-Request-Headers"));
-        configuration.setAllowCredentials(true);
-        configuration.setMaxAge(3600L);
-
-        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
-        source.registerCorsConfiguration("/**", configuration);
-        return source;
-    }
+                UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+                source.registerCorsConfiguration("/**", configuration);
+                return source;
+        }
 }

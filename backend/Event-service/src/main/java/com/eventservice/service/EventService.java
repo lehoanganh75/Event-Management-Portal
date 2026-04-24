@@ -1,5 +1,6 @@
 package com.eventservice.service;
 
+import com.eventservice.entity.EventInvitation;
 import jakarta.transaction.Transactional;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -7,6 +8,7 @@ import com.eventservice.dto.PlanResponseDto;
 import com.eventservice.entity.Event;
 import com.eventservice.entity.enums.EventStatus;
 
+import org.springframework.web.multipart.MultipartFile;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -33,12 +35,13 @@ public interface EventService {
 
     List<Event> getMyEventsByAccountAndMonth(String accountId, String roleType, int month, int year);
 
-    Optional<Event> getEventById(String id, String accountId);
+    Event getEventById(String id, String accountId);
 
     @Transactional
-    void updateLuckyDrawId(String id);
+    void updateLuckyDrawId(String id, boolean hasLuckyDraw);
 
-    Event createEvent(Event event);
+    Event createEvent(Event event, List<String> organizerIds, List<Map<String, Object>> presenterIds,
+            List<Map<String, Object>> invitations, MultipartFile file);
 
     @Transactional
     Event saveEvent(Event event);
@@ -51,7 +54,7 @@ public interface EventService {
     void deleteEvent(String id);
 
     @Transactional
-    List<Event> getEventsByStatuses(List<String> statuses);
+    List<Event> getEventsByStatuses(List<String> statuses, String accountId);
 
     List<Event> getAllPlans();
 
@@ -95,7 +98,18 @@ public interface EventService {
 
     Event updateEventStatus(String id, EventStatus status, String approverId, String accountId);
 
-    public Map<String, String> invitateParticipants(String eventId, String organizerId, List<String> inviteeIds);
+    Map<String, String> invitateParticipants(String eventId, String organizerId,
+            com.eventservice.dto.InvitationBatchRequest request);
 
     Map<String, String> acceptInvite(String eventId, String token);
+
+    EventInvitation getInvitationByToken(String eventId, String token);
+
+    Map<String, String> rejectInvite(String eventId, String token, String reason);
+
+    @Transactional
+    void sendOrganizerInvitations(String eventId, List<Map<String, Object>> invitations);
+
+    @Transactional
+    void sendPresenterInvitations(String eventId, List<Map<String, Object>> invitations);
 }

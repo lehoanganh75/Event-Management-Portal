@@ -71,4 +71,9 @@ public class UserController {
     public ResponseEntity<UserDto> getUsersById(@RequestParam String id) {
         return ResponseEntity.ok(userService.getUserById(id));
     }
+
+    @GetMapping("/by-emails")
+    public ResponseEntity<List<UserDto>> getUsersByEmails(@RequestParam List<String> emails) {
+        return ResponseEntity.ok(userService.getUsersByEmails(emails));
+    }
 }

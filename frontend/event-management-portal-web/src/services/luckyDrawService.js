@@ -67,7 +67,7 @@ const luckyDrawService = {
 
     update: (id, data) => privateApi.put(`/lucky-draws/${id}`, data),
 
-    delete: (id, payload) => privateApi.put(`/lucky-draws/${id}`, payload),
+    delete: (id) => privateApi.delete(`/lucky-draws/${id}`),
 
     // ==================== RESULTS ====================
     getAllResults: () => privateApi.get('/results'),

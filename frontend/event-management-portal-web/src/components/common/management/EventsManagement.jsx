@@ -2,45 +2,53 @@ import React, { useState, useEffect, useMemo, useCallback } from "react";
 import {
   Search, Eye, Edit2, Trash2, Send, Loader2, ChevronLeft, ChevronRight, Plus,
   Calendar, Clock, Users, PlayCircle, CheckCircle2, Download, AlertCircle, X,
-  XCircle
+  XCircle, CheckCircle,
+  FileText
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import eventService from "../../services/eventService";
-import notificationService from "../../services/notificationService";
-import { exportEventsToExcel } from "../../utils/exportExcel";
-import { useAuth } from "../../context/AuthContext";
-import { EventCreator } from "../../components/event-planner/EventCreator";
-import CreateEventModal from "../../components/event-planner/CreateEventModal";
+import { toast } from "react-toastify";
+import { showToast } from "../../../utils/toast.jsx";
+import eventService from "../../../services/eventService";
+import notificationService from "../../../services/notificationService";
+import { exportEventsToExcel } from "../../../utils/exportExcel";
+import { useAuth } from "../../../context/AuthContext";
+import { EventCreator } from "../../event-planner/EventCreator";
+import CreateEventModal from "../../event-planner/CreateEventModal";
 
 /* ================= CONFIG ================= */
 const STATUS_LABELS = {
   DRAFT: "Bản nháp",
-  PLAN_PENDING_APPROVAL: "Chờ duyệt kế hoạch",
-  PLAN_APPROVED: "Đã duyệt kế hoạch",
-  EVENT_PENDING_APPROVAL: "Chờ duyệt sự kiện",
+  PLAN_PENDING_APPROVAL: "Kế hoạch chờ duyệt",
+  PLAN_APPROVED: "Kế hoạch đã duyệt",
+  EVENT_PENDING_APPROVAL: "Sự kiện chờ duyệt",
   PUBLISHED: "Đã công bố",
   ONGOING: "Đang diễn ra",
   COMPLETED: "Đã kết thúc",
   CANCELLED: "Đã hủy",
-  REJECTED: "Bị từ chối",
+  REJECTED: "Đã từ chối",
+  CONVERTED: "Đã chuyển đổi",
 };
 
 const STATUS_COLOR = {
+  DRAFT: "bg-gray-100 text-gray-600",
   PLAN_PENDING_APPROVAL: "bg-orange-100 text-orange-600",
-  EVENT_PENDING_APPROVAL: "bg-yellow-100 text-yellow-700",
+  PLAN_APPROVED: "bg-emerald-100 text-emerald-600",
+  EVENT_PENDING_APPROVAL: "bg-amber-100 text-amber-600",
   PUBLISHED: "bg-blue-100 text-blue-600",
   ONGOING: "bg-green-100 text-green-600",
   COMPLETED: "bg-indigo-100 text-indigo-600",
   CANCELLED: "bg-red-100 text-red-600",
-  DRAFT: "bg-gray-100 text-gray-600",
   REJECTED: "bg-rose-100 text-rose-600",
+  CONVERTED: "bg-slate-100 text-slate-600",
 };
 
 /* ================= MAIN ================= */
-const MyEvents = () => {
+const EventsManagement = ({ type = "lecturer" }) => {
   const navigate = useNavigate();
   const { user } = useAuth();
+
+  const isAdminMode = useMemo(() => type === "admin", [type]);
 
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -56,31 +64,27 @@ const MyEvents = () => {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [showEventCreator, setShowEventCreator] = useState(false);
   const [creatorConfig, setCreatorConfig] = useState({ initialFormData: {}, fromPlan: false });
-  const [toast, setToast] = useState({ show: false, message: "", type: "success" });
 
-  /* ===== HELPERS ===== */
-  const showToast = (message, type = "success") => {
-    setToast({ show: true, message, type });
-    setTimeout(() => setToast((prev) => ({ ...prev, show: false })), 3000);
-  };
 
   /* ===== FETCH ===== */
-  const fetchMyEvents = useCallback(async () => {
+  const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await eventService.getMyEvents();
+      const res = isAdminMode
+        ? await eventService.getAdminAllEvents()
+        : await eventService.getMyEvents();
       setEvents(res.data || []);
     } catch (err) {
       console.error(err);
-      showToast("Lỗi tải dữ liệu", "error");
+      toast.error("Lỗi tải dữ liệu");
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [isAdminMode]);
 
   useEffect(() => {
-    fetchMyEvents();
-  }, [fetchMyEvents]);
+    fetchData();
+  }, [fetchData]);
 
   /* ===== STATISTICS ===== */
   const stats = useMemo(() => {
@@ -101,14 +105,15 @@ const MyEvents = () => {
         e.location?.toLowerCase().includes(search.toLowerCase())
       )
       .filter(e => {
-        if (statusFilter !== "ALL") return e.status === statusFilter;
-
-        if (activeTab === "Sắp tới") return ["PUBLISHED", "EVENT_PENDING_APPROVAL", "PLAN_PENDING_APPROVAL"].includes(e.status);
-        if (activeTab === "Đang diễn ra") return e.status === "ONGOING";
+        if (activeTab === "Tất cả") {
+          if (statusFilter !== "ALL") return e.status === statusFilter;
+          return true;
+        }
+        if (activeTab === "Chờ duyệt") return ["PLAN_PENDING_APPROVAL", "EVENT_PENDING_APPROVAL"].includes(e.status);
+        if (activeTab === "Kế hoạch") return ["PLAN_APPROVED", "DRAFT", "REJECTED"].includes(e.status);
+        if (activeTab === "Công bố") return ["PUBLISHED", "ONGOING"].includes(e.status);
         if (activeTab === "Hoàn thành") return e.status === "COMPLETED";
         if (activeTab === "Đã hủy") return e.status === "CANCELLED";
-        if (activeTab === "Chờ duyệt") return ["PLAN_PENDING_APPROVAL", "EVENT_PENDING_APPROVAL"].includes(e.status);
-
         return true;
       });
   }, [events, search, statusFilter, activeTab]);
@@ -125,18 +130,19 @@ const MyEvents = () => {
     exportEventsToExcel(filteredEvents);
   };
 
+  // Lecturer Actions
   const handleSubmitForApproval = async (id, title) => {
     setSubmittingId(id);
     try {
       await eventService.submitPlanForApproval(id);
       await notificationService.sendNotification({
-        userProfileId: user?.accountId,
+        userProfileId: user?.accountId || user?.id,
         title: "Gửi phê duyệt thành công",
         message: `Sự kiện "${title}" đã được gửi tới Quản trị viên.`,
         type: "SYSTEM"
       });
-      showToast("Đã gửi yêu cầu phê duyệt thành công");
-      fetchMyEvents();
+      // toast.success removed - handled by WebSocket notification
+      fetchData();
     } catch (error) {
       showToast("Gửi phê duyệt thất bại", "error");
     } finally {
@@ -148,8 +154,6 @@ const MyEvents = () => {
     if (!window.confirm("Bạn có chắc chắn muốn xóa sự kiện này?")) return;
     try {
       await eventService.deleteEvent(id);
-      showToast("Xóa sự kiện thành công");
-      fetchMyEvents();
     } catch (error) {
       showToast("Lỗi khi xóa sự kiện", "error");
     }
@@ -159,8 +163,8 @@ const MyEvents = () => {
     if (!window.confirm("Bạn có chắc chắn muốn hủy sự kiện này?")) return;
     try {
       await eventService.cancelEvent(id);
-      showToast("Hủy sự kiện thành công");
-      fetchMyEvents();
+      // toast.success removed - handled by WebSocket notification
+      fetchData();
     } catch (error) {
       showToast("Lỗi khi hủy sự kiện", "error");
     }
@@ -172,6 +176,53 @@ const MyEvents = () => {
       fromPlan: event.status.includes("PLAN")
     });
     setShowEventCreator(true);
+  };
+
+  const handleStatusUpdate = async (id, newStatus) => {
+    if (!isAdminMode) return;
+
+    // Optimistic Update
+    const oldEvents = [...events];
+    const currentEvent = oldEvents.find(e => e.id === id);
+    if (!currentEvent) return;
+
+    setEvents(prev => prev.map(e => e.id === id ? { ...e, status: newStatus } : e));
+
+    try {
+      // Sử dụng các API chuyên biệt nếu có để kích hoạt logic nghiệp vụ (thông báo, v.v.)
+      switch (newStatus) {
+        case "PLAN_APPROVED":
+          await eventService.approvePlan(id);
+          break;
+        case "PUBLISHED":
+          await eventService.approveEvent(id);
+          break;
+        case "REJECTED":
+          const rejectReason = prompt("Lý do từ chối:", "Cập nhật bởi Admin");
+          if (!rejectReason) {
+            setEvents(oldEvents);
+            return;
+          }
+          await eventService.rejectPlan(id, rejectReason);
+          break;
+        case "CANCELLED":
+          const cancelReason = prompt("Lý do hủy:", "Cập nhật bởi Admin");
+          if (!cancelReason) {
+            setEvents(oldEvents);
+            return;
+          }
+          await eventService.cancelEvent(id, cancelReason);
+          break;
+        default:
+          await eventService.updateEvent(id, { ...currentEvent, status: newStatus });
+      }
+
+      showToast(`Cập nhật trạng thái thành công: ${STATUS_LABELS[newStatus]}`, "success");
+      fetchData();
+    } catch (err) {
+      setEvents(oldEvents); // Rollback
+      showToast("Không thể cập nhật trạng thái", "error");
+    }
   };
 
   /* ===== MODAL HANDLERS ===== */
@@ -191,32 +242,20 @@ const MyEvents = () => {
   };
 
   if (showEventCreator) {
-    return <EventCreator onBack={() => { setShowEventCreator(false); fetchMyEvents(); }} initialData={creatorConfig.initialFormData} fromPlan={creatorConfig.fromPlan} />;
+    return <EventCreator onBack={() => { setShowEventCreator(false); fetchData(); }} initialData={creatorConfig.initialFormData} fromPlan={creatorConfig.fromPlan} />;
   }
 
   return (
     <div className="p-6 bg-slate-50 min-h-screen">
-      {/* TOAST */}
-      <AnimatePresence>
-        {toast.show && (
-          <motion.div
-            initial={{ opacity: 0, y: -20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -20 }}
-            className={`fixed top-6 right-6 z-[100] flex items-center gap-3 px-5 py-4 rounded-2xl shadow-2xl border bg-white ${toast.type === "success" ? "border-emerald-100" : "border-rose-100"}`}
-          >
-            {toast.type === "success" ? <CheckCircle2 className="text-emerald-500" size={24} /> : <AlertCircle className="text-rose-500" size={24} />}
-            <p className={`text-sm font-bold ${toast.type === "success" ? "text-emerald-800" : "text-rose-800"}`}>{toast.message}</p>
-            <X size={16} className="ml-4 cursor-pointer text-slate-400" onClick={() => setToast({ ...toast, show: false })} />
-          </motion.div>
-        )}
-      </AnimatePresence>
+      {/* TOAST removed in favor of global showToast */}
 
       {/* HEADER */}
       <div className="flex justify-between items-center mb-6">
         <div className="flex items-center gap-3">
           <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center text-white font-bold">©</div>
-          <h1 className="text-2xl font-semibold text-slate-800">Sự kiện của tôi</h1>
+          <h1 className="text-2xl font-semibold text-slate-800">
+            {isAdminMode ? "Quản lý sự kiện hệ thống" : "Sự kiện của tôi"}
+          </h1>
         </div>
 
         <div className="flex gap-3">
@@ -291,17 +330,31 @@ const MyEvents = () => {
       </div>
 
       {/* TABS */}
-      <div className="flex border-b mb-6 overflow-x-auto pb-1">
-        {["Tất cả", "Sắp tới", "Đang diễn ra", "Hoàn thành", "Đã hủy", "Chờ duyệt"].map((tab) => (
+      <div className="flex border-b border-slate-200 mb-6 overflow-x-auto pb-1 gap-2 no-scrollbar">
+        {[
+          { id: "Tất cả", label: "Tất cả", icon: Calendar, count: events.length },
+          { id: "Chờ duyệt", label: "Chờ duyệt", icon: AlertCircle, count: events.filter(e => ["PLAN_PENDING_APPROVAL", "EVENT_PENDING_APPROVAL"].includes(e.status)).length },
+          { id: "Kế hoạch", label: "Kế hoạch", icon: FileText, count: events.filter(e => ["PLAN_APPROVED", "DRAFT", "REJECTED"].includes(e.status)).length },
+          { id: "Công bố", label: "Công bố", icon: Clock, count: events.filter(e => ["PUBLISHED", "ONGOING"].includes(e.status)).length },
+          { id: "Hoàn thành", label: "Hoàn thành", icon: CheckCircle2, count: events.filter(e => e.status === "COMPLETED").length },
+          { id: "Đã hủy", label: "Đã hủy", icon: XCircle, count: events.filter(e => e.status === "CANCELLED").length },
+        ].map((tab) => (
           <button
-            key={tab}
-            onClick={() => { setActiveTab(tab); setPage(1); }}
-            className={`px-6 py-3 text-sm font-medium whitespace-nowrap border-b-2 transition-all ${activeTab === tab
-              ? "border-blue-600 text-blue-600"
-              : "border-transparent text-gray-600 hover:text-gray-900"
+            key={tab.id}
+            onClick={() => { setActiveTab(tab.id); setPage(1); }}
+            className={`flex items-center gap-2 px-6 py-3 text-sm font-bold whitespace-nowrap border-b-2 transition-all ${activeTab === tab.id
+              ? "border-blue-600 text-blue-600 bg-blue-50/50"
+              : "border-transparent text-gray-500 hover:text-gray-900 hover:bg-gray-50/50"
               }`}
           >
-            {tab}
+            <tab.icon size={16} />
+            {tab.label}
+            {tab.count > 0 && (
+              <span className={`px-2 py-0.5 rounded-full text-[10px] font-black ${activeTab === tab.id ? "bg-blue-600 text-white" : "bg-gray-100 text-gray-500"
+                }`}>
+                {tab.count}
+              </span>
+            )}
           </button>
         ))}
       </div>
@@ -370,55 +423,111 @@ const MyEvents = () => {
                       {new Date(e.startTime).toLocaleDateString('vi-VN')}
                     </td>
                     <td className="p-4">
-                      <span className={`inline-block px-3 py-1 rounded-full text-xs font-medium ${STATUS_COLOR[e.status] || "bg-gray-100 text-gray-600"}`}>
-                        {STATUS_LABELS[e.status] || e.status}
-                      </span>
+                      {isAdminMode ? (
+                        <div className="relative group">
+                          <select
+                            value={e.status}
+                            onChange={(val) => handleStatusUpdate(e.id, val.target.value)}
+                            className={`w-full px-3 py-1.5 rounded-full text-[10px] font-black uppercase border border-gray-200 cursor-pointer transition-all shadow-sm outline-none focus:ring-2 focus:ring-blue-500/20 ${STATUS_COLOR[e.status] || "bg-gray-100 text-gray-600"}`}
+                            style={{ appearance: 'auto' }}
+                          >
+                            {Object.entries(STATUS_LABELS).map(([key, label]) => (
+                              <option key={key} value={key} className="bg-white text-slate-800 font-bold py-2 normal-case">
+                                {label}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                      ) : (
+                        <span className={`inline-block px-3 py-1 rounded-full text-[10px] font-black uppercase ${STATUS_COLOR[e.status] || "bg-gray-100 text-gray-600"}`}>
+                          {STATUS_LABELS[e.status] || e.status}
+                        </span>
+                      )}
                     </td>
                     <td className="p-4">
                       <div className="flex justify-center gap-1.5">
                         <button
-                          onClick={() => navigate(`/lecturer/events/${e.id}`)}
+                          onClick={() => navigate(isAdminMode ? `/admin/events/${e.id}` : `/lecturer/events/${e.id}`)}
                           className="p-2 hover:bg-gray-100 rounded-lg text-gray-600 hover:text-blue-600 transition-all"
                           title="Xem chi tiết"
                         >
                           <Eye size={18} />
                         </button>
 
-                        {(e.status === "DRAFT" || e.status === "REJECTED") && (
+                        {/* ACTIONS FOR ADMIN */}
+                        {isAdminMode && (
                           <>
-                            <button
-                              onClick={() => handleEdit(e)}
-                              className="p-2 hover:bg-amber-100 rounded-lg text-amber-600 transition-all"
-                              title="Chỉnh sửa"
-                            >
-                              <Edit2 size={18} />
-                            </button>
-                            <button
-                              onClick={() => handleSubmitForApproval(e.id, e.title)}
-                              className="p-2 hover:bg-emerald-100 rounded-lg text-emerald-600 transition-all"
-                              title="Gửi phê duyệt"
-                              disabled={submittingId === e.id}
-                            >
-                              {submittingId === e.id ? <Loader2 size={18} className="animate-spin" /> : <Send size={18} />}
-                            </button>
-                            <button
-                              onClick={() => handleDelete(e.id)}
-                              className="p-2 hover:bg-red-100 rounded-lg text-red-600 transition-all"
-                              title="Xóa"
-                            >
-                              <Trash2 size={18} />
-                            </button>
+                            {e.status === "PLAN_PENDING_APPROVAL" && (
+                              <>
+                                <button
+                                  onClick={() => handleStatusUpdate(e.id, "PLAN_APPROVED")}
+                                  className="p-2 hover:bg-green-100 rounded-lg text-green-600 transition-all"
+                                  title="Duyệt kế hoạch"
+                                >
+                                  <CheckCircle size={18} />
+                                </button>
+                                <button
+                                  onClick={() => handleStatusUpdate(e.id, "REJECTED")}
+                                  className="p-2 hover:bg-red-100 rounded-lg text-red-600 transition-all"
+                                  title="Từ chối"
+                                >
+                                  <XCircle size={18} />
+                                </button>
+                              </>
+                            )}
+
+                            {e.status === "EVENT_PENDING_APPROVAL" && (
+                              <button
+                                onClick={() => handleStatusUpdate(e.id, "PUBLISHED")}
+                                className="p-2 hover:bg-blue-100 rounded-lg text-blue-600 transition-all"
+                                title="Duyệt sự kiện"
+                              >
+                                <CheckCircle size={18} />
+                              </button>
+                            )}
                           </>
                         )}
 
-                        {(e.status === "PUBLISHED" || e.status === "ONGOING") && (
-                          <button
-                            onClick={() => handleCancel(e.id)}
-                            className="p-2 hover:bg-red-100 rounded-lg text-red-600 transition-all"
-                            title="Hủy sự kiện"
-                          >
-                            <XCircle size={18} />
-                          </button>
+                        {/* ACTIONS FOR LECTURER */}
+                        {!isAdminMode && (
+                          <>
+                            {(e.status === "DRAFT" || e.status === "REJECTED") && (
+                              <>
+                                <button
+                                  onClick={() => handleEdit(e)}
+                                  className="p-2 hover:bg-amber-100 rounded-lg text-amber-600 transition-all"
+                                  title="Chỉnh sửa"
+                                >
+                                  <Edit2 size={18} />
+                                </button>
+                                <button
+                                  onClick={() => handleSubmitForApproval(e.id, e.title)}
+                                  className="p-2 hover:bg-emerald-100 rounded-lg text-emerald-600 transition-all"
+                                  title="Gửi phê duyệt"
+                                  disabled={submittingId === e.id}
+                                >
+                                  {submittingId === e.id ? <Loader2 size={18} className="animate-spin" /> : <Send size={18} />}
+                                </button>
+                                <button
+                                  onClick={() => handleDelete(e.id)}
+                                  className="p-2 hover:bg-red-100 rounded-lg text-red-600 transition-all"
+                                  title="Xóa"
+                                >
+                                  <Trash2 size={18} />
+                                </button>
+                              </>
+                            )}
+
+                            {(e.status === "PUBLISHED" || e.status === "ONGOING") && (
+                              <button
+                                onClick={() => handleCancel(e.id)}
+                                className="p-2 hover:bg-red-100 rounded-lg text-red-600 transition-all"
+                                title="Hủy sự kiện"
+                              >
+                                <XCircle size={18} />
+                              </button>
+                            )}
+                          </>
                         )}
                       </div>
                     </td>
@@ -481,4 +590,4 @@ const MyEvents = () => {
   );
 };
 
-export default MyEvents;
+export default EventsManagement;

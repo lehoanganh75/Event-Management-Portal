@@ -8,7 +8,7 @@ import {
 import notificationService from "../../services/notificationService";
 import { motion, AnimatePresence } from "framer-motion";
 
-const AdminNotifications = () => {
+const AdminNotificationsPage = () => {
   const navigate = useNavigate();
   const [notifications, setNotifications] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -514,4 +514,16 @@ const AdminNotifications = () => {
   );
 };
 
-export default AdminNotifications;
+const formatType = (type) => {
+  switch (type) {
+    case "SYSTEM": return "Hệ thống";
+    case "EVENT_APPROVED": return "Duyệt sự kiện";
+    case "EVENT_REJECTED": return "Từ chối sự kiện";
+    case "REGISTRATION_CONFIRMED": return "Xác nhận đăng ký";
+    case "CHECKIN_REMINDER": return "Nhắc nhở Check-in";
+    case "PROMOTION": return "Khuyến mãi";
+    default: return type;
+  }
+};
+
+export default AdminNotificationsPage;

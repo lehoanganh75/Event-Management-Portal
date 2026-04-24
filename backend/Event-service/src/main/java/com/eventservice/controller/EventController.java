@@ -1,7 +1,9 @@
 package com.eventservice.controller;
 
+import com.eventservice.dto.CreateEventRequest;
 import com.eventservice.dto.PlanCreateRequest;
 import com.eventservice.dto.PlanResponseDto;
+import com.eventservice.entity.*;
 import com.eventservice.entity.enums.OrganizerRole;
 import com.eventservice.entity.enums.ParticipationStatus;
 import com.eventservice.service.EventOrganizerService;
@@ -17,16 +19,14 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.*;
-import com.eventservice.entity.Event;
-import com.eventservice.entity.EventOrganizer;
-import com.eventservice.entity.EventParticipant;
-import com.eventservice.entity.EventPresenter;
 import com.eventservice.entity.enums.EventStatus;
 import com.eventservice.entity.enums.EventType;
 import com.eventservice.repository.OrganizationRepository;
 import com.eventservice.repository.EventTemplateRepository;
-import com.eventservice.entity.Organization;
-import com.eventservice.entity.EventTemplate;
+import com.eventservice.service.S3Service;
+import org.springframework.web.multipart.MultipartFile;
+import org.springframework.web.server.ResponseStatusException;
+import org.springframework.http.MediaType;
 
 import java.util.*;
 import java.util.stream.Collectors;
@@ -48,6 +48,7 @@ public class EventController {
     private final EventOrganizerService organizerService;
     private final OrganizationRepository organizationRepository;
     private final EventTemplateRepository templateRepository;
+    private final S3Service s3Service;
 
     // --- 1. NHÓM CÔNG KHAI (DÀNH CHO USER & GUEST) ---
 
@@ -84,6 +85,14 @@ public class EventController {
         return ResponseEntity.ok(eventService.findEventsForAdmin());
     }
 
+    @GetMapping("/by-statuses")
+    public ResponseEntity<List<Event>> getEventsByStatuses(
+            @RequestParam List<String> statuses,
+            @AuthenticationPrincipal Jwt jwt) {
+        String accountId = (jwt != null) ? jwt.getSubject() : null;
+        return ResponseEntity.ok(eventService.getEventsByStatuses(statuses, accountId));
+    }
+
     // --- 3. NHÓM CÁ NHÂN HÓA (DÀNH CHO TRANG CÁ NHÂN) ---
     @GetMapping("/my-events")
     public ResponseEntity<List<Event>> getMyEvents(
@@ -95,19 +104,19 @@ public class EventController {
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<Optional<Event>> getEventById(
+    public ResponseEntity<Event> getEventById(
             @PathVariable String id,
-            @AuthenticationPrincipal Jwt jwt
-    ) {
+            @AuthenticationPrincipal Jwt jwt) {
         String accountId = (jwt != null) ? jwt.getSubject() : null;
         return ResponseEntity.ok(eventService.getEventById(id, accountId));
     }
 
     @PutMapping("/{eventId}/lucky-draw")
     public ResponseEntity<?> updateLuckyDrawId(
-            @PathVariable String eventId) {
+            @PathVariable String eventId,
+            @RequestParam(required = false, defaultValue = "true") boolean hasLuckyDraw) {
 
-        eventService.updateLuckyDrawId(eventId);
+        eventService.updateLuckyDrawId(eventId, hasLuckyDraw);
         return ResponseEntity.ok().build();
     }
 
@@ -173,7 +182,7 @@ public class EventController {
                         .map(Organization::getId)
                         .orElse(null);
             }
-            
+
             if (orgId != null) {
                 organizationRepository.findById(orgId).ifPresent(event::setOrganization);
             }
@@ -190,10 +199,11 @@ public class EventController {
             event.setTitle(title);
 
             event.setDescription(request.getDescription());
+            event.setCoverImage(request.getCoverImage());
             event.setEventTopic(request.getEventTopic());
             event.setLocation(request.getLocation());
             event.setEventMode(request.getEventMode());
-            
+
             // Safe Enum mapping
             try {
                 event.setType(EventType.valueOf(request.getType().toUpperCase()));
@@ -205,16 +215,11 @@ public class EventController {
             event.setEndTime(request.getEndTime());
             event.setRegistrationDeadline(request.getRegistrationDeadline());
             event.setMaxParticipants(request.getMaxParticipants());
-            event.setFinalized(request.isFinalized());
-            event.setArchived(request.isArchived());
             event.setRecipients(request.getRecipients());
             event.setNotes(request.getNotes());
             event.setCustomFieldsJson(request.getCustomFieldsJson());
             event.setCreatedByAccountId(request.getCreatedByAccountId());
-            
-            // Map faculty and major
-            event.setFaculty(request.getFaculty());
-            event.setMajor(request.getMajor());
+
             event.setTargetObjects(request.getTargetObjects());
 
             if (request.getPresenters() != null) {
@@ -224,9 +229,7 @@ public class EventController {
                             EventPresenter p = new EventPresenter();
                             p.setFullName(dto.getFullName());
                             p.setEmail(dto.getEmail());
-                            p.setPosition(dto.getPosition());
-                            p.setDepartment(dto.getDepartment());
-                            p.setSession(dto.getSession());
+                            p.setTargetSessionName(dto.getSession());
                             return p;
                         })
                         .collect(Collectors.toSet());
@@ -240,8 +243,7 @@ public class EventController {
                             EventOrganizer o = new EventOrganizer();
                             o.setFullName(dto.getFullName());
                             o.setEmail(dto.getEmail());
-                            o.setPosition(dto.getPosition());
-                            
+
                             // Safe role mapping
                             try {
                                 String roleStr = dto.getRole();
@@ -253,10 +255,16 @@ public class EventController {
                             } catch (Exception e) {
                                 o.setRole(OrganizerRole.MEMBER);
                             }
-                            
+
                             return o;
                         })
                         .collect(Collectors.toSet());
+
+                // Gán organization cho từng organizer
+                if (event.getOrganization() != null) {
+                    organizers.forEach(o -> o.setOrganization(event.getOrganization()));
+                }
+
                 event.setOrganizers(organizers);
             }
 
@@ -330,7 +338,7 @@ public class EventController {
 
     @PatchMapping("/admin/plans/{id}/approve")
     public ResponseEntity<?> approvePlan(@PathVariable String id,
-                                         @AuthenticationPrincipal Jwt jwt) {
+            @AuthenticationPrincipal Jwt jwt) {
         try {
             String approverId = jwt.getSubject();
             Event approved = eventService.approvePlan(id, approverId);
@@ -343,8 +351,8 @@ public class EventController {
 
     @PatchMapping("/admin/plans/{id}/reject")
     public ResponseEntity<?> rejectPlan(@PathVariable String id,
-                                        @RequestParam(required = false) String reason,
-                                        @AuthenticationPrincipal Jwt jwt) {
+            @RequestParam(required = false) String reason,
+            @AuthenticationPrincipal Jwt jwt) {
         try {
             String approverId = jwt.getSubject();
             Event rejected = eventService.rejectPlan(id, approverId, reason);
@@ -357,7 +365,7 @@ public class EventController {
 
     @PatchMapping("/admin/events/{id}/approve")
     public ResponseEntity<?> approveEvent(@PathVariable String id,
-                                          @AuthenticationPrincipal Jwt jwt) {
+            @AuthenticationPrincipal Jwt jwt) {
         try {
             String approverId = jwt.getSubject();
             Event approved = eventService.approveEvent(id, approverId);
@@ -370,8 +378,8 @@ public class EventController {
 
     @PatchMapping("/admin/events/{id}/reject")
     public ResponseEntity<?> rejectEvent(@PathVariable String id,
-                                         @RequestParam(required = false) String reason,
-                                         @AuthenticationPrincipal Jwt jwt) {
+            @RequestParam(required = false) String reason,
+            @AuthenticationPrincipal Jwt jwt) {
         try {
             String approverId = jwt.getSubject();
             Event rejected = eventService.rejectEvent(id, approverId, reason);
@@ -384,8 +392,8 @@ public class EventController {
 
     @PostMapping("/plans/{planId}/create-event")
     public ResponseEntity<?> createEventFromPlan(@PathVariable String planId,
-                                                 @RequestBody Event eventDetails,
-                                                 @AuthenticationPrincipal Jwt jwt) {
+            @RequestBody Event eventDetails,
+            @AuthenticationPrincipal Jwt jwt) {
         try {
             String accountId = jwt.getSubject();
             eventDetails.setCreatedByAccountId(accountId);
@@ -421,7 +429,7 @@ public class EventController {
 
     @PatchMapping("/{id}/cancel")
     public ResponseEntity<?> cancelEvent(@PathVariable String id,
-                                         @RequestParam(required = false) String reason) {
+            @RequestParam(required = false) String reason) {
         try {
             Event event = eventService.cancelEvent(id, reason);
             return ResponseEntity.ok(event);
@@ -431,15 +439,50 @@ public class EventController {
         }
     }
 
-    @PostMapping
-    public ResponseEntity<Event> createEvent(@Valid @RequestBody Event event) {
-        Event saved = eventService.createEvent(event);
-        return new ResponseEntity<>(saved, HttpStatus.CREATED);
+    @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<Event> createEvent(
+            @RequestPart("request") CreateEventRequest request,
+            @RequestPart(value = "file", required = false) MultipartFile file,
+            @AuthenticationPrincipal Jwt jwt) {
+        Event event = request.getEvent();
+
+        if (event == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Event null");
+        }
+
+        event.setCreatedByAccountId(jwt.getSubject());
+
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(eventService.createEvent(event, request.getOrganizerIds(), request.getPresenterIds(),
+                        request.getInvitations(), file));
+    }
+
+    @PostMapping(consumes = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<Event> createEvent(
+            @RequestBody CreateEventRequest request,
+            @AuthenticationPrincipal Jwt jwt) {
+        Event event = request.getEvent();
+
+        if (event == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Event null");
+        }
+
+        event.setCreatedByAccountId(jwt.getSubject());
+
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(eventService.createEvent(event, request.getOrganizerIds(), request.getPresenterIds(),
+                        request.getInvitations(), null));
+    }
+
+    @PostMapping("/upload-image")
+    public ResponseEntity<Map<String, String>> uploadImage(@RequestParam("file") MultipartFile file) {
+        String url = s3Service.uploadFile(file);
+        return ResponseEntity.ok(Map.of("url", url));
     }
 
     @PutMapping("/update/{id}")
     public ResponseEntity<Event> updateEvent(@PathVariable String id,
-                                             @Valid @RequestBody Event eventDetails) {
+            @Valid @RequestBody Event eventDetails) {
         Event updated = eventService.updateEvent(id, eventDetails);
         return ResponseEntity.ok(updated);
     }
@@ -522,14 +565,15 @@ public class EventController {
         return ResponseEntity.ok(participantService.countParticipantsByEventId(eventId));
     }
 
-    @GetMapping("/{eventId}/participants/status/{status}")
-    public ResponseEntity<List<EventParticipant>> getParticipantsByStatus(
-            @PathVariable String eventId,
-            @PathVariable String status) {
-        ParticipationStatus participationStatus =
-                ParticipationStatus.valueOf(status.toUpperCase());
-        return ResponseEntity.ok(participantService.getParticipantsByStatus(eventId, participationStatus));
-    }
+    // @GetMapping("/{eventId}/participants/status/{status}")
+    // public ResponseEntity<List<EventParticipant>> getParticipantsByStatus(
+    // @PathVariable String eventId,
+    // @PathVariable String status) {
+    // ParticipationStatus participationStatus =
+    // ParticipationStatus.valueOf(status.toUpperCase());
+    // return ResponseEntity.ok(participantService.getParticipantsByStatus(eventId,
+    // participationStatus));
+    // }
 
     @GetMapping("/{eventId}/organizers")
     public ResponseEntity<List<EventOrganizer>> getOrganizers(@PathVariable String eventId) {
@@ -554,23 +598,36 @@ public class EventController {
     public ResponseEntity<EventOrganizer> updateOrganizerRole(
             @PathVariable String organizerId,
             @RequestParam String role) {
-        OrganizerRole organizerRole =
-                OrganizerRole.valueOf(role.toUpperCase());
+        OrganizerRole organizerRole = OrganizerRole.valueOf(role.toUpperCase());
         return ResponseEntity.ok(organizerService.updateOrganizerRole(organizerId, organizerRole));
     }
 
     @PostMapping("/{eventId}/invite")
     public ResponseEntity<Map<String, String>> inviteParticipants(
             @PathVariable String eventId,
-            @RequestBody List<String> inviteeIds,
-            @AuthenticationPrincipal Jwt jwt
-    ) {
+            @RequestBody com.eventservice.dto.InvitationBatchRequest request,
+            @AuthenticationPrincipal Jwt jwt) {
         String organizerId = jwt.getSubject();
-        Map<String, String> response = eventService.invitateParticipants(eventId, organizerId, inviteeIds);
+        Map<String, String> response = eventService.invitateParticipants(eventId, organizerId, request);
         return ResponseEntity.ok(response);
     }
 
-    @GetMapping("/{eventId}/accept-invite")
+    @GetMapping("/{eventId}/invitations")
+    public ResponseEntity<EventInvitation> getInvitationDetails(
+            @PathVariable String eventId,
+            @RequestParam String token) {
+        return ResponseEntity.ok(eventService.getInvitationByToken(eventId, token));
+    }
+
+    @PostMapping("/{eventId}/reject-invite")
+    public ResponseEntity<Map<String, String>> rejectInvite(
+            @PathVariable String eventId,
+            @RequestParam String token,
+            @RequestParam(required = false) String reason) {
+        return ResponseEntity.ok(eventService.rejectInvite(eventId, token, reason));
+    }
+
+    @PostMapping("/{eventId}/accept-invite")
     public ResponseEntity<Map<String, String>> acceptInvite(
             @PathVariable String eventId,
             @RequestParam String token) {
@@ -578,5 +635,23 @@ public class EventController {
         log.info("Xác nhận lời mời cho sự kiện: {} với token: {}", eventId, token);
         Map<String, String> response = eventService.acceptInvite(eventId, token);
         return ResponseEntity.ok(response);
+    }
+
+    @PostMapping("/{eventId}/organizer-invitations")
+    @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
+    public ResponseEntity<Void> sendOrganizerInvitations(
+            @PathVariable String eventId,
+            @RequestBody Map<String, List<Map<String, Object>>> request) {
+        eventService.sendOrganizerInvitations(eventId, request.get("invitations"));
+        return ResponseEntity.ok().build();
+    }
+
+    @PostMapping("/{eventId}/presenter-invitations")
+    @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
+    public ResponseEntity<Void> sendPresenterInvitations(
+            @PathVariable String eventId,
+            @RequestBody Map<String, List<Map<String, Object>>> request) {
+        eventService.sendPresenterInvitations(eventId, request.get("invitations"));
+        return ResponseEntity.ok().build();
     }
 }

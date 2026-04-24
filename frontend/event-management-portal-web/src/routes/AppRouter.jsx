@@ -2,48 +2,56 @@ import React from "react";
 import { Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { AnimatePresence } from "framer-motion";
 
-// Import các trang chung (Public)
+// Public Pages
 import VangLaiPage from "../pages/public/VangLaiPage";
 import LoginPage from "../pages/auth/LoginPage";
 import RegisterPage from "../pages/auth/RegisterPage";
 import NotFoundPage from "../pages/public/NotFoundPage";
 import EventDetail from "../pages/public/EventDetailPage";
 import EventsPage from "../pages/public/EventsPage";
-
-import LecturerLayout from "../components/layout/LecturerLayout";
+import InvitationAcceptancePage from "../pages/public/InvitationAcceptancePage";
 import AttendancePage from "../pages/public/AttendancePage";
-
-import EventsManagementPage from "../pages/common/EventsManagementPage";
-import ProfileUser from "../pages/lecturer/ProfileUser";
-import PlansPage from "../pages/lecturer/ManagePlans";
-import QuestionReviewPage from "../pages/lecturer/QuestionReviewPage";
-import PollManagerPage from "../pages/lecturer/PollManagerPage";
-import MyEventsPage from "../pages/user/MyEventsPage";
-import DashboardLecture from "../pages/lecturer/Dashboard";
-import ResetPassword from "../pages/auth/ResetPassword";
-
-import ManagePosts from "../pages/lecturer/ManagePosts";
-import PostForm from "../components/posts/PostForm";
-import { EventCreator } from "../pages/admin/EventCreatorPage";
-import AdminLayout from "../components/layout/AdminLayout";
-import Dashboard from "../pages/admin/Dashboard";
-import SpinnerManagement from "../pages/admin/SpinnerManagement";
-import UserProfile from "../pages/user/UserProfile";
-import ForgotPassword from "../pages/auth/ForgotPassword";
-import AccountsPage from "../pages/admin/AccountsPage";
-import DepartmentsRolesPage from "../pages/admin/DepartmentsRolesPage";
-import PlansAdminPage from "../pages/admin/PlansPage";
-import TemplatesAdminPage from "../pages/admin/TemplatesPage";
-import AdminPostManagement from "../pages/admin/AdminPostManagement";
-
-import NotificationUserPage from "../pages/user/NotificationPage";
-import AdminNotifications from "../pages/admin/AdminNotifications";
-import NotificationsPage from "../pages/lecturer/NotificationsPage";
-import EventDetailPage from "../pages/admin/AdminEventDetailPage";
-import PostDetail from "../pages/admin/AdminPostDetailPage";
 import NewsPage from "../pages/public/NewsPage";
 import EventPostList from "../pages/public/EventPostList";
 import CalendarPage from "../pages/public/CalendarPage";
+import ResetPassword from "../pages/auth/ResetPassword";
+import ForgotPassword from "../pages/auth/ForgotPassword";
+
+// Layouts
+import LecturerLayout from "../components/layout/LecturerLayout";
+import AdminLayout from "../components/layout/AdminLayout";
+
+// User Pages
+import UserProfile from "../pages/user/UserProfile";
+import MyEventsPage from "../pages/user/MyEventsPage";
+import NotificationUserPage from "../pages/user/NotificationPage";
+
+// Lecturer Pages
+import LecturerDashboard from "../pages/lecturer/LecturerDashboard";
+import LecturerEventsPage from "../pages/lecturer/LecturerEventsPage";
+import LecturerEventDetailPage from "../pages/lecturer/LecturerEventDetailPage";
+import LecturerPostManagement from "../pages/lecturer/LecturerPostManagement";
+import LecturerPostDetailPage from "../pages/lecturer/LecturerPostDetailPage";
+import LecturerNotificationsPage from "../pages/lecturer/LecturerNotificationsPage";
+import LecturerPlansPage from "../pages/lecturer/LecturerPlansPage";
+import LecturerProfilePage from "../pages/lecturer/LecturerProfilePage";
+import LecturerPollManagement from "../pages/lecturer/LecturerPollManagement";
+import LecturerQuestionManagement from "../pages/lecturer/LecturerQuestionManagement";
+import PostForm from "../components/posts/PostForm";
+
+// Admin Pages
+import AdminDashboard from "../pages/admin/AdminDashboard";
+import AdminEventsPage from "../pages/admin/AdminEventsPage";
+import AdminEventDetailPage from "../pages/admin/AdminEventDetailPage";
+import { EventCreator as AdminEventCreatorPage } from "../pages/admin/AdminEventCreatorPage";
+import AdminPostManagement from "../pages/admin/AdminPostManagement";
+import AdminPostDetailPage from "../pages/admin/AdminPostDetailPage";
+import AdminNotificationsPage from "../pages/admin/AdminNotificationsPage";
+import AdminLuckyDrawManagement from "../pages/admin/AdminLuckyDrawManagement";
+import AdminPlansPage from "../pages/admin/AdminPlansPage";
+import AdminTemplatesPage from "../pages/admin/AdminTemplatesPage";
+import AdminDepartmentsRolesPage from "../pages/admin/AdminDepartmentsRolesPage";
+import AdminAccountsPage from "../pages/admin/AdminAccountsPage";
 
 const AppRouter = () => {
   const location = useLocation();
@@ -51,6 +59,7 @@ const AppRouter = () => {
   return (
     <AnimatePresence mode="sync">
       <Routes location={location} key={location.pathname}>
+        {/* Public Routes */}
         <Route path="/" element={<VangLaiPage />} />
         <Route path="/calendar" element={<CalendarPage />} />
         <Route path="/login" element={<LoginPage />} />
@@ -58,6 +67,7 @@ const AppRouter = () => {
         <Route path="/forgot-password" element={<ForgotPassword />} />
         <Route path="/attendance" element={<AttendancePage />} />
         <Route path="/events" element={<EventsPage />} />
+        <Route path="/invitation/accept" element={<InvitationAcceptancePage />} />
         <Route path="/events/:eventId" element={<EventDetail />} />
         <Route path="/userprofile" element={<UserProfile />} />
         <Route path="/my-events" element={<MyEventsPage />} />
@@ -67,46 +77,45 @@ const AppRouter = () => {
         <Route path="/news" element={<NewsPage />} />
         <Route path="/news/:eventId" element={<EventPostList />} />
 
+        {/* Lecturer Routes */}
         <Route path="/lecturer" element={<LecturerLayout />}>
-          <Route index element={<Navigate to="events/dashboard" replace />} />
+          <Route index element={<Navigate to="dashboard" replace />} />
+          <Route path="dashboard" element={<LecturerDashboard />} />
 
-          {/* Events Routes */}
-          <Route path="events">
-            <Route path="dashboard" element={<DashboardLecture />} />
-            <Route path="my-events" element={<EventsManagementPage />} />
-            <Route path=":id" element={<EventDetail />} />
-            <Route path="questions" element={<QuestionReviewPage />} />
-            <Route path="polls" element={<PollManagerPage />} />
-          </Route>
+          <Route path="events" element={<LecturerEventsPage />} />
+          <Route path="events/:id" element={<LecturerEventDetailPage />} />
+          <Route path="questions" element={<LecturerQuestionManagement />} />
+          <Route path="polls" element={<LecturerPollManagement />} />
 
-          <Route path="posts">
-            <Route index element={<ManagePosts />} />
-            <Route path="create" element={<PostForm />} />
-          </Route>
+          <Route path="posts" element={<LecturerPostManagement />} />
+          <Route path="posts/:id" element={<LecturerPostDetailPage />} />
+          <Route path="posts/create" element={<PostForm />} />
 
           <Route path="attendance" element={<AttendancePage />} />
-          <Route path="notifications" element={<NotificationsPage />} />
-          <Route path="plans" element={<PlansPage />} />
-          <Route path="profile" element={<ProfileUser />} />
+          <Route path="notifications" element={<LecturerNotificationsPage />} />
+          <Route path="plans" element={<LecturerPlansPage />} />
+          <Route path="profile" element={<LecturerProfilePage />} />
         </Route>
 
+        {/* Admin Routes */}
         <Route path="/admin" element={<AdminLayout />}>
-          <Route index element={<Dashboard />} />
-          <Route path="events" element={<EventsManagementPage />} />
-          <Route path="events/create" element={<EventCreator onBack={() => window.history.back()} />} />
-          <Route path="events/:id" element={<EventDetailPage />} />
+          <Route index element={<Navigate to="dashboard" replace />} />
+          <Route path="dashboard" element={<AdminDashboard />} />
+
+          <Route path="events" element={<AdminEventsPage />} />
+          <Route path="events/create" element={<AdminEventCreatorPage onBack={() => window.history.back()} />} />
+          <Route path="events/:id" element={<AdminEventDetailPage />} />
+
           <Route path="posts" element={<AdminPostManagement />} />
-          <Route path="posts/:id" element={<PostDetail />} />
-          <Route path="summaries" element={
-            <div className="p-8 text-2xl font-bold text-slate-400 text-center mt-20">Trang Quản lý bài tổng kết đang phát triển...</div>
-          } />
-          <Route path="notifications" element={<AdminNotifications />} />
-          <Route path="spinner" element={<SpinnerManagement />} />
-          <Route path="plans" element={<PlansAdminPage />} />
-          <Route path="templates" element={<TemplatesAdminPage />} />
-          <Route path="departments" element={<DepartmentsRolesPage />} />
-          <Route path="roles" element={<DepartmentsRolesPage />} />
-          <Route path="accounts" element={<AccountsPage />} />
+          <Route path="posts/:id" element={<AdminPostDetailPage />} />
+
+          <Route path="notifications" element={<AdminNotificationsPage />} />
+          <Route path="spinner" element={<AdminLuckyDrawManagement />} />
+          <Route path="plans" element={<AdminPlansPage />} />
+          <Route path="templates" element={<AdminTemplatesPage />} />
+          <Route path="departments" element={<AdminDepartmentsRolesPage />} />
+          <Route path="roles" element={<AdminDepartmentsRolesPage />} />
+          <Route path="accounts" element={<AdminAccountsPage />} />
         </Route>
 
         <Route path="*" element={<NotFoundPage />} />

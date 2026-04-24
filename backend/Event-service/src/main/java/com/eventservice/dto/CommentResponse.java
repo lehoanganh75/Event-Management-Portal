@@ -12,4 +12,5 @@ public class CommentResponse {
     private UserDto commenter; // Thông tin người bình luận
     private LocalDateTime createdAt;
     private List<CommentResponse> replies;
+    private java.util.Map<String, String> reactions;
 }

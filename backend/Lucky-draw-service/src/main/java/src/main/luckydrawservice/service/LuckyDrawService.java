@@ -14,6 +14,7 @@ public interface LuckyDrawService {
     List<LuckyDraw> getAllLuckyDraws();
 
     void deleteLuckyDrawByEventId(String eventId);
+    void deleteLuckyDraw(String id);
 
     DrawResultResponse performLuckyDraw(String luckyDrawId, String userProfileId);
     LuckyDraw updateLuckyDraw(String id, LuckyDrawCreateRequest request, String createdByAccountId);

@@ -11,35 +11,44 @@ import {
   X,
   Award,
   Check,
+  Sparkles,
+  ChevronDown,
+  Upload,
+  Building,
+  Mail,
+  Briefcase,
+  UserPlus,
+  MessageSquare,
+  Clock,
+  Timer,
+  Search,
+  UserCheck
 } from "lucide-react";
 import ImageUpload from "../common/ImageUpload.jsx";
+import eventService from "../../services/eventService";
+import authService from "../../services/authService";
 
-const Field = ({ label, icon, required, error, hint, children }) => (
+const Field = ({ label, icon: Icon, required, error, hint, action, children }) => (
   <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-    <label
-      style={{
-        display: "flex",
-        alignItems: "center",
-        gap: 6,
-        fontSize: 13,
-        fontWeight: 600,
-        color: "#111",
-      }}
-    >
-      {icon}
-      {label}
-      {required && <span style={{ color: "#ef4444", fontSize: 12 }}>*</span>}
-    </label>
+    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+      <label
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 6,
+          fontSize: 13,
+          fontWeight: 600,
+          color: "#1e293b",
+        }}
+      >
+        {Icon && <Icon size={14} className="text-slate-400" />}
+        {label} {required && <span style={{ color: "#ef4444" }}>*</span>}
+      </label>
+      {action}
+    </div>
     {children}
     {error && (
-      <p style={{ fontSize: 11, color: "#ef4444", margin: 0 }}>{error}</p>
-    )}
-    {hint && (
-      <p
-        style={{ fontSize: 11, color: "#bbb", margin: 0, fontStyle: "italic" }}
-      >
-        {hint}
-      </p>
+      <p style={{ fontSize: 12, color: "#ef4444", margin: 0, fontWeight: 500 }}>{error}</p>
     )}
   </div>
 );
@@ -53,16 +62,16 @@ const Input = ({ error, style, ...props }) => {
       onBlur={() => setFocused(false)}
       style={{
         width: "100%",
-        padding: "9px 12px",
-        fontSize: 13,
+        padding: "10px 14px",
+        fontSize: 14,
         fontFamily: "inherit",
         outline: "none",
         boxSizing: "border-box",
-        color: "#111",
-        transition: "border .15s",
+        color: "#1e293b",
+        transition: "all .15s",
         borderRadius: 8,
-        background: error ? "#fff5f5" : "#fff",
-        border: `1px solid ${error ? "#fca5a5" : focused ? "#2563eb" : "#e5e5e5"}`,
+        background: "#fff",
+        border: `1px solid ${error ? "#fca5a5" : focused ? "#8b5cf6" : "#e2e8f0"}`,
         ...style,
       }}
     />
@@ -79,18 +88,18 @@ const Textarea = ({ error, rows = 3, ...props }) => {
       onBlur={() => setFocused(false)}
       style={{
         width: "100%",
-        padding: "9px 12px",
-        fontSize: 13,
+        padding: "10px 14px",
+        fontSize: 14,
         fontFamily: "inherit",
         outline: "none",
         resize: "none",
         boxSizing: "border-box",
-        color: "#111",
+        color: "#1e293b",
         lineHeight: 1.6,
-        transition: "border .15s",
+        transition: "all .15s",
         borderRadius: 8,
-        background: error ? "#fff5f5" : "#fff",
-        border: `1px solid ${error ? "#fca5a5" : focused ? "#2563eb" : "#e5e5e5"}`,
+        background: "#fff",
+        border: `1px solid ${error ? "#fca5a5" : focused ? "#8b5cf6" : "#e2e8f0"}`,
       }}
     />
   );
@@ -106,1215 +115,1141 @@ const Select = ({ children, ...props }) => {
         onBlur={() => setFocused(false)}
         style={{
           width: "100%",
-          padding: "9px 36px 9px 12px",
-          fontSize: 13,
+          padding: "10px 40px 10px 14px",
+          fontSize: 14,
           fontFamily: "inherit",
           outline: "none",
           appearance: "none",
           cursor: "pointer",
-          color: "#111",
+          color: "#1e293b",
           borderRadius: 8,
           background: "#fff",
-          border: `1px solid ${focused ? "#2563eb" : "#e5e5e5"}`,
-          transition: "border .15s",
+          border: `1px solid ${focused ? "#8b5cf6" : "#e2e8f0"}`,
+          transition: "all .15s",
         }}
       >
         {children}
       </select>
-      <svg
-        width="12"
-        height="12"
-        viewBox="0 0 12 12"
-        fill="none"
+      <ChevronDown
+        size={16}
         style={{
           position: "absolute",
-          right: 12,
+          right: 14,
           top: "50%",
           transform: "translateY(-50%)",
           pointerEvents: "none",
+          color: "#94a3b8",
         }}
-      >
-        <path
-          d="M2 4l4 4 4-4"
-          stroke="#aaa"
-          strokeWidth="1.5"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        />
-      </svg>
+      />
     </div>
   );
 };
 
-const Pill = ({ label, checked, onChange, error }) => (
+const AISuggestionBox = ({ title, suggestions, onSelect }) => (
+  <div style={{
+    background: "#fdfaff",
+    border: "1px solid #f3e8ff",
+    borderRadius: 12,
+    padding: "16px",
+    marginTop: "12px",
+    display: "flex",
+    flexDirection: "column",
+    gap: 12
+  }}>
+    <div style={{ display: "flex", alignItems: "center", gap: 8, color: "#8b5cf6", fontSize: 13, fontWeight: 600 }}>
+      <Sparkles size={14} />
+      {title}
+    </div>
+    <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+      {suggestions.map((s, i) => (
+        <div
+          key={i}
+          onClick={() => onSelect(s)}
+          style={{
+            background: "#fff",
+            padding: "12px 16px",
+            borderRadius: 8,
+            fontSize: 13,
+            color: "#475569",
+            cursor: "pointer",
+            border: "1px solid #f1f5f9",
+            transition: "all .15s",
+            boxShadow: "0 1px 2px rgba(0,0,0,0.02)"
+          }}
+          onMouseEnter={e => e.currentTarget.style.borderColor = "#ddd6fe"}
+          onMouseLeave={e => e.currentTarget.style.borderColor = "#f1f5f9"}
+        >
+          {typeof s === 'string' ? s : s.label}
+        </div>
+      ))}
+    </div>
+  </div>
+);
+
+const Checkbox = ({ label, checked, onChange }) => (
   <div
     onClick={onChange}
     style={{
       display: "flex",
       alignItems: "center",
-      gap: 8,
-      padding: "9px 12px",
-      border: `1px solid ${checked ? "#2563eb" : error ? "#fca5a5" : "#e5e5e5"}`,
-      borderRadius: 8,
+      gap: 10,
       cursor: "pointer",
-      background: checked ? "#eff6ff" : "#fff",
-      transition: "all .12s",
       userSelect: "none",
+      padding: "4px 0"
     }}
   >
     <div
       style={{
-        width: 16,
-        height: 16,
+        width: 18,
+        height: 18,
         borderRadius: 4,
-        border: `1.5px solid ${checked ? "#2563eb" : "#ccc"}`,
+        border: `1.5px solid ${checked ? "#2563eb" : "#cbd5e1"}`,
         background: checked ? "#2563eb" : "#fff",
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        flexShrink: 0,
-        transition: "all .12s",
+        transition: "all .15s"
       }}
     >
-      {checked && <Check size={10} color="#fff" strokeWidth={3} />}
+      {checked && <Check size={12} color="#fff" strokeWidth={4} />}
     </div>
-    <span
-      style={{
-        fontSize: 13,
-        fontWeight: 500,
-        color: checked ? "#1d4ed8" : "#333",
-      }}
-    >
-      {label}
-    </span>
+    <span style={{ fontSize: 14, color: "#475569", fontWeight: 500 }}>{label}</span>
   </div>
 );
 
-const Section = ({ title, children }) => (
-  <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-      <span
-        style={{
-          fontSize: 11,
-          fontWeight: 700,
-          color: "#aaa",
-          textTransform: "uppercase",
-          letterSpacing: "0.08em",
-          whiteSpace: "nowrap",
-        }}
-      >
-        {title}
-      </span>
-      <div style={{ flex: 1, height: 1, background: "#f0f0f0" }} />
-    </div>
-    {children}
-  </div>
-);
+const ORGANIZER_ROLES = [
+  { value: "ORGANIZER", label: "Người tổ chức" },
+  { value: "LEADER", label: "Trưởng ban" },
+  { value: "COORDINATOR", label: "Điều phối viên" },
+  { value: "MEMBER", label: "Thành viên" },
+  { value: "ADVISOR", label: "Cố vấn" }
+];
 
-const CheckRow = ({ label, checked, onChange, onRemove }) => (
-  <div
-    style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer" }}
-    onClick={onChange}
-  >
-    <div
-      style={{
-        width: 16,
-        height: 16,
-        borderRadius: 4,
-        border: `1.5px solid ${checked ? "#2563eb" : "#ccc"}`,
-        background: checked ? "#2563eb" : "#fff",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        flexShrink: 0,
-        transition: "all .12s",
-      }}
-    >
-      {checked && <Check size={9} color="#fff" strokeWidth={3} />}
-    </div>
-    <span style={{ fontSize: 13, fontWeight: 500, color: "#333", flex: 1 }}>
-      {label}
-    </span>
-    {onRemove && (
-      <button
-        onClick={(e) => {
-          e.stopPropagation();
-          onRemove();
-        }}
-        style={{
-          border: "none",
-          background: "none",
-          cursor: "pointer",
-          color: "#ccc",
-          display: "flex",
-          alignItems: "center",
-          padding: 2,
-          borderRadius: 4,
-        }}
-      >
-        <X size={13} />
-      </button>
-    )}
-  </div>
-);
+const EVENT_TYPES = [
+  { value: "WORKSHOP", label: "Workshop" },
+  { value: "SEMINAR", label: "Seminar" },
+  { value: "TALKSHOW", label: "Talkshow" },
+  { value: "COMPETITION", label: "Competition (Cuộc thi)" },
+  { value: "CONFERENCE", label: "Conference (Hội nghị)" },
+  { value: "WEBINAR", label: "Webinar" },
+  { value: "CONCERT", label: "Concert (Hòa nhạc)" },
+  { value: "FESTIVAL", label: "Festival (Lễ hội)" },
+  { value: "OTHER", label: "Khác" }
+];
 
-export const ManualInputStep = ({
-  onBack,
+const SESSION_TYPES = [
+  { value: "KEYNOTE", label: "Keynote (Phiên chính)" },
+  { value: "WORKSHOP", label: "Workshop (Thực hành)" },
+  { value: "PANEL", label: "Panel Discussion (Thảo luận)" },
+  { value: "BREAK", label: "Break (Giải lao)" },
+  { value: "NETWORKING", label: "Networking (Kết nối)" }
+];
+
+const DateTimeField = ({ label, value, onChange, error, required }) => {
+  const dateVal = value ? value.split('T')[0] : "";
+  const timeVal = value ? value.split('T')[1] || "00:00" : "00:00";
+
+  return (
+    <Field label={label} required={required} error={error}>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+        <input
+          type="date"
+          value={dateVal}
+          onChange={(e) => onChange(e.target.value + "T" + timeVal)}
+          style={{ width: "100%", padding: "10px 14px", fontSize: 14, borderRadius: 8, border: "1px solid #e2e8f0", outline: "none" }}
+        />
+        <input
+          type="time"
+          value={timeVal}
+          onChange={(e) => onChange(dateVal + "T" + e.target.value)}
+          style={{ width: "100%", padding: "10px 14px", fontSize: 14, borderRadius: 8, border: "1px solid #e2e8f0", outline: "none" }}
+        />
+      </div>
+    </Field>
+  );
+};
+
+export default function ManualInputStep({
+  formData,
+  setFormData,
   onNext,
-  formData: externalFormData,
-  setFormData: setExternalFormData,
-  isQuickCreate = false,
-}) => {
-  const eventTypeLabels = {
-    WORKSHOP: "Workshop",
-    SEMINAR: "Seminar",
-    TALKSHOW: "Talkshow",
-    COMPETITION: "Cuộc thi",
-    CONFERENCE: "Hội nghị",
-    WEBINAR: "Webinar",
-    CONCERT: "Buổi biểu diễn",
-    OTHER: "Khác",
-  };
-
-  const eventTypes = [
-    "WORKSHOP",
-    "SEMINAR",
-    "TALKSHOW",
-    "COMPETITION",
-    "CONFERENCE",
-    "WEBINAR",
-    "CONCERT",
-    "OTHER",
-  ];
-
-  const [formData, setFormData] = useState({
-    eventType: externalFormData?.eventType || "",
-    eventTypeOther: externalFormData?.eventTypeOther || "",
-    eventTitle: externalFormData?.eventTitle || externalFormData?.title || "",
-    eventTopic:
-      externalFormData?.eventTopic ||
-      (externalFormData?.themes?.length > 0
-        ? externalFormData.themes.join(", ")
-        : ""),
-    eventPurpose: externalFormData?.description || "",
-    eventMode: externalFormData?.eventMode || "OFFLINE",
-    startTime: externalFormData?.startTime || "",
-    endTime: externalFormData?.endTime || "",
-    registrationDeadline: externalFormData?.registrationDeadline || "",
-    location: externalFormData?.location || "",
-    maxParticipants: externalFormData?.maxParticipants || 0,
-    faculty: externalFormData?.faculty || "Khoa Công nghệ thông tin",
-    major: externalFormData?.major || "",
-    recipients: externalFormData?.recipients || [],
-    customRecipients: externalFormData?.customRecipients || [],
-    participants: externalFormData?.participants || [],
-    notes: externalFormData?.notes || "",
-    themes: externalFormData?.themes || [],
-    programItems: externalFormData?.programItems || [],
-    presenters: externalFormData?.presenters || [],
-    organizers: externalFormData?.organizers || [],
-    templateId: externalFormData?.templateId || null,
-    hasLuckyDraw: externalFormData?.hasLuckyDraw || false,
-  });
-
+  onBack,
+  activeSections = [],
+}) {
   const [errors, setErrors] = useState({});
-  const [hasAttemptedSubmit, setHasAttemptedSubmit] = useState(false);
-  const [newRecipient, setNewRecipient] = useState("");
-  const [showAddRecipient, setShowAddRecipient] = useState(false);
-  const [newParticipant, setNewParticipant] = useState("");
-  const [showAddParticipant, setShowAddParticipant] = useState(false);
-  const [newTheme, setNewTheme] = useState("");
-  const [showAddTheme, setShowAddTheme] = useState(false);
+  const [showAISuggestions, setShowAISuggestions] = useState(false);
+  const [showOrgAISuggestions, setShowOrgAISuggestions] = useState(false);
+  const [showUserSuggestions, setShowUserSuggestions] = useState(false);
+  const [showLocationAISuggestions, setShowLocationAISuggestions] = useState(false);
+  const [showMaxParticipantsAISuggestions, setShowMaxParticipantsAISuggestions] = useState(false);
+  const [showGoalAISuggestions, setShowGoalAISuggestions] = useState(false);
+  const [showRequirementAISuggestions, setShowRequirementAISuggestions] = useState(false);
+  const [showDescriptionAISuggestions, setShowDescriptionAISuggestions] = useState(false);
 
-  const nowStr = new Date().toISOString().slice(0, 16);
-  const khoaOrganizers = [
-    "Khoa Công nghệ thông tin",
-    "Khoa Kế toán - Kiểm toán",
-    "Khoa Quản trị Kinh doanh",
-  ];
-
-  const addTheme = () => {
-    const trimmed = newTheme.trim();
-    if (trimmed && !formData.themes.includes(trimmed)) {
-      const newThemes = [...formData.themes, trimmed];
-      setFormData((prev) => ({
-        ...prev,
-        themes: newThemes,
-        eventTopic: newThemes.join(", "),
-      }));
-    }
-    setNewTheme("");
-    setShowAddTheme(false);
-  };
-
-  const removeTheme = (theme) => {
-    const newThemes = formData.themes.filter((t) => t !== theme);
-    setFormData((prev) => ({
-      ...prev,
-      themes: newThemes,
-      eventTopic: newThemes.join(", "),
-    }));
-  };
+  const [orgs, setOrgs] = useState([]);
+  const [systemUsers, setSystemUsers] = useState([]);
+  const [loadingOrgs, setLoadingOrgs] = useState(false);
+  const [loadingUsers, setLoadingUsers] = useState(false);
+  const [searchKey, setSearchKey] = useState("");
 
   useEffect(() => {
-    if (externalFormData?.themes && externalFormData.themes.length > 0) {
-      const topicsFromThemes = externalFormData.themes.join(", ");
-      if (formData.eventTopic !== topicsFromThemes) {
-        setFormData((prev) => ({
-          ...prev,
-          eventTopic: topicsFromThemes,
-          themes: externalFormData.themes,
-        }));
+    const fetchData = async () => {
+      setLoadingOrgs(true);
+      try {
+        const res = await eventService.getAllOrganizations();
+        setOrgs(res.data || []);
+      } catch (err) {
+        console.error("Lỗi lấy danh sách tổ chức:", err);
+      } finally {
+        setLoadingOrgs(false);
+      }
+    };
+    if (activeSections.includes('organization')) {
+      fetchData();
+    }
+  }, [activeSections]);
+
+  const fetchUsers = async () => {
+    setLoadingUsers(true);
+    try {
+      const res = await authService.getAllAccounts();
+      setSystemUsers(res.data || []);
+    } catch (err) {
+      console.error("Lỗi lấy danh sách người dùng:", err);
+    } finally {
+      setLoadingUsers(false);
+    }
+  };
+
+  const isVisible = (section) => activeSections.length === 0 || activeSections.includes(section);
+
+  const validate = () => {
+    const e = {};
+    if (isVisible('organization')) {
+      if (formData.orgSelectionMode === 'existing' && !formData.organizationId) {
+        e.organizationId = "Vui lòng chọn ban tổ chức";
+      }
+      if (formData.orgSelectionMode === 'new') {
+        if (!formData.newOrg?.name) e.newOrgName = "Vui lòng nhập tên ban tổ chức";
+        if (!formData.newOrg?.email) e.newOrgEmail = "Vui lòng nhập email";
       }
     }
-  }, [externalFormData?.themes]);
-
-  const validateForm = () => {
-    const e = {};
-    if (!formData.eventType) e.eventType = "Vui lòng chọn loại sự kiện";
-    if (formData.eventType === "OTHER" && !formData.eventTypeOther.trim())
-      e.eventType = "Vui lòng nhập loại sự kiện khác";
-    if (!formData.eventTitle.trim()) e.eventTitle = "Vui lòng nhập tên sự kiện";
-    if (!formData.eventPurpose.trim())
-      e.eventPurpose = "Vui lòng nhập mục đích tổ chức";
-    if (!formData.faculty) e.faculty = "Vui lòng chọn khoa";
-    if (!formData.startTime) e.startTime = "Vui lòng chọn thời gian bắt đầu";
-    if (!formData.endTime) e.endTime = "Vui lòng chọn thời gian kết thúc";
-    else if (
-      formData.startTime &&
-      new Date(formData.endTime) <= new Date(formData.startTime)
-    ) {
-      e.endTime = "Thời gian kết thúc phải sau thời gian bắt đầu";
+    if (isVisible('basic')) {
+      if (!formData.eventTitle) e.eventTitle = "Vui lòng nhập tên sự kiện";
+      if (!formData.startTime) e.startTime = "Vui lòng chọn thời gian bắt đầu";
+      if (!formData.endTime) e.endTime = "Vui lòng chọn thời gian kết thúc";
+      if (!formData.registrationDeadline) e.registrationDeadline = "Vui lòng chọn hạn đăng ký";
     }
-    if (
-      formData.registrationDeadline &&
-      formData.startTime &&
-      new Date(formData.registrationDeadline) > new Date(formData.startTime)
-    ) {
-      e.registrationDeadline = "Hạn đăng ký phải trước thời gian bắt đầu";
+    if (isVisible('details') || isVisible('attendees')) {
+      if (!formData.location) e.location = "Vui lòng nhập địa điểm";
+      if (isVisible('attendees') && !formData.maxParticipants) e.maxParticipants = "Vui lòng nhập số lượng tối đa";
     }
-    if (!formData.location.trim()) e.location = "Vui lòng nhập địa điểm";
-    if (
-      formData.recipients.length === 0 &&
-      formData.customRecipients.length === 0
-    )
-      e.recipients = "Vui lòng chọn ít nhất một nơi nhận";
-    if (formData.participants.length === 0)
-      e.participants = "Vui lòng chọn ít nhất một đối tượng";
-
     setErrors(e);
     return Object.keys(e).length === 0;
   };
 
-  useEffect(() => {
-    if (hasAttemptedSubmit) {
-      validateForm();
-    }
-  }, [formData, hasAttemptedSubmit]);
-
   const handleNext = () => {
-    setHasAttemptedSubmit(true);
-    if (validateForm()) {
-      setExternalFormData(formData);
+    if (validate()) {
       onNext(formData);
     }
   };
 
-  const toggleParticipant = (type) =>
-    setFormData((prev) => ({
-      ...prev,
-      participants: prev.participants.includes(type)
-        ? prev.participants.filter((p) => p !== type)
-        : [...prev.participants, type],
-    }));
+  const addInvite = (user = null) => {
+    const invites = formData.invitations || [];
+    const newInvite = user ? {
+      inviteeEmail: user.email || "",
+      inviteeName: user.profile?.fullName || user.username || "",
+      inviteePosition: user.profile?.position || "",
+      targetRole: "MEMBER",
+      message: ""
+    } : { inviteeEmail: "", inviteeName: "", inviteePosition: "", targetRole: "MEMBER", message: "" };
 
-  const addCustomParticipant = () => {
-    const trimmed = newParticipant.trim();
-    if (trimmed && !formData.participants.includes(trimmed)) {
-      setFormData((prev) => ({
-        ...prev,
-        participants: [...prev.participants, trimmed],
-      }));
+    setFormData({
+      ...formData,
+      invitations: [...invites, newInvite]
+    });
+  };
+
+  const updateInvite = (index, field, value) => {
+    const invites = [...(formData.invitations || [])];
+    invites[index] = { ...invites[index], [field]: value };
+    setFormData({ ...formData, invitations: invites });
+  };
+
+  const removeInvite = (index) => {
+    const invites = (formData.invitations || []).filter((_, i) => i !== index);
+    setFormData({ ...formData, invitations: invites });
+  };
+
+  const addPresenter = (user = null) => {
+    const presenters = formData.presenters || [];
+    const newPresenter = user ? {
+      email: user.email || "",
+      fullName: user.profile?.fullName || user.username || "",
+      position: user.profile?.position || "",
+      department: user.profile?.department || "",
+      presenterAccountId: user.id,
+      bio: "",
+      session: ""
+    } : { email: "", fullName: "", position: "", department: "", bio: "", session: "" };
+
+    setFormData({
+      ...formData,
+      presenters: [...presenters, newPresenter]
+    });
+  };
+
+  const updatePresenter = (index, field, value) => {
+    let newPresenters = [...(formData.presenters || [])];
+    let newSessions = [...(formData.sessions || [])];
+    const presenter = newPresenters[index];
+
+    // Cập nhật giá trị trường đang sửa
+    newPresenters[index] = { ...presenter, [field]: value };
+
+    // XỬ LÝ ĐỒNG BỘ NẾU CHỌN PHẠM VI THUYẾT TRÌNH
+    if (field === 'targetSessionName') {
+      if (value === 'ALL') {
+        // 1. Reset các diễn giả khác đang để "ALL" về trống
+        newPresenters = newPresenters.map((p, i) =>
+          (i !== index && p.targetSessionName === 'ALL') ? { ...p, targetSessionName: '' } : p
+        );
+
+        // 2. Cập nhật TẤT CẢ các session sang diễn giả này
+        newSessions = newSessions.map(s => ({ ...s, presenterName: presenter.fullName }));
+      } else if (value && value !== '') {
+        // Cập nhật diễn giả cho một session cụ thể (theo title)
+        newSessions = newSessions.map(s =>
+          s.title === value ? { ...s, presenterName: presenter.fullName } : s
+        );
+      }
     }
-    setNewParticipant("");
-    setShowAddParticipant(false);
-  };
 
-  const removeCustomParticipant = (p) =>
-    setFormData((prev) => ({
-      ...prev,
-      participants: prev.participants.filter((x) => x !== p),
-    }));
-
-  const toggleRecipient = (r) =>
-    setFormData((prev) => ({
-      ...prev,
-      recipients: prev.recipients.includes(r)
-        ? prev.recipients.filter((x) => x !== r)
-        : [...prev.recipients, r],
-    }));
-
-  const addCustomRecipient = () => {
-    const trimmed = newRecipient.trim();
-    if (trimmed && !formData.customRecipients.includes(trimmed)) {
-      setFormData((prev) => ({
-        ...prev,
-        customRecipients: [...prev.customRecipients, trimmed],
-      }));
+    // NẾU ĐỔI TÊN DIỄN GIẢ -> CẬP NHẬT TRONG CÁC SESSION ĐANG LIÊN KẾT
+    if (field === 'fullName') {
+      const oldName = presenter.fullName;
+      newSessions = newSessions.map(s =>
+        s.presenterName === oldName ? { ...s, presenterName: value } : s
+      );
     }
-    setNewRecipient("");
-    setShowAddRecipient(false);
+
+    setFormData({
+      ...formData,
+      presenters: newPresenters,
+      sessions: newSessions
+    });
   };
 
-  const removeCustomRecipient = (r) =>
-    setFormData((prev) => ({
-      ...prev,
-      customRecipients: prev.customRecipients.filter((x) => x !== r),
-    }));
-
-  const handleTimeChange = (field, value) => {
-    setFormData((prev) => ({ ...prev, [field]: value }));
+  const removePresenter = (index) => {
+    const presenters = (formData.presenters || []).filter((_, i) => i !== index);
+    setFormData({ ...formData, presenters: presenters });
   };
 
-  const errorCount = Object.keys(errors).length;
+  const [showPresenterSuggestions, setShowPresenterSuggestions] = useState(false);
+  const [presenterSearchKey, setPresenterSearchKey] = useState("");
+
+  const addSession = () => {
+    const sessions = formData.sessions || [];
+    const newSession = {
+      title: "",
+      description: "",
+      room: "",
+      type: "KEYNOTE",
+      startTime: formData.startTime || "",
+      endTime: formData.endTime || "",
+      maxParticipants: formData.maxParticipants || 0,
+      orderIndex: sessions.length + 1
+    };
+    setFormData({ ...formData, sessions: [...sessions, newSession] });
+  };
+
+  const updateSession = (index, field, value) => {
+    const sessions = [...(formData.sessions || [])];
+    sessions[index] = { ...sessions[index], [field]: value };
+    setFormData({ ...formData, sessions: sessions });
+  };
+
+  const removeSession = (index) => {
+    const sessions = (formData.sessions || []).filter((_, i) => i !== index);
+    // Cập nhật lại orderIndex
+    const updatedSessions = sessions.map((s, i) => ({ ...s, orderIndex: i + 1 }));
+    setFormData({ ...formData, sessions: updatedSessions });
+  };
+
+  const [showSessionAISuggestions, setShowSessionAISuggestions] = useState(false);
+
+  const filteredUsers = systemUsers.filter(u =>
+    (u.profile?.fullName || "").toLowerCase().includes(searchKey.toLowerCase()) ||
+    (u.email || "").toLowerCase().includes(searchKey.toLowerCase()) ||
+    (u.username || "").toLowerCase().includes(searchKey.toLowerCase())
+  );
 
   return (
-    <div
-      style={{
-        width: "100%",
-        maxWidth: 960,
-        margin: "0 auto",
-        padding: "0 32px 60px",
-        fontFamily: "'Inter','Segoe UI',sans-serif",
-      }}
-    >
-      <div style={{ marginBottom: 28 }}>
-        <p
-          style={{
-            fontSize: 12,
-            color: "#bbb",
-            fontWeight: 500,
-            margin: "0 0 6px",
-            letterSpacing: "0.04em",
-          }}
-        >
-          {isQuickCreate ? "Tạo sự kiện mới" : "Bước 2 / 3"}
-        </p>
-        <h2
-          style={{
-            fontSize: 22,
-            fontWeight: 600,
-            color: "#111",
-            margin: "0 0 6px",
-            letterSpacing: "-0.02em",
-          }}
-        >
-          Nhập thông tin kế hoạch
-        </h2>
-        <p style={{ fontSize: 14, color: "#888", margin: 0 }}>
-          Điền đầy đủ các thông tin bên dưới
-        </p>
-      </div>
+    <div style={{ width: "100%", margin: "0 auto", padding: "20px 0" }}>
+      <div style={{ background: "#fff", border: "1px solid #f1f5f9", borderRadius: 16, padding: "32px", display: "flex", flexDirection: "column", gap: 32 }}>
 
-      <div
-        style={{
-          background: "#fff",
-          border: "1px solid #ebebeb",
-          borderRadius: 14,
-          padding: "32px 36px",
-          display: "flex",
-          flexDirection: "column",
-          gap: 32,
-        }}
-      >
-        <Section title="Thông tin cơ bản">
-          <Field
-            label="Loại sự kiện"
-            icon={<FileText size={14} color="#2563eb" />}
-            required
-            error={errors.eventType}
-          >
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: `repeat(auto-fit, minmax(120px, 1fr))`,
-                gap: 8,
-              }}
-            >
-              {eventTypes.map((type) => (
-                <Pill
-                  key={type}
-                  label={eventTypeLabels[type] || type}
-                  checked={formData.eventType === type}
-                  error={!!errors.eventType}
-                  onChange={() =>
-                    setFormData({
-                      ...formData,
-                      eventType: type,
-                      eventTypeOther: "",
-                    })
-                  }
+        {/* ORGANIZATION SELECTION */}
+        {isVisible('organization') && (
+          <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+            <h2 style={{ fontSize: 18, fontWeight: 800, color: "#1e293b", margin: 0, display: "flex", alignItems: "center", gap: 8 }}>
+              <Building size={20} className="text-indigo-600" />
+              Ban tổ chức
+            </h2>
+
+            <div style={{ display: "flex", gap: 24, padding: "4px 0" }}>
+              <label style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer", fontSize: 14, fontWeight: 600, color: "#475569" }}>
+                <input
+                  type="radio"
+                  name="orgMode"
+                  checked={formData.orgSelectionMode !== 'new'}
+                  onChange={() => setFormData({ ...formData, orgSelectionMode: 'existing' })}
+                  style={{ width: 16, height: 16 }}
                 />
-              ))}
+                Chọn từ danh sách
+              </label>
+              <label style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer", fontSize: 14, fontWeight: 600, color: "#475569" }}>
+                <input
+                  type="radio"
+                  name="orgMode"
+                  checked={formData.orgSelectionMode === 'new'}
+                  onChange={() => setFormData({ ...formData, orgSelectionMode: 'new' })}
+                  style={{ width: 16, height: 16 }}
+                />
+                Tạo ban tổ chức mới
+              </label>
             </div>
-            {formData.eventType === "OTHER" && (
-              <Input
-                placeholder="Nhập loại sự kiện..."
-                error={!!errors.eventType}
-                value={formData.eventTypeOther}
-                onChange={(e) =>
-                  setFormData({ ...formData, eventTypeOther: e.target.value })
-                }
-                style={{ marginTop: 8 }}
-              />
-            )}
-          </Field>
 
-          <div
-            style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}
-          >
-            <Field
-              label="Tên sự kiện"
-              icon={<FileText size={14} color="#2563eb" />}
-              required
-              error={errors.eventTitle}
-            >
-              <Input
-                placeholder="Ví dụ: Workshop về AI và Machine Learning"
-                error={!!errors.eventTitle}
-                value={formData.eventTitle}
-                onChange={(e) =>
-                  setFormData({ ...formData, eventTitle: e.target.value })
-                }
-              />
-            </Field>
-
-            <Field
-              label="Chủ đề sự kiện"
-              icon={<FileText size={14} color="#6366f1" />}
-            >
-              <div
-                style={{
-                  padding: "10px 12px",
-                  background: "#fafafa",
-                  border: "1px solid #ebebeb",
-                  borderRadius: 8,
-                }}
-              >
-                <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-                  {formData.themes.map((theme) => (
-                    <div
-                      key={theme}
-                      style={{
-                        display: "flex",
-                        alignItems: "center",
-                        gap: 6,
-                        padding: "4px 8px",
-                        background: "#e0e7ff",
-                        color: "#4338ca",
-                        borderRadius: 6,
-                        fontSize: 12,
-                        fontWeight: 500,
-                      }}
-                    >
-                      {theme}
-                      <button
-                        onClick={() => removeTheme(theme)}
-                        style={{
-                          border: "none",
-                          background: "none",
-                          cursor: "pointer",
-                          padding: 0,
-                          display: "flex",
-                          color: "#6366f1",
-                        }}
-                      >
-                        <X size={12} />
-                      </button>
-                    </div>
+            {formData.orgSelectionMode !== 'new' ? (
+              <Field label="Chọn đơn vị tổ chức" required error={errors.organizationId}>
+                <Select
+                  value={formData.organizationId || ""}
+                  onChange={(e) => setFormData({ ...formData, organizationId: e.target.value })}
+                >
+                  <option value="">-- Chọn đơn vị --</option>
+                  {orgs.map(org => (
+                    <option key={org.id} value={org.id}>{org.name}</option>
                   ))}
+                </Select>
+              </Field>
+            ) : (
+              <div style={{ display: "flex", flexDirection: "column", gap: 20, background: "#f8fafc", padding: 24, borderRadius: 16, border: "1px solid #e2e8f0" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <h3 style={{ fontSize: 14, fontWeight: 700, color: "#1e293b", margin: 0 }}>Thông tin ban tổ chức mới</h3>
+                  <button
+                    onClick={() => setShowOrgAISuggestions(!showOrgAISuggestions)}
+                    style={{ background: "none", border: "none", color: "#8b5cf6", fontSize: 12, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: 4 }}
+                  >
+                    <Sparkles size={14} /> AI gợi ý ban tổ chức
+                  </button>
                 </div>
 
-                {showAddTheme ? (
-                  <div style={{ display: "flex", gap: 6, marginTop: 10 }}>
-                    <input
-                      type="text"
-                      placeholder="Nhập chủ đề..."
-                      value={newTheme}
-                      onChange={(e) => setNewTheme(e.target.value)}
-                      onKeyDown={(e) => e.key === "Enter" && addTheme()}
-                      autoFocus
-                      style={{
-                        flex: 1,
-                        padding: "6px 10px",
-                        border: "1px solid #6366f1",
-                        borderRadius: 6,
-                        fontSize: 12,
-                        outline: "none",
-                      }}
-                    />
-                    <button
-                      onClick={addTheme}
-                      style={{
-                        padding: "6px 12px",
-                        background: "#6366f1",
-                        color: "#fff",
-                        border: "none",
-                        borderRadius: 6,
-                        fontSize: 12,
-                        cursor: "pointer",
-                      }}
-                    >
-                      Thêm
-                    </button>
-                    <button
-                      onClick={() => {
-                        setShowAddTheme(false);
-                        setNewTheme("");
-                      }}
-                      style={{
-                        padding: "6px 10px",
-                        background: "none",
-                        color: "#666",
-                        border: "1px solid #e5e5e5",
-                        borderRadius: 6,
-                        fontSize: 12,
-                        cursor: "pointer",
-                      }}
-                    >
-                      Hủy
-                    </button>
-                  </div>
-                ) : (
-                  <button
-                    onClick={() => setShowAddTheme(true)}
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 4,
-                      fontSize: 12,
-                      color: "#6366f1",
-                      background: "none",
-                      border: "none",
-                      cursor: "pointer",
-                      fontWeight: 500,
-                      marginTop: formData.themes.length > 0 ? 8 : 0,
-                      padding: 0,
+                {showOrgAISuggestions && (
+                  <AISuggestionBox
+                    title="Mẫu ban tổ chức từ AI"
+                    suggestions={[
+                      { label: "CLB Kỹ năng - IUH", data: { name: "CLB Kỹ năng - IUH", email: "kynang@iuh.edu.vn", type: "CLUB", officeLocation: "Phòng H3.1" } },
+                      { label: "Khoa CNTT - IUH", data: { name: "Khoa Công nghệ Thông tin", email: "fit@iuh.edu.vn", type: "FACULTY", officeLocation: "Lầu 2, Nhà H" } },
+                      { label: "Đoàn Thanh niên IUH", data: { name: "Đoàn Thanh niên IUH", email: "doanthanhnien@iuh.edu.vn", type: "DEPARTMENT", officeLocation: "Tòa nhà V" } }
+                    ]}
+                    onSelect={(s) => {
+                      setFormData({ ...formData, newOrg: { ...formData.newOrg, ...s.data } });
+                      setShowOrgAISuggestions(false);
                     }}
+                  />
+                )}
+
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+                  <Field label="Tên ban tổ chức" required error={errors.newOrgName}>
+                    <Input
+                      placeholder="VD: CLB Kỹ năng mềm"
+                      value={formData.newOrg?.name || ""}
+                      onChange={(e) => setFormData({ ...formData, newOrg: { ...formData.newOrg, name: e.target.value } })}
+                    />
+                  </Field>
+                  <Field label="Email liên hệ" required error={errors.newOrgEmail}>
+                    <Input
+                      type="email"
+                      placeholder="vd@iuh.edu.vn"
+                      value={formData.newOrg?.email || ""}
+                      onChange={(e) => setFormData({ ...formData, newOrg: { ...formData.newOrg, email: e.target.value } })}
+                    />
+                  </Field>
+                  <Field label="Số điện thoại">
+                    <Input
+                      placeholder="0xxx..."
+                      value={formData.newOrg?.phone || ""}
+                      onChange={(e) => setFormData({ ...formData, newOrg: { ...formData.newOrg, phone: e.target.value } })}
+                    />
+                  </Field>
+                  <Field label="Văn phòng / Địa điểm">
+                    <Input
+                      placeholder="VD: Phòng H3.1"
+                      value={formData.newOrg?.officeLocation || ""}
+                      onChange={(e) => setFormData({ ...formData, newOrg: { ...formData.newOrg, officeLocation: e.target.value } })}
+                    />
+                  </Field>
+                  <Field label="Loại hình">
+                    <Select
+                      value={formData.newOrg?.type || "OTHER"}
+                      onChange={(e) => setFormData({ ...formData, newOrg: { ...formData.newOrg, type: e.target.value } })}
+                    >
+                      <option value="FACULTY">Khoa / Viện</option>
+                      <option value="CLUB">Câu lạc bộ</option>
+                      <option value="DEPARTMENT">Phòng ban</option>
+                      <option value="COMPANY">Doanh nghiệp</option>
+                      <option value="OTHER">Khác</option>
+                    </Select>
+                  </Field>
+                  <Field label="Logo ban tổ chức">
+                    <ImageUpload value={formData.newOrg?.logoUrl} onChange={(url) => setFormData({ ...formData, newOrg: { ...formData.newOrg, logoUrl: url } })} />
+                  </Field>
+                </div>
+                <Field label="Mô tả ban tổ chức">
+                  <Textarea
+                    placeholder="Giới thiệu ngắn gọn về ban tổ chức..."
+                    value={formData.newOrg?.description || ""}
+                    onChange={(e) => setFormData({ ...formData, newOrg: { ...formData.newOrg, description: e.target.value } })}
+                  />
+                </Field>
+              </div>
+            )}
+
+            {/* INVITATIONS SECTION */}
+            <div style={{ marginTop: 10 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+                <h3 style={{ fontSize: 14, fontWeight: 700, color: "#1e293b", margin: 0, display: "flex", alignItems: "center", gap: 8 }}>
+                  <UserPlus size={18} className="text-emerald-500" />
+                  Mời thành viên ban tổ chức
+                </h3>
+                <div style={{ display: "flex", gap: 12 }}>
+                  <button
+                    onClick={() => {
+                      if (!showUserSuggestions) fetchUsers();
+                      setShowUserSuggestions(!showUserSuggestions);
+                    }}
+                    style={{ background: "#fdfaff", border: "1px solid #ddd6fe", color: "#8b5cf6", padding: "6px 12px", borderRadius: 6, fontSize: 12, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: 4 }}
                   >
-                    <Plus size={12} /> Thêm chủ đề
+                    <Sparkles size={14} /> AI gợi ý thành viên
                   </button>
+                  <button
+                    onClick={() => addInvite()}
+                    style={{ background: "#f1f5f9", border: "none", color: "#475569", padding: "6px 12px", borderRadius: 6, fontSize: 12, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: 4 }}
+                  >
+                    <Plus size={14} /> Thêm thủ công
+                  </button>
+                </div>
+              </div>
+
+              {showUserSuggestions && (
+                <div style={{ background: "#fdfaff", border: "1px solid #f3e8ff", borderRadius: 12, padding: "20px", marginBottom: 20 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, color: "#8b5cf6", fontSize: 13, fontWeight: 700, marginBottom: 16 }}>
+                    <Search size={16} />
+                    Tìm kiếm thành viên từ hệ thống
+                  </div>
+                  <Input
+                    placeholder="Nhập tên, email hoặc username để tìm..."
+                    value={searchKey}
+                    onChange={(e) => setSearchKey(e.target.value)}
+                    style={{ marginBottom: 16 }}
+                  />
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, maxHeight: 300, overflowY: "auto", padding: 4 }}>
+                    {loadingUsers ? (
+                      <div style={{ gridColumn: "span 2", textAlign: "center", padding: 20, color: "#94a3b8", fontSize: 13 }}>Đang tải danh sách...</div>
+                    ) : filteredUsers.length > 0 ? (
+                      filteredUsers.map(u => (
+                        <div
+                          key={u.id}
+                          onClick={() => {
+                            addInvite(u);
+                            setShowUserSuggestions(false);
+                            setSearchKey("");
+                          }}
+                          style={{ background: "#fff", border: "1px solid #f1f5f9", padding: 12, borderRadius: 10, cursor: "pointer", display: "flex", alignItems: "center", gap: 12, transition: "all .15s" }}
+                          onMouseEnter={e => e.currentTarget.style.borderColor = "#ddd6fe"}
+                          onMouseLeave={e => e.currentTarget.style.borderColor = "#f1f5f9"}
+                        >
+                          <div style={{ width: 36, height: 36, borderRadius: "50%", background: "#f1f5f9", display: "flex", alignItems: "center", justifyContent: "center", color: "#64748b" }}>
+                            <UserCheck size={18} />
+                          </div>
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ fontSize: 13, fontWeight: 700, color: "#1e293b", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{u.profile?.fullName || u.username}</div>
+                            <div style={{ fontSize: 11, color: "#94a3b8", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{u.email}</div>
+                          </div>
+                        </div>
+                      ))
+                    ) : (
+                      <div style={{ gridColumn: "span 2", textAlign: "center", padding: 20, color: "#94a3b8", fontSize: 13 }}>Không tìm thấy người dùng phù hợp</div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                {(formData.invitations || []).map((invite, idx) => (
+                  <div key={idx} style={{ background: "#fafafa", padding: 20, borderRadius: 14, border: "1px solid #f1f5f9", display: "flex", flexDirection: "column", gap: 16, position: "relative" }}>
+                    <button
+                      onClick={() => removeInvite(idx)}
+                      style={{ position: "absolute", top: 12, right: 12, background: "#fee2e2", border: "none", color: "#ef4444", padding: "6px", borderRadius: 8, cursor: "pointer" }}
+                    >
+                      <X size={14} />
+                    </button>
+
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: 16 }}>
+                      <Field label="Email người được mời" required>
+                        <Input type="email" value={invite.inviteeEmail} onChange={(e) => updateInvite(idx, 'inviteeEmail', e.target.value)} placeholder="Nhập email (ví dụ: email@iuh.edu.vn)" />
+                      </Field>
+                    </div>
+
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: 16 }}>
+                      <Field label="Vai trò dự kiến">
+                        <Select value={invite.targetRole} onChange={(e) => updateInvite(idx, 'targetRole', e.target.value)}>
+                          {ORGANIZER_ROLES.map(role => (
+                            <option key={role.value} value={role.value}>{role.label}</option>
+                          ))}
+                        </Select>
+                      </Field>
+                    </div>
+
+                    <Field label="Lời nhắn gửi kèm">
+                      <Input value={invite.message} onChange={(e) => updateInvite(idx, 'message', e.target.value)} placeholder="VD: Mời bạn làm truyền thông cho sự kiện này..." />
+                    </Field>
+                  </div>
+                ))}
+                {(!formData.invitations || formData.invitations.length === 0) && (
+                  <div style={{ textAlign: "center", padding: "32px", border: "1px dashed #e2e8f0", borderRadius: 16, color: "#94a3b8", fontSize: 13, background: "#fcfcfc" }}>
+                    <UserPlus size={24} style={{ margin: "0 auto 12px", opacity: 0.3 }} />
+                    Chưa có thành viên nào được mời. Nhấn "AI gợi ý" hoặc "Thêm thủ công" để mời.
+                  </div>
                 )}
               </div>
-            </Field>
-          </div>
+            </div>
 
-          <Field
-            label="Mục đích tổ chức"
-            icon={<FileText size={14} color="#ef4444" />}
-            required
-            error={errors.eventPurpose}
-          >
-            <Textarea
-              placeholder="Mô tả mục tiêu và lý do tổ chức sự kiện..."
-              error={!!errors.eventPurpose}
-              value={formData.eventPurpose}
-              onChange={(e) =>
-                setFormData({ ...formData, eventPurpose: e.target.value })
-              }
-            />
-          </Field>
 
-          <ImageUpload
-            value={formData.coverImage}
-            onChange={(url) => setFormData({ ...formData, coverImage: url })}
-          />
-        </Section>
+            {/* SESSIONS SECTION */}
+            <div style={{ marginTop: 20 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+                <h3 style={{ fontSize: 14, fontWeight: 700, color: "#1e293b", margin: 0, display: "flex", alignItems: "center", gap: 8 }}>
+                  <Calendar size={18} className="text-indigo-500" />
+                  Chương trình chi tiết (Sessions)
+                </h3>
+                <div style={{ display: "flex", gap: 12 }}>
+                  <button
+                    onClick={() => setShowSessionAISuggestions(!showSessionAISuggestions)}
+                    style={{ background: "#fdfaff", border: "1px solid #ddd6fe", color: "#8b5cf6", padding: "6px 12px", borderRadius: 6, fontSize: 12, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: 4 }}
+                  >
+                    <Sparkles size={14} /> AI gợi ý lịch trình
+                  </button>
+                  <button
+                    onClick={() => addSession()}
+                    style={{ background: "#f1f5f9", border: "none", color: "#475569", padding: "6px 12px", borderRadius: 6, fontSize: 12, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: 4 }}
+                  >
+                    <Plus size={14} /> Thêm phiên
+                  </button>
+                </div>
+              </div>
 
-        <Section title="Đối tượng & quy mô">
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "1fr auto",
-              gap: 20,
-              alignItems: "start",
-            }}
-          >
-            <Field
-              label="Đối tượng tham gia"
-              icon={<Users size={14} color="#2563eb" />}
-              required
-              error={errors.participants}
-            >
-              <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-                {["Sinh viên", "Giảng viên", "Cán bộ", "Khách mời"].map(
-                  (type) => (
-                    <Pill
-                      key={type}
-                      label={type}
-                      checked={formData.participants.includes(type)}
-                      error={!!errors.participants}
-                      onChange={() => toggleParticipant(type)}
-                    />
-                  ),
-                )}
+              {showSessionAISuggestions && (
+                <AISuggestionBox
+                  title="Mẫu lịch trình từ AI"
+                  suggestions={[
+                    {
+                      label: "Lịch trình Workshop 1 buổi", data: [
+                        { title: "Đón khách & Check-in", type: "BREAK", room: "Sảnh", description: "Tiếp đón đại biểu" },
+                        { title: "Khai mạc & Giới thiệu", type: "KEYNOTE", room: "Hội trường", description: "Phát biểu khai mạc" },
+                        { title: "Thực hành Workshop", type: "WORKSHOP", room: "Phòng Lab", description: "Hướng dẫn kỹ thuật" },
+                        { title: "Bế mạc & Trao chứng nhận", type: "NETWORKING", room: "Hội trường", description: "Chụp ảnh lưu niệm" }
+                      ]
+                    },
+                    {
+                      label: "Lịch trình Seminar chuyên môn", data: [
+                        { title: "Khai mạc", type: "KEYNOTE", room: "Hội trường A", description: "Giới thiệu mục tiêu" },
+                        { title: "Thảo luận chuyên gia", type: "PANEL", room: "Hội trường A", description: "Trao đổi cùng chuyên gia" },
+                        { title: "Nghỉ giải lao", type: "BREAK", room: "Sảnh", description: "Teabreak" },
+                        { title: "Hỏi đáp & Kết nối", type: "NETWORKING", room: "Hội trường A", description: "Tự do thảo luận" }
+                      ]
+                    }
+                  ]}
+                  onSelect={(s) => {
+                    const newSessions = s.data.map((item, i) => ({
+                      ...item,
+                      startTime: formData.startTime || "",
+                      endTime: formData.endTime || "",
+                      maxParticipants: formData.maxParticipants || 0,
+                      orderIndex: i + 1
+                    }));
+                    setFormData({ ...formData, sessions: newSessions });
+                    setShowSessionAISuggestions(false);
+                  }}
+                />
+              )}
 
-                {formData.participants
-                  .filter(
-                    (p) =>
-                      ![
-                        "Sinh viên",
-                        "Giảng viên",
-                        "Cán bộ",
-                        "Khách mời",
-                      ].includes(p),
-                  )
-                  .map((customP) => (
-                    <div
-                      key={customP}
-                      style={{
-                        display: "flex",
-                        alignItems: "center",
-                        gap: 8,
-                        padding: "9px 12px",
-                        border: "1px solid #2563eb",
-                        borderRadius: 8,
-                        background: "#eff6ff",
-                        color: "#1d4ed8",
-                        fontSize: 13,
-                        fontWeight: 500,
-                        cursor: "default",
-                      }}
-                    >
-                      {customP}
+              <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                {(formData.sessions || []).map((session, idx) => (
+                  <div key={idx} style={{ background: "#fafafa", padding: 20, borderRadius: 14, border: "1px solid #f1f5f9", display: "flex", flexDirection: "column", gap: 16, position: "relative" }}>
+                    <div style={{ position: "absolute", top: 12, right: 12, display: "flex", gap: 8 }}>
+                      <div style={{ background: "#e2e8f0", color: "#475569", padding: "4px 8px", borderRadius: 6, fontSize: 11, fontWeight: 700 }}>
+                        Thứ tự: {session.orderIndex}
+                      </div>
                       <button
-                        onClick={() => removeCustomParticipant(customP)}
-                        style={{
-                          border: "none",
-                          background: "none",
-                          cursor: "pointer",
-                          color: "#2563eb",
-                          display: "flex",
-                          padding: 0,
-                        }}
+                        onClick={() => removeSession(idx)}
+                        style={{ background: "#fee2e2", border: "none", color: "#ef4444", padding: "6px", borderRadius: 8, cursor: "pointer" }}
                       >
                         <X size={14} />
                       </button>
                     </div>
-                  ))}
 
-                {showAddParticipant ? (
-                  <div
-                    style={{
-                      display: "flex",
-                      gap: 6,
-                      width: "100%",
-                      marginTop: 4,
-                    }}
-                  >
-                    <input
-                      type="text"
-                      placeholder="Nhập đối tượng khác..."
-                      value={newParticipant}
-                      onChange={(e) => setNewParticipant(e.target.value)}
-                      onKeyDown={(e) =>
-                        e.key === "Enter" && addCustomParticipant()
-                      }
-                      autoFocus
-                      style={{
-                        flex: 1,
-                        padding: "8px 12px",
-                        border: "1px solid #2563eb",
-                        borderRadius: 8,
-                        fontSize: 13,
-                        outline: "none",
-                      }}
-                    />
-                    <button
-                      onClick={addCustomParticipant}
-                      style={{
-                        padding: "8px 16px",
-                        background: "#2563eb",
-                        color: "#fff",
-                        border: "none",
-                        borderRadius: 8,
-                        fontSize: 12,
-                        fontWeight: 600,
-                        cursor: "pointer",
-                      }}
-                    >
-                      Thêm
-                    </button>
-                    <button
-                      onClick={() => {
-                        setShowAddParticipant(false);
-                        setNewParticipant("");
-                      }}
-                      style={{
-                        padding: "8px 12px",
-                        background: "none",
-                        color: "#666",
-                        border: "1px solid #e5e5e5",
-                        borderRadius: 8,
-                        fontSize: 12,
-                        fontWeight: 500,
-                        cursor: "pointer",
-                      }}
-                    >
-                      Hủy
-                    </button>
+                    <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: 16 }}>
+                      <Field label="Tên phiên / Hoạt động" required>
+                        <Input value={session.title} onChange={(e) => updateSession(idx, 'title', e.target.value)} placeholder="VD: Khai mạc sự kiện" />
+                      </Field>
+                      <Field label="Loại phiên">
+                        <Select value={session.type} onChange={(e) => updateSession(idx, 'type', e.target.value)}>
+                          {SESSION_TYPES.map(t => (
+                            <option key={t.value} value={t.value}>{t.label}</option>
+                          ))}
+                        </Select>
+                      </Field>
+                    </div>
+
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 16 }}>
+                      <Field label="Thời gian bắt đầu">
+                        <Input type="datetime-local" value={session.startTime} onChange={(e) => updateSession(idx, 'startTime', e.target.value)} />
+                      </Field>
+                      <Field label="Thời gian kết thúc">
+                        <Input type="datetime-local" value={session.endTime} onChange={(e) => updateSession(idx, 'endTime', e.target.value)} />
+                      </Field>
+                      <Field label="Địa điểm / Phòng">
+                        <Input value={session.room} onChange={(e) => updateSession(idx, 'room', e.target.value)} placeholder="VD: Hội trường A" />
+                      </Field>
+                    </div>
+
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: 16 }}>
+                      <Field label="Mô tả nội dung phiên">
+                        <Textarea value={session.description} onChange={(e) => updateSession(idx, 'description', e.target.value)} placeholder="Chi tiết các hoạt động..." rows={2} />
+                      </Field>
+                    </div>
                   </div>
-                ) : (
-                  <button
-                    onClick={() => setShowAddParticipant(true)}
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 5,
-                      padding: "9px 12px",
-                      border: "1.5px dashed #e5e5e5",
-                      borderRadius: 8,
-                      background: "none",
-                      color: "#aaa",
-                      fontSize: 13,
-                      fontWeight: 500,
-                      cursor: "pointer",
-                      transition: "all .15s",
-                    }}
-                  >
-                    <Plus size={14} /> Khác
-                  </button>
+                ))}
+                {(!formData.sessions || formData.sessions.length === 0) && (
+                  <div style={{ textAlign: "center", padding: "32px", border: "1px dashed #e2e8f0", borderRadius: 16, color: "#94a3b8", fontSize: 13, background: "#fcfcfc" }}>
+                    <Calendar size={24} style={{ margin: "0 auto 12px", opacity: 0.3 }} />
+                    Chưa có lịch trình chi tiết. Nhấn "Thêm phiên" hoặc "AI gợi ý" để lập lịch.
+                  </div>
                 )}
               </div>
-            </Field>
+            </div>
 
-            <Field
-              label="Số lượng tối đa"
-              icon={<Users size={14} color="#2563eb" />}
-              hint="Hệ thống sẽ tự động đóng đăng ký khi đạt giới hạn."
-            >
-              <div style={{ position: "relative", width: 160 }}>
-                <Input
-                  type="number"
-                  min="1"
-                  placeholder="30"
-                  value={formData.maxParticipants || ""}
-                  onChange={(e) =>
-                    setFormData({
-                      ...formData,
-                      maxParticipants: parseInt(e.target.value) || 0,
-                    })
-                  }
-                />
-                <span
-                  style={{
-                    position: "absolute",
-                    right: 12,
-                    top: "50%",
-                    transform: "translateY(-50%)",
-                    fontSize: 12,
-                    color: "#bbb",
-                    pointerEvents: "none",
-                  }}
-                >
-                  Người
-                </span>
+            {/* PRESENTERS SECTION */}
+            <div style={{ marginTop: 20 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+                <h3 style={{ fontSize: 14, fontWeight: 700, color: "#1e293b", margin: 0, display: "flex", alignItems: "center", gap: 8 }}>
+                  <Users size={18} className="text-indigo-500" />
+                  Mời Diễn giả / Người thuyết trình
+                </h3>
+                <div style={{ display: "flex", gap: 12 }}>
+                  <button
+                    onClick={() => {
+                      if (!showPresenterSuggestions) fetchUsers();
+                      setShowPresenterSuggestions(!showPresenterSuggestions);
+                    }}
+                    style={{ background: "#fdfaff", border: "1px solid #ddd6fe", color: "#8b5cf6", padding: "6px 12px", borderRadius: 6, fontSize: 12, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: 4 }}
+                  >
+                    <Sparkles size={14} /> AI gợi ý diễn giả
+                  </button>
+                  <button
+                    onClick={() => addPresenter()}
+                    style={{ background: "#f1f5f9", border: "none", color: "#475569", padding: "6px 12px", borderRadius: 6, fontSize: 12, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: 4 }}
+                  >
+                    <Plus size={14} /> Thêm diễn giả
+                  </button>
+                </div>
               </div>
-            </Field>
+
+              {showPresenterSuggestions && (
+                <div style={{ background: "#fdfaff", border: "1px solid #f3e8ff", borderRadius: 12, padding: "20px", marginBottom: 20 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, color: "#8b5cf6", fontSize: 13, fontWeight: 700, marginBottom: 16 }}>
+                    <Search size={16} />
+                    Tìm kiếm diễn giả từ hệ thống
+                  </div>
+                  <Input
+                    placeholder="Nhập tên, email hoặc username để tìm..."
+                    value={presenterSearchKey}
+                    onChange={(e) => setPresenterSearchKey(e.target.value)}
+                    style={{ marginBottom: 16 }}
+                  />
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, maxHeight: 300, overflowY: "auto", padding: 4 }}>
+                    {loadingUsers ? (
+                      <div style={{ gridColumn: "span 2", textAlign: "center", padding: 20, color: "#94a3b8", fontSize: 13 }}>Đang tải danh sách...</div>
+                    ) : systemUsers.filter(u =>
+                      (u.profile?.fullName || "").toLowerCase().includes(presenterSearchKey.toLowerCase()) ||
+                      (u.email || "").toLowerCase().includes(presenterSearchKey.toLowerCase())
+                    ).length > 0 ? (
+                      systemUsers.filter(u =>
+                        (u.profile?.fullName || "").toLowerCase().includes(presenterSearchKey.toLowerCase()) ||
+                        (u.email || "").toLowerCase().includes(presenterSearchKey.toLowerCase())
+                      ).map(u => (
+                        <div
+                          key={u.id}
+                          onClick={() => {
+                            addPresenter(u);
+                            setShowPresenterSuggestions(false);
+                            setPresenterSearchKey("");
+                          }}
+                          style={{ background: "#fff", border: "1px solid #f1f5f9", padding: 12, borderRadius: 10, cursor: "pointer", display: "flex", alignItems: "center", gap: 12, transition: "all .15s" }}
+                          onMouseEnter={e => e.currentTarget.style.borderColor = "#ddd6fe"}
+                          onMouseLeave={e => e.currentTarget.style.borderColor = "#f1f5f9"}
+                        >
+                          <div style={{ width: 36, height: 36, borderRadius: "50%", background: "#f1f5f9", display: "flex", alignItems: "center", justifyContent: "center", color: "#64748b" }}>
+                            <Briefcase size={18} />
+                          </div>
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ fontSize: 13, fontWeight: 700, color: "#1e293b", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{u.profile?.fullName || u.username}</div>
+                            <div style={{ fontSize: 11, color: "#94a3b8", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{u.email}</div>
+                          </div>
+                        </div>
+                      ))
+                    ) : (
+                      <div style={{ gridColumn: "span 2", textAlign: "center", padding: 20, color: "#94a3b8", fontSize: 13 }}>Không tìm thấy diễn giả phù hợp</div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                {(formData.presenters || []).map((presenter, idx) => (
+                  <div key={idx} style={{ background: "#fafafa", padding: 20, borderRadius: 14, border: "1px solid #f1f5f9", display: "flex", flexDirection: "column", gap: 16, position: "relative" }}>
+                    <button
+                      onClick={() => removePresenter(idx)}
+                      style={{ position: "absolute", top: 12, right: 12, background: "#fee2e2", border: "none", color: "#ef4444", padding: "6px", borderRadius: 8, cursor: "pointer" }}
+                    >
+                      <X size={14} />
+                    </button>
+
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: 16 }}>
+                      <Field label="Email diễn giả" required>
+                        <Input type="email" value={presenter.email} onChange={(e) => updatePresenter(idx, 'email', e.target.value)} placeholder="Nhập email để hệ thống tự tìm thông tin" />
+                      </Field>
+                    </div>
+
+
+                    <Field label="Phạm vi thuyết trình">
+                      <Select
+                        value={presenter.targetSessionName || ""}
+                        onChange={(e) => updatePresenter(idx, 'targetSessionName', e.target.value)}
+                      >
+                        <option value="">-- Chưa chỉ định --</option>
+                        <option value="ALL">Thuyết trình tất cả các phiên</option>
+                        {(formData.sessions || []).map((s, sIdx) => (
+                          <option key={sIdx} value={s.title}>{s.title}</option>
+                        ))}
+                      </Select>
+                      <p style={{ fontSize: 11, color: "#64748b", marginTop: 4 }}>
+                        * Chọn "ALL" hoặc tên một phiên cụ thể.
+                      </p>
+                    </Field>
+
+                    <Field label="Tiểu sử tóm tắt">
+                      <Textarea value={presenter.bio} onChange={(e) => updatePresenter(idx, 'bio', e.target.value)} placeholder="Giới thiệu ngắn gọn về diễn giả..." rows={2} />
+                    </Field>
+                  </div>
+                ))}
+                {(!formData.presenters || formData.presenters.length === 0) && (
+                  <div style={{ textAlign: "center", padding: "32px", border: "1px dashed #e2e8f0", borderRadius: 16, color: "#94a3b8", fontSize: 13, background: "#fcfcfc" }}>
+                    <Briefcase size={24} style={{ margin: "0 auto 12px", opacity: 0.3 }} />
+                    Chưa có diễn giả nào được mời. Nhấn "AI gợi ý" hoặc "Thêm diễn giả" để mời.
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div style={{ height: 1, background: "#f1f5f9", margin: "10px 0" }} />
           </div>
-        </Section>
+        )}
 
-        <Section title="Thời gian & địa điểm">
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "1fr 1fr 1fr",
-              gap: 20,
-            }}
-          >
+        {/* STEP 1: BASIC INFO */}
+        {isVisible('basic') && (
+          <>
+            <h2 style={{ fontSize: 18, fontWeight: 800, color: "#1e293b", margin: 0 }}>Thông tin cơ bản</h2>
+
             <Field
-              label="Bắt đầu"
-              icon={<Calendar size={14} color="#2563eb" />}
+              label="Tên sự kiện"
               required
-              error={errors.startTime}
-            >
-              <Input
-                type="datetime-local"
-                min={nowStr}
-                error={!!errors.startTime}
-                value={formData.startTime}
-                onChange={(e) => handleTimeChange("startTime", e.target.value)}
-              />
-            </Field>
-
-            <Field
-              label="Kết thúc"
-              icon={<Calendar size={14} color="#2563eb" />}
-              required
-              error={errors.endTime}
-            >
-              <Input
-                type="datetime-local"
-                min={formData.startTime || nowStr}
-                error={!!errors.endTime}
-                value={formData.endTime}
-                onChange={(e) => handleTimeChange("endTime", e.target.value)}
-              />
-            </Field>
-
-            <Field
-              label="Hạn chót đăng ký"
-              icon={<Calendar size={14} color="#2563eb" />}
-              hint="Nên kết thúc trước khi sự kiện bắt đầu."
-              error={errors.registrationDeadline}
-            >
-              <Input
-                type="datetime-local"
-                min={nowStr}
-                max={formData.startTime}
-                error={!!errors.registrationDeadline}
-                value={formData.registrationDeadline}
-                onChange={(e) =>
-                  handleTimeChange("registrationDeadline", e.target.value)
-                }
-              />
-            </Field>
-          </div>
-
-          <Field
-            label="Địa điểm"
-            icon={<MapPin size={14} color="#22c55e" />}
-            required
-            error={errors.location}
-          >
-            <Input
-              placeholder="Ví dụ: Hội trường A1, Tầng 5"
-              error={!!errors.location}
-              value={formData.location}
-              onChange={(e) =>
-                setFormData({ ...formData, location: e.target.value })
+              error={errors.eventTitle}
+              action={
+                <button
+                  onClick={() => setShowAISuggestions(!showAISuggestions)}
+                  style={{ background: "none", border: "none", color: "#8b5cf6", fontSize: 12, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: 4 }}
+                >
+                  <Sparkles size={14} /> AI gợi ý
+                </button>
               }
-            />
-          </Field>
-        </Section>
-
-        <Section title="Đơn vị tổ chức">
-          <div
-            style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}
-          >
-            <Field
-              label="Khoa"
-              icon={<Users size={14} color="#a855f7" />}
-              error={errors.faculty}
             >
-              <Select
-                value={formData.faculty}
-                onChange={(e) =>
-                  setFormData({ ...formData, faculty: e.target.value })
-                }
-              >
-                <option value="">Chọn khoa</option>
-                {khoaOrganizers.map((k) => (
-                  <option key={k} value={k}>
-                    {k}
-                  </option>
+              <Input
+                placeholder="VD: Hội thảo Công nghệ AI 2026"
+                value={formData.eventTitle || ""}
+                onChange={(e) => setFormData({ ...formData, eventTitle: e.target.value })}
+              />
+              {showAISuggestions && (
+                <AISuggestionBox
+                  title="Gợi ý từ AI"
+                  suggestions={[
+                    "Hội thảo Công nghệ AI và Tương lai 2026",
+                    "Workshop: Kỹ năng Lập trình Python cho Sinh viên",
+                    "Ngày hội Khởi nghiệp Sáng tạo IUH",
+                    "Seminar: Xu hướng Công nghệ Blockchain"
+                  ]}
+                  onSelect={(s) => {
+                    setFormData({ ...formData, eventTitle: s });
+                    setShowAISuggestions(false);
+                  }}
+                />
+              )}
+            </Field>
+
+            <Field label="Danh mục sự kiện" required>
+              <Select value={formData.eventType || ""} onChange={(e) => setFormData({ ...formData, eventType: e.target.value })}>
+                <option value="">-- Chọn danh mục --</option>
+                {EVENT_TYPES.map(type => (
+                  <option key={type.value} value={type.value}>{type.label}</option>
                 ))}
               </Select>
             </Field>
 
-            <Field
-              label="Chuyên ngành"
-              icon={<Users size={14} color="#a855f7" />}
-              hint="Không bắt buộc"
-            >
-              <Input
-                placeholder="Ví dụ: Kỹ thuật phần mềm"
-                value={formData.major}
-                onChange={(e) =>
-                  setFormData({ ...formData, major: e.target.value })
-                }
-              />
-            </Field>
-          </div>
-        </Section>
-
-        <Section title="Nơi nhận">
-          <Field
-            label="Nơi nhận kế hoạch"
-            icon={<FileText size={14} color="#f97316" />}
-            required
-            error={errors.recipients}
-          >
-            <div
-              style={{
-                padding: "14px 16px",
-                background: errors.recipients ? "#fff5f5" : "#fafafa",
-                border: `1px solid ${errors.recipients ? "#fca5a5" : "#ebebeb"}`,
-                borderRadius: 10,
-              }}
-            >
-              <div
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: "repeat(3, 1fr)",
-                  gap: 8,
-                  marginBottom:
-                    formData.customRecipients.length > 0 || showAddRecipient
-                      ? 12
-                      : 0,
-                }}
-              >
-                {[
-                  "Trưởng khoa",
-                  "Ban Giám hiệu",
-                  "Phòng Đào tạo",
-                  "Phòng CTSV",
-                  "Các bộ môn",
-                ].map((r) => (
-                  <CheckRow
-                    key={r}
-                    label={r}
-                    checked={formData.recipients.includes(r)}
-                    onChange={() => toggleRecipient(r)}
-                  />
-                ))}
+            <div style={{ background: "#f8fafc", padding: "24px", borderRadius: 16, border: "1px solid #e2e8f0", display: "flex", flexDirection: "column", gap: 20 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, color: "#1e293b", fontSize: 14, fontWeight: 700 }}>
+                <Timer size={18} className="text-indigo-600" />
+                Thời gian sự kiện
               </div>
 
-              {formData.customRecipients.length > 0 && (
-                <div
-                  style={{
-                    borderTop: "1px solid #f0f0f0",
-                    paddingTop: 10,
-                    marginTop: 4,
-                    display: "flex",
-                    flexDirection: "column",
-                    gap: 8,
-                  }}
-                >
-                  {formData.customRecipients.map((r) => (
-                    <CheckRow
-                      key={r}
-                      label={r}
-                      checked={true}
-                      onChange={() => {}}
-                      onRemove={() => removeCustomRecipient(r)}
-                    />
-                  ))}
-                </div>
-              )}
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
+                <DateTimeField
+                  label="Thời gian bắt đầu"
+                  value={formData.startTime}
+                  onChange={(val) => setFormData({ ...formData, startTime: val })}
+                  error={errors.startTime}
+                  required
+                />
+                <DateTimeField
+                  label="Thời gian kết thúc"
+                  value={formData.endTime}
+                  onChange={(val) => setFormData({ ...formData, endTime: val })}
+                  error={errors.endTime}
+                  required
+                />
+              </div>
 
-              {showAddRecipient ? (
-                <div style={{ display: "flex", gap: 6, marginTop: 10 }}>
-                  <input
-                    type="text"
-                    placeholder="Nhập nơi nhận mới..."
-                    value={newRecipient}
-                    onChange={(e) => setNewRecipient(e.target.value)}
-                    onKeyDown={(e) => e.key === "Enter" && addCustomRecipient()}
-                    autoFocus
-                    style={{
-                      flex: 1,
-                      padding: "7px 10px",
-                      border: "1px solid #2563eb",
-                      borderRadius: 8,
-                      fontSize: 13,
-                      outline: "none",
-                      fontFamily: "inherit",
-                    }}
-                  />
-                  <button
-                    onClick={addCustomRecipient}
-                    style={{
-                      padding: "7px 14px",
-                      background: "#2563eb",
-                      color: "#fff",
-                      border: "none",
-                      borderRadius: 8,
-                      fontSize: 12,
-                      fontWeight: 600,
-                      cursor: "pointer",
-                      fontFamily: "inherit",
-                    }}
-                  >
-                    Thêm
-                  </button>
-                  <button
-                    onClick={() => {
-                      setShowAddRecipient(false);
-                      setNewRecipient("");
-                    }}
-                    style={{
-                      padding: "7px 12px",
-                      background: "none",
-                      color: "#666",
-                      border: "1px solid #e5e5e5",
-                      borderRadius: 8,
-                      fontSize: 12,
-                      fontWeight: 500,
-                      cursor: "pointer",
-                      fontFamily: "inherit",
-                    }}
-                  >
-                    Hủy
-                  </button>
-                </div>
-              ) : (
-                <button
-                  onClick={() => setShowAddRecipient(true)}
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 5,
-                    fontSize: 12,
-                    color: "#2563eb",
-                    background: "none",
-                    border: "none",
-                    cursor: "pointer",
-                    fontWeight: 500,
-                    fontFamily: "inherit",
-                    marginTop: 10,
-                    padding: 0,
-                  }}
-                >
-                  <Plus size={13} /> Thêm nơi nhận khác
-                </button>
-              )}
+              <DateTimeField
+                label="Hạn đăng ký tham gia"
+                value={formData.registrationDeadline}
+                onChange={(val) => setFormData({ ...formData, registrationDeadline: val })}
+                error={errors.registrationDeadline}
+                required
+              />
             </div>
-          </Field>
 
-          <Field
-            label="Tính năng bốc thăm may mắn"
-            icon={<Award size={14} color="#eab308" />}
-            hint="Bật nếu sự kiện có phần rút thăm trúng thưởng"
-          >
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 16,
-                padding: "8px 0",
-              }}
+            <Field
+              label="Địa điểm tổ chức"
+              required
+              error={errors.location}
+              action={
+                <button
+                  onClick={() => setShowLocationAISuggestions(!showLocationAISuggestions)}
+                  style={{ background: "none", border: "none", color: "#8b5cf6", fontSize: 12, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: 4 }}
+                >
+                  <Sparkles size={14} /> AI gợi ý địa điểm
+                </button>
+              }
             >
-              <label
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 8,
-                  cursor: "pointer",
-                  userSelect: "none",
-                }}
-              >
-                <input
-                  type="checkbox"
-                  checked={formData.hasLuckyDraw}
-                  onChange={(e) =>
-                    setFormData((prev) => ({
-                      ...prev,
-                      hasLuckyDraw: e.target.checked,
-                    }))
-                  }
-                  style={{
-                    width: 18,
-                    height: 18,
-                    accentColor: "#2563eb",
+              <div style={{ position: "relative" }}>
+                <Input placeholder="VD: Hội trường A, Cơ sở Nguyễn Văn Bảo" value={formData.location || ""} onChange={(e) => setFormData({ ...formData, location: e.target.value })} />
+                <MapPin size={16} style={{ position: "absolute", right: 14, top: "50%", transform: "translateY(-50%)", color: "#94a3b8", pointerEvents: "none" }} />
+              </div>
+              {showLocationAISuggestions && (
+                <AISuggestionBox
+                  title="Gợi ý địa điểm phổ biến tại IUH"
+                  suggestions={[
+                    "Hội trường A, Cơ sở Nguyễn Văn Bảo",
+                    "Hội trường E4, Nhà E",
+                    "Phòng họp Nhà V",
+                    "Sân bóng đá IUH",
+                    "Thư viện tầng 1, Nhà B",
+                    "Phòng H3.1 (Phòng CLB)"
+                  ]}
+                  onSelect={(s) => {
+                    setFormData({ ...formData, location: s });
+                    setShowLocationAISuggestions(false);
                   }}
                 />
-                <span style={{ fontSize: 14, color: "#333" }}>
-                  Có tổ chức bốc thăm may mắn
-                </span>
-              </label>
-            </div>
-          </Field>
-        </Section>
+              )}
+            </Field>
+          </>
+        )}
 
-        <Section title="Ghi chú">
-          <Field
-            label="Thông tin bổ sung"
-            icon={<FileText size={14} color="#94a3b8" />}
-          >
-            <Textarea
-              rows={3}
-              placeholder="Thông tin bổ sung về sự kiện..."
-              value={formData.notes}
-              onChange={(e) =>
-                setFormData({ ...formData, notes: e.target.value })
+        {/* STEP 2: DESCRIPTION & DETAILS & ATTENDEES */}
+        {(isVisible('details') || isVisible('description') || isVisible('attendees')) && (
+          <>
+            <h2 style={{ fontSize: 18, fontWeight: 800, color: "#1e293b", margin: 0 }}>Mô tả & Cài đặt người tham gia</h2>
+
+            <Field
+              label="Mô tả sự kiện"
+              required
+              error={errors.eventPurpose}
+              action={
+                <button
+                  onClick={() => setShowDescriptionAISuggestions(!showDescriptionAISuggestions)}
+                  style={{ background: "none", border: "none", color: "#8b5cf6", fontSize: 12, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: 4 }}
+                >
+                  <Sparkles size={14} /> AI gợi ý mô tả
+                </button>
               }
-            />
-          </Field>
-        </Section>
-
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            paddingTop: 20,
-            borderTop: "1px solid #f0f0f0",
-          }}
-        >
-          <button
-            onClick={onBack}
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 6,
-              padding: "9px 18px",
-              border: "1px solid #e5e5e5",
-              borderRadius: 8,
-              background: "#fff",
-              color: "#555",
-              fontSize: 13,
-              fontWeight: 500,
-              cursor: "pointer",
-            }}
-          >
-            <ArrowLeft size={15} /> Quay lại
-          </button>
-
-          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-            {errorCount > 0 && (
-              <div
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 5,
-                  fontSize: 12,
-                  color: "#ef4444",
-                  fontWeight: 500,
-                }}
-              >
-                <Info size={14} />
-                {errorCount} lỗi cần sửa
-              </div>
-            )}
-            <button
-              onClick={handleNext}
-              disabled={errorCount > 0}
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 6,
-                padding: "9px 20px",
-                border: "none",
-                borderRadius: 8,
-                background: isQuickCreate ? "#10b981" : "#2563eb",
-                color: "#fff",
-                fontSize: 13,
-                fontWeight: 500,
-                cursor: errorCount > 0 ? "not-allowed" : "pointer",
-                opacity: errorCount > 0 ? 0.6 : 1,
-              }}
             >
-              {isQuickCreate ? "Gửi phê duyệt" : "Tiếp tục"}
-              {!isQuickCreate && <ArrowRight size={15} />}
-            </button>
-          </div>
-        </div>
+              <Textarea
+                placeholder="Mô tả chi tiết về sự kiện, nội dung chính, đối tượng tham gia..."
+                rows={6}
+                value={formData.eventPurpose || ""}
+                onChange={(e) => setFormData({ ...formData, eventPurpose: e.target.value })}
+              />
+              {showDescriptionAISuggestions && (
+                <AISuggestionBox
+                  title="Mẫu mô tả từ AI"
+                  suggestions={[
+                    "Hội thảo chuyên môn: Sự kiện quy tụ các chuyên gia hàng đầu trong lĩnh vực để chia sẻ kiến thức mới nhất và xu hướng tương lai.",
+                    "Workshop thực hành: Khóa học tập trung vào kỹ năng thực tế, người tham gia sẽ được hướng dẫn trực tiếp bởi các chuyên gia.",
+                    "Sự kiện networking: Buổi gặp gỡ thân mật giữa sinh viên và các nhà tuyển dụng, mở ra nhiều cơ hội thực tập và việc làm hấp dẫn.",
+                    "Ngày hội văn hóa: Không gian giao lưu văn hóa, nghệ thuật với nhiều hoạt động sôi nổi và giải thưởng hấp dẫn dành cho sinh viên."
+                  ]}
+                  onSelect={(s) => {
+                    setFormData({ ...formData, eventPurpose: s });
+                    setShowDescriptionAISuggestions(false);
+                  }}
+                />
+              )}
+            </Field>
+
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
+              <Field
+                label="Số lượng người tham gia tối đa"
+                required
+                error={errors.maxParticipants}
+                action={
+                  <button
+                    onClick={() => setShowMaxParticipantsAISuggestions(!showMaxParticipantsAISuggestions)}
+                    style={{ background: "none", border: "none", color: "#8b5cf6", fontSize: 12, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: 4 }}
+                  >
+                    <Sparkles size={14} /> AI gợi ý
+                  </button>
+                }
+              >
+                <Input type="number" placeholder="VD: 500" value={formData.maxParticipants || ""} onChange={(e) => setFormData({ ...formData, maxParticipants: e.target.value })} />
+                {showMaxParticipantsAISuggestions && (
+                  <AISuggestionBox
+                    title="Gợi ý quy mô phổ biến"
+                    suggestions={["50 (Phòng học nhỏ)", "100 (Phòng học lớn)", "200 (Hội trường nhỏ)", "500 (Hội trường A)", "1000 (Sân bóng đá)"]}
+                    onSelect={(s) => {
+                      setFormData({ ...formData, maxParticipants: s.split(' ')[0] });
+                      setShowMaxParticipantsAISuggestions(false);
+                    }}
+                  />
+                )}
+              </Field>
+              <Field
+                label="Mục tiêu sự kiện"
+                action={
+                  <button
+                    onClick={() => setShowGoalAISuggestions(!showGoalAISuggestions)}
+                    style={{ background: "none", border: "none", color: "#8b5cf6", fontSize: 12, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: 4 }}
+                  >
+                    <Sparkles size={14} /> AI gợi ý
+                  </button>
+                }
+              >
+                <Input placeholder="VD: Nâng cao kỹ năng, Kết nối doanh nghiệp..." value={formData.eventTopic || ""} onChange={(e) => setFormData({ ...formData, eventTopic: e.target.value })} />
+                {showGoalAISuggestions && (
+                  <AISuggestionBox
+                    title="Gợi ý mục tiêu sự kiện"
+                    suggestions={[
+                      "Nâng cao kỹ năng chuyên môn cho sinh viên",
+                      "Kết nối doanh nghiệp và tạo cơ hội việc làm",
+                      "Chia sẻ kinh nghiệm thực tế từ chuyên gia",
+                      "Tạo sân chơi giao lưu, học hỏi giữa các câu lạc bộ"
+                    ]}
+                    onSelect={(s) => {
+                      setFormData({ ...formData, eventTopic: s });
+                      setShowGoalAISuggestions(false);
+                    }}
+                  />
+                )}
+              </Field>
+            </div>
+
+            <Field
+              label="Yêu cầu đối với người tham gia"
+              action={
+                <button
+                  onClick={() => setShowRequirementAISuggestions(!showRequirementAISuggestions)}
+                  style={{ background: "none", border: "none", color: "#8b5cf6", fontSize: 12, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: 4 }}
+                >
+                  <Sparkles size={14} /> AI gợi ý
+                </button>
+              }
+            >
+              <Textarea
+                placeholder="VD: Sinh viên năm 3, 4; Có kiến thức cơ bản về lập trình..."
+                value={formData.targetObjects?.join(', ') || ""}
+                onChange={(e) => setFormData({ ...formData, targetObjects: e.target.value.split(',').map(s => s.trim()) })}
+              />
+              {showRequirementAISuggestions && (
+                <AISuggestionBox
+                  title="Gợi ý yêu cầu tham gia"
+                  suggestions={[
+                    "Sinh viên năm 3, năm 4 chuyên ngành CNTT",
+                    "Mang theo laptop và cài đặt sẵn các phần mềm cần thiết",
+                    "Đã đăng ký và nhận được email xác nhận từ ban tổ chức",
+                    "Mặc trang phục lịch sự hoặc đồng phục trường"
+                  ]}
+                  onSelect={(s) => {
+                    const current = formData.targetObjects || [];
+                    setFormData({ ...formData, targetObjects: [...new Set([...current, s])] });
+                    setShowRequirementAISuggestions(false);
+                  }}
+                />
+              )}
+            </Field>
+
+            <Field label="Hình ảnh sự kiện">
+              <div style={{
+                border: "1px dashed #cbd5e1",
+                borderRadius: 12,
+                padding: "40px",
+                textAlign: "center",
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                gap: 12,
+                background: "#fafafa"
+              }}>
+                <div style={{ width: 48, height: 48, borderRadius: 12, background: "#fff", border: "1px solid #e2e8f0", display: "flex", alignItems: "center", justifyContent: "center", color: "#94a3b8" }}>
+                  <Upload size={24} style={{ margin: "auto" }} />
+                </div>
+                <div style={{ fontSize: 13, color: "#64748b" }}>
+                  <p style={{ margin: 0, fontWeight: 600, color: "#475569" }}>Kéo thả hoặc click để tải ảnh lên</p>
+                  <p style={{ margin: "4px 0 0", fontSize: 11 }}>PNG, JPG tối đa 5MB</p>
+                </div>
+                <ImageUpload value={formData.coverImage} onChange={(url) => setFormData({ ...formData, coverImage: url })} />
+              </div>
+            </Field>
+          </>
+        )}
       </div>
 
-      <style>{`* { box-sizing: border-box; } ::placeholder { color: #ccc; }`}</style>
+      <div style={{ marginTop: 32, display: 'flex', justifyContent: 'flex-end', gap: 16 }}>
+        <button onClick={onBack} style={{ padding: "10px 24px", borderRadius: 8, border: "1px solid #e2e8f0", background: "#fff", color: "#64748b", fontSize: 14, fontWeight: 600, cursor: "pointer" }}>
+          Quay lại
+        </button>
+        <button onClick={handleNext} style={{ padding: "10px 32px", borderRadius: 8, border: "none", background: "#1e1b4b", color: "#fff", fontSize: 14, fontWeight: 600, cursor: "pointer", boxShadow: "0 4px 6px -1px rgba(0,0,0,0.1)" }}>
+          Tiếp theo
+        </button>
+      </div>
     </div>
   );
-};
-
-export default ManualInputStep;
+}

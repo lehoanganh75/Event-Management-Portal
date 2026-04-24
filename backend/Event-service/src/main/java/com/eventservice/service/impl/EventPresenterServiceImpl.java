@@ -62,8 +62,8 @@ public class EventPresenterServiceImpl implements EventPresenterService {
     }
 
     @Override
-    public List<EventPresenter> getPresentersBySession(String eventId, String session) {
-        return presenterRepository.findByEventIdAndSession(eventId, session);
+    public List<EventPresenter> getPresentersBySession(String eventId, String sessionId) {
+        return presenterRepository.findByEventIdAndSessions_Id(eventId, sessionId);
     }
 
     @Override

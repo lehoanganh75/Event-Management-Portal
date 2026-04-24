@@ -83,6 +83,12 @@ public class LuckyDrawController {
         return ResponseEntity.ok(luckyDrawService.createDrawEntry(userId, luckyDrawId));
     }
 
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> deleteLuckyDraw(@PathVariable String id) {
+        luckyDrawService.deleteLuckyDraw(id);
+        return ResponseEntity.noContent().build();
+    }
+
     @DeleteMapping("/events/{eventId}/soft-delete")
     public ResponseEntity<?> softDeleteByEventId(@PathVariable String eventId) {
         luckyDrawService.deleteLuckyDrawByEventId(eventId);

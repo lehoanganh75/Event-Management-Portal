@@ -25,7 +25,6 @@ public class EventOrganizer {
 
     private String fullName;       // Tên hiển thị trong ban tổ chức
     private String email;          // Email liên hệ
-    private String position;       // Chức vụ trong sự kiện (vd: Trưởng ban)
 
     @Enumerated(EnumType.STRING)
     private OrganizerRole role;    // LEADER, COORDINATOR, MEMBER, ADVISOR
@@ -50,7 +49,6 @@ public class EventOrganizer {
                 .accountId(this.accountId)
                 .fullName(this.fullName)
                 .email(this.email)
-                .position(this.position)
                 .role(this.role)
                 .isDeleted(this.isDeleted)
                 .organization(this.organization)

@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Lời mời Thuyết trình - IUH Event</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            width: 100% !important;
+            background: linear-gradient(180deg, #eef2ff 0%, #f8fafc 100%);
+            font-family: 'Segoe UI', Roboto, -apple-system, BlinkMacSystemFont, sans-serif;
+            color: #1e293b;
+        }
+
+        .wrapper {
+            width: 100%;
+            padding: 50px 0;
+        }
+
+        .main-table {
+            max-width: 620px;
+            margin: 0 auto;
+            background: #ffffff;
+            border-radius: 18px;
+            overflow: hidden;
+            box-shadow: 0 12px 28px rgba(0, 0, 0, 0.08);
+        }
+
+        /* HEADER */
+        .header {
+            background: linear-gradient(135deg, #4f46e5, #7c3aed);
+            padding: 45px 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            color: #ffffff;
+            margin: 0;
+            font-size: 22px;
+            font-weight: 800;
+            letter-spacing: 2px;
+        }
+
+        /* CONTENT */
+        .content {
+            padding: 45px 40px;
+            line-height: 1.75;
+        }
+
+        .greeting {
+            font-size: 20px;
+            font-weight: 700;
+            margin-bottom: 20px;
+        }
+
+        .invite-text {
+            font-size: 16px;
+            margin-bottom: 28px;
+        }
+
+        /* EVENT CARD */
+        .event-card {
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            padding: 30px;
+            margin: 30px 0;
+            border-radius: 12px;
+            box-shadow: 0 8px 18px rgba(0, 0, 0, 0.05);
+            position: relative;
+        }
+
+        .event-card::before {
+            content: "";
+            position: absolute;
+            left: 0;
+            top: 20px;
+            bottom: 20px;
+            width: 5px;
+            border-radius: 5px;
+            background: linear-gradient(180deg, #4f46e5, #7c3aed);
+        }
+
+        .event-name {
+            font-size: 22px;
+            font-weight: 800;
+            color: #4338ca;
+            margin-bottom: 20px;
+        }
+
+        /* EMAIL SAFE (NO FLEX) */
+        .info-row {
+            margin-bottom: 12px;
+            font-size: 15px;
+        }
+
+        .info-label {
+            font-weight: 600;
+            color: #64748b;
+            display: inline-block;
+            min-width: 120px;
+        }
+
+        .info-value {
+            font-weight: 600;
+            color: #1e293b;
+        }
+
+        /* BUTTON */
+        .btn-container {
+            text-align: center;
+            margin: 45px 0;
+        }
+
+        .btn {
+            background: linear-gradient(135deg, #4f46e5, #7c3aed);
+            color: #ffffff !important;
+            padding: 16px 38px;
+            text-decoration: none;
+            border-radius: 10px;
+            font-weight: 700;
+            font-size: 16px;
+            display: inline-block;
+            box-shadow: 0 8px 18px rgba(79, 70, 229, 0.35);
+        }
+
+        /* FOOTER */
+        .footer {
+            background: #f8fafc;
+            padding: 32px;
+            text-align: center;
+            font-size: 13px;
+            color: #94a3b8;
+            border-top: 1px solid #e2e8f0;
+        }
+
+        .footer p {
+            margin: 6px 0;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="wrapper">
+        <table class="main-table">
+            <tr>
+                <td class="header">
+                    <h1>LỜI MỜI THUYẾT TRÌNH</h1>
+                </td>
+            </tr>
+            <tr>
+                <td class="content">
+                    <p class="greeting">Kính chào <span th:text="${fullName}">Diễn giả</span>,</p>
+                    <p class="invite-text">Hệ thống Quản lý Sự kiện IUH trân trọng kính mời bạn tham gia với vai trò
+                        <strong>Diễn giả / Người thuyết trình</strong> cho sự kiện sắp tới của chúng tôi:
+                    </p>
+
+                    <div class="event-card">
+                        <h2 class="event-name" th:text="${eventName}">Tên Sự Kiện</h2>
+                        <div class="info-row">
+                            <span class="info-label">📅 Thời gian:</span>
+                            <span class="info-value" th:text="${startTime}">01/01/2026</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="info-label">🎤 Chủ đề:</span>
+                            <span class="info-value" th:text="${sessionTopic}">Tên phiên thuyết trình</span>
+                        </div>
+                    </div>
+
+                    <p>Sự hiện diện và những chia sẻ tâm huyết của bạn sẽ góp phần to lớn vào sự thành công của sự kiện
+                        và mang lại nhiều giá trị quý báu cho cộng đồng sinh viên IUH.</p>
+                    <p>Vui lòng nhấn vào nút bên dưới để xem chi tiết và phản hồi lời mời:</p>
+
+                    <div class="btn-container">
+                        <a th:href="${inviteUrl}" class="btn">XEM CHI TIẾT & PHẢN HỒI</a>
+                    </div>
+
+                    <p style="font-size: 14px; text-align: center; color: #64748b;">Trân trọng cảm ơn!</p>
+                </td>
+            </tr>
+            <tr>
+                <td class="footer">
+                    <p><strong>BAN TỔ CHỨC SỰ KIỆN - IUH</strong></p>
+                    <p>Đại học Công nghiệp Thành phố Hồ Chí Minh</p>
+                    <p>Địa chỉ: 12 Nguyễn Văn Bảo, P.4, Q. Gò Vấp, TP.HCM</p>
+                    <p>&copy; 2026 IUH Event Management System</p>
+                </td>
+            </tr>
+        </table>
+    </div>
+</body>
+
+</html>

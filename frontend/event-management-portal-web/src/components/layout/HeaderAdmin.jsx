@@ -7,6 +7,7 @@ import { useAuth } from "../../context/AuthContext";
 import { Client } from "@stomp/stompjs";
 import SockJS from "sockjs-client";
 import { toast } from "react-toastify";
+import { showToast } from "../../utils/toast.jsx";
 
 const roleMap = {
   SUPER_ADMIN: "Quản Trị Viên Cao Cấp",
@@ -27,7 +28,6 @@ const HeaderAdmin = () => {
   const [unreadCount, setUnreadCount] = useState(0);
   const [isLoadingNotifications, setIsLoadingNotifications] = useState(false);
   const [isMarkingAll, setIsMarkingAll] = useState(false);
-  const [logoutToastVisible, setLogoutToastVisible] = useState(false);
 
   const notificationRef = useRef(null);
   const menuRef = useRef(null);
@@ -66,16 +66,12 @@ const HeaderAdmin = () => {
               setNotifications(prev => [newNotification, ...prev].slice(0, 10));
               setUnreadCount(prev => prev + 1);
 
-              toast.info(
-                <div className="flex flex-col gap-1 text-left">
-                  <p className="font-bold text-xs uppercase tracking-tight">{newNotification.title}</p>
-                  <p className="text-[10px] line-clamp-2">{newNotification.message}</p>
+              showToast(
+                <div className="flex flex-col gap-0.5 text-left">
+                  <p className="font-bold text-[13px] uppercase tracking-tight">{newNotification.title}</p>
+                  <p className="text-[11px] opacity-80 line-clamp-2">{newNotification.message}</p>
                 </div>,
-                {
-                  position: "top-right",
-                  autoClose: 5000,
-                  icon: getNotificationIcon(newNotification.type)
-                }
+                'info'
               );
             }
           });
@@ -113,11 +109,9 @@ const HeaderAdmin = () => {
   // 3. XỬ LÝ ĐĂNG XUẤT QUA CONTEXT
   const handleLogoutAction = async () => {
     try {
-      await logout(); // Hàm này trong AuthContext đã lo việc gọi API và xóa LocalStorage
+      await logout();
       setIsDropdownOpen(false);
-      setLogoutToastVisible(true);
-
-      // Chuyển hướng về trang login sau khi hiện toast thành công
+      showToast("Đăng xuất thành công!", "success");
       setTimeout(() => navigate("/login"), 1000);
     } catch (error) {
       console.error("Lỗi đăng xuất:", error);
@@ -298,17 +292,7 @@ const HeaderAdmin = () => {
         </div>
       </header>
 
-      {/* Logout Toast */}
-      <AnimatePresence>
-        {logoutToastVisible && (
-          <motion.div initial={{ opacity: 0, x: 50 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 50 }}
-            className="fixed top-6 right-6 z-[100] bg-emerald-600 text-white px-6 py-4 rounded-2xl shadow-2xl flex items-center gap-3 border border-white/20 backdrop-blur-md"
-          >
-            <CheckCircle size={20} />
-            <span className="text-sm font-bold uppercase tracking-wide">Đăng xuất thành công</span>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      {/* Logout Toast removed in favor of global showToast */}
     </>
   );
 };

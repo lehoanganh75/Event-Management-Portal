@@ -32,7 +32,7 @@ const ROLE_COLORS = {
   slate: "bg-slate-100 text-slate-600 border-slate-200",
 };
 
-const DepartmentsRolesPage = () => {
+const AdminDepartmentsRolesPage = () => {
   const location = useLocation();
 
   const [activeTab, setActiveTab] = useState(
@@ -322,4 +322,4 @@ const DepartmentsRolesPage = () => {
   );
 };
 
-export default DepartmentsRolesPage;
+export default AdminDepartmentsRolesPage;

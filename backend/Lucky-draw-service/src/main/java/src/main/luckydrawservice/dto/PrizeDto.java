@@ -1,18 +1,22 @@
 package src.main.luckydrawservice.dto;
 
+import java.math.BigDecimal;
+
 public class PrizeDto {
     private String id;
     private String prizeName;
     private Integer quantity;
     private String description;
+    private BigDecimal winProbabilityPercent;
 
     public PrizeDto() {}
 
-    public PrizeDto(String id, String prizeName, Integer quantity, String description) {
+    public PrizeDto(String id, String prizeName, Integer quantity, String description, java.math.BigDecimal winProbabilityPercent) {
         this.id = id;
         this.prizeName = prizeName;
         this.quantity = quantity;
         this.description = description;
+        this.winProbabilityPercent = winProbabilityPercent;
     }
 
     public String getId() {
@@ -47,6 +51,14 @@ public class PrizeDto {
         this.description = description;
     }
 
+    public java.math.BigDecimal getWinProbabilityPercent() {
+        return winProbabilityPercent;
+    }
+
+    public void setWinProbabilityPercent(java.math.BigDecimal winProbabilityPercent) {
+        this.winProbabilityPercent = winProbabilityPercent;
+    }
+
     public static PrizeDtoBuilder builder() {
         return new PrizeDtoBuilder();
     }
@@ -56,6 +68,7 @@ public class PrizeDto {
         private String prizeName;
         private Integer quantity;
         private String description;
+        private java.math.BigDecimal winProbabilityPercent;
 
         PrizeDtoBuilder() {}
 
@@ -79,8 +92,13 @@ public class PrizeDto {
             return this;
         }
 
+        public PrizeDtoBuilder winProbabilityPercent(java.math.BigDecimal winProbabilityPercent) {
+            this.winProbabilityPercent = winProbabilityPercent;
+            return this;
+        }
+
         public PrizeDto build() {
-            return new PrizeDto(id, prizeName, quantity, description);
+            return new PrizeDto(id, prizeName, quantity, description, winProbabilityPercent);
         }
     }
 }

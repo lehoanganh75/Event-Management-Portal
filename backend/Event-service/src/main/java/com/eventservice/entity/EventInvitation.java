@@ -4,6 +4,7 @@ import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
 import com.eventservice.entity.enums.InvitationStatus;
+import com.eventservice.entity.enums.InvitationType;
 import com.eventservice.entity.enums.OrganizerRole;
 
 import java.time.LocalDateTime;
@@ -25,28 +26,35 @@ public class EventInvitation {
     private String inviterAccountId; // ID người gửi (Trưởng ban/Người tạo event)
 
     @Column(nullable = false)
-    private String inviteeEmail;     // Email người được mời (Dùng email để mời cả người chưa có acc)
+    private String inviteeEmail; // Email người được mời (Dùng email để mời cả người chưa có acc)
 
-    // ID này sẽ được cập nhật sau khi người dùng nhấn "Accept" và hệ thống khớp email
+    // ID này sẽ được cập nhật sau khi người dùng nhấn "Accept" và hệ thống khớp
+    // email
     private String inviteeAccountId;
 
     private String inviteeName;
 
-    private String inviteePosition; // Vị trí công tác của người được mời (Vd: "Sinh viên năm 3 - Khoa CNTT")
+    @Enumerated(EnumType.STRING)
+    @Builder.Default
+    private InvitationType type = InvitationType.ORGANIZER;
 
     @Enumerated(EnumType.STRING)
-    private OrganizerRole targetRole; // Vai trò dự kiến: LEADER, MEMBER, LOGISTICS...
+    private OrganizerRole targetRole; // Vai trò dự kiến (Nếu là ORGANIZER): LEADER, MEMBER...
 
-    // --- Content & Roles ---
+    // --- Presenter Specific Info ---
+    private String presenterBio; // Tiểu sử (Nếu là PRESENTER)
+    private String presenterSession; // Tên phiên/chủ đề thuyết trình
+
+    // --- Content ---
     @Column(columnDefinition = "TEXT")
-    private String message;          // Lời nhắn gửi kèm (Vd: "Mời bạn làm truyền thông")
+    private String message; // Lời nhắn gửi kèm
 
     // --- Status & Tracking ---
     @Builder.Default
     @Enumerated(EnumType.STRING)
     private InvitationStatus status = InvitationStatus.PENDING;
 
-    private String rejectionReason;  // Lý do từ chối (Nếu họ chọn REJECTED)
+    private String rejectionReason; // Lý do từ chối (Nếu họ chọn REJECTED)
 
     private String token;
 
@@ -57,7 +65,7 @@ public class EventInvitation {
 
     private LocalDateTime respondedAt; // Thời điểm phản hồi
 
-    private LocalDateTime expiredAt;   // (Nên có) Thời hạn lời mời (vd: sau 7 ngày sẽ hết hạn)
+    private LocalDateTime expiredAt; // (Nên có) Thời hạn lời mời (vd: sau 7 ngày sẽ hết hạn)
 
     // --- Relationships ---
     @ManyToOne(fetch = FetchType.LAZY)

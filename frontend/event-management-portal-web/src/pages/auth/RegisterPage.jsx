@@ -7,7 +7,7 @@ import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 
 import logo_iuh from "../../assets/images/logo_iuh.png";
-import ErrorNotification from "../../components/common/ErrorNotification";
+import { showToast } from "../../utils/toast.jsx";
 import { useAuth } from "../../context/AuthContext";
 import authService from "../../services/authService";
 
@@ -102,8 +102,6 @@ const RegisterPage = () => {
 
   const [countdown, setCountdown] = useState(60);
 
-  const [errorToastVisible, setErrorToastVisible] = useState(false);
-  const [errorMessage, setErrorMessage] = useState("");
   const [errors, setErrors] = useState({});
 
   const [showPassword, setShowPassword] = useState(false);
@@ -217,8 +215,7 @@ const RegisterPage = () => {
         const typeLabel = userType === "STUDENT" ? "MSSV" : userType === "LECTURER" ? "MSGV" : "Tên đăng nhập";
         setErrors({ username: `${typeLabel} đã tồn tại` });
       } else {
-        setErrorMessage(msg || "Đăng ký thất bại");
-        setErrorToastVisible(true);
+        showToast(msg || "Đăng ký thất bại", "error");
       }
     } finally {
       setIsSubmitting(false);
@@ -234,8 +231,7 @@ const RegisterPage = () => {
       // Focus first input
       otpRefs.current[0]?.focus();
     } catch (err) {
-      setErrorMessage(err.response?.data?.message || "Không thể gửi lại mã OTP");
-      setErrorToastVisible(true);
+      showToast(err.response?.data?.message || "Không thể gửi lại mã OTP", "error");
     }
   };
 
@@ -261,8 +257,7 @@ const RegisterPage = () => {
       await authService.verifyOtp(formData.username, code);
       navigate("/login");
     } catch {
-      setErrorMessage("OTP không hợp lệ");
-      setErrorToastVisible(true);
+      showToast("OTP không hợp lệ", "error");
     } finally {
       setIsSubmitting(false);
     }
@@ -287,12 +282,7 @@ const RegisterPage = () => {
         </button>
       </div>
 
-      <ErrorNotification
-        toastVisible={errorToastVisible}
-        setToastVisible={setErrorToastVisible}
-        notification="Lỗi"
-        message={errorMessage}
-      />
+      {/* ErrorNotification removed in favor of global showToast */}
 
       <motion.div 
         initial={{ opacity: 0, y: 20 }}

@@ -35,9 +35,11 @@ public class EventPostServiceImpl implements EventPostService {
     @Override
     public List<PostDetailResponse> getPostsByEvent(String eventId) {
         List<EventPost> eventPosts = eventPostRepository.findByEventIdAndIsDeletedFalse(eventId);
-        if (eventPosts.isEmpty()) return Collections.emptyList();
+        if (eventPosts.isEmpty())
+            return Collections.emptyList();
 
-        // 1. Gom tất cả Account IDs từ TẤT CẢ các bài post để gọi Identity 1 lần duy nhất
+        // 1. Gom tất cả Account IDs từ TẤT CẢ các bài post để gọi Identity 1 lần duy
+        // nhất
         Set<String> allAccountIds = new HashSet<>();
         for (EventPost post : eventPosts) {
             allAccountIds.add(post.getAuthorAccountId());
@@ -67,7 +69,7 @@ public class EventPostServiceImpl implements EventPostService {
         return mapToPostDetailResponse(post, userMap);
     }
 
-// --- PRIVATE HELPER METHODS (Dùng chung cho cả 2 method trên) ---
+    // --- PRIVATE HELPER METHODS (Dùng chung cho cả 2 method trên) ---
 
     /**
      * Hàm trung tâm để chuyển đổi từ Entity sang DTO
@@ -88,6 +90,13 @@ public class EventPostServiceImpl implements EventPostService {
         res.setCreatedAt(post.getCreatedAt());
         res.setUpdatedAt(post.getUpdatedAt());
         res.setDeleted(post.isDeleted());
+        res.setImageUrls(post.getImageUrls());
+        res.setReactions(post.getReactions());
+
+        if (post.getEvent() != null) {
+            res.setEventId(post.getEvent().getId());
+            res.setEventTitle(post.getEvent().getTitle());
+        }
 
         // Mapping Author
         res.setAuthor(userMap.getOrDefault(post.getAuthorAccountId(), getDefaultUser(post.getAuthorAccountId())));
@@ -105,10 +114,12 @@ public class EventPostServiceImpl implements EventPostService {
 
     // Hàm bổ trợ để gom ID
     private void collectAccountIds(List<PostComment> comments, Set<String> ids) {
-        if (comments == null) return;
+        if (comments == null)
+            return;
         for (PostComment c : comments) {
             ids.add(c.getCommenterAccountId());
-            if (c.getReplies() != null) collectAccountIds(c.getReplies(), ids);
+            if (c.getReplies() != null)
+                collectAccountIds(c.getReplies(), ids);
         }
     }
 
@@ -118,6 +129,7 @@ public class EventPostServiceImpl implements EventPostService {
         dto.setId(comment.getId());
         dto.setContent(comment.getContent());
         dto.setCreatedAt(comment.getCreatedAt());
+        dto.setReactions(comment.getReactions());
 
         // Lấy từ Map, nếu null thì tạo User mặc định tránh lỗi UI
         dto.setCommenter(userMap.getOrDefault(comment.getCommenterAccountId(),
@@ -141,15 +153,15 @@ public class EventPostServiceImpl implements EventPostService {
     }
 
     private Map<String, UserDto> fetchUsersMap(Set<String> ids) {
+        if (ids == null || ids.isEmpty())
+            return new HashMap<>();
         try {
-            // Tốt nhất là tạo API lấy List User: identityServiceClient.getUsersByIds(ids)
-            // Nếu chỉ có API lấy từng người, hãy loop ở đây nhưng bọc try-catch kỹ
+            List<UserDto> users = identityServiceClient.getUsersByIds(new ArrayList<>(ids));
             Map<String, UserDto> map = new HashMap<>();
-            for (String id : ids) {
-                try {
-                    UserDto user = identityServiceClient.getUsersById(id);
-                    if (user != null) map.put(id, user);
-                } catch (Exception e) {
+            if (users != null) {
+                for (UserDto u : users) {
+                    if (u != null && u.getId() != null)
+                        map.put(u.getId(), u);
                 }
             }
             return map;
@@ -165,40 +177,47 @@ public class EventPostServiceImpl implements EventPostService {
         post.setUpdatedAt(LocalDateTime.now());
         post.setDeleted(false);
 
-//        if (post.getStatus() == PostStatus.PUBLISHED) {
-//            post.setPostAt(LocalDateTime.now());
-//        }
+        // if (post.getStatus() == PostStatus.PUBLISHED) {
+        // post.setPostAt(LocalDateTime.now());
+        // }
 
         return eventPostRepository.save(post);
     }
 
     @Transactional
     @Override
-    public EventPost updatePost(String id, EventPost postDetails) {
-//        EventPost existingPost = getPostDetail(id);
-//
-//        existingPost.setTitle(postDetails.getTitle());
-//        existingPost.setContent(postDetails.getContent());
-//        existingPost.setPostType(postDetails.getPostType());
-//        existingPost.setUpdatedAt(LocalDateTime.now());
-//
-//        if (existingPost.getStatus() != PostStatus.PUBLISHED && postDetails.getStatus() == PostStatus.PUBLISHED) {
-//            existingPost.setPostAt(LocalDateTime.now());
-//        }
-//        existingPost.setStatus(postDetails.getStatus());
-//
-//        return eventPostRepository.save(existingPost);
-        return null;
+    public EventPost updatePost(String id, PostRequestDto postDto) {
+        EventPost existingPost = eventPostRepository.findByIdAndIsDeletedFalse(id)
+                .orElseThrow(() -> new RuntimeException("Bài viết không tồn tại!"));
 
+        existingPost.setTitle(postDto.getTitle());
+        existingPost.setContent(postDto.getContent());
+        existingPost.setPostType(postDto.getPostType());
+        existingPost.setImageUrls(postDto.getImageUrls() != null ? postDto.getImageUrls() : new ArrayList<>());
+        existingPost.setUpdatedAt(LocalDateTime.now());
+
+        if (existingPost.getStatus() != PostStatus.PUBLISHED && postDto.getStatus() == PostStatus.PUBLISHED) {
+            existingPost.setPublishedAt(LocalDateTime.now());
+        }
+        existingPost.setStatus(postDto.getStatus());
+
+        if (postDto.getEventId() != null) {
+            Event event = eventRepository.findById(postDto.getEventId())
+                    .orElseThrow(() -> new RuntimeException("Không tìm thấy sự kiện"));
+            existingPost.setEvent(event);
+        }
+
+        return eventPostRepository.save(existingPost);
     }
 
     @Transactional
     @Override
     public void deletePost(String id) {
-//        EventPost post = getPostById(id);
-//        post.setDeleted(true);
-//        post.setUpdatedAt(LocalDateTime.now());
-//        eventPostRepository.save(post);
+        EventPost post = eventPostRepository.findByIdAndIsDeletedFalse(id)
+                .orElseThrow(() -> new RuntimeException("Bài viết không tồn tại!"));
+        post.setDeleted(true);
+        post.setUpdatedAt(LocalDateTime.now());
+        eventPostRepository.save(post);
     }
 
     @Override
@@ -234,12 +253,40 @@ public class EventPostServiceImpl implements EventPostService {
         post.setContent(postDto.getContent());
         post.setPostType(postDto.getPostType());
         post.setStatus(postDto.getStatus());
-//        post.setCreatedByAccountId(postDto.getAccountId());
-//        post.setPostAt(postDto.getPublishedAt());
+        post.setAuthorAccountId(postDto.getAccountId());
+        post.setPublishedAt(postDto.getPublishedAt() != null ? postDto.getPublishedAt() : LocalDateTime.now());
+
+        if (post.getSlug() == null) {
+            post.setSlug(postDto.getTitle().toLowerCase()
+                    .replaceAll("[^a-z0-9\\s]", "")
+                    .replaceAll("\\s+", "-") + "-" + System.currentTimeMillis());
+        }
+
         post.setCreatedAt(LocalDateTime.now());
         post.setUpdatedAt(LocalDateTime.now());
         post.setDeleted(false);
+        post.setImageUrls(postDto.getImageUrls() != null ? postDto.getImageUrls() : new ArrayList<>());
 
+        return eventPostRepository.save(post);
+    }
+
+    @Transactional
+    @Override
+    public EventPost reactToPost(String postId, String accountId, String emoji) {
+        EventPost post = eventPostRepository.findById(postId)
+                .orElseThrow(() -> new RuntimeException("Bài viết không tồn tại!"));
+
+        Map<String, String> reactions = post.getReactions();
+        if (reactions == null)
+            reactions = new HashMap<>();
+
+        if (emoji == null || emoji.equals(reactions.get(accountId))) {
+            reactions.remove(accountId);
+        } else {
+            reactions.put(accountId, emoji);
+        }
+
+        post.setReactions(reactions);
         return eventPostRepository.save(post);
     }
 }

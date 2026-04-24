@@ -168,7 +168,7 @@ function CreatePollModal({ onClose, onSave }) {
   );
 }
 
-export default function PollManagerPage() {
+export default function LecturerPollManagement() {
   const [polls, setPolls] = useState(MOCK_POLLS);
   const [showCreate, setShowCreate] = useState(false);
 

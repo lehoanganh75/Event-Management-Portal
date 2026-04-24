@@ -13,7 +13,7 @@ import {
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import logo_iuh from "../../assets/images/logo_iuh.png";
-import ErrorNotification from "../../components/common/ErrorNotification";
+import { showToast } from "../../utils/toast.jsx";
 import { useAuth } from "../../context/AuthContext";
 
 const LoginPage = () => {
@@ -21,10 +21,6 @@ const LoginPage = () => {
   // Lấy login và user từ Context
   const { login, user } = useAuth();
 
-  const [toastVisible, setToastVisible] = useState(false);
-  const [message, setMessage] = useState("");
-  const [errorToastVisible, setErrorToastVisible] = useState(false);
-  const [errorMessage, setErrorMessage] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
@@ -45,13 +41,16 @@ const LoginPage = () => {
     }
   }, [user, navigate]);
 
+  // Remember Me: Load saved username on mount
   useEffect(() => {
-    let timer;
-    if (toastVisible) {
-      timer = setTimeout(() => setToastVisible(false), 3000);
+    const savedUsername = localStorage.getItem("rememberedUsername");
+    if (savedUsername) {
+      setFormData(prev => ({ ...prev, username: savedUsername }));
+      setRememberMe(true);
     }
-    return () => clearTimeout(timer);
-  }, [toastVisible]);
+  }, []);
+
+  // Removed toastVisible useEffect
 
   const handleChange = (e) => {
     const { id, value } = e.target;
@@ -72,7 +71,6 @@ const LoginPage = () => {
     if (isLoading || !validateForm()) return;
 
     setIsLoading(true);
-    setErrorToastVisible(false);
 
     try {
       // Gọi hàm login từ AuthContext
@@ -82,13 +80,18 @@ const LoginPage = () => {
         password: formData.password,
       });
 
-      setMessage("Đăng nhập thành công! Đang chuyển hướng...");
-      setToastVisible(true);
-      // Không cần navigate ở đây vì useEffect phía trên sẽ tự bắt lấy 'user' mới để đi đúng hướng
+      showToast("Đăng nhập thành công! Đang chuyển hướng...", "success");
+      
+      // Remember Me logic
+      if (rememberMe) {
+        localStorage.setItem("rememberedUsername", formData.username);
+      } else {
+        localStorage.removeItem("rememberedUsername");
+      }
     } catch (error) {
       console.error("Login Error:", error);
       let errorMsg = "Tên đăng nhập hoặc mật khẩu không chính xác.";
-      
+
       // Xử lý thông điệp lỗi từ Backend
       if (error.response?.data?.message) {
         errorMsg = error.response.data.message;
@@ -96,8 +99,7 @@ const LoginPage = () => {
         errorMsg = error.message;
       }
 
-      setErrorMessage(errorMsg);
-      setErrorToastVisible(true);
+      showToast(errorMsg, "error");
     } finally {
       setIsLoading(false);
     }
@@ -129,49 +131,16 @@ const LoginPage = () => {
             </span>
           </button>
 
-          {toastVisible && (
-            <div className="fixed top-6 right-6 z-50 transform transition-all duration-500 ease-out translate-x-0 opacity-100 scale-100">
-              <div className="relative overflow-hidden w-full max-w-xl
-                  bg-linear-to-r from-emerald-600 via-green-600 to-teal-600
-                  text-white rounded-2xl shadow-2xl shadow-green-900/40
-                  border border-white/10 backdrop-blur-xl">
-                <div className="flex items-start gap-4 p-6">
-                  <div className="shrink-0">
-                    <div className="w-12 h-12 flex items-center justify-center
-                        rounded-full bg-white/15 backdrop-blur-md
-                        border border-white/20 shadow-inner">
-                      <CheckCircle size={26} className="text-white drop-shadow-md" />
-                    </div>
-                  </div>
-                  <div className="flex-1">
-                    <p className="font-semibold text-lg tracking-tight">Thành công</p>
-                    <p className="mt-1 text-white/90 text-sm leading-relaxed">{message}</p>
-                  </div>
-                  <button 
-                    onClick={() => setToastVisible(false)} 
-                    className="shrink-0 p-2 rounded-full hover:bg-white/15 transition duration-200"
-                  >
-                    <X size={20} className="text-white/80 hover:text-white" />
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
-          <ErrorNotification
-            toastVisible={errorToastVisible}
-            setToastVisible={setErrorToastVisible}
-            notification="Đăng nhập thất bại!"
-            message={errorMessage}
-          />
+          {/* Custom Success Toast and ErrorNotification removed in favor of global showToast */}
 
-          <motion.div 
+          <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -20 }}
             className="w-full bg-white rounded-3xl shadow-[0_8px_40px_rgba(0,0,0,0.1)] overflow-hidden flex min-h-150"
           >
             {/* LEFT — Branding */}
-            <motion.div 
+            <motion.div
               layoutId="branding-panel"
               className="hidden lg:flex lg:w-[52%] bg-[#1a3a6b] flex-col justify-between p-10 relative overflow-hidden"
             >
@@ -237,7 +206,7 @@ const LoginPage = () => {
             </motion.div>
 
             {/* RIGHT — Form */}
-            <motion.div 
+            <motion.div
               layoutId="form-panel"
               className="flex-1 flex flex-col justify-center px-8 py-10 lg:px-12"
             >
@@ -273,11 +242,10 @@ const LoginPage = () => {
                     onChange={handleChange}
                     placeholder="Nhập tên đăng nhập"
                     autoComplete="username"
-                    className={`w-full px-4 py-2.5 border rounded-xl text-sm outline-none transition-all placeholder:text-gray-300 ${
-                      errors.username
-                        ? "border-red-300 bg-red-50 focus:ring-2 focus:ring-red-100"
-                        : "border-gray-200 bg-gray-50 focus:bg-white focus:border-[#1a3a6b] focus:ring-2 focus:ring-[#1a3a6b]/10"
-                    }`}
+                    className={`w-full px-4 py-2.5 border rounded-xl text-sm outline-none transition-all placeholder:text-gray-300 ${errors.username
+                      ? "border-red-300 bg-red-50 focus:ring-2 focus:ring-red-100"
+                      : "border-gray-200 bg-gray-50 focus:bg-white focus:border-[#1a3a6b] focus:ring-2 focus:ring-[#1a3a6b]/10"
+                      }`}
                   />
                   {errors.username && (
                     <p className="text-xs text-red-500">{errors.username}</p>
@@ -296,11 +264,10 @@ const LoginPage = () => {
                       onChange={handleChange}
                       placeholder="Nhập mật khẩu"
                       autoComplete="current-password"
-                      className={`w-full px-4 py-2.5 pr-11 border rounded-xl text-sm outline-none transition-all placeholder:text-gray-300 ${
-                        errors.password
-                          ? "border-red-300 bg-red-50 focus:ring-2 focus:ring-red-100"
-                          : "border-gray-200 bg-gray-50 focus:bg-white focus:border-[#1a3a6b] focus:ring-2 focus:ring-[#1a3a6b]/10"
-                      }`}
+                      className={`w-full px-4 py-2.5 pr-11 border rounded-xl text-sm outline-none transition-all placeholder:text-gray-300 ${errors.password
+                        ? "border-red-300 bg-red-50 focus:ring-2 focus:ring-red-100"
+                        : "border-gray-200 bg-gray-50 focus:bg-white focus:border-[#1a3a6b] focus:ring-2 focus:ring-[#1a3a6b]/10"
+                        }`}
                     />
                     <button
                       type="button"
@@ -339,11 +306,10 @@ const LoginPage = () => {
                 <button
                   type="submit"
                   disabled={isLoading}
-                  className={`w-full py-3 bg-[#1a3a6b] text-white rounded-xl font-semibold text-sm transition-all flex items-center justify-center gap-2 mt-2 ${
-                    isLoading
-                      ? "opacity-70 cursor-not-allowed"
-                      : "hover:bg-[#15306b] active:scale-[0.98] shadow-lg shadow-[#1a3a6b]/25"
-                  }`}
+                  className={`w-full py-3 bg-[#1a3a6b] text-white rounded-xl font-semibold text-sm transition-all flex items-center justify-center gap-2 mt-2 ${isLoading
+                    ? "opacity-70 cursor-not-allowed"
+                    : "hover:bg-[#15306b] active:scale-[0.98] shadow-lg shadow-[#1a3a6b]/25"
+                    }`}
                 >
                   {isLoading ? (
                     <>

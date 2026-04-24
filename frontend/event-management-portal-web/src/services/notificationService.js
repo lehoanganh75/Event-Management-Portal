@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const BASE_URL = 'http://localhost:8085';
+const BASE_URL = 'http://localhost:8085/notifications';
 const IDENTITY_BASE_URL = 'http://localhost:8083';
 
 // 1. PUBLIC API

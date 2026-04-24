@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback } from "react";
+import React, { useState, useMemo } from "react";
 import {
   Search,
   Eye,
@@ -15,24 +15,22 @@ import {
   Loader2,
   User,
   FileText,
+  Edit2,
+  Trash2,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
-import { useAuth } from "../../context/AuthContext";
-import { useEvents } from "../../context/EventContext";
-import { useNotification } from "../../context/NotificationContext";
-
 const STATUS_LABELS = {
   DRAFT: { label: "Bản nháp", color: "bg-slate-50 text-slate-600 border-slate-200" },
-  PLAN_PENDING_APPROVAL: { label: "Chờ duyệt kế hoạch", color: "bg-amber-50 text-amber-700 border-amber-200" },
-  PENDING_APPROVAL: { label: "Chờ duyệt kế hoạch", color: "bg-amber-50 text-amber-700 border-amber-200" },
-  PLAN_APPROVED: { label: "Kế hoạch đã duyệt", color: "bg-blue-50 text-blue-700 border-blue-200" },
-  APPROVED: { label: "Đã duyệt", color: "bg-blue-50 text-blue-700 border-blue-200" },
-  EVENT_PENDING_APPROVAL: { label: "Chờ duyệt sự kiện", color: "bg-orange-50 text-orange-700 border-orange-200" },
-  PUBLISHED: { label: "Đã xuất bản", color: "bg-emerald-50 text-emerald-700 border-emerald-200" },
-  ONGOING: { label: "Đang diễn ra", color: "bg-indigo-50 text-indigo-700 border-indigo-200" },
-  COMPLETED: { label: "Đã kết thúc", color: "bg-gray-50 text-gray-700 border-gray-200" },
+  PLAN_PENDING_APPROVAL: { label: "Kế hoạch chờ duyệt", color: "bg-orange-50 text-orange-700 border-orange-200" },
+  PLAN_APPROVED: { label: "Kế hoạch đã duyệt", color: "bg-emerald-50 text-emerald-700 border-emerald-200" },
+  EVENT_PENDING_APPROVAL: { label: "Sự kiện chờ duyệt", color: "bg-amber-50 text-amber-700 border-amber-200" },
+  PUBLISHED: { label: "Đã công bố", color: "bg-blue-50 text-blue-700 border-blue-200" },
+  ONGOING: { label: "Đang diễn ra", color: "bg-green-50 text-green-700 border-green-200" },
+  COMPLETED: { label: "Đã kết thúc", color: "bg-indigo-50 text-indigo-700 border-indigo-200" },
   CANCELLED: { label: "Đã hủy", color: "bg-rose-50 text-rose-700 border-rose-200" },
+  REJECTED: { label: "Đã từ chối", color: "bg-rose-50 text-rose-700 border-rose-200" },
+  CONVERTED: { label: "Đã chuyển đổi", color: "bg-slate-50 text-slate-600 border-slate-200" },
 };
 
 const formatDate = (d) => {
@@ -53,74 +51,23 @@ const getAvatarColor = (name) => {
 
 const ITEMS_PER_PAGE = 5;
 
-const PlansPage = () => {
-  // 2. LẤY DATA VÀ PHƯƠNG THỨC TỪ CONTEXT
-  const { user } = useAuth();
-  const { 
-    events: eventService, 
-    approvePlan, 
-    rejectPlan, 
-    loading: eventLoading 
-  } = useEvents();
-  const { service: notificationService } = useNotification();
-
-  const [plans, setPlans] = useState([]);
-  const [loading, setLoading] = useState(true);
+const PlanManagement = ({
+  plans = [],
+  loading = false,
+  onApprove,
+  onReject,
+  onStatusUpdate,
+  onEdit,
+  onDelete,
+  onSubmitForApproval,
+  onExport,
+  title = "Quản lý kế hoạch",
+  description = "Xem xét và quản lý các kế hoạch sự kiện"
+}) => {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("All");
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedPlan, setSelectedPlan] = useState(null);
-  const [toast, setToast] = useState({ show: false, message: "", type: "success" });
-
-  const showToast = (msg, type = "success") => {
-    setToast({ show: true, message: msg, type });
-    setTimeout(() => setToast((p) => ({ ...p, show: false })), 3000);
-  };
-
-  const fetchPlans = useCallback(async () => {
-    setLoading(true);
-    try {
-      // Dùng hàm lấy tất cả kế hoạch từ service trong context
-      const res = await eventService.getAllPlans();
-      setPlans(res.data || []);
-    } catch (e) {
-      showToast("Lỗi tải dữ liệu!", "error");
-    } finally {
-      setLoading(false);
-    }
-  }, [eventService]);
-
-  useEffect(() => {
-    if (user) fetchPlans();
-  }, [user, fetchPlans]);
-
-  // 3. XỬ LÝ PHÊ DUYỆT / TỪ CHỐI QUA CONTEXT
-  const handleApprove = async (plan) => {
-    if (!user) return;
-    try {
-      await approvePlan(plan.id, plan);
-      showToast(`Đã phê duyệt kế hoạch "${plan?.title}" thành công!`, "success");
-      fetchPlans();
-      setSelectedPlan(null);
-    } catch (error) {
-      showToast("Lỗi phê duyệt!", "error");
-    }
-  };
-
-  const handleReject = async (plan) => {
-    if (!user) return;
-    const reason = prompt("Nhập lý do từ chối kế hoạch này:");
-    if (reason === null) return;
-
-    try {
-      await rejectPlan(plan.id, reason, plan);
-      showToast(`Đã từ chối kế hoạch "${plan?.title}"!`);
-      fetchPlans();
-      setSelectedPlan(null);
-    } catch (error) {
-      showToast("Lỗi thao tác!", "error");
-    }
-  };
 
   const filtered = useMemo(() =>
     plans.filter((p) => {
@@ -142,22 +89,11 @@ const PlansPage = () => {
   const totalPages = Math.ceil(filtered.length / ITEMS_PER_PAGE);
   const paginated = filtered.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
 
-  // ==================== UI GIỮ NGUYÊN 100% ====================
   return (
     <div className="space-y-6 bg-slate-50/50 min-h-screen p-6">
-      <AnimatePresence>
-        {toast.show && (
-          <motion.div initial={{ opacity: 0, x: 100 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 100 }} className={`fixed top-6 right-6 z-[100] flex items-center gap-3 px-5 py-4 rounded-2xl shadow-2xl border bg-white ${toast.type === "success" ? "border-emerald-100" : "border-rose-100"}`}>
-            {toast.type === "success" ? <CheckCircle className="text-emerald-500" size={20} /> : <XCircle className="text-rose-500" size={20} />}
-            <p className={`text-sm font-bold ${toast.type === "success" ? "text-emerald-800" : "text-rose-800"}`}>{toast.message}</p>
-            <button onClick={() => setToast((p) => ({ ...p, show: false }))}><X size={16} className="text-slate-400" /></button>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
       <div>
-        <h2 className="text-2xl font-black text-slate-800 tracking-tight uppercase">Quản lý kế hoạch</h2>
-        <p className="text-slate-500 text-sm mt-1">Xem xét và phê duyệt kế hoạch sự kiện</p>
+        <h2 className="text-2xl font-black text-slate-800 tracking-tight uppercase">{title}</h2>
+        <p className="text-slate-500 text-sm mt-1">{description}</p>
       </div>
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
@@ -225,18 +161,52 @@ const PlansPage = () => {
                         <div className="flex items-center gap-1"><Calendar size={11} /><span>{formatDate(plan.startTime)}</span></div>
                         <div className="flex items-center gap-1"><Clock size={11} /><span>{formatDate(plan.endTime)}</span></div>
                       </td>
-                      <td className="px-6 py-4 text-center">
-                        <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase border ${statusInfo.color}`}>{statusInfo.label}</span>
+                      <td className="px-6 py-4 text-center min-w-[180px]">
+                        <div className="relative group flex justify-center">
+                          {onStatusUpdate ? (
+                            <select
+                              value={plan.status?.toUpperCase()}
+                              onChange={(val) => onStatusUpdate(plan.id, val.target.value)}
+                              className={`appearance-none px-3 py-1.5 rounded-full text-[10px] font-black uppercase border cursor-pointer transition-all shadow-sm outline-none hover:shadow-md focus:ring-2 focus:ring-blue-500/20 ${statusInfo.color}`}
+                            >
+                              {Object.entries(STATUS_LABELS).map(([key, info]) => (
+                                <option key={key} value={key} className="bg-white text-slate-800 font-bold py-2 normal-case">
+                                  {info.label}
+                                </option>
+                              ))}
+                            </select>
+                          ) : (
+                            <span className={`px-3 py-1.5 rounded-full text-[10px] font-black uppercase border ${statusInfo.color}`}>
+                              {statusInfo.label}
+                            </span>
+                          )}
+                        </div>
                       </td>
                       <td className="px-6 py-4">
                         <div className="flex items-center justify-center gap-1.5">
-                          {isPending && (
-                            <>
-                              <button onClick={() => handleApprove(plan)} title="Phê duyệt" className="p-2 text-emerald-600 bg-emerald-50 hover:bg-emerald-100 rounded-lg transition-all cursor-pointer hover:scale-105"><CheckCircle size={16} /></button>
-                              <button onClick={() => handleReject(plan)} title="Từ chối" className="p-2 text-rose-600 bg-rose-50 hover:bg-rose-100 rounded-lg transition-all cursor-pointer hover:scale-105"><XCircle size={16} /></button>
-                            </>
+                          {isPending && onApprove && (
+                            <button onClick={() => onApprove(plan)} title="Phê duyệt" className="p-2 text-emerald-600 bg-emerald-50 hover:bg-emerald-100 rounded-lg transition-all cursor-pointer hover:scale-105"><CheckCircle size={16} /></button>
+                          )}
+                          {isPending && onReject && (
+                            <button onClick={() => onReject(plan)} title="Từ chối" className="p-2 text-rose-600 bg-rose-50 hover:bg-rose-100 rounded-lg transition-all cursor-pointer hover:scale-105"><XCircle size={16} /></button>
                           )}
                           <button onClick={() => setSelectedPlan(plan)} title="Xem chi tiết" className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all cursor-pointer hover:scale-105"><Eye size={16} /></button>
+                          {onExport && (
+                            <button onClick={() => onExport(plan)} title="Xuất Word" className="p-2 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-all cursor-pointer hover:scale-105"><FileText size={16} /></button>
+                          )}
+                          {(currentStatus === "DRAFT" || currentStatus === "BẢN NHÁP") && (
+                            <>
+                              {onEdit && (
+                                <button onClick={() => onEdit(plan)} title="Chỉnh sửa" className="p-2 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-all cursor-pointer hover:scale-105"><Edit2 size={16} /></button>
+                              )}
+                              {onSubmitForApproval && (
+                                <button onClick={() => onSubmitForApproval(plan)} title="Gửi duyệt" className="p-2 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-all cursor-pointer hover:scale-105"><CheckCircle size={16} /></button>
+                              )}
+                              {onDelete && (
+                                <button onClick={() => onDelete(plan)} title="Xóa" className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-all cursor-pointer hover:scale-105"><Trash2 size={16} /></button>
+                              )}
+                            </>
+                          )}
                         </div>
                       </td>
                     </tr>
@@ -247,7 +217,7 @@ const PlansPage = () => {
           )}
         </div>
       </div>
-      
+
       {/* PAGINATION */}
       {totalPages > 1 && (
         <div className="flex justify-center gap-2 mt-8">
@@ -263,11 +233,10 @@ const PlansPage = () => {
             <button
               key={num}
               onClick={() => setCurrentPage(num)}
-              className={`w-10 h-10 rounded-xl flex items-center justify-center text-sm font-black transition-all ${
-                currentPage === num 
-                  ? "bg-blue-600 text-white shadow-md shadow-blue-100" 
-                  : "bg-white border border-slate-200 text-slate-400 hover:border-blue-300 hover:text-blue-600"
-              }`}
+              className={`w-10 h-10 rounded-xl flex items-center justify-center text-sm font-black transition-all ${currentPage === num
+                ? "bg-blue-600 text-white shadow-md shadow-blue-100"
+                : "bg-white border border-slate-200 text-slate-400 hover:border-blue-300 hover:text-blue-600"
+                }`}
             >
               {num}
             </button>
@@ -283,7 +252,7 @@ const PlansPage = () => {
         </div>
       )}
 
-      {/* MODAL CHI TIẾT (GIỮ NGUYÊN) */}
+      {/* MODAL CHI TIẾT */}
       <AnimatePresence>
         {selectedPlan && (
           <div className="fixed inset-0 z-[150] flex items-center justify-center p-4">
@@ -310,10 +279,10 @@ const PlansPage = () => {
                   <div className="bg-slate-50 rounded-xl p-4"><p className="text-[10px] font-black text-slate-400 uppercase tracking-wider mb-2">Mô tả</p><p className="text-sm text-slate-700 whitespace-pre-wrap">{selectedPlan.description}</p></div>
                 )}
               </div>
-              {(selectedPlan.status?.toUpperCase() === "PLAN_PENDING_APPROVAL" || selectedPlan.status?.toUpperCase() === "PENDING_APPROVAL") && (
+              {(selectedPlan.status?.toUpperCase() === "PLAN_PENDING_APPROVAL" || selectedPlan.status?.toUpperCase() === "PENDING_APPROVAL") && (onApprove || onReject) && (
                 <div className="px-7 py-5 border-t border-slate-100 flex gap-3 bg-slate-50/50">
-                  <button onClick={() => handleReject(selectedPlan)} className="flex-1 py-3 bg-rose-50 text-rose-600 rounded-xl font-bold hover:bg-rose-100 transition-all cursor-pointer flex items-center justify-center gap-2"><XCircle size={16} /> Từ chối</button>
-                  <button onClick={() => handleApprove(selectedPlan)} className="flex-1 py-3 bg-emerald-600 text-white rounded-xl font-bold hover:bg-emerald-700 transition-all cursor-pointer flex items-center justify-center gap-2 shadow-lg shadow-emerald-200"><CheckCircle size={16} /> Phê duyệt</button>
+                  {onReject && <button onClick={() => onReject(selectedPlan)} className="flex-1 py-3 bg-rose-50 text-rose-600 rounded-xl font-bold hover:bg-rose-100 transition-all cursor-pointer flex items-center justify-center gap-2"><XCircle size={16} /> Từ chối</button>}
+                  {onApprove && <button onClick={() => onApprove(selectedPlan)} className="flex-1 py-3 bg-emerald-600 text-white rounded-xl font-bold hover:bg-emerald-700 transition-all cursor-pointer flex items-center justify-center gap-2 shadow-lg shadow-emerald-200"><CheckCircle size={16} /> Phê duyệt</button>}
                 </div>
               )}
             </motion.div>
@@ -324,4 +293,4 @@ const PlansPage = () => {
   );
 };
 
-export default PlansPage;
+export default PlanManagement;

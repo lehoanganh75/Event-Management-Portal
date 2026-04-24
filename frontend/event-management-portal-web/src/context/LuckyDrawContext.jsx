@@ -76,6 +76,51 @@ export const LuckyDrawProvider = ({ children }) => {
         }
     };
 
+    // Tạo mới chương trình
+    const createDraw = async (data) => {
+        setLoading(true);
+        try {
+            await luckyDrawService.create(data);
+            toast.success("Tạo vòng quay thành công!");
+            await fetchAllDraws();
+        } catch (error) {
+            toast.error("Lỗi khi tạo vòng quay.");
+            throw error;
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    // Cập nhật chương trình
+    const updateDraw = async (id, data) => {
+        setLoading(true);
+        try {
+            await luckyDrawService.update(id, data);
+            toast.success("Cập nhật vòng quay thành công!");
+            await fetchAllDraws();
+        } catch (error) {
+            toast.error("Lỗi khi cập nhật vòng quay.");
+            throw error;
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    // Xóa chương trình
+    const deleteDraw = async (id) => {
+        setLoading(true);
+        try {
+            // Service delete hiện đã sử dụng phương thức DELETE thực thụ
+            await luckyDrawService.delete(id);
+            toast.success("Đã xóa vòng quay thành công!");
+            await fetchAllDraws();
+        } catch (error) {
+            toast.error("Không thể xóa vòng quay.");
+        } finally {
+            setLoading(false);
+        }
+    };
+
     const value = {
         luckyDraws,
         currentDraw,
@@ -86,6 +131,9 @@ export const LuckyDrawProvider = ({ children }) => {
         fetchDrawDetail,
         spinWheel,
         joinLuckyDraw,
+        createDraw,
+        updateDraw,
+        deleteDraw,
         service: luckyDrawService
     };
 

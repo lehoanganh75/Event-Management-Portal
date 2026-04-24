@@ -58,7 +58,7 @@ const Section = ({ title, icon: Icon, children, color = "blue" }) => {
   );
 };
 
-const TemplatesPage = () => {
+const AdminTemplatesPage = () => {
   const navigate = useNavigate();
   const [templates, setTemplates] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -705,4 +705,4 @@ const TemplatesPage = () => {
   );
 };
 
-export default TemplatesPage;
+export default AdminTemplatesPage;

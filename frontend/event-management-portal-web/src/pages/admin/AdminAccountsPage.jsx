@@ -26,7 +26,7 @@ const ROLE_COLORS = {
 
 const ITEMS_PER_PAGE = 8;
 
-const AccountsPage = () => {
+const AdminAccountsPage = () => {
   const { accounts, fetchAccounts, updateAccount, deleteAccount, updateAccountStatus } = useAuth();
 
   const [searchTerm, setSearchTerm] = useState("");
@@ -436,4 +436,4 @@ const AccountsPage = () => {
   );
 };
 
-export default AccountsPage;
+export default AdminAccountsPage;

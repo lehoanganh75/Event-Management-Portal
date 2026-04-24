@@ -42,7 +42,7 @@ const statusConfig = {
   rejected: { label: "Đã ẩn",      bg: "bg-slate-100", text: "text-slate-500",   border: "border-slate-200" },
 };
 
-export default function QuestionReviewPage() {
+export default function LecturerQuestionManagement() {
   const [questions, setQuestions] = useState(MOCK_QUESTIONS);
   const [filter, setFilter] = useState("all");
   const [search, setSearch] = useState("");

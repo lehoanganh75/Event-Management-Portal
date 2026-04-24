@@ -90,17 +90,33 @@ const eventService = {
     getUpcomingEvents: () => publicApi.get('/events/upcoming-week').then(transformListResponse),
     getFeaturedEvents: () => publicApi.get('/events/featured').then(transformListResponse),
     getCompletedEvents: () => publicApi.get('/events/news').then(transformListResponse),
-    getEventById: (id) => publicApi.get(`/events/${id}`).then(res => ({ ...res, data: transformBaseData(res.data) })),
-    getByStatus: (status) => publicApi.get('/events/by-statuses', { params: { statuses: status.toUpperCase() } }).then(res => ({ ...res, data: (res.data || []).map(transformBaseData) })),
-    getAllOrganizations: () => publicApi.get('/organizations'),
+    getEventById: (id) => privateApi.get(`/events/${id}`).then(res => ({ ...res, data: transformBaseData(res.data) })),
+    getByStatus: (status) => privateApi.get('/events/by-statuses', { params: { statuses: status.toUpperCase() } }).then(res => ({ ...res, data: (res.data || []).map(transformBaseData) })),
+    getAllPlans: (params = {}) => publicApi.get('/events/plans', { params }),
+
+    // --- Related Info (Public) ---
+    getPresenters: (eventId) => publicApi.get(`/events/${eventId}/presenters`),
+    getParticipants: (eventId) => publicApi.get(`/events/${eventId}/participants`),
+    getOrganizers: (eventId) => publicApi.get(`/events/${eventId}/organizers`),
+    registerParticipant: (eventId, data) => publicApi.post(`/events/${eventId}/participants/register`, data),
+
+    getAllOrganizations: () => privateApi.get('/organizations'),
+    createOrganization: (data) => privateApi.post('/organizations', data),
 
     // --- GROUP 2: AUTHENTICATED / MY EVENTS ---
     getMyEvents: (role = 'ALL') => privateApi.get('/events/my-events', { params: { role } }).then(transformListResponse),
     getAdminAllEvents: () => privateApi.get('/events/admin/all').then(transformListResponse),
     updateLuckyDraw: (eventId) => privateApi.put(`/events/${eventId}/lucky-draw`),
-    createEvent: (data) => privateApi.post('/events', data),
-    updateEvent: (id, data) => privateApi.put(`/events/${id}`, data),
-    deleteEvent: (id) => privateApi.delete(`/events/${id}`),
+    createEvent: (payload) => {
+        if (payload instanceof FormData) {
+            return privateApi.post('/events', payload, {
+                headers: { 'Content-Type': 'multipart/form-data' }
+            });
+        }
+        return privateApi.post('/events', payload);
+    },
+    updateEvent: (id, data) => privateApi.put(`/events/update/${id}`, data),
+    deleteEvent: (id) => privateApi.delete(`/events/delete/${id}`),
     cancelEvent: (id, reason) => privateApi.patch(`/events/${id}/cancel`, null, { params: { reason } }),
 
     // --- GROUP 3: POSTS ---
@@ -111,6 +127,13 @@ const eventService = {
     createPost: (postData) => privateApi.post('/posts', postData),
     updatePost: (id, postDetails) => privateApi.put(`/posts/${id}`, postDetails),
     deletePost: (id) => privateApi.delete(`/posts/${id}`),
+    reactToPost: (postId, data) => privateApi.post(`/posts/${postId}/react`, data),
+
+    // --- Comments ---
+    createComment: (postId, data) => privateApi.post(`/posts/comments/${postId}`, data),
+    getComments: (postId) => privateApi.get(`/posts/comments/${postId}`),
+    deleteComment: (commentId) => privateApi.delete(`/posts/comments/${commentId}`),
+    reactToComment: (commentId, data) => privateApi.post(`/posts/comments/${commentId}/react`, data),
 
     // --- GROUP 4: TEMPLATES ---
     getTemplates: () => privateApi.get('/templates'),
@@ -123,7 +146,6 @@ const eventService = {
     toggleTemplateStar: (id) => privateApi.patch(`/templates/${id}/star`),
 
     // --- GROUP 5: PLANS ---
-    getAllPlans: (params = {}) => privateApi.get('/events/plans', { params }),
     getMyPlans: () => privateApi.get('/events/plans/my').then(res => ({ ...res, data: (res.data || []).map(transformBaseData) })),
     getPlanById: (id) => privateApi.get(`/events/plans/${id}`).then(res => ({ ...res, data: transformBaseData(res.data) })),
     getPlansByStatus: (statusName, accountId) => privateApi.get(`/events/plans/status/${statusName}`, { params: { accountId } }),
@@ -131,7 +153,7 @@ const eventService = {
     updatePlan: (id, data) => privateApi.put(`/events/plans/${id}`, data),
     deletePlan: (id) => privateApi.delete(`/events/plans/${id}`),
     submitPlanForApproval: (id) => privateApi.post(`/events/plans/${id}/submit`),
-    createEventFromPlan: (id, eventDetails = {}) => privateApi.post(`/events/plans/${id}/create-event`, eventDetails),
+    createEventFromPlan: (id, payload = {}) => privateApi.post(`/events/plans/${id}/create-event`, payload),
 
     // --- GROUP 6: REGISTRATIONS ---
     checkRegistration: (eventId) => privateApi.get(`/registrations/check/${eventId}`),
@@ -157,9 +179,16 @@ const eventService = {
     sendChatMessage: (data) => privateApi.post('/api/v1/chat/messages', data),
 
     // --- GROUP 10: UTILS ---
-    uploadImage: (formData) => privateApi.post('/events/upload', formData, {
+    uploadImage: (formData) => privateApi.post('/events/upload-image', formData, {
         headers: { 'Content-Type': 'multipart/form-data' }
     }),
+    // --- GROUP 11: INVITATIONS ---
+    getInvitationDetails: (eventId, token) => publicApi.get(`/events/${eventId}/invitations`, { params: { token } }),
+    acceptInvitation: (eventId, token) => publicApi.post(`/events/${eventId}/accept-invite`, null, { params: { token } }),
+    rejectInvitation: (eventId, token, reason) => publicApi.post(`/events/${eventId}/reject-invite`, null, { params: { token, reason } }),
+
+    sendOrganizerInvitations: (eventId, payload) => privateApi.post(`/events/${eventId}/organizer-invitations`, payload),
+    sendPresenterInvitations: (eventId, payload) => privateApi.post(`/events/${eventId}/presenter-invitations`, payload),
 };
 
 export default eventService;
