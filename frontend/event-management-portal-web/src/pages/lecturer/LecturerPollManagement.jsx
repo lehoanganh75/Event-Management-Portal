@@ -12,9 +12,9 @@ const MOCK_POLLS = [
     type: "single", votes: 282,
     options: [
       { label: "Rất hữu ích", count: 145, color: "#3b82f6" },
-      { label: "Hữu ích",     count: 89,  color: "#10b981" },
-      { label: "Bình thường", count: 22,  color: "#f59e0b" },
-      { label: "Chưa hữu ích",count: 5,   color: "#ef4444" },
+      { label: "Hữu ích", count: 89, color: "#10b981" },
+      { label: "Bình thường", count: 22, color: "#f59e0b" },
+      { label: "Chưa hữu ích", count: 5, color: "#ef4444" },
     ]
   },
   {
@@ -22,9 +22,9 @@ const MOCK_POLLS = [
     question: "Bạn muốn tổ chức hội thảo tiếp theo vào thời điểm nào?",
     type: "single", votes: 156,
     options: [
-      { label: "Cuối tuần",   count: 78,  color: "#8b5cf6" },
-      { label: "Ngày thường", count: 52,  color: "#06b6d4" },
-      { label: "Tối",         count: 26,  color: "#f43f5e" },
+      { label: "Cuối tuần", count: 78, color: "#8b5cf6" },
+      { label: "Ngày thường", count: 52, color: "#06b6d4" },
+      { label: "Tối", count: 26, color: "#f43f5e" },
     ]
   },
   {
@@ -33,8 +33,8 @@ const MOCK_POLLS = [
     type: "multiple", votes: 94,
     options: [
       { label: "AI & Machine Learning", count: 44, color: "#3b82f6" },
-      { label: "Web Development",       count: 30, color: "#10b981" },
-      { label: "DevOps & Cloud",        count: 20, color: "#f59e0b" },
+      { label: "Web Development", count: 30, color: "#10b981" },
+      { label: "DevOps & Cloud", count: 20, color: "#f59e0b" },
     ]
   },
 ];
@@ -77,7 +77,7 @@ function CreatePollModal({ onClose, onSave }) {
       question: question.trim(), type, votes: 0,
       options: validOptions.map((label, i) => ({
         label, count: 0,
-        color: ["#3b82f6","#10b981","#f59e0b","#ef4444","#8b5cf6","#06b6d4"][i % 6]
+        color: ["#3b82f6", "#10b981", "#f59e0b", "#ef4444", "#8b5cf6", "#06b6d4"][i % 6]
       }))
     });
     onClose();
@@ -243,7 +243,7 @@ export default function LecturerPollManagement() {
                     {poll.status === "active" ? "● ĐANG CHẠY" : "⏸ TẠM DỪNG"}
                   </span>
                   <div style={{ display: "flex", gap: 6 }}>
-                    <button onClick={() => {}} style={{ border: "none", background: "#f8fafc", borderRadius: 8, padding: 6, cursor: "pointer", color: "#94a3b8" }}>
+                    <button onClick={() => { }} style={{ border: "none", background: "#f8fafc", borderRadius: 8, padding: 6, cursor: "pointer", color: "#94a3b8" }}>
                       <BarChart2 size={14} />
                     </button>
                     <button onClick={() => removePoll(poll.id)} style={{ border: "none", background: "#fff5f5", borderRadius: 8, padding: 6, cursor: "pointer", color: "#ef4444" }}>

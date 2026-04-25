@@ -6,6 +6,7 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
+import jakarta.validation.Valid;
 import src.main.luckydrawservice.dto.DrawResultResponse;
 import src.main.luckydrawservice.dto.LuckyDrawCreateRequest;
 import src.main.luckydrawservice.dto.LuckyDrawResponse;
@@ -42,7 +43,7 @@ public class LuckyDrawController {
 
     @PostMapping
     public ResponseEntity<LuckyDraw> createLuckyDraw(
-            @RequestBody LuckyDrawCreateRequest request,
+            @Valid @RequestBody LuckyDrawCreateRequest request,
             @AuthenticationPrincipal Jwt jwt) {
         String accountId = jwt.getSubject();
         return ResponseEntity.ok(luckyDrawService.createLuckyDraw(request, accountId));
@@ -51,7 +52,7 @@ public class LuckyDrawController {
     @PutMapping("/{id}")
     public ResponseEntity<LuckyDraw> updateLuckyDraw(
             @PathVariable String id, // Lấy ID từ URL
-            @RequestBody LuckyDrawCreateRequest request,
+            @Valid @RequestBody LuckyDrawCreateRequest request,
             @AuthenticationPrincipal Jwt jwt) {
         String accountId = jwt.getSubject();
         return ResponseEntity.ok(luckyDrawService.updateLuckyDraw(id, request, accountId));

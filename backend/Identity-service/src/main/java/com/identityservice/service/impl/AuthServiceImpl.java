@@ -319,6 +319,41 @@ public class AuthServiceImpl implements AuthService {
     }
 
     @Override
+    @Transactional
+    public AuthResponse refreshToken(String token) {
+        RefreshToken refreshToken = refreshTokenRepository.findByToken(token)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Refresh Token không tồn tại"));
+
+        if (refreshToken.isRevoked() || refreshToken.isUsed()) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Refresh Token đã bị vô hiệu hóa hoặc đã được sử dụng");
+        }
+
+        if (refreshToken.getExpiryDate().isBefore(LocalDateTime.now())) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Refresh Token đã hết hạn");
+        }
+
+        Account account = refreshToken.getAccount();
+        UserPrincipal principal = new UserPrincipal(account.getId(), account.getRole());
+        String newAccessToken = jwtUtils.generateAccessToken(principal);
+
+        // Đánh dấu token cũ đã sử dụng
+        refreshToken.setUsed(true);
+        refreshTokenRepository.save(refreshToken);
+
+        // Tạo refresh token mới (Rotation)
+        String newRefreshTokenStr = UUID.randomUUID().toString();
+        RefreshToken newRefreshToken = new RefreshToken();
+        newRefreshToken.setToken(newRefreshTokenStr);
+        newRefreshToken.setAccount(account);
+        newRefreshToken.setExpiryDate(LocalDateTime.now().plusDays(7));
+        newRefreshToken.setRevoked(false);
+        newRefreshToken.setUsed(false);
+        refreshTokenRepository.save(newRefreshToken);
+
+        return new AuthResponse(newAccessToken, newRefreshTokenStr);
+    }
+
+    @Override
     public boolean existsByEmail(String email) {
         return accountRepository.findByEmail(email).isPresent();
     }

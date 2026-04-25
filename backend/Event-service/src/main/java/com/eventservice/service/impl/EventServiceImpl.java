@@ -64,7 +64,7 @@ public class EventServiceImpl implements EventService {
         List<EventStatus> publicStatuses = List.of(
                 EventStatus.PUBLISHED, EventStatus.ONGOING, EventStatus.COMPLETED, EventStatus.CANCELLED);
         return enrichEvents(
-                eventRepository.findByStatusInAndIsDeletedFalseOrderByRegistrationDeadlineAsc(publicStatuses));
+                eventRepository.findByStatusInAndIsDeletedFalseOrderByRegistrationDeadlineAsc(publicStatuses), null);
     }
 
     // Lấy sự kiện đang diễn ra hôm nay
@@ -76,13 +76,13 @@ public class EventServiceImpl implements EventService {
 
         List<Event> events = eventRepository.findOngoingEvents(statuses, now);
 
-        return enrichEvents(events);
+        return enrichEvents(events, null);
     }
 
     @Override
     public List<Event> getCompletedEvents() {
         List<Event> events = eventRepository.findByStatus(EventStatus.COMPLETED);
-        return enrichEvents(events);
+        return enrichEvents(events, null);
     }
 
     // Lấy sự kiện sắp diễn ra trong tuần này
@@ -92,7 +92,7 @@ public class EventServiceImpl implements EventService {
         LocalDateTime nextWeek = now.plusDays(7);
         List<Event> events = eventRepository.findByStartTimeBetweenAndStatusAndIsDeletedFalse(
                 now, nextWeek, EventStatus.PUBLISHED);
-        return enrichEvents(events);
+        return enrichEvents(events, null);
     }
 
     // Lấy sự kiện nổi bật nhất (Featured)
@@ -109,13 +109,13 @@ public class EventServiceImpl implements EventService {
                 .limit(6)
                 .collect(Collectors.toList());
 
-        return enrichEvents(featured);
+        return enrichEvents(featured, null);
     }
 
     // Lấy sự kiện cho admin và super admin xem (trang quản lý sự kiện)
     @Override
     public List<Event> findEventsForAdmin() {
-        return enrichEvents(eventRepository.findByIsDeletedFalseOrderByCreatedAtDesc());
+        return enrichEvents(eventRepository.findByIsDeletedFalseOrderByCreatedAtDesc(), null);
     }
 
     @Override
@@ -143,7 +143,7 @@ public class EventServiceImpl implements EventService {
             enrichEventWithRegistrationCount(event);
         }
 
-        return enrichEvents(result);
+        return enrichEvents(result, accountId);
     }
 
     @Override
@@ -166,7 +166,7 @@ public class EventServiceImpl implements EventService {
         });
 
         // 4. Làm giàu dữ liệu (UserDto, Count...)
-        return enrichEvents(filtered);
+        return enrichEvents(filtered, accountId);
     }
 
     @Override
@@ -178,7 +178,7 @@ public class EventServiceImpl implements EventService {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
                         "Không tìm thấy sự kiện với ID: " + id));
 
-        List<Event> enrichedList = enrichEvents(List.of(event));
+        List<Event> enrichedList = enrichEvents(List.of(event), accountId);
 
         if (enrichedList.isEmpty()) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy sự kiện");
@@ -193,7 +193,7 @@ public class EventServiceImpl implements EventService {
 
     // --- CÁC HÀM HELPER (CLEAN CODE) ---
 
-    private List<Event> enrichEvents(List<Event> events) {
+    private List<Event> enrichEvents(List<Event> events, String currentAccountId) {
         if (events.isEmpty())
             return events;
 
@@ -208,6 +208,9 @@ public class EventServiceImpl implements EventService {
             this.enrichEventWithRegistrationCount(event);
             event.setCreator(userMap.get(event.getCreatedByAccountId()));
             event.setApprover(userMap.get(event.getApprovedByAccountId()));
+            if (currentAccountId != null) {
+                this.enrichEventForCurrentUser(event, currentAccountId);
+            }
         });
         return events;
     }

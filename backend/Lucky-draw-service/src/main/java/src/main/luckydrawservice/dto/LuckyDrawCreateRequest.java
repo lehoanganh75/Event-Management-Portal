@@ -1,6 +1,8 @@
 package src.main.luckydrawservice.dto;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -13,10 +15,14 @@ import java.util.List;
 @NoArgsConstructor
 @AllArgsConstructor
 public class LuckyDrawCreateRequest {
+    @NotBlank(message = "ID sự kiện không được để trống")
     private String eventId;
+    @NotBlank(message = "Tiêu đề vòng quay không được để trống")
     private String title;
     private String description;
+    @NotNull(message = "Thời gian bắt đầu không được để trống")
     private LocalDateTime startTime;
+    @NotNull(message = "Thời gian kết thúc không được để trống")
     private LocalDateTime endTime;
     private boolean allowMultipleWins;
     private DrawStatus status;

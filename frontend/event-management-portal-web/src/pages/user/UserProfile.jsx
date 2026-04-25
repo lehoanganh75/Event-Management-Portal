@@ -11,20 +11,17 @@ import Header from "../../components/layout/Header";
 import { useAuth } from "../../context/AuthContext";
 
 const roleMap = {
-  SUPER_ADMIN: "Quản Trị Viên Cao Cấp",
-  ADMIN: "Quản trị hệ thống",
-  ORGANIZER: "Ban Tổ Chức",
+  SUPER_ADMIN: "Quản Trị Viên Hệ Thống",
+  ADMIN: "Quản Trị Viên",
   MEMBER: "Thành Viên",
-  LECTURER: "Giảng viên",
-  STUDENT: "Sinh viên",
   GUEST: "Khách",
 };
 
 const roleColors = {
   SUPER_ADMIN: "bg-purple-100 text-purple-700 border-purple-200",
   ADMIN: "bg-blue-100 text-blue-700 border-blue-200",
-  ORGANIZER: "bg-orange-100 text-orange-700 border-orange-200",
-  MEMBER: "bg-green-100 text-green-700 border-green-200",
+  MEMBER: "bg-indigo-100 text-indigo-700 border-indigo-200",
+  GUEST: "bg-slate-100 text-slate-600 border-slate-200",
   default: "bg-slate-100 text-slate-700 border-slate-200",
 };
 

@@ -16,8 +16,8 @@
           <entry name="$MAVEN_REPOSITORY$/org/projectlombok/lombok/1.18.42/lombok-1.18.42.jar" />
         </processorPath>
         <module name="analytics-service" />
-        <module name="Lucky-draw-service" />
         <module name="Identity-service" />
+        <module name="Lucky-draw-service" />
       </profile>
       <profile name="Annotation profile for Event-service" enabled="true">
         <sourceOutputDir name="target/generated-sources/annotations" />

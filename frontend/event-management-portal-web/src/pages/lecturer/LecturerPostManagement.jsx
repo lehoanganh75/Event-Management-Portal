@@ -1,9 +1,11 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
+import { useAuth } from "../../context/AuthContext";
 import eventService from "../../services/eventService";
 import PostManagement from "../../components/common/management/PostManagement";
 import { toast } from "react-toastify";
 
 const LecturerPostManagement = () => {
+  const { user } = useAuth();
   const [posts, setPosts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -13,25 +15,16 @@ const LecturerPostManagement = () => {
   const [postToDelete, setPostToDelete] = useState(null);
   const [userEvents, setUserEvents] = useState([]);
 
-  const getUserId = () => {
-    const userData = localStorage.getItem("user");
-    if (userData) {
-      const user = JSON.parse(userData);
-      return user.accountId || user.account?.id || user.id || user.userId;
-    }
-    return null;
-  };
+  const isSystemAdmin = useMemo(() => {
+    const roles = user?.roles || (user?.role ? [{ name: user.role }] : []);
+    return roles.some(r => r.name === 'ADMIN' || r.name === 'SUPER_ADMIN');
+  }, [user]);
+
 
   const fetchPosts = useCallback(async () => {
     setLoading(true);
     try {
-      const accountId = getUserId();
-      let response;
-      if (accountId) {
-        response = await eventService.getPostsByUser(accountId);
-      } else {
-        response = await eventService.getAllPosts({ size: 100 });
-      }
+      const response = await eventService.getAllPosts({ size: 1000 });
       setPosts(response.data.content || response.data || []);
     } catch (error) {
       toast.error("Lỗi tải danh sách bài viết");
@@ -42,9 +35,12 @@ const LecturerPostManagement = () => {
 
   const fetchUserEvents = useCallback(async () => {
     try {
-      const res = await eventService.getMyPlans(); // Assuming this returns relevant events for linking
+      // Use getByStatus or similar to get a broader list of events if needed, 
+      // but for Lecturer, we want events where they have a role or belong to the org.
+      // eventService.getMyEvents('ALL') might be better here.
+      const res = await eventService.getMyEvents('ALL');
       setUserEvents(res.data || []);
-    } catch (err) {}
+    } catch (err) { }
   }, []);
 
   useEffect(() => {
@@ -54,7 +50,7 @@ const LecturerPostManagement = () => {
 
   const handleCreate = async (formData) => {
     try {
-      const accountId = getUserId();
+      const accountId = user?.id || user?.accountId;
       await eventService.createPost({ ...formData, accountId });
       toast.success("Tạo bài viết thành công!");
       fetchPosts();
@@ -89,12 +85,6 @@ const LecturerPostManagement = () => {
     }
   };
 
-  const [user, setUser] = useState(null);
-
-  useEffect(() => {
-    const userData = localStorage.getItem("user");
-    if (userData) setUser(JSON.parse(userData));
-  }, []);
 
   return (
     <PostManagement
@@ -109,6 +99,7 @@ const LecturerPostManagement = () => {
       title="Quản lý bài đăng của tôi"
       eventTitle="Tất cả sự kiện"
       detailPathPrefix="/lecturer/posts"
+      isSystemAdmin={isSystemAdmin}
     />
   );
 };

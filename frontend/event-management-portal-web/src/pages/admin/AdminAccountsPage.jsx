@@ -44,7 +44,7 @@ const AdminAccountsPage = () => {
     username: "",
     email: "",
     fullName: "",
-    role: "STUDENT",
+    role: "MEMBER",
     status: "ACTIVE",
   });
 
@@ -62,7 +62,7 @@ const AdminAccountsPage = () => {
     total: accounts?.length || 0,
     active: accounts?.filter(a => a.status === "ACTIVE").length || 0,
     admin: accounts?.filter(a => ["ADMIN", "SUPER_ADMIN"].includes(a.role)).length || 0,
-    student: accounts?.filter(a => a.role === "STUDENT").length || 0,
+    member: accounts?.filter(a => a.role === "MEMBER").length || 0,
     locked: accounts?.filter(a => a.status !== "ACTIVE").length || 0,
   }), [accounts]);
 
@@ -94,7 +94,7 @@ const AdminAccountsPage = () => {
       username: acc.username || "",
       email: acc.email || "",
       fullName: acc.fullName || "",
-      role: acc.role || "STUDENT",
+      role: acc.role || "MEMBER",
       status: acc.status || "ACTIVE",
     });
     setModalMode("edit");
@@ -182,8 +182,8 @@ const AdminAccountsPage = () => {
           <div className="flex items-center gap-3">
             <User size={28} className="opacity-80" />
             <div>
-              <p className="text-sm opacity-90">Sinh viên</p>
-              <p className="text-3xl font-semibold mt-1">{stats.student}</p>
+              <p className="text-sm opacity-90">Thành viên</p>
+              <p className="text-3xl font-semibold mt-1">{stats.member}</p>
             </div>
           </div>
         </div>

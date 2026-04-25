@@ -109,6 +109,10 @@ const notificationService = {
         privateApi.delete('/cleanup', { params: { daysToKeep } }),
     // Aliases for compatibility
     getRecentNotifications: (userId, limit) => notificationService.getRecent(userId, limit),
+    deleteById: (id) => notificationService.deleteNotification(id),
+    markAllAsRead: (userId) => notificationService.markAllRead(userId),
+    markAllAsReadAdmin: () => notificationService.markAllReadAdmin(),
+    createNotification: (payload) => notificationService.sendNotification(payload),
 };
 
 export default notificationService;

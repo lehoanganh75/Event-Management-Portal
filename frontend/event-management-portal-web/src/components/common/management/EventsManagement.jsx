@@ -490,8 +490,8 @@ const EventsManagement = ({ type = "lecturer" }) => {
 
                         {/* ACTIONS FOR LECTURER */}
                         {!isAdminMode && (
-                          <>
-                            {(e.status === "DRAFT" || e.status === "REJECTED") && (
+                          <div className="flex gap-1.5">
+                            {e.currentUserRole?.canEditEvent && (
                               <>
                                 <button
                                   onClick={() => handleEdit(e)}
@@ -500,34 +500,30 @@ const EventsManagement = ({ type = "lecturer" }) => {
                                 >
                                   <Edit2 size={18} />
                                 </button>
-                                <button
-                                  onClick={() => handleSubmitForApproval(e.id, e.title)}
-                                  className="p-2 hover:bg-emerald-100 rounded-lg text-emerald-600 transition-all"
-                                  title="Gửi phê duyệt"
-                                  disabled={submittingId === e.id}
-                                >
-                                  {submittingId === e.id ? <Loader2 size={18} className="animate-spin" /> : <Send size={18} />}
-                                </button>
-                                <button
-                                  onClick={() => handleDelete(e.id)}
-                                  className="p-2 hover:bg-red-100 rounded-lg text-red-600 transition-all"
-                                  title="Xóa"
-                                >
-                                  <Trash2 size={18} />
-                                </button>
+                                
+                                {(e.status === "DRAFT" || e.status === "REJECTED") && (
+                                  <button
+                                    onClick={() => handleSubmitForApproval(e.id, e.title)}
+                                    className="p-2 hover:bg-emerald-100 rounded-lg text-emerald-600 transition-all"
+                                    title="Gửi phê duyệt"
+                                    disabled={submittingId === e.id}
+                                  >
+                                    {submittingId === e.id ? <Loader2 size={18} className="animate-spin" /> : <Send size={18} />}
+                                  </button>
+                                )}
+
+                                {e.status === "DRAFT" && (
+                                  <button
+                                    onClick={() => handleDelete(e.id)}
+                                    className="p-2 hover:bg-red-100 rounded-lg text-red-600 transition-all"
+                                    title="Xóa"
+                                  >
+                                    <Trash2 size={18} />
+                                  </button>
+                                )}
                               </>
                             )}
-
-                            {(e.status === "PUBLISHED" || e.status === "ONGOING") && (
-                              <button
-                                onClick={() => handleCancel(e.id)}
-                                className="p-2 hover:bg-red-100 rounded-lg text-red-600 transition-all"
-                                title="Hủy sự kiện"
-                              >
-                                <XCircle size={18} />
-                              </button>
-                            )}
-                          </>
+                          </div>
                         )}
                       </div>
                     </td>

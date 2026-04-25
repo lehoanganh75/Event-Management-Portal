@@ -54,7 +54,7 @@ const InfoListCard = ({ title, icon: Icon, items, iconColor = "text-blue-600" })
   </div>
 );
 
-const AdminDashboard = () => {
+const Dashboard = () => {
   const [selectedKhoa, setSelectedKhoa] = useState('Tất cả khoa');
   const [selectedMonth, setSelectedMonth] = useState('Theo Tháng');
 
@@ -185,4 +185,4 @@ const AdminDashboard = () => {
   );
 };
 
-export default AdminDashboard;
+export default Dashboard;

@@ -32,9 +32,9 @@ const LoginPage = () => {
     if (user && user.role) {
       const userRole = user.role.toUpperCase();
       if (userRole === "SUPER_ADMIN") {
-        navigate("/admin");
+        navigate("/admin/dashboard");
       } else if (userRole === "ADMIN") {
-        navigate("/lecturer");
+        navigate("/lecturer/dashboard");
       } else {
         navigate("/");
       }
@@ -81,7 +81,7 @@ const LoginPage = () => {
       });
 
       showToast("Đăng nhập thành công! Đang chuyển hướng...", "success");
-      
+
       // Remember Me logic
       if (rememberMe) {
         localStorage.setItem("rememberedUsername", formData.username);

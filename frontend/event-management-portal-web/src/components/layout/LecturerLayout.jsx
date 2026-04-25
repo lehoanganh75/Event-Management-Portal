@@ -7,39 +7,22 @@ import {
   Calendar,
   ClipboardList,
   FileText,
-  ShieldCheck,
   Bell,
-  Layout,
-  GraduationCap,
-  Shield,
   UserCog,
-  RotateCw,
-  Library,
-  Briefcase,
   MessageSquare,
   Vote,
-  Plus
+  RotateCw
 } from 'lucide-react';
-import { useAuth } from "../../context/AuthContext";
 
 const LecturerLayout = () => {
-  const { user } = useAuth();
-
-  const hasAdminRole = user?.roles?.some(r => r === "ADMIN" || r === "SUPER_ADMIN");
-
   const menuItems = [
-    { name: "Bảng tin sự kiện", icon: LayoutDashboard, path: "/lecturer/events/dashboard" },
-    { name: "Quản lý sự kiện", icon: Calendar, path: "/lecturer/events/my-events" },
-    { name: "Quản lý kế hoạch", icon: ClipboardList, path: "/lecturer/plans" },
-    { name: "Bài viết (Posts)", icon: FileText, path: "/lecturer/posts" }
+    { name: "Dashboard", icon: LayoutDashboard, path: "/lecturer/dashboard" },
+    { name: "Quản lý sự kiện", icon: Calendar, path: "/lecturer/events" },
+    { name: "Quản lý bài truyền thông", icon: FileText, path: "/lecturer/posts" },
+    { name: "Quản lý thông báo", icon: Bell, path: "/lecturer/notifications" },
+    { name: 'Quản lý vòng quay', icon: RotateCw, path: '/lecturer/spinner' },
+    { name: "Hồ sơ cá nhân", icon: UserCog, path: "/lecturer/profile" },
   ];
-
-  // Nếu là admin, có thể hiển thị thêm các mục quản trị hoặc chỉ dẫn tới trang admin
-  if (hasAdminRole) {
-    menuItems.push(
-      { name: "Trang Quản trị", icon: Shield, path: "/admin" }
-    );
-  }
 
   return (
     <div className="flex min-h-screen bg-[#f8fafc]">

@@ -130,14 +130,15 @@ export const EventCreator = ({
     try {
       if (!user) return;
 
-      await notificationService.createNotification({
-        recipientId: user.id,
+      await notificationService.sendNotification({
+        userProfileId: user?.accountId || user?.id,
         title: isPublished ? "Sự kiện đã được xuất bản" : "Sự kiện mới đang chờ duyệt",
         message: isPublished
           ? `Chúc mừng! Sự kiện "${eventTitle}" của bạn đã được xuất bản thành công.`
           : `Sự kiện "${eventTitle}" của bạn đã được gửi và đang chờ quản trị viên phê duyệt.`,
-        type: isPublished ? "EVENT_PUBLISHED" : "EVENT_APPROVAL",
-        relatedId: eventId,
+        type: isPublished ? "EVENT_APPROVED" : "EVENT_SUBMITTED",
+        relatedEntityId: eventId,
+        relatedEntityType: "EVENT"
       });
     } catch (err) {
       console.error("Lỗi gửi thông báo:", err);

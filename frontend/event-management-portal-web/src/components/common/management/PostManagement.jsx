@@ -101,8 +101,19 @@ const PostManagement = ({
     if (!selectedEvent) return false;
     if (isSystemAdmin) return true;
     const role = selectedEvent.currentUserRole;
-    return role?.organizer || role?.presented;
-  }, [postFormData.eventId, eligibleEvents, isSystemAdmin]);
+    const isInOrganization = user?.organizationId === selectedEvent?.organization?.id || 
+                             user?.orgId === selectedEvent?.organization?.id;
+    return role?.organizer || role?.presented || isInOrganization;
+  }, [postFormData.eventId, eligibleEvents, isSystemAdmin, user]);
+
+  const needsApproval = useMemo(() => {
+    if (isSystemAdmin) return false;
+    const selectedEvent = eligibleEvents.find(e => e.id === postFormData.eventId);
+    const isInOrganization = user?.organizationId === selectedEvent?.organization?.id || 
+                             user?.orgId === selectedEvent?.organization?.id;
+    if (isInOrganization) return false;
+    return true; // Lecturers/Presenters/Organizers who are not admins/org members need approval
+  }, [isSystemAdmin, user, eligibleEvents, postFormData.eventId]);
 
   const handleOpenModal = () => {
     resetForm();
@@ -138,8 +149,26 @@ const PostManagement = ({
 
     setIsSubmitting(true);
     try {
+      // Determine final status based on user roles
+      // logic: organizations -> PUBLISHED, EventPresenter/EventOrganizer -> PENDING
+      const selectedEvent = eligibleEvents.find(e => e.id === postFormData.eventId);
+      const isOrganizerOrPresenter = selectedEvent?.currentUserRole?.organizer || selectedEvent?.currentUserRole?.presented;
+      const isInOrganization = user?.organizationId === selectedEvent?.organization?.id || 
+                               user?.orgId === selectedEvent?.organization?.id || 
+                               isSystemAdmin;
+
+      let finalStatus = postFormData.status;
+      if (finalStatus === "PUBLISHED") {
+        if (isInOrganization) {
+          finalStatus = "PUBLISHED";
+        } else if (isOrganizerOrPresenter) {
+          finalStatus = "PENDING";
+        }
+      }
+
       const payload = {
         ...postFormData,
+        status: finalStatus,
         accountId: user?.id || user?.accountId
       };
 
@@ -148,7 +177,10 @@ const PostManagement = ({
         toast.success("Đã cập nhật bài viết thành công!");
       } else {
         await createPost(payload);
-        toast.success("Đã đăng bài viết thành công!");
+        const successMsg = finalStatus === "PENDING" 
+          ? "Bài viết đã được gửi và đang chờ phê duyệt!" 
+          : "Đã đăng bài viết thành công!";
+        toast.success(successMsg);
       }
 
       setIsCreateModalOpen(false);
@@ -197,6 +229,21 @@ const PostManagement = ({
 
   const filteredPosts = useMemo(() => {
     return (posts || []).filter((post) => {
+      // 1. Visibility Check (for non-admins)
+      if (!isSystemAdmin) {
+        const isAuthor = post.accountId === (user?.id || user?.accountId);
+        const eventId = post.eventId || post.event?.id;
+        const eventInfo = eligibleEvents.find(e => e.id === eventId);
+        
+        const hasEventRole = eventInfo?.currentUserRole?.organizer || eventInfo?.currentUserRole?.presented;
+        const isInEventOrg = user?.organizationId === eventInfo?.organization?.id || 
+                             user?.orgId === eventInfo?.organization?.id;
+        
+        // If not author AND no role/org in the event, hide the post
+        if (!isAuthor && !hasEventRole && !isInEventOrg) return false;
+      }
+
+      // 2. Search & Tab Filter
       const searchLower = searchTerm.toLowerCase();
       const matchSearch = !searchTerm || post.title?.toLowerCase().includes(searchLower) || post.content?.toLowerCase().includes(searchLower);
       
@@ -214,7 +261,7 @@ const PostManagement = ({
 
       return matchSearch && matchTab && matchStatus && matchType;
     });
-  }, [posts, searchTerm, statusFilter, typeFilter, activeTab]);
+  }, [posts, searchTerm, statusFilter, typeFilter, activeTab, isSystemAdmin, user, eligibleEvents]);
 
   const paginatedPosts = filteredPosts.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
   const totalPages = Math.ceil(filteredPosts.length / ITEMS_PER_PAGE);
@@ -382,11 +429,23 @@ const PostManagement = ({
                     <div className="flex flex-wrap gap-1.5 mt-1">
                       <select value={postFormData.eventId} onChange={(e) => setPostFormData({ ...postFormData, eventId: e.target.value })} className="text-[10px] font-bold bg-slate-100 text-slate-600 px-2 py-1 rounded-md border-none focus:ring-0 cursor-pointer hover:bg-slate-200 transition-colors max-w-[150px] truncate">
                         <option value="">Chọn sự kiện...</option>
-                        {isFetchingEvents ? <option disabled>Đang tải...</option> : eligibleEvents.map(ev => <option key={ev.id} value={ev.id}>{ev.title}</option>)}
+                        {isFetchingEvents ? (
+                          <option disabled>Đang tải...</option>
+                        ) : eligibleEvents
+                          .filter(ev => {
+                            if (isSystemAdmin) return true;
+                            const role = ev.currentUserRole;
+                            const isInOrg = user?.organizationId === ev.organization?.id || user?.orgId === ev.organization?.id;
+                            return role?.organizer || role?.presented || isInOrg;
+                          })
+                          .map(ev => (
+                            <option key={ev.id} value={ev.id}>{ev.title}</option>
+                          ))
+                        }
                       </select>
                       <select value={postFormData.postType} onChange={(e) => setPostFormData({ ...postFormData, postType: e.target.value })} className="text-[10px] font-bold bg-slate-100 text-slate-600 px-2 py-1 rounded-md border-none focus:ring-0 cursor-pointer hover:bg-slate-200 transition-colors">{Object.entries(POST_TYPES).map(([key, value]) => (<option key={key} value={key}>{value.label.toUpperCase()}</option>))}</select>
                       <select value={postFormData.status} onChange={(e) => setPostFormData({ ...postFormData, status: e.target.value })} className="text-[10px] font-bold bg-slate-100 text-slate-600 px-2 py-1 rounded-md border-none focus:ring-0 cursor-pointer hover:bg-slate-200 transition-colors uppercase">
-                        <option value="PUBLISHED">CÔNG KHAI</option>
+                        <option value="PUBLISHED">{needsApproval ? "GỬI DUYỆT" : "CÔNG KHAI"}</option>
                         <option value="DRAFT">BẢN NHÁP</option>
                       </select>
                     </div>
@@ -415,7 +474,11 @@ const PostManagement = ({
               <div className="p-4 bg-white border-t border-slate-100">
                 <button onClick={handleCreatePost} disabled={isSubmitting || (postFormData.eventId && !canPostForSelectedEvent)} className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-slate-300 text-white py-3 rounded-xl font-bold shadow-lg transition-all flex items-center justify-center gap-2">
                   {isSubmitting ? <Loader2 size={18} className="animate-spin" /> : <Send size={18} />}
-                  {editingPostId ? "Cập nhật bài viết" : (postFormData.status === "PUBLISHED" ? "Đăng bài ngay" : "Lưu bản nháp")}
+                  {editingPostId 
+                    ? "Cập nhật bài viết" 
+                    : (postFormData.status === "PUBLISHED" 
+                        ? (needsApproval ? "Gửi bài duyệt" : "Đăng bài ngay") 
+                        : "Lưu bản nháp")}
                 </button>
               </div>
             </motion.div>

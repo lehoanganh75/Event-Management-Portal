@@ -15,6 +15,7 @@ public interface AuthService {
     void resetPassword(String token, String newPassword);
     Map<String, String> verifyMobileOTP(String otp, String username);
     void resendOtp(String username);
+    AuthResponse refreshToken(String refreshToken);
     boolean existsByEmail(String email);
     boolean existsByUsername(String username);
 }
