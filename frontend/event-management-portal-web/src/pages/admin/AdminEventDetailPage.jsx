@@ -5,6 +5,7 @@ import eventService from "../../services/eventService";
 import luckyDrawService from "../../services/luckyDrawService";
 import authService from "../../services/authService";
 import EventDetailManagement from "../../components/common/management/EventDetailManagement";
+import EditEventModal from "../../components/common/management/EditEventModal";
 
 const AdminEventDetailPage = () => {
   const navigate = useNavigate();
@@ -19,6 +20,7 @@ const AdminEventDetailPage = () => {
   const [isCancelling, setIsCancelling] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
 
   // Invitation States
   const [showUserSuggestions, setShowUserSuggestions] = useState(false);
@@ -101,6 +103,37 @@ const AdminEventDetailPage = () => {
       setIsDeleting(false);
     }
   };
+  
+  const handleUpdateEvent = async (updatedData) => {
+    try {
+      await eventService.updateEvent(id, updatedData);
+      toast.success("Cập nhật thông tin thành công!");
+      fetchData();
+    } catch (err) {
+      toast.error("Lỗi khi cập nhật thông tin");
+      throw err;
+    }
+  };
+
+  const handleRemoveMember = async (memberId) => {
+    try {
+      await eventService.removeOrganizer(memberId);
+      toast.success("Đã gỡ thành viên khỏi Ban tổ chức");
+      fetchData();
+    } catch (err) {
+      toast.error("Lỗi khi gỡ thành viên");
+    }
+  };
+
+  const handleRemovePresenter = async (presenterId) => {
+    try {
+      await eventService.removePresenter(presenterId);
+      toast.success("Đã gỡ diễn giả khỏi sự kiện");
+      fetchData();
+    } catch (err) {
+      toast.error("Lỗi khi gỡ diễn giả");
+    }
+  };
 
   const addInvite = (user = null) => {
     const newInvite = user ? {
@@ -161,58 +194,71 @@ const AdminEventDetailPage = () => {
     );
   }, [systemUsers, searchKey]);
 
+  if (loading) return null; // Or a loader if needed
+
   return (
-    <EventDetailManagement
-      event={event}
-      luckyDraw={luckyDraw}
-      loading={loading}
-      activeTab={activeTab}
-      setActiveTab={setActiveTab}
-      canEdit={event?.currentUserRole?.canEditEvent}
-      onBack={() => navigate(-1)}
-      onEditInfo={() => navigate(`/admin/events/edit/${id}`)}
-      onCancelEvent={handleCancelEvent}
-      onDeleteEvent={handleDeleteEvent}
-      isAddingMember={isAddingMember}
-      setIsAddingMember={setIsAddingMember}
-      showUserSuggestions={showUserSuggestions}
-      setShowUserSuggestions={setShowUserSuggestions}
-      searchKey={searchKey}
-      setSearchKey={setSearchKey}
-      loadingUsers={loadingUsers}
-      filteredUsers={filteredUsers}
-      invitations={invitations}
-      addInvite={addInvite}
-      updateInvite={(idx, field, val) => {
-        const newList = [...invitations];
-        newList[idx][field] = val;
-        setInvitations(newList);
-      }}
-      removeInvite={(idx) => setInvitations(invitations.filter((_, i) => i !== idx))}
-      handleSendInvites={handleSendInvites}
-      isInviting={isInviting}
-      isAddingPresenter={isAddingPresenter}
-      setIsAddingPresenter={setIsAddingPresenter}
-      presenterInvitations={presenterInvitations}
-      addPresenterInvite={addPresenterInvite}
-      updatePresenterInvite={(idx, field, val) => {
-        const newList = [...presenterInvitations];
-        newList[idx][field] = val;
-        setPresenterInvitations(newList);
-      }}
-      removePresenterInvite={(idx) => setPresenterInvitations(presenterInvitations.filter((_, i) => i !== idx))}
-      handleSendPresenterInvites={handleSendPresenterInvites}
-      isInvitingPresenter={isInvitingPresenter}
-      showCancelInput={showCancelInput}
-      setShowCancelInput={setShowCancelInput}
-      cancelReason={cancelReason}
-      setCancelReason={setCancelReason}
-      isCancelling={isCancelling}
-      showDeleteConfirm={showDeleteConfirm}
-      setShowDeleteConfirm={setShowDeleteConfirm}
-      isDeleting={isDeleting}
-      onFetchUsers={fetchUsers}
-    />
+    <>
+      <EventDetailManagement
+        event={event}
+        luckyDraw={luckyDraw}
+        loading={loading}
+        activeTab={activeTab}
+        setActiveTab={setActiveTab}
+        canEdit={event?.currentUserRole?.canEditEvent}
+        onBack={() => navigate(-1)}
+        onEditInfo={() => setIsEditModalOpen(true)}
+        onCancelEvent={handleCancelEvent}
+        onDeleteEvent={handleDeleteEvent}
+        onRemoveMember={handleRemoveMember}
+        onRemovePresenter={handleRemovePresenter}
+        isAddingMember={isAddingMember}
+        setIsAddingMember={setIsAddingMember}
+        showUserSuggestions={showUserSuggestions}
+        setShowUserSuggestions={setShowUserSuggestions}
+        searchKey={searchKey}
+        setSearchKey={setSearchKey}
+        loadingUsers={loadingUsers}
+        filteredUsers={filteredUsers}
+        invitations={invitations}
+        addInvite={addInvite}
+        updateInvite={(idx, field, val) => {
+          const newList = [...invitations];
+          newList[idx][field] = val;
+          setInvitations(newList);
+        }}
+        removeInvite={(idx) => setInvitations(invitations.filter((_, i) => i !== idx))}
+        handleSendInvites={handleSendInvites}
+        isInviting={isInviting}
+        isAddingPresenter={isAddingPresenter}
+        setIsAddingPresenter={setIsAddingPresenter}
+        presenterInvitations={presenterInvitations}
+        addPresenterInvite={addPresenterInvite}
+        updatePresenterInvite={(idx, field, val) => {
+          const newList = [...presenterInvitations];
+          newList[idx][field] = val;
+          setPresenterInvitations(newList);
+        }}
+        removePresenterInvite={(idx) => setPresenterInvitations(presenterInvitations.filter((_, i) => i !== idx))}
+        handleSendPresenterInvites={handleSendPresenterInvites}
+        isInvitingPresenter={isInvitingPresenter}
+        showCancelInput={showCancelInput}
+        setShowCancelInput={setShowCancelInput}
+        cancelReason={cancelReason}
+        setCancelReason={setCancelReason}
+        isCancelling={isCancelling}
+        showDeleteConfirm={showDeleteConfirm}
+        setShowDeleteConfirm={setShowDeleteConfirm}
+        isDeleting={isDeleting}
+        onFetchUsers={fetchUsers}
+      />
+
+      <EditEventModal
+        isOpen={isEditModalOpen}
+        onClose={() => setIsEditModalOpen(false)}
+        event={event}
+        onSave={handleUpdateEvent}
+      />
+    </>
   );
 };
 

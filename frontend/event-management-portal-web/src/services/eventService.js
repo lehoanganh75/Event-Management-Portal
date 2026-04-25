@@ -189,6 +189,9 @@ const eventService = {
 
     sendOrganizerInvitations: (eventId, payload) => privateApi.post(`/events/${eventId}/organizer-invitations`, payload),
     sendPresenterInvitations: (eventId, payload) => privateApi.post(`/events/${eventId}/presenter-invitations`, payload),
+
+    removeOrganizer: (organizerId) => privateApi.delete(`/events/organizers/${organizerId}`),
+    removePresenter: (presenterId) => privateApi.delete(`/events/presenters/${presenterId}`),
 };
 
 export default eventService;

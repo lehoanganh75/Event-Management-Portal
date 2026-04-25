@@ -47,6 +47,7 @@ privateApi.interceptors.response.use(
                 originalRequest.headers.Authorization = `Bearer ${accessToken}`;
                 return privateApi(originalRequest);
             } catch (refreshError) {
+                console.error("Token refresh failed:", refreshError.response?.data || refreshError.message);
                 localStorage.removeItem('accessToken');
                 localStorage.removeItem('refreshToken');
                 if (!originalRequest._silent) window.location.href = '/login';

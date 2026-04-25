@@ -27,7 +27,7 @@ public class EventOrganizer {
     private String email;          // Email liên hệ
 
     @Enumerated(EnumType.STRING)
-    private OrganizerRole role;    // LEADER, COORDINATOR, MEMBER, ADVISOR
+    private OrganizerRole role;    // ORGANIZER, LEADER, COORDINATOR, MEMBER, ADVISOR
 
     private boolean isDeleted = false; // Cờ đánh dấu đã xóa (soft delete)
 

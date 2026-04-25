@@ -85,6 +85,7 @@ const Textarea = (props) => (
 );
 
 const ORGANIZER_ROLES = [
+  { label: "Ban tổ chức", value: "ORGANIZER" },
   { label: "Thành viên", value: "MEMBER" },
   { label: "Điều phối viên", value: "COORDINATOR" },
   { label: "Trưởng ban", value: "LEADER" },
@@ -195,6 +196,8 @@ const EventDetailManagement = ({
   isDeleting,
   // Data actions
   onFetchUsers = () => { },
+  onRemoveMember = () => { },
+  onRemovePresenter = () => { },
 }) => {
   const navigate = useNavigate();
 
@@ -213,6 +216,8 @@ const EventDetailManagement = ({
     if (canEdit) baseTabs.push({ key: "Cài đặt", label: "Cài đặt", icon: Settings });
     return baseTabs;
   }, [event, canEdit]);
+
+  console.log("Event: ", event);
 
   if (loading) return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -238,7 +243,7 @@ const EventDetailManagement = ({
   const checkedInCount = event.registrations?.filter(r => r.checkedIn === true).length || 0;
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="w-full min-h-screen bg-gray-50 overflow-x-hidden">
       {/* Banner */}
       <div className="relative h-80 w-full overflow-hidden">
         <img src={event.coverImage || "https://picsum.photos/1200/400?tech"} alt={event.title} className="w-full h-full object-cover" />
@@ -247,7 +252,7 @@ const EventDetailManagement = ({
         <div className="absolute top-6 right-6"><span className={`px-5 py-2 rounded-2xl text-sm font-medium ${currentStatus.color}`}>{currentStatus.label}</span></div>
       </div>
 
-      <div className="max-w-full px-6 -mt-12 relative z-10 pb-12">
+      <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 relative z-10 -mt-12 pb-12">
         {/* Header Info */}
         <div className="bg-white rounded-3xl shadow-lg p-6 mb-6">
           <div className="flex justify-between items-start">
@@ -264,11 +269,14 @@ const EventDetailManagement = ({
 
         {/* Tabs */}
         <div className="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden">
-          <div className="flex border-b border-gray-400 overflow-x-auto bg-gray-50">
+          <div className="flex border-b border-gray-400 overflow-x-auto bg-gray-50 no-scrollbar">
             {dynamicTabs.map(tab => {
               const Icon = tab.icon;
               return (
-                <button key={tab.key} onClick={() => setActiveTab(tab.key)} className={`flex items-center gap-2 px-5 py-3 text-sm font-medium border-b-2 transition-all whitespace-nowrap ${activeTab === tab.key ? "border-blue-600 text-blue-600 bg-white" : "border-transparent text-gray-600 hover:text-slate-800"}`}><Icon size={16} />{tab.label}</button>
+                <button
+                  key={tab.key}
+                  onClick={() => setActiveTab(tab.key)}
+                  className={`flex items-center gap-2 px-4 py-3 text-sm font-medium transition-all relative min-w-max ${activeTab === tab.key ? "border-blue-600 text-blue-600 bg-white" : "border-transparent text-gray-600 hover:text-slate-800"}`}><Icon size={16} />{tab.label}</button>
               );
             })}
           </div>
@@ -405,10 +413,42 @@ const EventDetailManagement = ({
                 <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden shadow-sm">
                   <table className="w-full text-sm">
                     <thead className="bg-slate-50 border-b border-gray-200">
-                      <tr><th className="p-4 text-left text-gray-600">Họ tên</th><th className="p-4 text-left text-gray-600">Vai trò</th><th className="p-4 text-left text-gray-600">Ngày phân công</th></tr>
+                      <tr>
+                        <th className="p-4 text-left text-gray-600">Họ tên</th>
+                        <th className="p-4 text-left text-gray-600">Vai trò</th>
+                        <th className="p-4 text-left text-gray-600 text-center">Ngày phân công</th>
+                        {canEdit && <th className="p-4 text-center text-gray-600">Gỡ</th>}
+                      </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-100">
-                      {event.organizers?.length > 0 ? event.organizers.map((org, idx) => (<tr key={idx} className="hover:bg-slate-50 transition-colors"><td className="p-4 font-medium text-slate-800">{org.fullName}</td><td className="p-4"><span className={`inline-block px-3 py-1 rounded-full text-xs font-medium ${getOrganizerRole(org.role).color}`}>{getOrganizerRole(org.role).label}</span></td><td className="p-4 text-xs text-gray-600">{formatDateTime(org.assignedAt)}</td></tr>)) : <tr><td colSpan="3" className="p-20 text-center text-gray-500">Chưa có thành viên</td></tr>}
+                      {event.organizers?.length > 0 ? event.organizers.map((org, idx) => (
+                        <tr key={idx} className="hover:bg-slate-50 transition-colors">
+                          <td className="p-4 font-medium text-slate-800">{org.fullName}</td>
+                          <td className="p-4">
+                            <span className={`inline-block px-3 py-1 rounded-full text-xs font-medium ${getOrganizerRole(org.role).color}`}>
+                              {getOrganizerRole(org.role).label}
+                            </span>
+                          </td>
+                          <td className="p-4 text-xs text-gray-600 text-center">{formatDateTime(org.assignedAt)}</td>
+                          {canEdit && (
+                            <td className="p-4 text-center">
+                              {org.role !== 'LEADER' && (
+                                <button
+                                  onClick={() => {
+                                    if (window.confirm(`Bạn có chắc muốn gỡ ${org.fullName} khỏi Ban tổ chức?`)) {
+                                      onRemoveMember(org.id);
+                                    }
+                                  }}
+                                  className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                                  title="Gỡ bỏ"
+                                >
+                                  <Trash2 size={16} />
+                                </button>
+                              )}
+                            </td>
+                          )}
+                        </tr>
+                      )) : <tr><td colSpan={canEdit ? "4" : "3"} className="p-20 text-center text-gray-500">Chưa có thành viên</td></tr>}
                     </tbody>
                   </table>
                 </div>
@@ -435,10 +475,12 @@ const EventDetailManagement = ({
                         <Field label="Phiên" style={{ marginTop: 16 }}>
                           <Select value={invite.session} onChange={e => updatePresenterInvite(idx, 'session', e.target.value)}>
                             <option value="ALL">Toàn bộ sự kiện</option>
-                            {event.sessions?.map(s => <option key={s.id} value={s.title}>{s.title}</option>)}
+                            {event.sessions?.slice().sort((a, b) => a.orderIndex - b.orderIndex).map(s => (
+                              <option key={s.id} value={s.title}>Phiên {s.orderIndex}: {s.title}</option>
+                            ))}
                           </Select>
                         </Field>
-                        <Field label="Tiểu sử" style={{ marginTop: 16 }}><Textarea value={invite.bio} onChange={e => updatePresenterInvite(idx, 'bio', e.target.value)} rows={3} /></Field>
+                        <Field label="Lời mời / Thông tin bổ sung" style={{ marginTop: 16 }}><Textarea value={invite.bio} onChange={e => updatePresenterInvite(idx, 'bio', e.target.value)} placeholder="Lời nhắn hoặc giới thiệu ngắn gọn về diễn giả..." rows={3} /></Field>
                       </div>
                     ))}
                     {presenterInvitations.length > 0 && <div className="flex justify-end"><button onClick={handleSendPresenterInvites} disabled={isInvitingPresenter} className="px-8 py-3 bg-indigo-600 text-white rounded-xl font-bold shadow-lg shadow-indigo-100 disabled:opacity-50">{isInvitingPresenter ? "Đang gửi..." : "Gửi lời mời ngay"}</button></div>}
@@ -448,12 +490,45 @@ const EventDetailManagement = ({
                 <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden shadow-sm">
                   <table className="w-full text-sm">
                     <thead className="bg-slate-50 border-b border-gray-200">
-                      <tr><th className="p-4 text-left text-gray-600">Ảnh</th><th className="p-4 text-left text-gray-600">Họ tên</th><th className="p-4 text-left text-gray-600">Phiên</th></tr>
+                      <tr>
+                        <th className="p-4 text-left text-gray-600">Ảnh</th>
+                        <th className="p-4 text-left text-gray-600">Họ tên</th>
+                        <th className="p-4 text-left text-gray-600">Phiên</th>
+                        {canEdit && <th className="p-4 text-center text-gray-600">Gỡ</th>}
+                      </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-100">
                       {event.presenters?.length > 0 ? event.presenters.map((p, idx) => (
-                        <tr key={idx} className="hover:bg-slate-50 transition-colors"><td className="p-4"><img src={p.avatarUrl || "https://ui-avatars.com/api/?name=" + p.fullName} className="w-10 h-10 rounded-xl object-cover" /></td><td className="p-4"><div className="font-bold text-slate-800">{p.fullName}</div><div className="text-xs text-gray-500">{p.email}</div></td><td className="p-4"><span className="px-3 py-1 bg-blue-50 text-blue-600 rounded-full text-[10px] font-bold uppercase">{p.targetSessionName || "N/A"}</span></td></tr>
-                      )) : <tr><td colSpan="3" className="p-20 text-center text-gray-500">Chưa có diễn giả</td></tr>}
+                        <tr key={idx} className="hover:bg-slate-50 transition-colors">
+                          <td className="p-4">
+                            <img src={p.avatarUrl || "https://ui-avatars.com/api/?name=" + p.fullName} className="w-10 h-10 rounded-xl object-cover" />
+                          </td>
+                          <td className="p-4">
+                            <div className="font-bold text-slate-800">{p.fullName}</div>
+                            <div className="text-xs text-gray-500">{p.email}</div>
+                          </td>
+                          <td className="p-4">
+                            <span className="px-3 py-1 bg-blue-50 text-blue-600 rounded-full text-[10px] font-bold uppercase">
+                              {p.targetSessionName || (p.sessions?.length > 0 ? p.sessions.sort((a, b) => a.orderIndex - b.orderIndex).map(s => `P${s.orderIndex}: ${s.title}`).join(' | ') : "N/A")}
+                            </span>
+                          </td>
+                          {canEdit && (
+                            <td className="p-4 text-center">
+                              <button
+                                onClick={() => {
+                                  if (window.confirm(`Bạn có chắc muốn gỡ diễn giả ${p.fullName}?`)) {
+                                    onRemovePresenter(p.id);
+                                  }
+                                }}
+                                className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                                title="Gỡ bỏ"
+                              >
+                                <Trash2 size={16} />
+                              </button>
+                            </td>
+                          )}
+                        </tr>
+                      )) : <tr><td colSpan={canEdit ? "4" : "3"} className="p-20 text-center text-gray-500">Chưa có diễn giả</td></tr>}
                     </tbody>
                   </table>
                 </div>
@@ -495,7 +570,7 @@ const EventDetailManagement = ({
             {/* THỐNG KÊ */}
             {activeTab === "Thống kê" && (
               <div className="space-y-8">
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
                   <div className="bg-white border border-gray-200 rounded-2xl p-6 text-center shadow-sm"><Users className="mx-auto mb-3 text-blue-600" size={32} /><p className="text-3xl font-black text-slate-800">{event.registeredCount}</p><p className="text-xs font-bold text-slate-400 uppercase mt-1">Tổng đăng ký</p></div>
                   <div className="bg-white border border-gray-200 rounded-2xl p-6 text-center shadow-sm"><CheckCircle className="mx-auto mb-3 text-emerald-600" size={32} /><p className="text-3xl font-black text-emerald-600">{checkedInCount}</p><p className="text-xs font-bold text-slate-400 uppercase mt-1">Đã check-in</p></div>
                   <div className="bg-white border border-gray-200 rounded-2xl p-6 text-center shadow-sm"><TrendingUp className="mx-auto mb-3 text-amber-600" size={32} /><p className="text-3xl font-black text-amber-600">{event.registeredCount > 0 ? Math.round((checkedInCount / event.registeredCount) * 100) : 0}%</p><p className="text-xs font-bold text-slate-400 uppercase mt-1">Tỷ lệ tham gia</p></div>

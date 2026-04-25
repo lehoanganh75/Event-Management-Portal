@@ -493,14 +493,6 @@ const EventsManagement = ({ type = "lecturer" }) => {
                           <div className="flex gap-1.5">
                             {e.currentUserRole?.canEditEvent && (
                               <>
-                                <button
-                                  onClick={() => handleEdit(e)}
-                                  className="p-2 hover:bg-amber-100 rounded-lg text-amber-600 transition-all"
-                                  title="Chỉnh sửa"
-                                >
-                                  <Edit2 size={18} />
-                                </button>
-                                
                                 {(e.status === "DRAFT" || e.status === "REJECTED") && (
                                   <button
                                     onClick={() => handleSubmitForApproval(e.id, e.title)}

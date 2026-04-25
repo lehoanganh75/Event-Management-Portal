@@ -939,8 +939,8 @@ export default function ManualInputStep({
                       >
                         <option value="">-- Chưa chỉ định --</option>
                         <option value="ALL">Thuyết trình tất cả các phiên</option>
-                        {(formData.sessions || []).map((s, sIdx) => (
-                          <option key={sIdx} value={s.title}>{s.title}</option>
+                        {(formData.sessions || []).slice().sort((a, b) => a.orderIndex - b.orderIndex).map((s, sIdx) => (
+                          <option key={sIdx} value={s.title}>Phiên {s.orderIndex || sIdx + 1}: {s.title}</option>
                         ))}
                       </Select>
                       <p style={{ fontSize: 11, color: "#64748b", marginTop: 4 }}>
@@ -948,8 +948,8 @@ export default function ManualInputStep({
                       </p>
                     </Field>
 
-                    <Field label="Tiểu sử tóm tắt">
-                      <Textarea value={presenter.bio} onChange={(e) => updatePresenter(idx, 'bio', e.target.value)} placeholder="Giới thiệu ngắn gọn về diễn giả..." rows={2} />
+                    <Field label="Lời mời / Thông tin bổ sung">
+                      <Textarea value={presenter.bio} onChange={(e) => updatePresenter(idx, 'bio', e.target.value)} placeholder="Lời nhắn hoặc giới thiệu ngắn gọn về diễn giả..." rows={2} />
                     </Field>
                   </div>
                 ))}

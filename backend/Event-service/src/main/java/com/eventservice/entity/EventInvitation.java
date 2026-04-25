@@ -39,7 +39,7 @@ public class EventInvitation {
     private InvitationType type = InvitationType.ORGANIZER;
 
     @Enumerated(EnumType.STRING)
-    private OrganizerRole targetRole; // Vai trò dự kiến (Nếu là ORGANIZER): LEADER, MEMBER...
+    private OrganizerRole targetRole; // Vai trò dự kiến (Nếu là ORGANIZER): ORGANIZER, LEADER, MEMBER...
 
     // --- Presenter Specific Info ---
     private String presenterBio; // Tiểu sử (Nếu là PRESENTER)

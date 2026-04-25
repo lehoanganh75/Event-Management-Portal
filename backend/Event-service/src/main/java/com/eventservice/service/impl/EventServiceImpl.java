@@ -208,6 +208,29 @@ public class EventServiceImpl implements EventService {
             this.enrichEventWithRegistrationCount(event);
             event.setCreator(userMap.get(event.getCreatedByAccountId()));
             event.setApprover(userMap.get(event.getApprovedByAccountId()));
+
+            // Enrich Organizers names from UserMap to ensure data is always up-to-date
+            if (event.getOrganizers() != null) {
+                event.getOrganizers().forEach(org -> {
+                    UserDto u = userMap.get(org.getAccountId());
+                    if (u != null) {
+                        org.setFullName(u.getFullName());
+                        org.setEmail(u.getEmail());
+                    }
+                });
+            }
+
+            // Enrich Presenters names from UserMap
+            if (event.getPresenters() != null) {
+                event.getPresenters().forEach(pre -> {
+                    UserDto u = userMap.get(pre.getPresenterAccountId());
+                    if (u != null) {
+                        pre.setFullName(u.getFullName());
+                        pre.setEmail(u.getEmail());
+                    }
+                });
+            }
+
             if (currentAccountId != null) {
                 this.enrichEventForCurrentUser(event, currentAccountId);
             }
@@ -279,7 +302,12 @@ public class EventServiceImpl implements EventService {
             if (e.getApprovedByAccountId() != null)
                 ids.add(e.getApprovedByAccountId());
             if (e.getOrganizers() != null) {
-                e.getOrganizers().stream().filter(o -> !o.isDeleted()).forEach(o -> ids.add(o.getAccountId()));
+                e.getOrganizers().stream().filter(o -> !o.isDeleted() && o.getAccountId() != null)
+                        .forEach(o -> ids.add(o.getAccountId()));
+            }
+            if (e.getPresenters() != null) {
+                e.getPresenters().stream().filter(p -> !p.isDeleted() && p.getPresenterAccountId() != null)
+                        .forEach(p -> ids.add(p.getPresenterAccountId()));
             }
         });
         return ids;
@@ -444,7 +472,7 @@ public class EventServiceImpl implements EventService {
         // 4. Save Event
         Event savedEvent = eventRepository.save(event);
 
-        // 5. Create LEADER (DUY NHẤT)
+        // 5. Create ORGANIZER (DUY NHẤT)
         String creatorId = event.getCreatedByAccountId();
         String creatorName = "Người tạo sự kiện";
         String creatorEmail = null;
@@ -458,17 +486,17 @@ public class EventServiceImpl implements EventService {
             log.warn("Could not fetch creator info for ID: {}", creatorId);
         }
 
-        EventOrganizer leader = EventOrganizer.builder()
+        EventOrganizer creatorOrganizer = EventOrganizer.builder()
                 .event(savedEvent)
                 .accountId(creatorId)
                 .fullName(creatorName)
                 .email(creatorEmail)
-                .role(OrganizerRole.LEADER)
+                .role(OrganizerRole.ORGANIZER)
                 .organization(savedEvent.getOrganization())
                 .isDeleted(false)
                 .build();
 
-        organizerRepository.save(leader);
+        organizerRepository.save(creatorOrganizer);
 
         // 6. Process direct organizers if any
         if (organizerIds != null && !organizerIds.isEmpty()) {
@@ -707,14 +735,31 @@ public class EventServiceImpl implements EventService {
         response.put("status", "success");
         response.put("eventName", invitation.getEvent().getTitle());
 
+        String actualName = invitation.getInviteeName();
+        String actualEmail = invitation.getInviteeEmail();
+
+        // Cố gắng lấy thông tin mới nhất từ Identity Service nếu có accountId
+        if (invitation.getInviteeAccountId() != null) {
+            try {
+                UserDto user = identityClient.getUsersById(invitation.getInviteeAccountId());
+                if (user != null) {
+                    actualName = user.getFullName();
+                    actualEmail = user.getEmail();
+                }
+            } catch (Exception e) {
+                log.warn("Failed to fetch latest user info for invitation acceptance: {}",
+                        invitation.getInviteeAccountId());
+            }
+        }
+
         // 5. PHÂN LOẠI XỬ LÝ THEO LOẠI LỜI MỜI
         if (invitation.getType() == InvitationType.PRESENTER) {
             // LƯU VÀO EVENT_PRESENTERS
             EventPresenter presenter = EventPresenter.builder()
                     .event(invitation.getEvent())
                     .presenterAccountId(invitation.getInviteeAccountId())
-                    .fullName(invitation.getInviteeName())
-                    .email(invitation.getInviteeEmail())
+                    .fullName(actualName)
+                    .email(actualEmail)
                     .bio(invitation.getPresenterBio())
                     .status(ParticipationStatus.CONFIRMED)
                     .assignedAt(LocalDateTime.now())
@@ -735,8 +780,8 @@ public class EventServiceImpl implements EventService {
             EventOrganizer newOrganizer = EventOrganizer.builder()
                     .event(invitation.getEvent())
                     .accountId(invitation.getInviteeAccountId())
-                    .fullName(invitation.getInviteeName())
-                    .email(invitation.getInviteeEmail())
+                    .fullName(actualName)
+                    .email(actualEmail)
                     .role(invitation.getTargetRole() != null ? invitation.getTargetRole() : OrganizerRole.MEMBER)
                     .assignedAt(LocalDateTime.now())
                     .organization(event.getOrganization())
@@ -1009,9 +1054,39 @@ public class EventServiceImpl implements EventService {
             }
         }
 
-        // Lưu organizers
+        // 5. Create ORGANIZER for Creator (Required for permissions)
+        String creatorId = savedEvent.getCreatedByAccountId();
+        String creatorName = "Người tạo kế hoạch";
+        String creatorEmail = null;
+        try {
+            UserDto creator = identityClient.getUsersById(creatorId);
+            if (creator != null) {
+                creatorName = creator.getFullName();
+                creatorEmail = creator.getEmail();
+            }
+        } catch (Exception e) {
+            log.warn("Could not fetch creator info for ID: {}", creatorId);
+        }
+
+        EventOrganizer creatorOrganizer = EventOrganizer.builder()
+                .event(savedEvent)
+                .accountId(creatorId)
+                .fullName(creatorName)
+                .email(creatorEmail)
+                .role(OrganizerRole.ORGANIZER)
+                .organization(savedEvent.getOrganization())
+                .isDeleted(false)
+                .assignedAt(LocalDateTime.now())
+                .build();
+        organizerRepository.save(creatorOrganizer);
+
+        // 6. Lưu other organizers
         if (event.getOrganizers() != null && !event.getOrganizers().isEmpty()) {
             for (EventOrganizer organizer : event.getOrganizers()) {
+                // Tránh lưu trùng creator đã add ở trên
+                if (organizer.getAccountId() != null && organizer.getAccountId().equals(creatorId)) {
+                    continue;
+                }
                 organizer.setEvent(savedEvent);
                 organizer.setAssignedAt(LocalDateTime.now());
                 organizerRepository.save(organizer);

@@ -333,6 +333,9 @@ public class AuthServiceImpl implements AuthService {
         }
 
         Account account = refreshToken.getAccount();
+        if (account == null) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Tài khoản không tồn tại");
+        }
         UserPrincipal principal = new UserPrincipal(account.getId(), account.getRole());
         String newAccessToken = jwtUtils.generateAccessToken(principal);
 

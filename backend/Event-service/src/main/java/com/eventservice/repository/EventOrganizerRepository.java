@@ -12,7 +12,7 @@ import java.util.Optional;
 public interface EventOrganizerRepository extends JpaRepository<EventOrganizer, String> {
     List<EventOrganizer> findByEventId(String eventId);
 
-    @Query("SELECT eo FROM EventOrganizer eo WHERE eo.event.id = :eventId AND eo.accountId = :accountId AND eo.role = 'LEADER'")
+    @Query("SELECT eo FROM EventOrganizer eo WHERE eo.event.id = :eventId AND eo.accountId = :accountId AND (eo.role = 'LEADER' OR eo.role = 'ORGANIZER')")
     Optional<EventOrganizer> findByEventIdAndOrganizerAccountId(String eventId, String accountId);
 
     boolean existsByEventIdAndAccountId(String eventId, String id);
