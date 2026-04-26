@@ -42,7 +42,6 @@ public class EventInvitation {
     private OrganizerRole targetRole; // Vai trò dự kiến (Nếu là ORGANIZER): ORGANIZER, LEADER, MEMBER...
 
     // --- Presenter Specific Info ---
-    private String presenterBio; // Tiểu sử (Nếu là PRESENTER)
     private String presenterSession; // Tên phiên/chủ đề thuyết trình
 
     // --- Content ---

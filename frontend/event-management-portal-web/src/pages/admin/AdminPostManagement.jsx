@@ -36,7 +36,10 @@ const AdminPostManagement = ({ eventId, eventTitle }) => {
   };
 
   useEffect(() => {
-    if (user) fetchAllPosts({ size: 1000 });
+    if (user) {
+      fetchAllPosts({ size: 1000 });
+      fetchEligibleEvents();
+    }
   }, [user, fetchAllPosts]);
 
   return (

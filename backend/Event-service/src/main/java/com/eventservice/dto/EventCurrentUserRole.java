@@ -15,6 +15,8 @@ public class EventCurrentUserRole {
     private boolean isOrganizer;
     private boolean isPresented;
     private boolean isRegistered;
+    private String organizerRole; // LEADER, MEMBER, etc.
+    private String systemRole;    // ADMIN, STUDENT, etc.
 
     private EventRegistration registration;     // chi tiết vé, QR, status...
     private EventPresenter presenter;      // thông tin phiên trình bày
@@ -23,5 +25,9 @@ public class EventCurrentUserRole {
     private boolean canEditEvent;
     private boolean canManageRegistrations;
     private boolean canViewTicket;
+    private boolean canManageTeam;
+    private boolean canManageLuckyDraw;
+    private boolean canViewAnalytics;
+    private boolean canCheckIn;
     // thêm sau: canCheckIn, canExport, ...
 }

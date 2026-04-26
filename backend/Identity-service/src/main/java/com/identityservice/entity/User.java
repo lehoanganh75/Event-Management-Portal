@@ -17,7 +17,6 @@ public class User {
     @Id
     private String id;
 
-    private String loginCode;
     private String fullName;
 
     @Enumerated(EnumType.STRING)
@@ -28,9 +27,8 @@ public class User {
     private String phone;
     private String avatarUrl;
 
-    private String organizationId;
-    private String organizationName;
-    private String position;
+    @Column(columnDefinition = "TEXT")
+    private String bio;
 
     @Column(nullable = false, updatable = false)
     private LocalDateTime createdAt;

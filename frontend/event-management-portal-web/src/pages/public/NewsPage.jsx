@@ -14,42 +14,44 @@ const tabs = [
 export default function NewsPage() {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState("all");
-  const [events, setEvents] = useState([]);
+  const [posts, setPosts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showAll, setShowAll] = useState(false);
 
-  const fetchCompletedEvents = useCallback(async () => {
+  const fetchPosts = useCallback(async () => {
     try {
       setLoading(true);
-      const response = await eventService.getCompletedEvents();
-      setEvents(response.data || []);
+      // Lấy tất cả bài viết đã xuất bản (PUBLISHED)
+      const response = await eventService.getAllPosts({ status: 'PUBLISHED', size: 100 });
+      // Dữ liệu trả về từ Spring Data Page nằm trong response.data.content
+      setPosts(response.data?.content || []);
     } catch (error) {
-      console.error("Error fetching completed events:", error);
-      setEvents([]);
+      console.error("Error fetching news posts:", error);
+      setPosts([]);
     } finally {
       setLoading(false);
     }
   }, []);
 
   useEffect(() => {
-    fetchCompletedEvents();
-  }, [fetchCompletedEvents]);
+    fetchPosts();
+  }, [fetchPosts]);
 
   // Lọc theo tab
-  const filteredEvents = events.filter((event) => {
+  const filteredPosts = posts.filter((post) => {
     if (activeTab === "all") return true;
-    if (activeTab === "latest") return true; // Có thể sort sau
-    if (activeTab === "popular") return (event.viewCount || 0) > 100; // Ví dụ: popular nếu có nhiều lượt xem
+    if (activeTab === "latest") return true;
+    if (activeTab === "popular") return (post.viewCount || 0) > 50;
     return true;
   });
 
   // Sort theo tab
-  const displayedEvents = [...filteredEvents].sort((a, b) => {
+  const displayedPosts = [...filteredPosts].sort((a, b) => {
     if (activeTab === "latest") {
-      return new Date(b.endTime) - new Date(a.endTime); // Mới nhất
+      return new Date(b.publishedAt || b.createdAt) - new Date(a.publishedAt || a.createdAt);
     }
     if (activeTab === "popular") {
-      return (b.viewCount || 0) - (a.viewCount || 0); // Phổ biến
+      return (b.viewCount || 0) - (a.viewCount || 0);
     }
     return 0;
   });
@@ -94,18 +96,18 @@ export default function NewsPage() {
           {/* News Grid */}
           {!loading && (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-              {displayedEvents.slice(0, showAll ? undefined : 6).map((event) => (
+              {displayedPosts.slice(0, showAll ? undefined : 6).map((post) => (
                 <motion.div
-                  key={event.id}
+                  key={post.id}
                   whileHover={{ y: -8 }}
                   className="bg-white rounded-3xl overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 group cursor-pointer border border-gray-100"
-                  onClick={() => navigate(`/news/${event.id}`)}
+                  onClick={() => navigate(`/news/${post.id}`)}
                 >
                   {/* Image */}
                   <div className="relative h-60 overflow-hidden">
                     <img
-                      src={event.coverImage || "https://via.placeholder.com/800x500?text=IUH+Event"}
-                      alt={event.title}
+                      src={post.imageUrls?.[0] || "https://via.placeholder.com/800x500?text=IUH+News"}
+                      alt={post.title}
                       className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                     />
                   </div>
@@ -114,17 +116,17 @@ export default function NewsPage() {
                     {/* Badge */}
                     <div className="mb-4">
                       <span className="px-3 py-1.5 text-[10px] font-black bg-blue-50 text-blue-600 rounded-md uppercase tracking-widest">
-                        {event.type || "Tin tức"}
+                        {post.postType || "Tin tức"}
                       </span>
                     </div>
 
                     <h3 className="font-bold text-slate-800 text-[19px] leading-tight line-clamp-2 mb-3 group-hover:text-blue-600 transition-colors">
-                      {event.title}
+                      {post.title}
                     </h3>
 
-                    <p className="text-gray-500 text-[14px] leading-relaxed line-clamp-2 mb-4">
-                      {event.description}
-                    </p>
+                    <div className="text-gray-500 text-[14px] leading-relaxed line-clamp-2 mb-4" 
+                         dangerouslySetInnerHTML={{ __html: post.content }} 
+                    />
 
                     {/* Divider */}
                     <div className="border-t border-gray-100 my-4" />
@@ -132,11 +134,11 @@ export default function NewsPage() {
                     <div className="flex items-center gap-6 text-[13px] text-gray-400 font-semibold mt-auto">
                       <div className="flex items-center gap-1.5">
                         <Calendar size={15} />
-                        <span>{new Date(event.endTime).toLocaleDateString("vi-VN")}</span>
+                        <span>{new Date(post.publishedAt || post.createdAt).toLocaleDateString("vi-VN")}</span>
                       </div>
                       <div className="flex items-center gap-1.5">
                         <Eye size={16} />
-                        <span>{event.viewCount?.toLocaleString('vi-VN') || 0}</span>
+                        <span>{post.viewCount?.toLocaleString('vi-VN') || 0}</span>
                       </div>
                     </div>
                   </div>
@@ -146,14 +148,14 @@ export default function NewsPage() {
           )}
 
           {/* Empty State */}
-          {!loading && displayedEvents.length === 0 && (
+          {!loading && displayedPosts.length === 0 && (
             <div className="text-center py-20">
-              <p className="text-gray-400 text-lg">Chưa có sự kiện nào đã kết thúc</p>
+              <p className="text-gray-400 text-lg">Chưa có bài viết tin tức nào</p>
             </div>
           )}
 
           {/* Load more */}
-          {!showAll && displayedEvents.length > 6 && (
+          {!showAll && displayedPosts.length > 6 && (
             <div className="flex justify-center mt-12">
               <button
                 onClick={() => setShowAll(true)}

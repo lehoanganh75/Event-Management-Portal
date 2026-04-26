@@ -12,6 +12,7 @@ import EventsPage from "../pages/public/EventsPage";
 import InvitationAcceptancePage from "../pages/public/InvitationAcceptancePage";
 import AttendancePage from "../pages/public/AttendancePage";
 import NewsPage from "../pages/public/NewsPage";
+import PostDetailPage from "../pages/public/PostDetailPage";
 import EventPostList from "../pages/public/EventPostList";
 import CalendarPage from "../pages/public/CalendarPage";
 import ResetPassword from "../pages/auth/ResetPassword";
@@ -20,6 +21,7 @@ import ForgotPassword from "../pages/auth/ForgotPassword";
 // Layouts
 import LecturerLayout from "../components/layout/LecturerLayout";
 import AdminLayout from "../components/layout/AdminLayout";
+import StaffLayout from "../components/layout/StaffLayout";
 
 // User Pages
 import UserProfile from "../pages/user/UserProfile";
@@ -35,6 +37,10 @@ import LecturerPostDetailPage from "../pages/lecturer/LecturerPostDetailPage";
 import LecturerNotificationsPage from "../pages/lecturer/LecturerNotificationsPage";
 import LecturerProfilePage from "../pages/lecturer/LecturerProfilePage";
 import LecturerLuckyDrawManagement from "../pages/lecturer/LecturerLuckyDrawManagement";
+
+// Staff Pages
+import StaffEventsPage from "../pages/staff/StaffEventsPage";
+import StaffEventDetailPage from "../pages/staff/StaffEventDetailPage";
 
 // Admin Pages
 import AdminEventsPage from "../pages/admin/AdminEventsPage";
@@ -71,7 +77,8 @@ const AppRouter = () => {
         <Route path="/notifications/:userId" element={<NotificationUserPage />} />
         <Route path="/reset-password" element={<ResetPassword />} />
         <Route path="/news" element={<NewsPage />} />
-        <Route path="/news/:eventId" element={<EventPostList />} />
+        <Route path="/news/:id" element={<PostDetailPage />} />
+        <Route path="/news/event/:eventId" element={<EventPostList />} />
 
         {/* Lecturer Routes */}
         <Route path="/lecturer" element={<LecturerLayout />}>
@@ -85,6 +92,16 @@ const AppRouter = () => {
           <Route path="posts/:id" element={<LecturerPostDetailPage />} />
           <Route path="notifications" element={<LecturerNotificationsPage />} />
           <Route path="spinner" element={<LecturerLuckyDrawManagement />} />
+          <Route path="profile" element={<LecturerProfilePage />} />
+        </Route>
+
+        {/* Staff Routes */}
+        <Route path="/staff" element={<StaffLayout />}>
+          <Route index element={<Navigate to="dashboard" replace />} />
+          <Route path="dashboard" element={<Dashboard />} />
+          <Route path="events" element={<StaffEventsPage />} />
+          <Route path="events/:id" element={<StaffEventDetailPage />} />
+          <Route path="notifications" element={<LecturerNotificationsPage />} />
           <Route path="profile" element={<LecturerProfilePage />} />
         </Route>
 

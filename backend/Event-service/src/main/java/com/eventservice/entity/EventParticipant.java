@@ -31,6 +31,7 @@ public class EventParticipant {
 
     @Column(nullable = false)
     private String email;
+    private String avatarUrl;
 
     private String studentCode; // Mã số sinh viên (Dành riêng cho IUH)
 

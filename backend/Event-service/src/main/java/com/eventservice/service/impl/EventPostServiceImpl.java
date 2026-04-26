@@ -9,7 +9,10 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import com.eventservice.entity.Event;
+import com.eventservice.entity.EventOrganizer;
 import com.eventservice.entity.EventPost;
+import com.eventservice.entity.EventPresenter;
+import com.eventservice.entity.enums.OrganizerRole;
 import com.eventservice.entity.enums.PostStatus;
 import com.eventservice.repository.EventPostRepository;
 import com.eventservice.repository.EventRepository;
@@ -28,8 +31,21 @@ public class EventPostServiceImpl implements EventPostService {
     private final IdentityServiceClient identityServiceClient;
 
     @Override
-    public Page<EventPost> getAllPosts(String title, PostStatus status, Pageable pageable) {
-        return eventPostRepository.findAllWithFilters(title, status, pageable);
+    public Page<PostDetailResponse> getAllPosts(String title, PostStatus status, Pageable pageable) {
+        Page<EventPost> postPage = eventPostRepository.findAllWithFilters(title, status, pageable);
+        
+        if (postPage.isEmpty()) return Page.empty(pageable);
+
+        // 1. Thu thập tất cả Author IDs trong trang hiện tại
+        Set<String> authorIds = postPage.getContent().stream()
+                .map(EventPost::getAuthorAccountId)
+                .collect(Collectors.toSet());
+
+        // 2. Fetch User Map (Batching)
+        Map<String, UserDto> userMap = fetchUsersMap(authorIds);
+
+        // 3. Map sang DTO (Lưu ý: List bài đăng không nhất thiết phải map comments để giảm tải)
+        return postPage.map(post -> mapToPostDetailResponse(post, userMap));
     }
 
     @Override
@@ -252,9 +268,43 @@ public class EventPostServiceImpl implements EventPostService {
         post.setTitle(postDto.getTitle());
         post.setContent(postDto.getContent());
         post.setPostType(postDto.getPostType());
-        post.setStatus(postDto.getStatus());
         post.setAuthorAccountId(postDto.getAccountId());
         post.setPublishedAt(postDto.getPublishedAt() != null ? postDto.getPublishedAt() : LocalDateTime.now());
+
+        // --- Logic Duyệt Bài Đăng ---
+        if (post.getEvent() != null) {
+            String authorId = postDto.getAccountId();
+            Event event = post.getEvent();
+
+            // 1. Kiểm tra nếu là Diễn giả
+            boolean isPresenter = event.getPresenters() != null && event.getPresenters().stream()
+                    .anyMatch(p -> !p.isDeleted() && authorId.equals(p.getPresenterAccountId()));
+
+            // 2. Kiểm tra nếu thuộc Ban tổ chức
+            Optional<EventOrganizer> organizerOpt = event.getOrganizers() != null ? event.getOrganizers().stream()
+                    .filter(o -> !o.isDeleted() && authorId.equals(o.getAccountId()))
+                    .findFirst() : Optional.empty();
+
+            if (isPresenter) {
+                // Diễn giả: Tự động duyệt
+                post.setStatus(PostStatus.PUBLISHED);
+            } else if (organizerOpt.isPresent()) {
+                EventOrganizer organizer = organizerOpt.get();
+                if (organizer.getRole() == OrganizerRole.MEMBER) {
+                    // MEMBER: Cần duyệt
+                    post.setStatus(PostStatus.PENDING);
+                } else {
+                    // LEADER, ORGANIZER, COORDINATOR, ADVISOR: Tự động duyệt
+                    post.setStatus(PostStatus.PUBLISHED);
+                }
+            } else {
+                // Người dùng khác (Sinh viên/Khách): Cần duyệt
+                post.setStatus(PostStatus.PENDING);
+            }
+        } else {
+            // Nếu không gắn với sự kiện cụ thể, dùng status từ DTO hoặc mặc định PENDING
+            post.setStatus(postDto.getStatus() != null ? postDto.getStatus() : PostStatus.PENDING);
+        }
 
         if (post.getSlug() == null) {
             post.setSlug(postDto.getTitle().toLowerCase()

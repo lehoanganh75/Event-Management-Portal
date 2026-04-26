@@ -9,7 +9,7 @@ import eventService from "../../../services/eventService";
 import { toast } from "react-toastify";
 
 const ProfileManagement = ({
-  role = "MEMBER",
+  role = "STUDENT",
   accentColor = "indigo",
   headerGradient = "from-slate-800 to-indigo-900"
 }) => {

@@ -16,4 +16,9 @@ public interface EventOrganizerRepository extends JpaRepository<EventOrganizer, 
     Optional<EventOrganizer> findByEventIdAndOrganizerAccountId(String eventId, String accountId);
 
     boolean existsByEventIdAndAccountId(String eventId, String id);
+
+    @org.springframework.data.jpa.repository.Modifying(clearAutomatically = true)
+    @org.springframework.transaction.annotation.Transactional
+    @org.springframework.data.jpa.repository.Query(value = "UPDATE event_organizers SET is_deleted = 1 WHERE event_id = :eventId", nativeQuery = true)
+    void softDeleteByEventId(@org.springframework.data.repository.query.Param("eventId") String eventId);
 }

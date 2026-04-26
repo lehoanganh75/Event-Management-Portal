@@ -25,6 +25,10 @@ export default function EventDetail() {
   const [loading, setLoading] = useState(true);
   const [isRegistering, setIsRegistering] = useState(false);
   const [showTicket, setShowTicket] = useState(false);
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [showCancelModal, setShowCancelModal] = useState(false);
+  const [isCancelling, setIsCancelling] = useState(false);
 
   const fetchEvent = async () => {
     try {
@@ -58,7 +62,13 @@ export default function EventDetail() {
     const role = event.currentUserRole || {};
 
     if (role.creator || role.approver || role.organizer) {
-      navigate(`/manage-event/${event.id}`);
+      // Điều hướng dựa trên vai trò hệ thống
+      const systemRole = event.currentUserRole?.systemRole || "STUDENT";
+      if (systemRole === "ADMIN" || systemRole === "SUPER_ADMIN") {
+        navigate(`/admin/events/${event.id}`);
+      } else {
+        navigate(`/lecturer/events/${event.id}`);
+      }
       return;
     }
 
@@ -75,18 +85,35 @@ export default function EventDetail() {
       return;
     }
 
-    if (!window.confirm(`Bạn muốn đăng ký tham gia "${event.title}"?`)) return;
+    setShowConfirmModal(true);
+  };
 
+  const handleConfirmRegister = async () => {
+    setShowConfirmModal(false);
     setIsRegistering(true);
     try {
       await eventService.registerEvent(event.id);
-      alert("Đăng ký thành công!");
+      setShowSuccessModal(true);
       await fetchEvent(); // Refresh để cập nhật role
       setShowTicket(true);
     } catch (error) {
       alert(error.response?.data?.message || "Đăng ký thất bại");
     } finally {
       setIsRegistering(false);
+    }
+  };
+
+  const handleConfirmCancel = async () => {
+    setIsCancelling(true);
+    try {
+      await eventService.cancelRegistration(event.id);
+      setShowCancelModal(false);
+      setShowTicket(false);
+      await fetchEvent();
+    } catch (error) {
+      alert(error.response?.data?.message || "Hủy đăng ký thất bại");
+    } finally {
+      setIsCancelling(false);
     }
   };
 
@@ -228,12 +255,11 @@ export default function EventDetail() {
                           <div className="flex-1">
                             <div className="flex items-center gap-3 mb-2">
                               <h4 className="font-semibold text-lg leading-tight">{session.title}</h4>
-                              <span className={`text-xs font-medium px-3 py-1 rounded-full ${
-                                session.type === "KEYNOTE" ? "bg-purple-100 text-purple-700" :
+                              <span className={`text-xs font-medium px-3 py-1 rounded-full ${session.type === "KEYNOTE" ? "bg-purple-100 text-purple-700" :
                                 session.type === "WORKSHOP" ? "bg-blue-100 text-blue-700" :
-                                session.type === "BREAK" ? "bg-amber-100 text-amber-700" :
-                                "bg-gray-100 text-gray-600"
-                              }`}>
+                                  session.type === "BREAK" ? "bg-amber-100 text-amber-700" :
+                                    "bg-gray-100 text-gray-600"
+                                }`}>
                                 {session.type}
                               </span>
                             </div>
@@ -289,17 +315,16 @@ export default function EventDetail() {
                   (!role.registered && !role.creator && !role.approver && !role.organizer &&
                     isDeadlinePassed(event.registrationDeadline))
                 }
-                className={`w-full h-14 rounded-2xl font-bold text-base flex items-center justify-center gap-3 transition-all shadow-lg active:scale-95 ${
-                  role.creator || role.approver || role.organizer
-                    ? "bg-zinc-900 text-white"
-                    : role.registered
+                className={`w-full h-14 rounded-2xl font-bold text-base flex items-center justify-center gap-3 transition-all shadow-lg active:scale-95 ${role.creator || role.approver || role.organizer
+                  ? "bg-zinc-900 text-white"
+                  : role.registered
                     ? showTicket
                       ? "bg-slate-100 text-slate-600 border border-slate-200"
                       : "bg-emerald-600 text-white"
                     : isDeadlinePassed(event.registrationDeadline)
-                    ? "bg-gray-200 text-gray-400 cursor-not-allowed"
-                    : "bg-blue-600 text-white shadow-blue-200"
-                }`}
+                      ? "bg-gray-200 text-gray-400 cursor-not-allowed"
+                      : "bg-blue-600 text-white shadow-blue-200"
+                  }`}
               >
                 {isRegistering ? (
                   <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
@@ -318,6 +343,20 @@ export default function EventDetail() {
                   "ĐĂNG KÝ THAM GIA"
                 )}
               </button>
+
+              {role.registered && !role.registration?.checkedIn && !isDeadlinePassed(event.endTime) && (
+                <button
+                  onClick={() => setShowCancelModal(true)}
+                  disabled={isCancelling}
+                  className="w-full mt-4 h-12 rounded-2xl font-medium text-red-600 border-2 border-red-50 hover:bg-red-50 transition-all flex items-center justify-center gap-2 active:scale-95"
+                >
+                  {isCancelling ? (
+                    <div className="w-5 h-5 border-2 border-red-600 border-t-transparent rounded-full animate-spin" />
+                  ) : (
+                    "HỦY ĐĂNG KÝ THAM GIA"
+                  )}
+                </button>
+              )}
 
               {/* Tham gia tương tác */}
               <div className="mt-8 bg-white border border-gray-200 rounded-3xl p-6">
@@ -351,6 +390,143 @@ export default function EventDetail() {
       </div>
 
       <Footer />
+
+      {/* ==================== MODALS ==================== */}
+      {/* Confirmation Modal */}
+      {showConfirmModal && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+            onClick={() => !isRegistering && setShowConfirmModal(false)}
+          />
+          <motion.div
+            initial={{ scale: 0.9, opacity: 0, y: 20 }}
+            animate={{ scale: 1, opacity: 1, y: 0 }}
+            className="relative bg-white rounded-3xl shadow-2xl max-w-md w-full p-8 overflow-hidden"
+          >
+            <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-blue-600 to-indigo-600" />
+            <div className="flex flex-col items-center text-center">
+              <div className="w-16 h-16 bg-blue-50 rounded-2xl flex items-center justify-center mb-6">
+                <Calendar className="text-blue-600" size={32} />
+              </div>
+              <h3 className="text-2xl font-bold text-gray-900 mb-2">Xác nhận đăng ký</h3>
+              <p className="text-gray-600 mb-8 leading-relaxed">
+                Bạn có chắc chắn muốn đăng ký tham gia sự kiện <br />
+                <span className="font-bold text-gray-900">"{event.title}"</span>?
+              </p>
+              <div className="grid grid-cols-2 gap-4 w-full">
+                <button
+                  onClick={() => setShowConfirmModal(false)}
+                  disabled={isRegistering}
+                  className="px-6 py-3.5 rounded-2xl border-2 border-gray-100 text-gray-600 font-bold hover:bg-gray-50 transition-all"
+                >
+                  Để sau
+                </button>
+                <button
+                  onClick={handleConfirmRegister}
+                  disabled={isRegistering}
+                  className="px-6 py-3.5 rounded-2xl bg-blue-600 text-white font-bold hover:bg-blue-700 shadow-lg shadow-blue-200 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+                >
+                  {isRegistering ? (
+                    <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  ) : (
+                    "Xác nhận"
+                  )}
+                </button>
+              </div>
+            </div>
+          </motion.div>
+        </div>
+      )}
+
+      {/* Success Modal */}
+      {showSuccessModal && (
+        <div className="fixed inset-0 z-[110] flex items-center justify-center p-4">
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+          />
+          <motion.div
+            initial={{ scale: 0.9, opacity: 0, y: 20 }}
+            animate={{ scale: 1, opacity: 1, y: 0 }}
+            className="relative bg-white rounded-3xl shadow-2xl max-w-md w-full p-8 overflow-hidden text-center"
+          >
+            <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-emerald-500 to-green-500" />
+            <div className="w-20 h-20 bg-emerald-50 rounded-full flex items-center justify-center mx-auto mb-6">
+              <motion.div
+                initial={{ scale: 0 }}
+                animate={{ scale: 1 }}
+                transition={{ type: "spring", damping: 12, stiffness: 200, delay: 0.2 }}
+              >
+                <QrCode className="text-emerald-500" size={40} />
+              </motion.div>
+            </div>
+            <h3 className="text-2xl font-bold text-gray-900 mb-2">Đăng ký thành công!</h3>
+            <p className="text-gray-600 mb-8 leading-relaxed">
+              Bạn đã đăng ký tham gia sự kiện thành công. <br />
+              Vui lòng xem thông tin vé bên dưới.
+            </p>
+            <button
+              onClick={() => setShowSuccessModal(false)}
+              className="w-full px-6 py-4 rounded-2xl bg-gray-900 text-white font-bold hover:bg-black transition-all shadow-xl"
+            >
+              Tuyệt vời!
+            </button>
+          </motion.div>
+        </div>
+      )}
+
+      {/* Cancel Confirmation Modal */}
+      {showCancelModal && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+            onClick={() => !isCancelling && setShowCancelModal(false)}
+          />
+          <motion.div
+            initial={{ scale: 0.9, opacity: 0, y: 20 }}
+            animate={{ scale: 1, opacity: 1, y: 0 }}
+            className="relative bg-white rounded-3xl shadow-2xl max-w-md w-full p-8 overflow-hidden text-center"
+          >
+            <div className="absolute top-0 left-0 w-full h-2 bg-red-500" />
+            <div className="w-16 h-16 bg-red-50 rounded-2xl flex items-center justify-center mx-auto mb-6">
+              <XCircle className="text-red-500" size={32} />
+            </div>
+            <h3 className="text-2xl font-bold text-gray-900 mb-2">Hủy đăng ký?</h3>
+            <p className="text-gray-600 mb-8 leading-relaxed">
+              Bạn có chắc chắn muốn hủy đăng ký tham gia sự kiện <br />
+              <span className="font-bold text-gray-900">"{event.title}"</span>?
+              <br />
+              <span className="text-sm text-red-500 mt-2 block italic">Hành động này không thể hoàn tác.</span>
+            </p>
+            <div className="grid grid-cols-2 gap-4 w-full">
+              <button
+                onClick={() => setShowCancelModal(false)}
+                disabled={isCancelling}
+                className="px-6 py-3.5 rounded-2xl border-2 border-gray-100 text-gray-600 font-bold hover:bg-gray-50 transition-all"
+              >
+                Quay lại
+              </button>
+              <button
+                onClick={handleConfirmCancel}
+                disabled={isCancelling}
+                className="px-6 py-3.5 rounded-2xl bg-red-600 text-white font-bold hover:bg-red-700 shadow-lg shadow-red-200 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+              >
+                {isCancelling ? (
+                  <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                ) : (
+                  "Xác nhận hủy"
+                )}
+              </button>
+            </div>
+          </motion.div>
+        </div>
+      )}
     </div>
   );
 }

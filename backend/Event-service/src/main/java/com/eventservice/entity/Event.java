@@ -144,7 +144,7 @@ public class Event {
     // --- RELATIONSHIPS ---
 
     @OneToMany(mappedBy = "event", cascade = CascadeType.ALL, orphanRemoval = true)
-    @JsonIgnore
+    @JsonIgnoreProperties("event")
     private Set<EventRegistration> registrations = new HashSet<>();
 
     @OneToMany(mappedBy = "event", cascade = CascadeType.ALL, orphanRemoval = true)

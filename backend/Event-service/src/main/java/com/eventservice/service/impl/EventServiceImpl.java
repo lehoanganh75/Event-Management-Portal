@@ -5,6 +5,7 @@ import com.eventservice.dto.EventCurrentUserRole;
 import com.eventservice.entity.*;
 import com.eventservice.entity.enums.*;
 import com.eventservice.repository.*;
+import com.eventservice.service.EventAsyncService;
 import com.eventservice.service.S3Service;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
@@ -49,6 +50,7 @@ public class EventServiceImpl implements EventService {
     private final NotificationProducer notificationProducer;
     private final EventSessionRepository sessionRepository;
     private final OrganizationRepository organizationRepository;
+    private final EventPostRepository postRepository;
 
     private final LuckyDrawClient luckyDrawClient;
 
@@ -57,6 +59,7 @@ public class EventServiceImpl implements EventService {
     private final EmailService emailService;
     private final S3Service s3Service;
     private final KafkaTemplate<String, Object> kafkaTemplate;
+    private final EventAsyncService eventAsyncService;
 
     // Lấy sự kiện cho xem (trang chủ, trang danh sách sự kiện)
     @Override
@@ -186,7 +189,13 @@ public class EventServiceImpl implements EventService {
 
         Event enrichedEvent = enrichedList.get(0);
 
-        enrichEventForCurrentUser(enrichedEvent, accountId);
+        // Fetch userMap for this single event
+        Set<String> userIds = collectAllUserIds(List.of(enrichedEvent));
+        if (accountId != null)
+            userIds.add(accountId);
+        Map<String, UserDto> userMap = fetchUserMap(userIds);
+
+        enrichEventForCurrentUser(enrichedEvent, accountId, userMap);
 
         return enrichedEvent;
     }
@@ -197,8 +206,10 @@ public class EventServiceImpl implements EventService {
         if (events.isEmpty())
             return events;
 
-        // 1. Gom tất cả ID (Creator, Approver, Organizers, Presenters)
+        // 1. Gom tất cả ID (Creator, Approver, Organizers, Presenters) + Current User
         Set<String> userIds = collectAllUserIds(events);
+        if (currentAccountId != null)
+            userIds.add(currentAccountId);
 
         // 2. Gọi Identity Service 1 lần duy nhất
         Map<String, UserDto> userMap = fetchUserMap(userIds);
@@ -227,24 +238,52 @@ public class EventServiceImpl implements EventService {
                     if (u != null) {
                         pre.setFullName(u.getFullName());
                         pre.setEmail(u.getEmail());
+                        pre.setAvatarUrl(u.getAvatarUrl());
+                    }
+                });
+            }
+
+            // Enrich Registrations from UserMap
+            if (event.getRegistrations() != null) {
+                event.getRegistrations().forEach(reg -> {
+                    UserDto u = userMap.get(reg.getParticipantAccountId());
+                    if (u != null) {
+                        reg.setFullName(u.getFullName());
+                        reg.setAvatarUrl(u.getAvatarUrl());
+                    }
+                });
+            }
+
+            // Enrich Participants from UserMap
+            if (event.getParticipants() != null) {
+                event.getParticipants().forEach(part -> {
+                    if (part.getParticipantAccountId() != null) {
+                        UserDto u = userMap.get(part.getParticipantAccountId());
+                        if (u != null) {
+                            part.setFullName(u.getFullName());
+                            part.setAvatarUrl(u.getAvatarUrl());
+                        }
                     }
                 });
             }
 
             if (currentAccountId != null) {
-                this.enrichEventForCurrentUser(event, currentAccountId);
+                this.enrichEventForCurrentUser(event, currentAccountId, userMap);
             }
         });
         return events;
     }
 
-    private void enrichEventForCurrentUser(Event event, String accountId) {
+    private void enrichEventForCurrentUser(Event event, String accountId, Map<String, UserDto> userMap) {
         if (accountId == null) {
             event.setCurrentUserRole(new EventCurrentUserRole()); // tất cả false
             return;
         }
 
         EventCurrentUserRole role = new EventCurrentUserRole();
+        UserDto currentUser = userMap != null ? userMap.get(accountId) : null;
+        String systemRole = currentUser != null ? currentUser.getRole() : "GUEST";
+        role.setSystemRole(systemRole);
 
         // 1. Creator & Approver
         role.setCreator(event.getCreatedByAccountId() != null &&
@@ -255,23 +294,72 @@ public class EventServiceImpl implements EventService {
         // 2. Registered + chi tiết registration
         EventRegistration registration = findRegistrationByUser(event, accountId);
         role.setRegistered(registration != null);
-        role.setRegistration(registration); // null nếu chưa đăng ký
+        role.setRegistration(registration);
 
         // 3. Presenter
         EventPresenter presenter = findPresenterByUser(event, accountId);
         role.setPresented(presenter != null);
         role.setPresenter(presenter);
 
-        // 4. Organizer (nếu sau này có)
-        boolean isOrganizer = event.getOrganizers() != null &&
-                event.getOrganizers().stream()
-                        .anyMatch(o -> !o.isDeleted() && accountId.equals(o.getAccountId()));
-        role.setOrganizer(isOrganizer);
+        // 4. Organizer
+        EventOrganizer organizer = event.getOrganizers() != null ? event.getOrganizers().stream()
+                .filter(o -> !o.isDeleted() && accountId.equals(o.getAccountId()))
+                .findFirst().orElse(null) : null;
 
-        // 5. Các permission tiện lợi (có thể mở rộng sau)
-        role.setCanEditEvent(role.isCreator() || role.isOrganizer());
-        role.setCanManageRegistrations(role.isCreator() || role.isOrganizer() || role.isApprover());
-        role.setCanViewTicket(role.isRegistered() || role.getRegistration() == null);
+        role.setOrganizer(organizer != null);
+        if (organizer != null) {
+            role.setOrganizerRole(organizer.getRole().name());
+        }
+
+        // 5. Logic phân quyền chi tiết
+        boolean isSystemAdmin = "SUPER_ADMIN".equals(systemRole) || "ADMIN".equals(systemRole);
+
+        if (isSystemAdmin) {
+            // Admin hệ thống có toàn quyền quản lý
+            role.setCanEditEvent(true);
+            role.setCanManageRegistrations(true);
+            role.setCanManageTeam(true);
+            role.setCanManageLuckyDraw(true);
+            role.setCanViewAnalytics(true);
+            role.setCanCheckIn(true);
+            role.setCanViewTicket(true);
+        } else {
+            // STUDENT / GUEST: Quyền hạn dựa trên OrganizerRole
+            String orgRole = role.getOrganizerRole(); // LEADER, ORGANIZER, COORDINATOR, MEMBER, ADVISOR
+
+            if ("LEADER".equals(orgRole) || role.isCreator()) {
+                role.setCanEditEvent(true);
+                role.setCanManageRegistrations(true);
+                role.setCanManageTeam(true);
+                role.setCanManageLuckyDraw(true);
+                role.setCanViewAnalytics(true);
+                role.setCanCheckIn(true);
+            } else if ("ORGANIZER".equals(orgRole) || "COORDINATOR".equals(orgRole)) {
+                role.setCanEditEvent(true);
+                role.setCanManageRegistrations(true);
+                role.setCanManageTeam(false); // Không được sửa team
+                role.setCanManageLuckyDraw(true);
+                role.setCanViewAnalytics(true);
+                role.setCanCheckIn(true);
+            } else if ("MEMBER".equals(orgRole)) {
+                role.setCanEditEvent(false);
+                role.setCanManageRegistrations(true); // Được xem danh sách
+                role.setCanManageTeam(false);
+                role.setCanManageLuckyDraw(false);
+                role.setCanViewAnalytics(false);
+                role.setCanCheckIn(true); // Được hỗ trợ check-in
+            } else if ("ADVISOR".equals(orgRole)) {
+                role.setCanEditEvent(false);
+                role.setCanManageRegistrations(false);
+                role.setCanManageTeam(false);
+                role.setCanManageLuckyDraw(false);
+                role.setCanViewAnalytics(true); // Chỉ được xem báo cáo
+                role.setCanCheckIn(false);
+            }
+
+            // Quyền xem vé (Dành cho người tham gia)
+            role.setCanViewTicket(role.isRegistered());
+        }
 
         event.setCurrentUserRole(role);
     }
@@ -280,7 +368,9 @@ public class EventServiceImpl implements EventService {
         if (event.getRegistrations() == null)
             return null;
         return event.getRegistrations().stream()
-                .filter(r -> !r.isDeleted() && userId.equals(r.getParticipantAccountId()))
+                .filter(r -> !r.isDeleted()
+                        && r.getStatus() != RegistrationStatus.CANCELLED
+                        && userId.equals(r.getParticipantAccountId()))
                 .findFirst()
                 .orElse(null);
     }
@@ -308,6 +398,16 @@ public class EventServiceImpl implements EventService {
             if (e.getPresenters() != null) {
                 e.getPresenters().stream().filter(p -> !p.isDeleted() && p.getPresenterAccountId() != null)
                         .forEach(p -> ids.add(p.getPresenterAccountId()));
+            }
+            if (e.getRegistrations() != null) {
+                e.getRegistrations().stream()
+                        .filter(r -> r.getParticipantAccountId() != null)
+                        .forEach(r -> ids.add(r.getParticipantAccountId()));
+            }
+            if (e.getParticipants() != null) {
+                e.getParticipants().stream()
+                        .filter(p -> !p.isDeleted() && p.getParticipantAccountId() != null)
+                        .forEach(p -> ids.add(p.getParticipantAccountId()));
             }
         });
         return ids;
@@ -372,29 +472,19 @@ public class EventServiceImpl implements EventService {
     @Transactional
     @Override
     public void deleteEvent(String id) {
-        // 1. Kiểm tra tồn tại và lấy dữ liệu
-        Event event = eventRepository.findById(id)
+        // 1. Kiểm tra tồn tại và lấy dữ liệu (Truy vấn đơn giản, không JOIN)
+        Event event = eventRepository.findByIdAndIsDeletedFalse(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
                         "Không tìm thấy sự kiện với ID: " + id));
 
-        // 2. Thực hiện xóa mềm Event
-        event.setDeleted(true);
-        event.setStatus(EventStatus.CANCELLED);
-        event.setUpdatedAt(LocalDateTime.now());
-        eventRepository.save(event);
+        // 2. Thực hiện xóa mềm Event CHÍNH ngay lập tức
+        eventRepository.softDeleteById(id, LocalDateTime.now());
 
-        // 3. Xử lý logic xóa dịch vụ liên quan
-        if (event.isHasLuckyDraw()) {
-            try {
-                // Nên truyền ID của sự kiện hoặc ID của vòng quay cụ thể
-                luckyDrawClient.softDeleteByEventId(id);
-            } catch (Exception e) {
-                // Tùy chọn: Log lỗi hoặc ném ngoại lệ để Rollback event nếu cần tính đồng bộ
-                // cao
-                throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR,
-                        "Lỗi khi xóa vòng quay may mắn liên quan", e);
-            }
-        }
+        // 3. Đẩy việc dọn dẹp các dữ liệu liên quan xuống chạy ngầm (Async)
+        // Việc này giúp Frontend nhận phản hồi ngay lập tức, tăng UX
+        eventAsyncService.cascadeDeleteEventData(id, event.isHasLuckyDraw());
+
+        log.info("Yêu cầu xóa sự kiện {} đã được tiếp nhận và đang xử lý ngầm.", id);
     }
 
     @Transactional
@@ -548,7 +638,6 @@ public class EventServiceImpl implements EventService {
                         UserDto user = userMap.get(accId);
                         String name = user != null ? user.getFullName() : (String) pMap.get("fullName");
                         String email = user != null ? user.getEmail() : (String) pMap.get("email");
-                        String bio = (String) pMap.get("presenterBio");
                         String session = (String) pMap.get("presenterSession");
 
                         EventInvitation inv = EventInvitation.builder()
@@ -557,7 +646,6 @@ public class EventServiceImpl implements EventService {
                                 .inviteeEmail(email)
                                 .inviteeName(name)
                                 .inviteeAccountId(accId)
-                                .presenterBio(bio)
                                 .presenterSession(session)
                                 .type(InvitationType.PRESENTER)
                                 .status(InvitationStatus.PENDING)
@@ -738,6 +826,10 @@ public class EventServiceImpl implements EventService {
         String actualName = invitation.getInviteeName();
         String actualEmail = invitation.getInviteeEmail();
 
+        String actualAvatar = null;
+        String actualPhone = null;
+        String actualBio = null;
+
         // Cố gắng lấy thông tin mới nhất từ Identity Service nếu có accountId
         if (invitation.getInviteeAccountId() != null) {
             try {
@@ -745,6 +837,9 @@ public class EventServiceImpl implements EventService {
                 if (user != null) {
                     actualName = user.getFullName();
                     actualEmail = user.getEmail();
+                    actualAvatar = user.getAvatarUrl();
+                    actualPhone = user.getPhone();
+                    actualBio = user.getBio();
                 }
             } catch (Exception e) {
                 log.warn("Failed to fetch latest user info for invitation acceptance: {}",
@@ -760,8 +855,9 @@ public class EventServiceImpl implements EventService {
                     .presenterAccountId(invitation.getInviteeAccountId())
                     .fullName(actualName)
                     .email(actualEmail)
-                    .bio(invitation.getPresenterBio())
-                    .status(ParticipationStatus.CONFIRMED)
+                    .avatarUrl(actualAvatar)
+                    .phone(actualPhone)
+                    .bio(actualBio)
                     .assignedAt(LocalDateTime.now())
                     .build();
 
@@ -782,6 +878,8 @@ public class EventServiceImpl implements EventService {
                     .accountId(invitation.getInviteeAccountId())
                     .fullName(actualName)
                     .email(actualEmail)
+                    .avatarUrl(actualAvatar)
+                    .phone(actualPhone)
                     .role(invitation.getTargetRole() != null ? invitation.getTargetRole() : OrganizerRole.MEMBER)
                     .assignedAt(LocalDateTime.now())
                     .organization(event.getOrganization())
@@ -921,16 +1019,16 @@ public class EventServiceImpl implements EventService {
             existing.setAdditionalInfo(eventDetails.getAdditionalInfo());
             existing.setCustomFieldsJson(eventDetails.getCustomFieldsJson());
 
-            if (eventDetails.getTargetObjects() != null) {
+            if (eventDetails.getTargetObjects() != null && !eventDetails.getTargetObjects().isEmpty()) {
                 existing.setTargetObjects(eventDetails.getTargetObjects());
             }
 
-            if (eventDetails.getRecipients() != null) {
+            if (eventDetails.getRecipients() != null && !eventDetails.getRecipients().isEmpty()) {
                 existing.setRecipients(eventDetails.getRecipients());
             }
 
             // Update Sessions
-            if (eventDetails.getSessions() != null) {
+            if (eventDetails.getSessions() != null && !eventDetails.getSessions().isEmpty()) {
                 existing.getSessions().clear();
                 for (EventSession s : eventDetails.getSessions()) {
                     s.setEvent(existing);
@@ -939,7 +1037,7 @@ public class EventServiceImpl implements EventService {
             }
 
             // Update Presenters
-            if (eventDetails.getPresenters() != null) {
+            if (eventDetails.getPresenters() != null && !eventDetails.getPresenters().isEmpty()) {
                 existing.getPresenters().clear();
                 for (EventPresenter p : eventDetails.getPresenters()) {
                     p.setEvent(existing);
@@ -966,11 +1064,7 @@ public class EventServiceImpl implements EventService {
                 .collect(Collectors.toList());
 
         List<Event> events = eventRepository.findByStatusInAndIsDeletedFalseOrderByStartTimeDesc(eventStatuses);
-        events.forEach(e -> {
-            this.enrichEventWithRegistrationCount(e);
-            this.enrichEventForCurrentUser(e, accountId);
-        });
-        return events;
+        return enrichEvents(events, accountId);
     }
 
     @Override
@@ -1469,10 +1563,14 @@ public class EventServiceImpl implements EventService {
     @Override
     public Event cancelEvent(String id, String reason) {
         Event event = eventRepository.findById(id).orElseThrow();
+        // 2. Cập nhật trực tiếp để tránh lỗi "Record has changed since last read"
+        eventRepository.cancelEventById(id, reason, LocalDateTime.now());
+
+        // Cập nhật local object để dùng cho các bước tiếp theo (nếu cần)
         event.setStatus(EventStatus.CANCELLED);
         if (reason != null)
             event.setNotes(reason);
-        Event savedEvent = eventRepository.save(event);
+        Event savedEvent = event;
 
         // 3. Xử lý logic xóa dịch vụ liên quan (Vòng quay may mắn)
         if (savedEvent.isHasLuckyDraw()) {
@@ -1777,7 +1875,6 @@ public class EventServiceImpl implements EventService {
                     .inviteeEmail(p.getEmail())
                     .inviteeName(p.getFullName())
                     .inviteeAccountId(p.getPresenterAccountId())
-                    .presenterBio(p.getBio())
                     .presenterSession(p.getTargetSessionName())
                     .message(p.getBio()) // Dùng bio làm message cho lời mời nếu không có field message riêng
                     .type(InvitationType.PRESENTER)

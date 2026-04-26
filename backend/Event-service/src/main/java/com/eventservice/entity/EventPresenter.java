@@ -34,14 +34,10 @@ public class EventPresenter {
     private String email;
 
     private String avatarUrl; // Ảnh đại diện của diễn giả
+    private String phone; // Số điện thoại liên hệ
 
     @Column(columnDefinition = "TEXT")
     private String bio;
-
-    // --- Status & Invitation ---
-    @Builder.Default
-    @Enumerated(EnumType.STRING)
-    private ParticipationStatus status = ParticipationStatus.PENDING;
 
     // --- Event Context ---
     private boolean isDeleted = false; // Cờ đánh dấu đã xóa (soft delete)
@@ -77,6 +73,7 @@ public class EventPresenter {
                 .fullName(this.fullName)
                 .email(this.email)
                 .avatarUrl(this.avatarUrl)
+                .phone(this.phone)
                 .bio(this.bio)
                 .sessions(this.sessions)
                 .isDeleted(this.isDeleted)

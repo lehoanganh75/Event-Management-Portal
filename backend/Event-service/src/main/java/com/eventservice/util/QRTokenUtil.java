@@ -23,8 +23,7 @@ public class QRTokenUtil {
         if (eventEndTime != null) {
             expiry = Date.from(
                     eventEndTime.plusHours(1)
-                            .atZone(ZoneId.systemDefault()).toInstant()
-            );
+                            .atZone(ZoneId.systemDefault()).toInstant());
         } else {
             expiry = new Date(System.currentTimeMillis() + EXPIRY_HOURS * 3600 * 1000);
         }
@@ -40,7 +39,11 @@ public class QRTokenUtil {
     }
 
     public Claims verifyQRToken(String token) {
-        return null;
+        return Jwts.parser()
+                .verifyWith((javax.crypto.SecretKey) KEY)
+                .build()
+                .parseSignedClaims(token)
+                .getPayload();
     }
 
     public boolean isTokenValid(String token) {

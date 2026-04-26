@@ -142,6 +142,8 @@ const HeaderAdmin = () => {
     setIsNotificationOpen(false);
     if (user?.role === 'SUPER_ADMIN' || user?.role === 'ADMIN') {
       navigate("/admin/notifications");
+    } else if (user?.role === 'STUDENT') {
+      navigate("/staff/notifications");
     } else {
       navigate("/lecturer/notifications");
     }
@@ -181,7 +183,14 @@ const HeaderAdmin = () => {
     <>
       <header className="h-16 bg-white/95 backdrop-blur-sm border-b border-slate-200 flex items-center justify-between px-6 md:px-8 sticky top-0 z-30 shadow-sm">
         <div className="flex items-center gap-4">
-          <div onClick={() => navigate("/admin")} className="cursor-pointer">
+          <div
+            onClick={() => {
+              if (user?.role === 'SUPER_ADMIN' || user?.role === 'ADMIN') navigate("/admin");
+              else if (user?.role === 'STUDENT') navigate("/staff/dashboard");
+              else navigate("/lecturer/dashboard");
+            }}
+            className="cursor-pointer"
+          >
             <h1 className="text-base font-black text-slate-800 tracking-tight uppercase">Admin Management</h1>
             <p className="text-[10px] font-bold text-slate-400 italic leading-none">Industrial University of Ho Chi Minh City</p>
           </div>

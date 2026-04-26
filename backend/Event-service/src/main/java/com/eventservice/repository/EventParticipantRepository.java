@@ -38,6 +38,7 @@ public interface EventParticipantRepository extends JpaRepository<EventParticipa
     void deleteByEventId(String eventId);
 
     boolean existsByEventIdAndParticipantAccountId(String eventId, String id);
+    Optional<EventParticipant> findByEventIdAndParticipantAccountId(String eventId, String participantAccountId);
 
     Optional<EventParticipant> findByParticipantCode(String participantCode);
 }

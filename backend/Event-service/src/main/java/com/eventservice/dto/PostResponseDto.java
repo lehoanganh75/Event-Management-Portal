@@ -30,8 +30,10 @@ public class PostResponseDto {
         dto.setContent(post.getContent());
         dto.setPostType(post.getPostType());
         dto.setStatus(post.getStatus());
-        dto.setEventId(post.getEvent().getId());
-        dto.setEventTitle(post.getEvent().getTitle());
+        if (post.getEvent() != null) {
+            dto.setEventId(post.getEvent().getId());
+            dto.setEventTitle(post.getEvent().getTitle());
+        }
         // dto.setCreatedByAccountId(post.getCreatedByAccountId());
         dto.setCreatedBy(creator);
         dto.setCreatedAt(post.getCreatedAt());

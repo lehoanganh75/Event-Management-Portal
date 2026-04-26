@@ -27,5 +27,6 @@ public interface EventRegistrationService {
 
     EventRegistration cancelRegistration(String eventId, String userProfileId);
 
-    EventRegistration getTicketForUser(String id, String currentUserId);
+    RegistrationResponseDto getTicketForUser(String eventId, String currentUserId);
+    CheckInResponse undoCheckIn(String registrationId);
 }

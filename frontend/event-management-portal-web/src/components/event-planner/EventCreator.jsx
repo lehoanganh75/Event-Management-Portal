@@ -69,20 +69,25 @@ export const EventCreator = ({
 
   const fillSampleData = () => {
     const now = new Date();
-    const startTime = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000); // 7 days later
-    const endTime = new Date(startTime.getTime() + 3 * 60 * 60 * 1000); // 3 hours later
-    const deadline = new Date(startTime.getTime() - 24 * 60 * 60 * 1000); // 1 day before
+    const startTime = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000); // 7 ngày tới
+    const endTime = new Date(startTime.getTime() + 4 * 60 * 60 * 1000); // Kéo dài 4 tiếng
+    const deadline = new Date(startTime.getTime() - 2 * 24 * 60 * 60 * 1000); // Hạn đăng ký trước 2 ngày
 
     const sample = {
       eventTitle: "Hội thảo Công nghệ AI & Tương lai 2026",
       eventType: "WORKSHOP",
+      eventMode: "OFFLINE",
       startTime: startTime.toISOString().slice(0, 16),
       endTime: endTime.toISOString().slice(0, 16),
       registrationDeadline: deadline.toISOString().slice(0, 16),
-      location: "Hội trường A, Cơ sở Nguyễn Văn Bảo",
-      eventPurpose: "Chia sẻ các xu hướng mới nhất về Trí tuệ nhân tạo (AI) và cách ứng dụng vào học tập, nghiên cứu cho sinh viên IUH.",
-      eventTopic: "Làm chủ AI để bứt phá trong học tập và sự nghiệp",
-      targetObjects: ["Sinh viên tất cả các khóa", "Người yêu thích công nghệ", "Thành viên các CLB học thuật"],
+      location: "Hội trường A, Cơ sở Nguyễn Văn Bảo, IUH",
+      eventPurpose: "Chia sẻ các xu hướng mới nhất về Trí tuệ nhân tạo (AI), Generative AI và cách ứng dụng thực tiễn vào học tập, nghiên cứu cho sinh viên.",
+      eventTopic: "Làm chủ AI để bứt phá trong kỷ nguyên số",
+      targetObjects: [
+        { type: "CATEGORY", name: "Sinh viên Công nghệ thông tin" },
+        { type: "CATEGORY", name: "Người yêu thích AI & Robot" },
+        { type: "CATEGORY", name: "Thành viên các CLB học thuật" }
+      ],
       maxParticipants: 500,
       orgSelectionMode: "new",
       newOrg: {
@@ -94,37 +99,62 @@ export const EventCreator = ({
         description: "Câu lạc bộ kỹ năng dành cho sinh viên IUH"
       },
       invitations: [
-        { inviteeName: "Nguyễn Văn A", inviteeEmail: "hiennguyenbuitan@gmail.com", inviteePosition: "Giảng viên", targetRole: "ADVISOR", message: "Mời thầy làm cố vấn chuyên môn" }
+        {
+          inviteeEmail: "hnguyenbuitan2810@gmail.com",
+          targetRole: "MEMBER",
+          message: "Trân trọng kính mời Thầy tham gia với vai trò cố vấn chuyên môn cho sự kiện."
+        }
       ],
       presenters: [
-        { fullName: "Nguyễn Văn A", email: "hiennguyenbuitan@gmail.com", position: "Chuyên gia AI", department: "Google Brain", session: "Tương lai của LLMs", bio: "Hơn 10 năm kinh nghiệm trong lĩnh vực học máy." }
+        {
+          email: "hnguyenbuitan@gmail.com",
+          session: "ALL",
+          bio: "Trân trọng kính mời Thầy tham gia với vai trò diễn giả chính cho hội thảo công nghệ AI."
+        }
       ],
       sessions: [
-        { title: "Đón khách", type: "BREAK", startTime: startTime.toISOString().slice(0, 16), endTime: new Date(startTime.getTime() + 30 * 60 * 1000).toISOString().slice(0, 16), room: "Sảnh", description: "Teabreak & Check-in", orderIndex: 1 },
-        { title: "Keynote: AI 2026", type: "KEYNOTE", startTime: new Date(startTime.getTime() + 30 * 60 * 1000).toISOString().slice(0, 16), endTime: new Date(startTime.getTime() + 90 * 60 * 1000).toISOString().slice(0, 16), room: "Hội trường A", description: "Bài phát biểu chính", orderIndex: 2 }
+        {
+          title: "Đón khách & Check-in",
+          type: "BREAK",
+          startTime: startTime.toISOString().slice(0, 16),
+          endTime: new Date(startTime.getTime() + 30 * 60 * 1000).toISOString().slice(0, 16),
+          room: "Sảnh Hội trường A",
+          description: "Teabreak & nhận tài liệu hội thảo",
+          orderIndex: 1
+        },
+        {
+          title: "Keynote: Kỷ nguyên AI 2026",
+          type: "KEYNOTE",
+          startTime: new Date(startTime.getTime() + 30 * 60 * 1000).toISOString().slice(0, 16),
+          endTime: new Date(startTime.getTime() + 90 * 60 * 1000).toISOString().slice(0, 16),
+          room: "Hội trường A",
+          description: "Bài phát biểu chính về xu hướng AI",
+          orderIndex: 2
+        }
       ],
       interactionSettings: {
-        enableQA: false,
-        enablePolls: false,
-        allowUserQuestions: false,
+        enableQA: true,
+        enablePolls: true,
+        allowUserQuestions: true,
       },
       hasLuckyDraw: true,
       luckyDrawTitle: "Quay số may mắn: Đêm hội AI 2026",
-      luckyDrawDescription: "Tham gia chương trình quay số để có cơ hội nhận được các phần quà công nghệ giá trị từ nhà tài trợ và ban tổ chức.",
-      luckyDrawStartTime: startTime.toISOString().slice(0, 16),
+      luckyDrawDescription: "Tham gia chương trình quay số để có cơ hội nhận được các phần quà công nghệ giá trị từ nhà tài trợ.",
+      luckyDrawStartTime: new Date(startTime.getTime() + 3 * 60 * 60 * 1000).toISOString().slice(0, 16),
       luckyDrawEndTime: endTime.toISOString().slice(0, 16),
       allowMultipleWins: false,
       prizes: [
-        { id: 1, name: "iPad Pro M4", count: 1, rate: 1, description: "Máy tính bảng mạnh mẽ nhất với màn hình OLED Tandem và chip M4 siêu nhanh." },
-        { id: 2, name: "Bàn phím cơ Keychron", count: 3, rate: 5, description: "Bàn phím cơ không dây hoàn hảo cho làm việc đa thiết bị." },
-        { id: 3, name: "Chuột Logitech MX Master 3S", count: 5, rate: 10, description: "Chuột ergonomic biểu tượng, cuộn MagSpeed và cảm biến 8K DPI." },
-        { id: 4, name: "Voucher Steam 200k", count: 20, rate: 30, description: "Thẻ quà tặng trị giá 200.000đ áp dụng cho tất cả trò chơi trên Steam." },
-        { id: 'consolation', name: "Chúc bạn may mắn lần sau", count: 999, rate: 54, description: "Cảm ơn bạn đã quan tâm, hẹn gặp lại ở sự kiện lần sau nhé!", isDefault: true }
+        { id: 1, name: "iPad Pro M4", count: 1, rate: 1, description: "Máy tính bảng mạnh mẽ nhất với chip M4." },
+        { id: 2, name: "Bàn phím Keychron K2", count: 3, rate: 5, description: "Bàn phím cơ không dây chất lượng." },
+        { id: 3, name: "Chuột Logitech MX Master 3S", count: 5, rate: 10, description: "Chuột ergonomic tốt nhất." },
+        { id: 'consolation', name: "Chúc bạn may mắn lần sau", count: 999, rate: 84, description: "Cảm ơn bạn đã tham gia!", isDefault: true }
       ],
     };
+
     setFormData(sample);
-    toast.info("✨ Đã tự động điền dữ liệu mẫu!");
+    toast.info("✨ Đã tự động điền dữ liệu mẫu chất lượng cao!");
   };
+
 
   const sendNotifications = async (eventId, eventTitle, isPublished) => {
     try {
@@ -160,13 +190,14 @@ export const EventCreator = ({
         return isNaN(date.getTime()) ? null : date.toISOString();
       };
 
-      let organizationId = formData.organizationId;
+      const data = finalData || formData;
+      let organizationId = data.organizationId;
 
       // Handle new organization creation
-      if (formData.orgSelectionMode === 'new' && formData.newOrg) {
+      if (data.orgSelectionMode === 'new' && data.newOrg) {
         try {
           const orgRes = await eventService.createOrganization({
-            ...formData.newOrg,
+            ...data.newOrg,
             ownerAccountId: accountId
           });
           organizationId = orgRes.data.id;
@@ -177,19 +208,27 @@ export const EventCreator = ({
         }
       }
 
-      const data = finalData || formData;
-      const payload = {
-        title: (data.eventTitle || data.title || "").trim(),
-        description: (data.eventPurpose || data.description || "").trim(),
+      // Map presenters for Event entity (Backend handles invitations if accountId is missing)
+      const mappedPresenters = (data.presenters || []).map(p => ({
+        fullName: p.fullName,
+        email: p.email,
+        bio: p.bio,
+        targetSessionName: p.session || p.targetSessionName,
+        presenterAccountId: p.accountId || p.presenterAccountId
+      }));
+
+      const eventPayload = {
+        title: (data.title || data.eventTitle || "").trim(),
+        description: (data.description || data.eventPurpose || "").trim(),
         eventTopic: (data.eventTopic || "").trim(),
         location: (data.location || "").trim(),
         eventMode: (data.eventMode || "OFFLINE").toUpperCase(),
-        type: data.eventType || data.type || "OTHER",
+        type: data.type || data.eventType || "OTHER",
         startTime: toISO(data.startTime),
         endTime: toISO(data.endTime),
         registrationDeadline: toISO(data.registrationDeadline),
         maxParticipants: Number(data.maxParticipants) || 50,
-        hasLuckyDraw: false, // Để lucky-draw-service tự cập nhật, tránh lỗi 409 Conflict
+        hasLuckyDraw: false, // Để lucky-draw-service tự cập nhật sau
         faculty: data.faculty || "",
         major: data.major || "",
         organizerUnit: data.organizerUnit || data.faculty || "",
@@ -205,42 +244,47 @@ export const EventCreator = ({
           ? data.recipients.map(r => typeof r === 'string' ? { name: r } : r)
           : [],
         organization: { id: organizationId },
-        invitations: data.invitations || [],
-        presenters: data.presenters || [],
-        sessions: data.sessions || [],
-        prizes: data.prizes || [],
-        interactions: data.interactions || [],
+        sessions: (data.sessions || []).map(s => ({ ...s, startTime: toISO(s.startTime), endTime: toISO(s.endTime) })),
+        presenters: mappedPresenters,
         interactionSettings: data.interactionSettings || {},
       };
 
-      Object.keys(payload).forEach((key) => {
-        if (payload[key] === undefined || payload[key] === null) {
-          delete payload[key];
+      // Clean up payload
+      Object.keys(eventPayload).forEach((key) => {
+        if (eventPayload[key] === undefined || eventPayload[key] === null) {
+          delete eventPayload[key];
         }
       });
 
       let response;
       if (planId || fromPlan) {
-        const id = planId || formData.planId || formData.id;
-        response = await eventService.createEventFromPlan(id, payload);
+        const id = planId || data.planId || data.id;
+        response = await eventService.createEventFromPlan(id, eventPayload);
       } else {
-        response = await eventService.createEvent({
-          event: payload,
-          invitations: payload.invitations
-        });
+        // Construct the CreateEventRequest structure
+        const createRequest = {
+          event: eventPayload,
+          organizerIds: data.organizerIds || [],
+          presenterIds: (data.presenters || [])
+            .filter(p => p.accountId)
+            .map(p => ({ accountId: p.accountId, bio: p.bio, session: p.session })),
+          invitations: data.invitations || []
+        };
+        response = await eventService.createEvent(createRequest);
       }
 
+
       if (response.data?.id) {
-        await sendNotifications(response.data.id, payload.title, isSuperAdmin);
+        await sendNotifications(response.data.id, eventPayload.title, isSuperAdmin);
 
         // Lưu dữ liệu Vòng quay may mắn nếu có
         if (data.hasLuckyDraw) {
           try {
             const luckyDrawPayload = {
-              title: data.luckyDrawTitle || `Vòng quay may mắn - ${payload.title}`,
+              title: data.luckyDrawTitle || `Vòng quay may mắn - ${eventPayload.title}`,
               description: data.luckyDrawDescription || "Tham gia để nhận những phần quà hấp dẫn từ sự kiện!",
-              startTime: toISO(data.luckyDrawStartTime) || payload.startTime,
-              endTime: toISO(data.luckyDrawEndTime) || payload.endTime,
+              startTime: toISO(data.luckyDrawStartTime) || eventPayload.startTime,
+              endTime: toISO(data.luckyDrawEndTime) || eventPayload.endTime,
               allowMultipleWins: data.allowMultipleWins || false,
               eventId: response.data.id,
               prizes: (data.prizes || []).map(p => ({
@@ -257,6 +301,7 @@ export const EventCreator = ({
           }
         }
       }
+
 
       if (isSuperAdmin) {
         toast.success("✅ Sự kiện đã được xuất bản trực tiếp!");

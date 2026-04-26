@@ -5,14 +5,25 @@ public class UserDto {
     private String fullName;
     private String avatarUrl;
     private String email;
+    private String role;
+    private String bio;
 
     public UserDto() {}
 
-    public UserDto(String id, String fullName, String avatarUrl, String email) {
+    public UserDto(String id, String fullName, String avatarUrl, String email, String role) {
         this.id = id;
         this.fullName = fullName;
         this.avatarUrl = avatarUrl;
         this.email = email;
+        this.role = role;
+    }
+
+    public String getRole() {
+        return role;
+    }
+
+    public void setRole(String role) {
+        this.role = role;
     }
 
     public String getId() {

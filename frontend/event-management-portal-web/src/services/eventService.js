@@ -116,7 +116,7 @@ const eventService = {
         return privateApi.post('/events', payload);
     },
     updateEvent: (id, data) => privateApi.put(`/events/update/${id}`, data),
-    deleteEvent: (id) => privateApi.delete(`/events/delete/${id}`),
+    deleteEvent: (id) => privateApi.delete(`/events/delete/${id}`, { timeout: 60000 }),
     cancelEvent: (id, reason) => privateApi.patch(`/events/${id}/cancel`, null, { params: { reason } }),
 
     // --- GROUP 3: POSTS ---
@@ -160,7 +160,7 @@ const eventService = {
     registerEvent: (eventId) => privateApi.post(`/registrations/${eventId}`),
     getTicketByEventId: (id) => privateApi.get(`/registrations/${id}`),
     getQR: (registrationId) => privateApi.get(`/registrations/${registrationId}/qr`),
-    cancelRegistration: (eventId) => privateApi.patch(`/registrations/cancel/${eventId}`),
+    cancelRegistration: (eventId) => privateApi.put(`/registrations/cancel/${eventId}`),
     getUsersByEvent: (eventId) => privateApi.get(`/registrations/event/${eventId}`),
 
     // --- GROUP 7: ADMIN APPROVAL ---
@@ -192,6 +192,12 @@ const eventService = {
 
     removeOrganizer: (organizerId) => privateApi.delete(`/events/organizers/${organizerId}`),
     removePresenter: (presenterId) => privateApi.delete(`/events/presenters/${presenterId}`),
+    manualCheckIn: (registrationId, adminAccountId) =>
+        privateApi.post(`/registrations/${registrationId}/manual-check-in`, null, { params: { adminAccountId } }),
+    checkIn: (qrToken, adminAccountId) =>
+        privateApi.post('/registrations/check-in', { qrToken, adminAccountId }),
+    undoCheckIn: (registrationId) =>
+        privateApi.post(`/registrations/${registrationId}/undo-check-in`),
 };
 
 export default eventService;

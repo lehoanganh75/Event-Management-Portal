@@ -71,7 +71,7 @@ export const EventPlanner = ({
               id: accountId,
               name: user.fullName || user.name || user.username || "Người dùng",
               email: user.email || "",
-              role: user.role || "USER",
+              role: user.role || "STUDENT",
             });
             return;
           }
@@ -98,7 +98,7 @@ export const EventPlanner = ({
                 payload.username ||
                 "Người dùng",
               email: payload.email || "",
-              role: payload.role || "USER",
+              role: payload.role || "STUDENT",
             });
           }
         } catch (e) {
@@ -166,8 +166,8 @@ export const EventPlanner = ({
       let configData = {};
       try {
         if (template.configData) {
-          configData = typeof template.configData === "string" 
-            ? JSON.parse(template.configData) 
+          configData = typeof template.configData === "string"
+            ? JSON.parse(template.configData)
             : template.configData;
         }
       } catch (e) {
@@ -255,7 +255,7 @@ export const EventPlanner = ({
         userProfileId: targetUserId,
         type: isApproval ? "PLAN_SUBMITTED" : "PLAN_CREATED",
         title: isApproval ? "🚀 Yêu cầu phê duyệt kế hoạch" : "📝 Đã lưu bản nháp kế hoạch",
-        message: isApproval 
+        message: isApproval
           ? `Kế hoạch "${planTitle}" đã được gửi và đang chờ bạn phê duyệt.`
           : `Kế hoạch "${planTitle}" đã được lưu thành công vào bản nháp của bạn.`,
         relatedEntityId: planId,
@@ -332,7 +332,7 @@ export const EventPlanner = ({
         const date = new Date(dt);
         if (isNaN(date.getTime())) return null;
         // LocalDateTime on backend doesn't like the 'Z' (UTC) suffix
-        return date.toISOString().split(".")[0]; 
+        return date.toISOString().split(".")[0];
       };
 
       const eventType = formData.eventType || formData.type || "WORKSHOP";
@@ -342,72 +342,72 @@ export const EventPlanner = ({
 
       const formattedPresenters = Array.isArray(formData.presenters)
         ? formData.presenters.map((p) => {
-            return {
-              fullName: p.fullName || p.name || "",
-              email: p.email || "",
-              position: p.position || p.title || "",
-            };
-          })
+          return {
+            fullName: p.fullName || p.name || "",
+            email: p.email || "",
+            position: p.position || p.title || "",
+          };
+        })
         : [];
 
       const formattedOrganizers = Array.isArray(formData.organizers)
         ? formData.organizers.map((o) => ({
-            fullName: o.fullName || "",
-            email: o.email || "",
-            position: o.position || "",
-            role: o.role || "MEMBER",
-          }))
+          fullName: o.fullName || "",
+          email: o.email || "",
+          position: o.position || "",
+          role: o.role || "MEMBER",
+        }))
         : [];
 
       const formattedParticipants = Array.isArray(formData.attendees)
         ? formData.attendees
-            .map((a) => {
-              const participant = {
-                fullName: a.fullName || a.name || "",
-                email: a.email || "",
-                title: a.title || "",
-                position: a.position || "",
-                department: a.department || "",
-                organization: a.organization || "",
-                code: a.studentId || a.code || "",
-                notes: a.notes || "",
-              };
-              return removeEmptyFields(participant, ["email"]);
-            })
-            .filter((p) => p.fullName)
+          .map((a) => {
+            const participant = {
+              fullName: a.fullName || a.name || "",
+              email: a.email || "",
+              title: a.title || "",
+              position: a.position || "",
+              department: a.department || "",
+              organization: a.organization || "",
+              code: a.studentId || a.code || "",
+              notes: a.notes || "",
+            };
+            return removeEmptyFields(participant, ["email"]);
+          })
+          .filter((p) => p.fullName)
         : [];
 
       const formattedTargetObjects = Array.isArray(formData.targetObjects)
         ? formData.targetObjects.map((obj) => ({
-            type: obj.type || "OTHER",
-            typeName: obj.typeName || "Khác",
-          }))
+          type: obj.type || "OTHER",
+          typeName: obj.typeName || "Khác",
+        }))
         : [];
 
       const formattedRecipients = Array.isArray(formData.recipients)
         ? formData.recipients.map((r) => {
-            if (typeof r === "string") {
-              return {
-                name: r,
-                type: "DEPARTMENT",
-                email: "",
-              };
-            }
-            return r;
-          })
+          if (typeof r === "string") {
+            return {
+              name: r,
+              type: "DEPARTMENT",
+              email: "",
+            };
+          }
+          return r;
+        })
         : [];
 
       const formattedCustomRecipients = Array.isArray(formData.customRecipients)
         ? formData.customRecipients.map((r) => {
-            if (typeof r === "string") {
-              return {
-                name: r,
-                type: "CUSTOM",
-                email: "",
-              };
-            }
-            return r;
-          })
+          if (typeof r === "string") {
+            return {
+              name: r,
+              type: "CUSTOM",
+              email: "",
+            };
+          }
+          return r;
+        })
         : [];
 
       const payload = {
@@ -467,7 +467,7 @@ export const EventPlanner = ({
         // Tạo kế hoạch mới
         response = await eventService.createPlan(payload, false);
       }
-      
+
       const planId = formData.id || response.data?.id || response.data?.planId;
 
       if (planId) {
@@ -546,13 +546,12 @@ export const EventPlanner = ({
             {Array.from({ length: TOTAL_STEPS }, (_, i) => i + 1).map((s) => (
               <div
                 key={s}
-                className={`h-1 rounded-full transition-all duration-500 ${
-                  s === step
+                className={`h-1 rounded-full transition-all duration-500 ${s === step
                     ? "w-6 bg-blue-600"
                     : s < step
                       ? "w-3 bg-blue-300"
                       : "w-3 bg-slate-200"
-                }`}
+                  }`}
               />
             ))}
           </div>

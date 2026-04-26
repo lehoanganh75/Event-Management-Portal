@@ -1,5 +1,6 @@
 package com.eventservice.service.impl;
 
+import com.eventservice.repository.EventParticipantRepository;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.ExpiredJwtException;
 import jakarta.transaction.Transactional;
@@ -31,6 +32,7 @@ public class EventRegistrationServiceImpl implements EventRegistrationService {
 
     private final EventRegistrationRepository registrationRepository;
     private final EventRepository eventRepository;
+    private final EventParticipantRepository participantRepository;
     private final QRTokenUtil qrTokenUtil;
 
     @Override
@@ -63,13 +65,14 @@ public class EventRegistrationServiceImpl implements EventRegistrationService {
         String ticketCode = String.format("%s-%04d", event.getSlug().toUpperCase(), currentCount);
 
         // 6. Khởi tạo đối tượng đăng ký
+        String qrToken = qrTokenUtil.generateQRToken(userId, eventId, event.getEndTime());
         EventRegistration registration = EventRegistration.builder()
                 .event(event)
                 .participantAccountId(userId)
-                .status(RegistrationStatus.PENDING)
+                .status(RegistrationStatus.REGISTERED) // Chuyển thẳng sang REGISTERED nếu tự đăng ký
                 .ticketCode(ticketCode)
-                .qrToken(UUID.randomUUID().toString())
-                .qrTokenExpiry(event.getEndTime())
+                .qrToken(qrToken)
+                .qrTokenExpiry(qrTokenUtil.getExpiryFromToken(qrToken))
                 .build();
 
         // 7. Cập nhật số lượng người đã đăng ký vào bảng Event
@@ -103,15 +106,13 @@ public class EventRegistrationServiceImpl implements EventRegistrationService {
         }
 
         List<EventRegistration> conflicts = registrationRepository.findConflictingRegistrations(
-                userRegistrationId, event.getStartTime(), event.getEndTime(), eventId, RegistrationStatus.REGISTERED
-        );
+                userRegistrationId, event.getStartTime(), event.getEndTime(), eventId, RegistrationStatus.REGISTERED);
 
         if (!conflicts.isEmpty()) {
             Event conflictEvent = conflicts.get(0).getEvent();
             throw new RuntimeException(
                     "Bạn đã đăng ký sự kiện '" + conflictEvent.getTitle()
-                            + "' trùng thời gian với sự kiện này"
-            );
+                            + "' trùng thời gian với sự kiện này");
         }
 
         Optional<EventRegistration> existingReg = registrationRepository
@@ -127,7 +128,12 @@ public class EventRegistrationServiceImpl implements EventRegistrationService {
         } else {
             registration = new EventRegistration();
             registration.setEvent(event);
-//            registration.setUserRegistrationId(userRegistrationId);
+            registration.setParticipantAccountId(userRegistrationId);
+
+            // Tạo mã vé (VD: TITLE-001)
+            long currentCount = registrationRepository.countByEventId(event.getId()) + 1;
+            String ticketCode = String.format("%s-%04d", event.getSlug().toUpperCase(), currentCount);
+            registration.setTicketCode(ticketCode);
         }
 
         registration.setStatus(RegistrationStatus.REGISTERED);
@@ -135,8 +141,7 @@ public class EventRegistrationServiceImpl implements EventRegistrationService {
         registration.setCheckedIn(false);
 
         String qrToken = qrTokenUtil.generateQRToken(
-                userRegistrationId, eventId, event.getEndTime()
-        );
+                userRegistrationId, eventId, event.getEndTime());
 
         registration.setQrToken(qrToken);
         registration.setQrTokenExpiry(qrTokenUtil.getExpiryFromToken(qrToken));
@@ -149,16 +154,16 @@ public class EventRegistrationServiceImpl implements EventRegistrationService {
         EventRegistration registration = registrationRepository.findById(registrationId)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy đăng ký"));
 
-//        if (!qrTokenUtil.isTokenValid(registration.getQrToken())) {
-//            String newToken = qrTokenUtil.generateQRToken(
-//                    registration.getUserRegistrationId(),
-//                    registration.getEvent().getId(),
-//                    registration.getEvent().getEndTime()
-//            );
-//            registration.setQrToken(newToken);
-//            registration.setQrTokenExpiry(qrTokenUtil.getExpiryFromToken(newToken));
-//            registrationRepository.save(registration);
-//        }
+        // if (!qrTokenUtil.isTokenValid(registration.getQrToken())) {
+        // String newToken = qrTokenUtil.generateQRToken(
+        // registration.getUserRegistrationId(),
+        // registration.getEvent().getId(),
+        // registration.getEvent().getEndTime()
+        // );
+        // registration.setQrToken(newToken);
+        // registration.setQrTokenExpiry(qrTokenUtil.getExpiryFromToken(newToken));
+        // registrationRepository.save(registration);
+        // }
 
         return toDto(registration);
     }
@@ -231,7 +236,7 @@ public class EventRegistrationServiceImpl implements EventRegistrationService {
 
         registration.setCheckedIn(true);
         registration.setCheckInTime(now);
-//        registration.setCheckInByAccountId(request.getAdminAccountId());
+        // registration.setCheckInByAccountId(request.getAdminAccountId());
         registration.setStatus(RegistrationStatus.ATTENDED);
 
         registrationRepository.save(registration);
@@ -261,7 +266,7 @@ public class EventRegistrationServiceImpl implements EventRegistrationService {
 
         registration.setCheckedIn(true);
         registration.setCheckInTime(LocalDateTime.now());
-//        registration.setCheckInByAccountId(adminAccountId);
+        // registration.setCheckInByAccountId(adminAccountId);
         registration.setStatus(RegistrationStatus.ATTENDED);
 
         registrationRepository.save(registration);
@@ -269,7 +274,7 @@ public class EventRegistrationServiceImpl implements EventRegistrationService {
         return CheckInResponse.builder()
                 .success(true)
                 .message("Check-in thủ công thành công!")
-//                .userProfileId(registration.getUserRegistrationId())
+                // .userProfileId(registration.getUserRegistrationId())
                 .eventId(registration.getEvent().getId())
                 .eventTitle(registration.getEvent().getTitle())
                 .checkInTime(registration.getCheckInTime().toString())
@@ -296,7 +301,7 @@ public class EventRegistrationServiceImpl implements EventRegistrationService {
                 .eventStartTime(r.getEvent().getStartTime() != null ? r.getEvent().getStartTime().toString() : null)
                 .eventEndTime(r.getEvent().getEndTime() != null ? r.getEvent().getEndTime().toString() : null)
                 .eventLocation(r.getEvent().getLocation())
-//                .userProfileId(r.getUserRegistrationId())
+                // .userProfileId(r.getUserRegistrationId())
                 .status(r.getStatus() != null ? r.getStatus().name() : null)
                 .registeredAt(r.getRegisteredAt() != null ? r.getRegisteredAt().toString() : null)
                 .qrToken(r.getQrToken())
@@ -318,13 +323,49 @@ public class EventRegistrationServiceImpl implements EventRegistrationService {
         }
 
         registration.setStatus(RegistrationStatus.CANCELLED);
-        return registrationRepository.save(registration);
+        EventRegistration saved = registrationRepository.save(registration);
+
+        // Đồng bộ xóa mềm bên bảng EventParticipant (nếu có)
+        participantRepository.findByEventIdAndParticipantAccountId(eventId, userProfileId)
+                .ifPresent(p -> {
+                    p.setDeleted(true);
+                    participantRepository.save(p);
+                });
+
+        return saved;
     }
 
+    @Transactional
     @Override
-    public EventRegistration getTicketForUser(String eventId, String currentUserId) {
-        return registrationRepository.findByEventIdAndParticipantAccountIdAndIsDeletedFalse(eventId, currentUserId)
+    public RegistrationResponseDto getTicketForUser(String eventId, String currentUserId) {
+        EventRegistration registration = registrationRepository
+                .findByEventIdAndParticipantAccountIdAndIsDeletedFalse(eventId, currentUserId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
                         "Không tìm thấy vé hoặc bạn không có quyền truy cập vé này"));
+        return toDto(registration);
+    }
+
+    @Transactional
+    @Override
+    public CheckInResponse undoCheckIn(String registrationId) {
+        EventRegistration registration = registrationRepository.findById(registrationId)
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy thông tin đăng ký"));
+
+        if (!registration.isCheckedIn()) {
+            return CheckInResponse.builder()
+                    .success(false)
+                    .message("Người này chưa thực hiện check-in")
+                    .build();
+        }
+
+        registration.setCheckedIn(false);
+        registration.setCheckInTime(null);
+        registration.setCheckedInByAccountId(null);
+        registrationRepository.save(registration);
+
+        return CheckInResponse.builder()
+                .success(true)
+                .message("Đã hủy trạng thái check-in thành công")
+                .build();
     }
 }

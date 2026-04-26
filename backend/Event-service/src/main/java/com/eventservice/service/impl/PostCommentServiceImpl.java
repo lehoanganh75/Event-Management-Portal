@@ -49,54 +49,84 @@ public class PostCommentServiceImpl implements PostCommentService {
 
     @Override
     public List<PostComment> getCommentsByPost(String postId) {
-        List<PostComment> comments = postCommentRepository.findByPostIdAndParentCommentIsNullAndIsDeletedFalseOrderByCreatedAtDesc(postId);
+        List<PostComment> comments = postCommentRepository
+                .findByPostIdAndParentCommentIsNullAndIsDeletedFalseOrderByCreatedAtDesc(postId);
         enrichComments(comments);
         return comments;
     }
 
     private void enrichComments(List<PostComment> comments) {
-        if (comments.isEmpty()) return;
-        
+        if (comments.isEmpty())
+            return;
+
         Set<String> ids = new HashSet<>();
         collectIds(comments, ids);
-        
+
         Map<String, UserDto> userMap = fetchUsersMap(ids);
-        
+
         applyUsers(comments, userMap);
     }
 
     private void enrichComment(PostComment comment) {
-        UserDto user = identityServiceClient.getUsersById(comment.getCommenterAccountId());
-        comment.setAuthor(user);
+        try {
+            List<UserDto> users = identityServiceClient
+                    .getUsersByIds(Collections.singletonList(comment.getCommenterAccountId()));
+            if (users != null && !users.isEmpty()) {
+                comment.setAuthor(users.get(0));
+            } else {
+                comment.setAuthor(getDefaultUser(comment.getCommenterAccountId()));
+            }
+        } catch (Exception e) {
+            comment.setAuthor(getDefaultUser(comment.getCommenterAccountId()));
+        }
     }
 
     private void collectIds(List<PostComment> comments, Set<String> ids) {
         for (PostComment c : comments) {
-            ids.add(c.getCommenterAccountId());
-            if (c.getReplies() != null) collectIds(c.getReplies(), ids);
+            if (c.getCommenterAccountId() != null) {
+                ids.add(c.getCommenterAccountId());
+            }
+            if (c.getReplies() != null)
+                collectIds(c.getReplies(), ids);
         }
     }
 
     private void applyUsers(List<PostComment> comments, Map<String, UserDto> userMap) {
         for (PostComment c : comments) {
-            c.setAuthor(userMap.get(c.getCommenterAccountId()));
-            if (c.getReplies() != null) applyUsers(c.getReplies(), userMap);
+            UserDto user = userMap.get(c.getCommenterAccountId());
+            if (user == null) {
+                user = getDefaultUser(c.getCommenterAccountId());
+            }
+            c.setAuthor(user);
+            if (c.getReplies() != null)
+                applyUsers(c.getReplies(), userMap);
         }
     }
 
     private Map<String, UserDto> fetchUsersMap(Set<String> ids) {
+        if (ids == null || ids.isEmpty())
+            return new HashMap<>();
         try {
+            List<UserDto> users = identityServiceClient.getUsersByIds(new ArrayList<>(ids));
             Map<String, UserDto> map = new HashMap<>();
-            for (String id : ids) {
-                try {
-                    UserDto user = identityServiceClient.getUsersById(id);
-                    if (user != null) map.put(id, user);
-                } catch (Exception e) {}
+            if (users != null) {
+                for (UserDto u : users) {
+                    if (u != null && u.getId() != null)
+                        map.put(u.getId(), u);
+                }
             }
             return map;
         } catch (Exception e) {
             return new HashMap<>();
         }
+    }
+
+    private UserDto getDefaultUser(String id) {
+        UserDto user = new UserDto();
+        user.setId(id);
+        user.setFullName("Người dùng hệ thống");
+        user.setAvatarUrl("default-avatar-url.png");
+        return user;
     }
 
     @Override
@@ -107,21 +137,23 @@ public class PostCommentServiceImpl implements PostCommentService {
         comment.setDeleted(true);
         postCommentRepository.save(comment);
     }
+
     @Override
     @Transactional
     public PostComment reactToComment(String commentId, String accountId, String emoji) {
         PostComment comment = postCommentRepository.findById(commentId)
                 .orElseThrow(() -> new RuntimeException("Bình luận không tồn tại!"));
-        
+
         Map<String, String> reactions = comment.getReactions();
-        if (reactions == null) reactions = new HashMap<>();
-        
+        if (reactions == null)
+            reactions = new HashMap<>();
+
         if (emoji == null || emoji.equals(reactions.get(accountId))) {
             reactions.remove(accountId);
         } else {
             reactions.put(accountId, emoji);
         }
-        
+
         comment.setReactions(reactions);
         return postCommentRepository.save(comment);
     }

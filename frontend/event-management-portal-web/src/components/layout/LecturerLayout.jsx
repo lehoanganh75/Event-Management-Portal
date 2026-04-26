@@ -1,5 +1,6 @@
 import React from 'react';
-import { Outlet } from 'react-router-dom';
+import { Outlet, Navigate } from 'react-router-dom';
+import { useAuth } from '../../context/AuthContext';
 import Sidebar from './Sidebar';
 import HeaderAdmin from './HeaderAdmin';
 import {
@@ -15,6 +16,12 @@ import {
 } from 'lucide-react';
 
 const LecturerLayout = () => {
+  const { user } = useAuth();
+
+  if (user?.role === 'STUDENT') {
+    return <Navigate to="/staff/events" replace />;
+  }
+
   const menuItems = [
     { name: "Dashboard", icon: LayoutDashboard, path: "/lecturer/dashboard" },
     { name: "Quản lý sự kiện", icon: Calendar, path: "/lecturer/events" },

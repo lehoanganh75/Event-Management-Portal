@@ -488,6 +488,125 @@ export default function ManualInputStep({
     <div style={{ width: "100%", margin: "0 auto", padding: "20px 0" }}>
       <div style={{ background: "#fff", border: "1px solid #f1f5f9", borderRadius: 16, padding: "32px", display: "flex", flexDirection: "column", gap: 32 }}>
 
+        {/* STEP 1: BASIC INFO */}
+        {isVisible('basic') && (
+          <>
+            <h2 style={{ fontSize: 18, fontWeight: 800, color: "#1e293b", margin: 0 }}>Thông tin cơ bản</h2>
+
+            <Field
+              label="Tên sự kiện"
+              required
+              error={errors.eventTitle}
+              action={
+                <button
+                  onClick={() => setShowAISuggestions(!showAISuggestions)}
+                  style={{ background: "none", border: "none", color: "#8b5cf6", fontSize: 12, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: 4 }}
+                >
+                  <Sparkles size={14} /> AI gợi ý
+                </button>
+              }
+            >
+              <Input
+                placeholder="VD: Hội thảo Công nghệ AI 2026"
+                value={formData.eventTitle || ""}
+                onChange={(e) => setFormData({ ...formData, eventTitle: e.target.value })}
+              />
+              {showAISuggestions && (
+                <AISuggestionBox
+                  title="Gợi ý từ AI"
+                  suggestions={[
+                    "Hội thảo Công nghệ AI và Tương lai 2026",
+                    "Workshop: Kỹ năng Lập trình Python cho Sinh viên",
+                    "Ngày hội Khởi nghiệp Sáng tạo IUH",
+                    "Seminar: Xu hướng Công nghệ Blockchain"
+                  ]}
+                  onSelect={(s) => {
+                    setFormData({ ...formData, eventTitle: s });
+                    setShowAISuggestions(false);
+                  }}
+                />
+              )}
+            </Field>
+
+            <Field label="Danh mục sự kiện" required>
+              <Select value={formData.eventType || ""} onChange={(e) => setFormData({ ...formData, eventType: e.target.value })}>
+                <option value="">-- Chọn danh mục --</option>
+                {EVENT_TYPES.map(type => (
+                  <option key={type.value} value={type.value}>{type.label}</option>
+                ))}
+              </Select>
+            </Field>
+
+            <div style={{ background: "#f8fafc", padding: "24px", borderRadius: 16, border: "1px solid #e2e8f0", display: "flex", flexDirection: "column", gap: 20 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, color: "#1e293b", fontSize: 14, fontWeight: 700 }}>
+                <Timer size={18} className="text-indigo-600" />
+                Thời gian sự kiện
+              </div>
+
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
+                <DateTimeField
+                  label="Thời gian bắt đầu"
+                  value={formData.startTime}
+                  onChange={(val) => setFormData({ ...formData, startTime: val })}
+                  error={errors.startTime}
+                  required
+                />
+                <DateTimeField
+                  label="Thời gian kết thúc"
+                  value={formData.endTime}
+                  onChange={(val) => setFormData({ ...formData, endTime: val })}
+                  error={errors.endTime}
+                  required
+                />
+              </div>
+
+              <DateTimeField
+                label="Hạn đăng ký tham gia"
+                value={formData.registrationDeadline}
+                onChange={(val) => setFormData({ ...formData, registrationDeadline: val })}
+                error={errors.registrationDeadline}
+                required
+              />
+            </div>
+
+            <Field
+              label="Địa điểm tổ chức"
+              required
+              error={errors.location}
+              action={
+                <button
+                  onClick={() => setShowLocationAISuggestions(!showLocationAISuggestions)}
+                  style={{ background: "none", border: "none", color: "#8b5cf6", fontSize: 12, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: 4 }}
+                >
+                  <Sparkles size={14} /> AI gợi ý địa điểm
+                </button>
+              }
+            >
+              <div style={{ position: "relative" }}>
+                <Input placeholder="VD: Hội trường A, Cơ sở Nguyễn Văn Bảo" value={formData.location || ""} onChange={(e) => setFormData({ ...formData, location: e.target.value })} />
+                <MapPin size={16} style={{ position: "absolute", right: 14, top: "50%", transform: "translateY(-50%)", color: "#94a3b8", pointerEvents: "none" }} />
+              </div>
+              {showLocationAISuggestions && (
+                <AISuggestionBox
+                  title="Gợi ý địa điểm phổ biến tại IUH"
+                  suggestions={[
+                    "Hội trường A, Cơ sở Nguyễn Văn Bảo",
+                    "Hội trường E4, Nhà E",
+                    "Phòng họp Nhà V",
+                    "Sân bóng đá IUH",
+                    "Thư viện tầng 1, Nhà B",
+                    "Phòng H3.1 (Phòng CLB)"
+                  ]}
+                  onSelect={(s) => {
+                    setFormData({ ...formData, location: s });
+                    setShowLocationAISuggestions(false);
+                  }}
+                />
+              )}
+            </Field>
+          </>
+        )}
+
         {/* ORGANIZATION SELECTION */}
         {isVisible('organization') && (
           <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
@@ -723,7 +842,167 @@ export default function ManualInputStep({
                 )}
               </div>
             </div>
+          </div>
+        )}
 
+
+        {/* STEP 2: DESCRIPTION & DETAILS & ATTENDEES */}
+        {(isVisible('details') || isVisible('description') || isVisible('attendees')) && (
+          <>
+            <h2 style={{ fontSize: 18, fontWeight: 800, color: "#1e293b", margin: 0 }}>Mô tả & Cài đặt người tham gia</h2>
+
+            <Field
+              label="Mô tả sự kiện"
+              required
+              error={errors.eventPurpose}
+              action={
+                <button
+                  onClick={() => setShowDescriptionAISuggestions(!showDescriptionAISuggestions)}
+                  style={{ background: "none", border: "none", color: "#8b5cf6", fontSize: 12, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: 4 }}
+                >
+                  <Sparkles size={14} /> AI gợi ý mô tả
+                </button>
+              }
+            >
+              <Textarea
+                placeholder="Mô tả chi tiết về sự kiện, nội dung chính, đối tượng tham gia..."
+                rows={6}
+                value={formData.eventPurpose || ""}
+                onChange={(e) => setFormData({ ...formData, eventPurpose: e.target.value })}
+              />
+              {showDescriptionAISuggestions && (
+                <AISuggestionBox
+                  title="Mẫu mô tả từ AI"
+                  suggestions={[
+                    "Hội thảo chuyên môn: Sự kiện quy tụ các chuyên gia hàng đầu trong lĩnh vực để chia sẻ kiến thức mới nhất và xu hướng tương lai.",
+                    "Workshop thực hành: Khóa học tập trung vào kỹ năng thực tế, người tham gia sẽ được hướng dẫn trực tiếp bởi các chuyên gia.",
+                    "Sự kiện networking: Buổi gặp gỡ thân mật giữa sinh viên và các nhà tuyển dụng, mở ra nhiều cơ hội thực tập và việc làm hấp dẫn.",
+                    "Ngày hội văn hóa: Không gian giao lưu văn hóa, nghệ thuật với nhiều hoạt động sôi nổi và giải thưởng hấp dẫn dành cho sinh viên."
+                  ]}
+                  onSelect={(s) => {
+                    setFormData({ ...formData, eventPurpose: s });
+                    setShowDescriptionAISuggestions(false);
+                  }}
+                />
+              )}
+            </Field>
+
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
+              <Field
+                label="Số lượng người tham gia tối đa"
+                required
+                error={errors.maxParticipants}
+                action={
+                  <button
+                    onClick={() => setShowMaxParticipantsAISuggestions(!showMaxParticipantsAISuggestions)}
+                    style={{ background: "none", border: "none", color: "#8b5cf6", fontSize: 12, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: 4 }}
+                  >
+                    <Sparkles size={14} /> AI gợi ý
+                  </button>
+                }
+              >
+                <Input type="number" placeholder="VD: 500" value={formData.maxParticipants || ""} onChange={(e) => setFormData({ ...formData, maxParticipants: e.target.value })} />
+                {showMaxParticipantsAISuggestions && (
+                  <AISuggestionBox
+                    title="Gợi ý quy mô phổ biến"
+                    suggestions={["50 (Phòng học nhỏ)", "100 (Phòng học lớn)", "200 (Hội trường nhỏ)", "500 (Hội trường A)", "1000 (Sân bóng đá)"]}
+                    onSelect={(s) => {
+                      setFormData({ ...formData, maxParticipants: s.split(' ')[0] });
+                      setShowMaxParticipantsAISuggestions(false);
+                    }}
+                  />
+                )}
+              </Field>
+              <Field
+                label="Mục tiêu sự kiện"
+                action={
+                  <button
+                    onClick={() => setShowGoalAISuggestions(!showGoalAISuggestions)}
+                    style={{ background: "none", border: "none", color: "#8b5cf6", fontSize: 12, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: 4 }}
+                  >
+                    <Sparkles size={14} /> AI gợi ý
+                  </button>
+                }
+              >
+                <Input placeholder="VD: Nâng cao kỹ năng, Kết nối doanh nghiệp..." value={formData.eventTopic || ""} onChange={(e) => setFormData({ ...formData, eventTopic: e.target.value })} />
+                {showGoalAISuggestions && (
+                  <AISuggestionBox
+                    title="Gợi ý mục tiêu sự kiện"
+                    suggestions={[
+                      "Nâng cao kỹ năng chuyên môn cho sinh viên",
+                      "Kết nối doanh nghiệp và tạo cơ hội việc làm",
+                      "Chia sẻ kinh nghiệm thực tế từ chuyên gia",
+                      "Tạo sân chơi giao lưu, học hỏi giữa các câu lạc bộ"
+                    ]}
+                    onSelect={(s) => {
+                      setFormData({ ...formData, eventTopic: s });
+                      setShowGoalAISuggestions(false);
+                    }}
+                  />
+                )}
+              </Field>
+            </div>
+
+            <Field
+              label="Yêu cầu đối với người tham gia"
+              action={
+                <button
+                  onClick={() => setShowRequirementAISuggestions(!showRequirementAISuggestions)}
+                  style={{ background: "none", border: "none", color: "#8b5cf6", fontSize: 12, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: 4 }}
+                >
+                  <Sparkles size={14} /> AI gợi ý
+                </button>
+              }
+            >
+              <Textarea
+                placeholder="VD: Sinh viên năm 3, 4; Có kiến thức cơ bản về lập trình..."
+                value={Array.isArray(formData.targetObjects) 
+                  ? formData.targetObjects.map(obj => typeof obj === 'string' ? obj : (obj.name || "")).join(', ') 
+                  : ""}
+                onChange={(e) => setFormData({ ...formData, targetObjects: e.target.value.split(',').map(s => s.trim()).filter(s => s !== "") })}
+              />
+              {showRequirementAISuggestions && (
+                <AISuggestionBox
+                  title="Gợi ý yêu cầu tham gia"
+                  suggestions={[
+                    "Sinh viên năm 3, năm 4 chuyên ngành CNTT",
+                    "Mang theo laptop và cài đặt sẵn các phần mềm cần thiết",
+                    "Đã đăng ký và nhận được email xác nhận từ ban tổ chức",
+                    "Mặc trang phục lịch sự hoặc đồng phục trường"
+                  ]}
+                  onSelect={(s) => {
+                    const current = formData.targetObjects || [];
+                    setFormData({ ...formData, targetObjects: [...new Set([...current, s])] });
+                    setShowRequirementAISuggestions(false);
+                  }}
+                />
+              )}
+            </Field>
+
+            <Field label="Hình ảnh sự kiện">
+              <div style={{
+                border: "1px dashed #cbd5e1",
+                borderRadius: 12,
+                padding: "40px",
+                textAlign: "center",
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                gap: 12,
+                background: "#fafafa"
+              }}>
+                <div style={{ width: 48, height: 48, borderRadius: 12, background: "#fff", border: "1px solid #e2e8f0", display: "flex", alignItems: "center", justifyContent: "center", color: "#94a3b8" }}>
+                  <Upload size={24} style={{ margin: "auto" }} />
+                </div>
+                <div style={{ fontSize: 13, color: "#64748b" }}>
+                  <p style={{ margin: 0, fontWeight: 600, color: "#475569" }}>Kéo thả hoặc click để tải ảnh lên</p>
+                  <p style={{ margin: "4px 0 0", fontSize: 11 }}>PNG, JPG tối đa 5MB</p>
+                </div>
+                <ImageUpload value={formData.coverImage} onChange={(url) => setFormData({ ...formData, coverImage: url })} />
+              </div>
+            </Field>
+
+            <div style={{ height: 1, background: "#f1f5f9", margin: "10px 0" }} />
 
             {/* SESSIONS SECTION */}
             <div style={{ marginTop: 20 }}>
@@ -934,17 +1213,16 @@ export default function ManualInputStep({
 
                     <Field label="Phạm vi thuyết trình">
                       <Select
-                        value={presenter.targetSessionName || ""}
-                        onChange={(e) => updatePresenter(idx, 'targetSessionName', e.target.value)}
+                        value={presenter.session || presenter.targetSessionName || "ALL"}
+                        onChange={(e) => updatePresenter(idx, 'session', e.target.value)}
                       >
-                        <option value="">-- Chưa chỉ định --</option>
                         <option value="ALL">Thuyết trình tất cả các phiên</option>
                         {(formData.sessions || []).slice().sort((a, b) => a.orderIndex - b.orderIndex).map((s, sIdx) => (
                           <option key={sIdx} value={s.title}>Phiên {s.orderIndex || sIdx + 1}: {s.title}</option>
                         ))}
                       </Select>
                       <p style={{ fontSize: 11, color: "#64748b", marginTop: 4 }}>
-                        * Chọn "ALL" hoặc tên một phiên cụ thể.
+                        * Mặc định là "Tất cả các phiên" (ALL).
                       </p>
                     </Field>
 
@@ -963,281 +1241,6 @@ export default function ManualInputStep({
             </div>
 
             <div style={{ height: 1, background: "#f1f5f9", margin: "10px 0" }} />
-          </div>
-        )}
-
-        {/* STEP 1: BASIC INFO */}
-        {isVisible('basic') && (
-          <>
-            <h2 style={{ fontSize: 18, fontWeight: 800, color: "#1e293b", margin: 0 }}>Thông tin cơ bản</h2>
-
-            <Field
-              label="Tên sự kiện"
-              required
-              error={errors.eventTitle}
-              action={
-                <button
-                  onClick={() => setShowAISuggestions(!showAISuggestions)}
-                  style={{ background: "none", border: "none", color: "#8b5cf6", fontSize: 12, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: 4 }}
-                >
-                  <Sparkles size={14} /> AI gợi ý
-                </button>
-              }
-            >
-              <Input
-                placeholder="VD: Hội thảo Công nghệ AI 2026"
-                value={formData.eventTitle || ""}
-                onChange={(e) => setFormData({ ...formData, eventTitle: e.target.value })}
-              />
-              {showAISuggestions && (
-                <AISuggestionBox
-                  title="Gợi ý từ AI"
-                  suggestions={[
-                    "Hội thảo Công nghệ AI và Tương lai 2026",
-                    "Workshop: Kỹ năng Lập trình Python cho Sinh viên",
-                    "Ngày hội Khởi nghiệp Sáng tạo IUH",
-                    "Seminar: Xu hướng Công nghệ Blockchain"
-                  ]}
-                  onSelect={(s) => {
-                    setFormData({ ...formData, eventTitle: s });
-                    setShowAISuggestions(false);
-                  }}
-                />
-              )}
-            </Field>
-
-            <Field label="Danh mục sự kiện" required>
-              <Select value={formData.eventType || ""} onChange={(e) => setFormData({ ...formData, eventType: e.target.value })}>
-                <option value="">-- Chọn danh mục --</option>
-                {EVENT_TYPES.map(type => (
-                  <option key={type.value} value={type.value}>{type.label}</option>
-                ))}
-              </Select>
-            </Field>
-
-            <div style={{ background: "#f8fafc", padding: "24px", borderRadius: 16, border: "1px solid #e2e8f0", display: "flex", flexDirection: "column", gap: 20 }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 8, color: "#1e293b", fontSize: 14, fontWeight: 700 }}>
-                <Timer size={18} className="text-indigo-600" />
-                Thời gian sự kiện
-              </div>
-
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
-                <DateTimeField
-                  label="Thời gian bắt đầu"
-                  value={formData.startTime}
-                  onChange={(val) => setFormData({ ...formData, startTime: val })}
-                  error={errors.startTime}
-                  required
-                />
-                <DateTimeField
-                  label="Thời gian kết thúc"
-                  value={formData.endTime}
-                  onChange={(val) => setFormData({ ...formData, endTime: val })}
-                  error={errors.endTime}
-                  required
-                />
-              </div>
-
-              <DateTimeField
-                label="Hạn đăng ký tham gia"
-                value={formData.registrationDeadline}
-                onChange={(val) => setFormData({ ...formData, registrationDeadline: val })}
-                error={errors.registrationDeadline}
-                required
-              />
-            </div>
-
-            <Field
-              label="Địa điểm tổ chức"
-              required
-              error={errors.location}
-              action={
-                <button
-                  onClick={() => setShowLocationAISuggestions(!showLocationAISuggestions)}
-                  style={{ background: "none", border: "none", color: "#8b5cf6", fontSize: 12, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: 4 }}
-                >
-                  <Sparkles size={14} /> AI gợi ý địa điểm
-                </button>
-              }
-            >
-              <div style={{ position: "relative" }}>
-                <Input placeholder="VD: Hội trường A, Cơ sở Nguyễn Văn Bảo" value={formData.location || ""} onChange={(e) => setFormData({ ...formData, location: e.target.value })} />
-                <MapPin size={16} style={{ position: "absolute", right: 14, top: "50%", transform: "translateY(-50%)", color: "#94a3b8", pointerEvents: "none" }} />
-              </div>
-              {showLocationAISuggestions && (
-                <AISuggestionBox
-                  title="Gợi ý địa điểm phổ biến tại IUH"
-                  suggestions={[
-                    "Hội trường A, Cơ sở Nguyễn Văn Bảo",
-                    "Hội trường E4, Nhà E",
-                    "Phòng họp Nhà V",
-                    "Sân bóng đá IUH",
-                    "Thư viện tầng 1, Nhà B",
-                    "Phòng H3.1 (Phòng CLB)"
-                  ]}
-                  onSelect={(s) => {
-                    setFormData({ ...formData, location: s });
-                    setShowLocationAISuggestions(false);
-                  }}
-                />
-              )}
-            </Field>
-          </>
-        )}
-
-        {/* STEP 2: DESCRIPTION & DETAILS & ATTENDEES */}
-        {(isVisible('details') || isVisible('description') || isVisible('attendees')) && (
-          <>
-            <h2 style={{ fontSize: 18, fontWeight: 800, color: "#1e293b", margin: 0 }}>Mô tả & Cài đặt người tham gia</h2>
-
-            <Field
-              label="Mô tả sự kiện"
-              required
-              error={errors.eventPurpose}
-              action={
-                <button
-                  onClick={() => setShowDescriptionAISuggestions(!showDescriptionAISuggestions)}
-                  style={{ background: "none", border: "none", color: "#8b5cf6", fontSize: 12, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: 4 }}
-                >
-                  <Sparkles size={14} /> AI gợi ý mô tả
-                </button>
-              }
-            >
-              <Textarea
-                placeholder="Mô tả chi tiết về sự kiện, nội dung chính, đối tượng tham gia..."
-                rows={6}
-                value={formData.eventPurpose || ""}
-                onChange={(e) => setFormData({ ...formData, eventPurpose: e.target.value })}
-              />
-              {showDescriptionAISuggestions && (
-                <AISuggestionBox
-                  title="Mẫu mô tả từ AI"
-                  suggestions={[
-                    "Hội thảo chuyên môn: Sự kiện quy tụ các chuyên gia hàng đầu trong lĩnh vực để chia sẻ kiến thức mới nhất và xu hướng tương lai.",
-                    "Workshop thực hành: Khóa học tập trung vào kỹ năng thực tế, người tham gia sẽ được hướng dẫn trực tiếp bởi các chuyên gia.",
-                    "Sự kiện networking: Buổi gặp gỡ thân mật giữa sinh viên và các nhà tuyển dụng, mở ra nhiều cơ hội thực tập và việc làm hấp dẫn.",
-                    "Ngày hội văn hóa: Không gian giao lưu văn hóa, nghệ thuật với nhiều hoạt động sôi nổi và giải thưởng hấp dẫn dành cho sinh viên."
-                  ]}
-                  onSelect={(s) => {
-                    setFormData({ ...formData, eventPurpose: s });
-                    setShowDescriptionAISuggestions(false);
-                  }}
-                />
-              )}
-            </Field>
-
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
-              <Field
-                label="Số lượng người tham gia tối đa"
-                required
-                error={errors.maxParticipants}
-                action={
-                  <button
-                    onClick={() => setShowMaxParticipantsAISuggestions(!showMaxParticipantsAISuggestions)}
-                    style={{ background: "none", border: "none", color: "#8b5cf6", fontSize: 12, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: 4 }}
-                  >
-                    <Sparkles size={14} /> AI gợi ý
-                  </button>
-                }
-              >
-                <Input type="number" placeholder="VD: 500" value={formData.maxParticipants || ""} onChange={(e) => setFormData({ ...formData, maxParticipants: e.target.value })} />
-                {showMaxParticipantsAISuggestions && (
-                  <AISuggestionBox
-                    title="Gợi ý quy mô phổ biến"
-                    suggestions={["50 (Phòng học nhỏ)", "100 (Phòng học lớn)", "200 (Hội trường nhỏ)", "500 (Hội trường A)", "1000 (Sân bóng đá)"]}
-                    onSelect={(s) => {
-                      setFormData({ ...formData, maxParticipants: s.split(' ')[0] });
-                      setShowMaxParticipantsAISuggestions(false);
-                    }}
-                  />
-                )}
-              </Field>
-              <Field
-                label="Mục tiêu sự kiện"
-                action={
-                  <button
-                    onClick={() => setShowGoalAISuggestions(!showGoalAISuggestions)}
-                    style={{ background: "none", border: "none", color: "#8b5cf6", fontSize: 12, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: 4 }}
-                  >
-                    <Sparkles size={14} /> AI gợi ý
-                  </button>
-                }
-              >
-                <Input placeholder="VD: Nâng cao kỹ năng, Kết nối doanh nghiệp..." value={formData.eventTopic || ""} onChange={(e) => setFormData({ ...formData, eventTopic: e.target.value })} />
-                {showGoalAISuggestions && (
-                  <AISuggestionBox
-                    title="Gợi ý mục tiêu sự kiện"
-                    suggestions={[
-                      "Nâng cao kỹ năng chuyên môn cho sinh viên",
-                      "Kết nối doanh nghiệp và tạo cơ hội việc làm",
-                      "Chia sẻ kinh nghiệm thực tế từ chuyên gia",
-                      "Tạo sân chơi giao lưu, học hỏi giữa các câu lạc bộ"
-                    ]}
-                    onSelect={(s) => {
-                      setFormData({ ...formData, eventTopic: s });
-                      setShowGoalAISuggestions(false);
-                    }}
-                  />
-                )}
-              </Field>
-            </div>
-
-            <Field
-              label="Yêu cầu đối với người tham gia"
-              action={
-                <button
-                  onClick={() => setShowRequirementAISuggestions(!showRequirementAISuggestions)}
-                  style={{ background: "none", border: "none", color: "#8b5cf6", fontSize: 12, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: 4 }}
-                >
-                  <Sparkles size={14} /> AI gợi ý
-                </button>
-              }
-            >
-              <Textarea
-                placeholder="VD: Sinh viên năm 3, 4; Có kiến thức cơ bản về lập trình..."
-                value={formData.targetObjects?.join(', ') || ""}
-                onChange={(e) => setFormData({ ...formData, targetObjects: e.target.value.split(',').map(s => s.trim()) })}
-              />
-              {showRequirementAISuggestions && (
-                <AISuggestionBox
-                  title="Gợi ý yêu cầu tham gia"
-                  suggestions={[
-                    "Sinh viên năm 3, năm 4 chuyên ngành CNTT",
-                    "Mang theo laptop và cài đặt sẵn các phần mềm cần thiết",
-                    "Đã đăng ký và nhận được email xác nhận từ ban tổ chức",
-                    "Mặc trang phục lịch sự hoặc đồng phục trường"
-                  ]}
-                  onSelect={(s) => {
-                    const current = formData.targetObjects || [];
-                    setFormData({ ...formData, targetObjects: [...new Set([...current, s])] });
-                    setShowRequirementAISuggestions(false);
-                  }}
-                />
-              )}
-            </Field>
-
-            <Field label="Hình ảnh sự kiện">
-              <div style={{
-                border: "1px dashed #cbd5e1",
-                borderRadius: 12,
-                padding: "40px",
-                textAlign: "center",
-                display: "flex",
-                flexDirection: "column",
-                alignItems: "center",
-                gap: 12,
-                background: "#fafafa"
-              }}>
-                <div style={{ width: 48, height: 48, borderRadius: 12, background: "#fff", border: "1px solid #e2e8f0", display: "flex", alignItems: "center", justifyContent: "center", color: "#94a3b8" }}>
-                  <Upload size={24} style={{ margin: "auto" }} />
-                </div>
-                <div style={{ fontSize: 13, color: "#64748b" }}>
-                  <p style={{ margin: 0, fontWeight: 600, color: "#475569" }}>Kéo thả hoặc click để tải ảnh lên</p>
-                  <p style={{ margin: "4px 0 0", fontSize: 11 }}>PNG, JPG tối đa 5MB</p>
-                </div>
-                <ImageUpload value={formData.coverImage} onChange={(url) => setFormData({ ...formData, coverImage: url })} />
-              </div>
-            </Field>
           </>
         )}
       </div>

@@ -43,7 +43,11 @@ const AdminPostDetailPage = () => {
   const handleReactPost = async (emoji) => {
     try {
       const res = await eventService.reactToPost(id, { emoji });
-      setPost(res.data);
+      setPost(prev => ({ 
+        ...prev, 
+        ...res.data, 
+        author: res.data.author || prev.author 
+      }));
     } catch (err) {
       toast.error("Không thể thả icon");
     }
@@ -52,7 +56,12 @@ const AdminPostDetailPage = () => {
   const handleReactComment = async (commentId, emoji) => {
     try {
       const res = await eventService.reactToComment(commentId, { emoji });
-      setComments(prev => updateCommentInTree(prev, commentId, () => res.data));
+      setComments(prev => updateCommentInTree(prev, commentId, (old) => ({ 
+        ...old, 
+        ...res.data,
+        author: res.data.author || old.author,
+        commenter: res.data.commenter || old.commenter
+      })));
     } catch (err) {
       toast.error("Không thể thả icon");
     }

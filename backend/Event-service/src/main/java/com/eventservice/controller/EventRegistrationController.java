@@ -23,13 +23,13 @@ public class EventRegistrationController {
     private final EventRegistrationService registrationService;
 
     @GetMapping("/{eventId}")
-    public ResponseEntity<EventRegistration> getTicket(
+    public ResponseEntity<RegistrationResponseDto> getTicket(
             @PathVariable String eventId,
             @AuthenticationPrincipal Jwt jwt
     ) {
         String currentUserId = jwt.getSubject();
 
-        EventRegistration ticket = registrationService.getTicketForUser(eventId, currentUserId);
+        RegistrationResponseDto ticket = registrationService.getTicketForUser(eventId, currentUserId);
 
         return ResponseEntity.ok(ticket);
     }
@@ -110,5 +110,13 @@ public class EventRegistrationController {
 
         String userRegistrationId = jwt.getSubject();
         return ResponseEntity.ok(registrationService.cancelRegistration(eventId, userRegistrationId));
+    }
+
+    @PostMapping("/{registrationId}/undo-check-in")
+    public ResponseEntity<CheckInResponse> undoCheckIn(@PathVariable String registrationId) {
+        CheckInResponse response = registrationService.undoCheckIn(registrationId);
+        return response.isSuccess()
+                ? ResponseEntity.ok(response)
+                : ResponseEntity.badRequest().body(response);
     }
 }

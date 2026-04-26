@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { useNavigate, useParams } from "react-router-dom";
+import { useAuth } from "../../context/AuthContext";
 import { toast } from "react-toastify";
 import eventService from "../../services/eventService";
 import luckyDrawService from "../../services/luckyDrawService";
@@ -10,6 +11,7 @@ import EditEventModal from "../../components/common/management/EditEventModal";
 const AdminEventDetailPage = () => {
   const navigate = useNavigate();
   const { id } = useParams();
+  const { user } = useAuth();
 
   const [event, setEvent] = useState(null);
   const [luckyDraw, setLuckyDraw] = useState(null);
@@ -21,6 +23,7 @@ const AdminEventDetailPage = () => {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [showQRScanner, setShowQRScanner] = useState(false);
 
   // Invitation States
   const [showUserSuggestions, setShowUserSuggestions] = useState(false);
@@ -94,16 +97,20 @@ const AdminEventDetailPage = () => {
   const handleDeleteEvent = async () => {
     setIsDeleting(true);
     try {
+      console.log("Đang xóa sự kiện chính và các nội dung liên quan (xử lý tại backend)...");
       await eventService.deleteEvent(id);
-      toast.success("Đã xóa sự kiện");
+
+      toast.success("Đã xóa sự kiện và các nội dung liên quan thành công");
       navigate("/admin/events");
     } catch (err) {
-      toast.error("Lỗi khi xóa");
+      console.error("Lỗi khi xóa sự kiện:", err);
+      toast.error("Lỗi khi xóa sự kiện hoặc dữ liệu liên quan");
     } finally {
       setIsDeleting(false);
+      setShowDeleteConfirm(false);
     }
   };
-  
+
   const handleUpdateEvent = async (updatedData) => {
     try {
       await eventService.updateEvent(id, updatedData);
@@ -132,6 +139,39 @@ const AdminEventDetailPage = () => {
       fetchData();
     } catch (err) {
       toast.error("Lỗi khi gỡ diễn giả");
+    }
+  };
+
+  const handleManualCheckIn = async (registrationId) => {
+    try {
+      if (!user?.id) return;
+      await eventService.manualCheckIn(registrationId, user.id);
+      toast.success("Điểm danh thủ công thành công!");
+      fetchData();
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Lỗi khi điểm danh");
+    }
+  };
+
+  const handleUndoCheckIn = async (registrationId) => {
+    try {
+      await eventService.undoCheckIn(registrationId);
+      toast.success("Đã hủy trạng thái điểm danh");
+      fetchData();
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Lỗi khi hủy điểm danh");
+    }
+  };
+
+  const handleQRScanSuccess = async (qrToken) => {
+    setShowQRScanner(false);
+    try {
+      if (!user?.id) return;
+      await eventService.checkIn(qrToken, user.id);
+      toast.success("Điểm danh qua mã QR thành công!");
+      fetchData();
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Mã vé không hợp lệ hoặc đã sử dụng");
     }
   };
 
@@ -250,6 +290,11 @@ const AdminEventDetailPage = () => {
         setShowDeleteConfirm={setShowDeleteConfirm}
         isDeleting={isDeleting}
         onFetchUsers={fetchUsers}
+        onManualCheckIn={handleManualCheckIn}
+        onUndoCheckIn={handleUndoCheckIn}
+        showQRScanner={showQRScanner}
+        setShowQRScanner={setShowQRScanner}
+        onQRScanSuccess={handleQRScanSuccess}
       />
 
       <EditEventModal

@@ -258,22 +258,24 @@ const EventsManagement = ({ type = "lecturer" }) => {
           </h1>
         </div>
 
-        <div className="flex gap-3">
-          <button
-            onClick={() => setIsCreateModalOpen(true)}
-            className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-lg text-sm font-medium transition-all"
-          >
-            <Plus size={18} />
-            Tạo sự kiện mới
-          </button>
-          <button
-            onClick={handleExport}
-            className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-5 py-2.5 rounded-lg text-sm font-medium transition-all"
-          >
-            <Download size={18} />
-            Xuất Excel
-          </button>
-        </div>
+        {(user?.role === 'ADMIN' || user?.role === 'SUPER_ADMIN') && (
+          <div className="flex gap-3">
+            <button
+              onClick={() => setIsCreateModalOpen(true)}
+              className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-lg text-sm font-medium transition-all"
+            >
+              <Plus size={18} />
+              Tạo sự kiện mới
+            </button>
+            <button
+              onClick={handleExport}
+              className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-5 py-2.5 rounded-lg text-sm font-medium transition-all"
+            >
+              <Download size={18} />
+              Xuất Excel
+            </button>
+          </div>
+        )}
       </div>
 
       {/* STATISTICS CARDS */}
@@ -447,7 +449,15 @@ const EventsManagement = ({ type = "lecturer" }) => {
                     <td className="p-4">
                       <div className="flex justify-center gap-1.5">
                         <button
-                          onClick={() => navigate(isAdminMode ? `/admin/events/${e.id}` : `/lecturer/events/${e.id}`)}
+                          onClick={() => {
+                            if (isAdminMode) {
+                              navigate(`/admin/events/${e.id}`);
+                            } else if (user?.role === 'STUDENT') {
+                              navigate(`/staff/events/${e.id}`);
+                            } else {
+                              navigate(`/lecturer/events/${e.id}`);
+                            }
+                          }}
                           className="p-2 hover:bg-gray-100 rounded-lg text-gray-600 hover:text-blue-600 transition-all"
                           title="Xem chi tiết"
                         >

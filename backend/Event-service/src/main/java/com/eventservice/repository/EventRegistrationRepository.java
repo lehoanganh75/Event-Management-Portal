@@ -28,15 +28,15 @@ public interface EventRegistrationRepository extends JpaRepository<EventRegistra
 
     // SỬA: Cập nhật lại Query JPQL cho khớp với tên trường mới
     @Query("""
-        SELECT r FROM EventRegistration r 
-        JOIN r.event e 
-        WHERE r.participantAccountId = :userId 
-        AND r.status = :status 
-        AND e.isDeleted = false 
-        AND e.startTime < :endTime 
-        AND e.endTime > :startTime 
-        AND e.id != :excludeEventId
-    """)
+                SELECT r FROM EventRegistration r
+                JOIN r.event e
+                WHERE r.participantAccountId = :userId
+                AND r.status = :status
+                AND e.isDeleted = false
+                AND e.startTime < :endTime
+                AND e.endTime > :startTime
+                AND e.id != :excludeEventId
+            """)
     List<EventRegistration> findConflictingRegistrations(
             @Param("userId") String userId,
             @Param("startTime") LocalDateTime startTime,
@@ -51,5 +51,11 @@ public interface EventRegistrationRepository extends JpaRepository<EventRegistra
 
     long countByEventId(String eventId);
 
-    Optional<EventRegistration> findByEventIdAndParticipantAccountIdAndIsDeletedFalse(String registrationId, String userId);
+    Optional<EventRegistration> findByEventIdAndParticipantAccountIdAndIsDeletedFalse(String registrationId,
+            String userId);
+
+    @org.springframework.data.jpa.repository.Modifying(clearAutomatically = true)
+    @org.springframework.transaction.annotation.Transactional
+    @Query(value = "UPDATE event_registrations SET is_deleted = 1, status = 'CANCELLED', updated_at = NOW() WHERE event_id = :eventId", nativeQuery = true)
+    void softDeleteByEventId(@Param("eventId") String eventId);
 }

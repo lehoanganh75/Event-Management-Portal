@@ -28,7 +28,7 @@ public class EventPostController {
 
     // Lấy tất cả bài đăng với tùy chọn tìm kiếm và lọc theo trạng thái
     @GetMapping
-    public ResponseEntity<Page<EventPost>> getAllPosts(
+    public ResponseEntity<Page<PostDetailResponse>> getAllPosts(
             @RequestParam(required = false) String searchTerm,
             @RequestParam(required = false) PostStatus status,
             @PageableDefault(size = 10, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable) {

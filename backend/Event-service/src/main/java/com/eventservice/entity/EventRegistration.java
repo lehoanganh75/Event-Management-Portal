@@ -28,6 +28,11 @@ public class EventRegistration {
     @Column(nullable = false)
     private String participantAccountId; // ID tài khoản người đăng ký
 
+    @Transient
+    private String fullName;
+    @Transient
+    private String avatarUrl;
+
     // --- Registration Details ---
     @Enumerated(EnumType.STRING)
     @Builder.Default

@@ -16,9 +16,12 @@ import {
   List,
   Info,
   MessageSquare,
-  AlertTriangle
+  AlertTriangle,
+  Mail,
+  Camera
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import QRScannerModal from "./QRScannerModal";
 
 // Helper components that were inside the page
 const Field = ({ label, children, required, style }) => (
@@ -198,24 +201,81 @@ const EventDetailManagement = ({
   onFetchUsers = () => { },
   onRemoveMember = () => { },
   onRemovePresenter = () => { },
+  onManualCheckIn = () => { },
+  onUndoCheckIn = () => { },
+  // QR Scanner props
+  showQRScanner = false,
+  setShowQRScanner = () => { },
+  onQRScanSuccess = () => { },
 }) => {
   const navigate = useNavigate();
 
+  const userPerms = event?.currentUserRole || {};
+  const up = userPerms;
+
+  // 1. Nhóm Ban điều hành cốt lõi (Core Management)
+  const isCoreTeam =
+    up.isCreator ||
+    ['LEADER', 'COORDINATOR', 'ORGANIZER'].includes(up.organizerRole);
+
+  // 2. Diễn giả (Presenter)
+  const isPresenter = up.isPresented || up.presented || up.presenter;
+
+  // 3. Các vai trò hỗ trợ khác
+  const isMember = up.organizerRole === 'MEMBER';
+  const isAdvisor = up.organizerRole === 'ADVISOR';
+
+  // 4. Quản trị viên hệ thống (Không nằm trong team và không phải diễn giả thì xem như quan sát viên toàn quyền)
+  const isSystemAdminOnly = (up.systemRole === 'ADMIN' || up.systemRole === 'SUPER_ADMIN') && !isCoreTeam && !isPresenter;
+
+  // Quyền xem tất cả (Dành cho Core Team hoặc Admin thuần túy)
+  const canSeeAll = isCoreTeam || isSystemAdminOnly;
+
   const dynamicTabs = useMemo(() => {
     if (!event) return [];
+
+    // Mọi vai trò đều thấy 2 tab này
     const baseTabs = [
       { key: "Tổng quan", label: "Tổng quan", icon: Info },
       { key: "Chương trình", label: "Chương trình", icon: List },
-      { key: "Đăng ký", label: "Đăng ký", icon: UserCheck },
-      { key: "Điểm danh", label: "Điểm danh", icon: CheckCircle },
-      { key: "Ban tổ chức", label: "Ban tổ chức", icon: Users },
-      { key: "Diễn giả", label: "Diễn giả", icon: Star },
     ];
-    if (event?.hasLuckyDraw) baseTabs.push({ key: "Vòng quay", label: "Vòng quay may mắn", icon: Gift });
-    baseTabs.push({ key: "Thống kê", label: "Thống kê", icon: TrendingUp });
-    if (canEdit) baseTabs.push({ key: "Cài đặt", label: "Cài đặt", icon: Settings });
+
+    // Nếu là Diễn giả (và không phải Core Team), CHỈ hiện thêm 2 tab nhân sự, KHÔNG hiện gì khác
+    if (isPresenter && !isCoreTeam) {
+      baseTabs.push({ key: "Ban tổ chức", label: "Ban tổ chức", icon: Users });
+      baseTabs.push({ key: "Diễn giả", label: "Diễn giả", icon: Star });
+      return baseTabs;
+    }
+
+    // --- Logic cho các vai trò khác ---
+
+    // Đăng ký & Điểm danh (Core Team, Admin, hoặc Member)
+    if (canSeeAll || isMember) {
+      if (up.canManageRegistrations) baseTabs.push({ key: "Đăng ký", label: "Đăng ký", icon: UserCheck });
+      if (up.canCheckIn) baseTabs.push({ key: "Điểm danh", label: "Điểm danh", icon: CheckCircle });
+    }
+
+    // Nhân sự (Tất cả vai trò còn lại đều thấy)
+    baseTabs.push({ key: "Ban tổ chức", label: "Ban tổ chức", icon: Users });
+    baseTabs.push({ key: "Diễn giả", label: "Diễn giả", icon: Star });
+
+    // Vòng quay may mắn (Core Team hoặc Admin)
+    if (canSeeAll && event?.hasLuckyDraw && up.canManageLuckyDraw) {
+      baseTabs.push({ key: "Vòng quay", label: "Vòng quay may mắn", icon: Gift });
+    }
+
+    // Thống kê (Core Team, Admin, hoặc Advisor)
+    if (canSeeAll || isAdvisor) {
+      if (up.canViewAnalytics) baseTabs.push({ key: "Thống kê", label: "Thống kê", icon: TrendingUp });
+    }
+
+    // Cấu hình (Chỉ Core Team hoặc Admin)
+    if (canSeeAll && up.canEditEvent) {
+      baseTabs.push({ key: "Cài đặt", label: "Cài đặt", icon: Settings });
+    }
+
     return baseTabs;
-  }, [event, canEdit]);
+  }, [event, up, isCoreTeam, isPresenter, isMember, isAdvisor, canSeeAll]);
 
   console.log("Event: ", event);
 
@@ -242,6 +302,43 @@ const EventDetailManagement = ({
   const pendingCount = event.registrations?.filter(r => r.status === "PENDING").length || 0;
   const checkedInCount = event.registrations?.filter(r => r.checkedIn === true).length || 0;
 
+  const getAllUserRoles = () => {
+    const roles = [];
+    const up = userPerms;
+
+    // 1. Kiểm tra vai trò Ban tổ chức (Organizer)
+    if (up.organizerRole) {
+      roles.push(getOrganizerRole(up.organizerRole));
+    }
+
+    // 2. Kiểm tra vai trò Người tạo/Duyệt (Creator/Approver)
+    // Jackson thường serialize 'isCreator' thành 'creator' hoặc 'isCreator'
+    if (up.isCreator || up.creator) {
+      roles.push({ label: "Trưởng ban (Người tạo)", color: "bg-indigo-600 text-white" });
+    }
+    if (up.isApprover || up.approver) {
+      roles.push({ label: "Người duyệt sự kiện", color: "bg-emerald-600 text-white" });
+    }
+
+    // 3. Kiểm tra vai trò Diễn giả (Presenter)
+    if (up.isPresented || up.presented || up.presenter) {
+      roles.push({ label: "Diễn giả", color: "bg-amber-500 text-white" });
+    }
+
+    // 4. Kiểm tra vai trò Người tham gia (Participant)
+    if (up.isRegistered || up.registered || up.registration) {
+      roles.push({ label: "Người tham gia", color: "bg-blue-500 text-white" });
+    }
+
+    // 5. Nếu chưa có vai trò cụ thể nào trong sự kiện nhưng là Admin hệ thống
+    if (roles.length === 0 && (up.systemRole === 'ADMIN' || up.systemRole === 'SUPER_ADMIN')) {
+      roles.push({ label: "Quản trị viên hệ thống", color: "bg-slate-800 text-white" });
+    }
+    return roles;
+  };
+
+  const userRoles = getAllUserRoles();
+
   return (
     <div className="w-full min-h-screen bg-gray-50 overflow-x-hidden">
       {/* Banner */}
@@ -249,15 +346,45 @@ const EventDetailManagement = ({
         <img src={event.coverImage || "https://picsum.photos/1200/400?tech"} alt={event.title} className="w-full h-full object-cover" />
         <div className="absolute inset-0 bg-gradient-to-b from-black/40 to-black/70" />
         <button onClick={onBack} className="absolute top-6 left-6 flex items-center gap-2 bg-white/90 hover:bg-white px-5 py-2.5 rounded-2xl text-sm font-medium shadow transition-all"><ArrowLeft size={18} /> Quay lại</button>
-        <div className="absolute top-6 right-6"><span className={`px-5 py-2 rounded-2xl text-sm font-medium ${currentStatus.color}`}>{currentStatus.label}</span></div>
+        <div className="absolute top-6 right-6 flex items-center gap-3">
+          <div className="flex gap-2">
+            {userRoles.map((r, i) => (
+              <span key={i} className={`px-3 py-1.5 rounded-2xl text-[10px] font-bold uppercase shadow-sm ${r.color}`}>
+                {r.label}
+              </span>
+            ))}
+          </div>
+          <span className={`px-5 py-2 rounded-2xl text-sm font-medium ${currentStatus.color}`}>{currentStatus.label}</span>
+        </div>
       </div>
 
       <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 relative z-10 -mt-12 pb-12">
         {/* Header Info */}
         <div className="bg-white rounded-3xl shadow-lg p-6 mb-6">
           <div className="flex justify-between items-start">
-            <h1 className="text-3xl font-bold text-slate-900 mb-3">{event.title}</h1>
-            {canEdit && <button onClick={onEditInfo} className="flex items-center gap-2 px-4 py-2 bg-indigo-50 text-indigo-600 rounded-xl text-sm font-bold hover:bg-indigo-100 transition-all"><Edit3 size={16} /> Chỉnh sửa</button>}
+            <div className="flex flex-col gap-1">
+              <h1 className="text-3xl font-bold text-slate-900">{event.title}</h1>
+              {userRoles.length > 0 && (
+                <div className="flex items-center gap-2 mt-1">
+                  <div className="flex gap-1.5">
+                    {userRoles.map((r, i) => (
+                      <span key={i} className={`px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider ${r.color}`}>
+                        {r.label}
+                      </span>
+                    ))}
+                  </div>
+                  <span className="text-[10px] text-slate-400 font-bold uppercase">• Tư cách của bạn</span>
+                </div>
+              )}
+            </div>
+            {canSeeAll && canEdit && (
+              <button
+                onClick={onEditInfo}
+                className="flex items-center gap-2 px-4 py-2 bg-indigo-50 text-indigo-600 rounded-xl text-sm font-bold hover:bg-indigo-100 transition-all shadow-sm"
+              >
+                <Edit3 size={16} /> Chỉnh sửa
+              </button>
+            )}
           </div>
           <p className="text-base text-gray-600 leading-relaxed">{event.description}</p>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-5 mt-3">
@@ -294,6 +421,46 @@ const EventDetailManagement = ({
                   </div>
                 </div>
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                  {/* CỘT 1: THÔNG TIN CỦA BẠN (MỚI) */}
+                  <div className="bg-slate-50 border border-slate-200 rounded-2xl p-5 relative overflow-hidden group">
+                    <div className="absolute top-0 right-0 p-3 opacity-10 group-hover:opacity-20 transition-opacity">
+                      <UserCheck size={80} />
+                    </div>
+                    <h3 className="font-bold text-sm mb-4 flex items-center gap-2 text-slate-800 uppercase tracking-tight">
+                      <UserPlus size={18} className="text-indigo-600" /> Quyền hạn của bạn
+                    </h3>
+                    {userRoles.length > 0 ? (
+                      <div className="space-y-4">
+                        <div className="flex flex-col gap-1">
+                          <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Vị trí hiện tại</span>
+                          <div className="flex flex-wrap gap-2">
+                            {userRoles.map((r, i) => (
+                              <span key={i} className={`inline-block px-3 py-1 rounded-lg text-[10px] font-black uppercase ${r.color}`}>
+                                {r.label}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                        <div className="space-y-2">
+                          <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Khả năng thao tác</span>
+                          <div className="grid grid-cols-1 gap-1.5">
+                            {userPerms.canEditEvent && <div className="flex items-center gap-2 text-[11px] font-bold text-emerald-600 bg-emerald-50 px-2 py-1 rounded-md"><CheckCircle size={12} /> Chỉnh sửa sự kiện</div>}
+                            {userPerms.canManageTeam && <div className="flex items-center gap-2 text-[11px] font-bold text-emerald-600 bg-emerald-50 px-2 py-1 rounded-md"><CheckCircle size={12} /> Quản lý nhân sự</div>}
+                            {userPerms.canCheckIn && <div className="flex items-center gap-2 text-[11px] font-bold text-blue-600 bg-blue-50 px-2 py-1 rounded-md"><CheckCircle size={12} /> Thực hiện điểm danh</div>}
+                            {userPerms.canViewAnalytics && <div className="flex items-center gap-2 text-[11px] font-bold text-indigo-600 bg-indigo-50 px-2 py-1 rounded-md"><CheckCircle size={12} /> Xem báo cáo thống kê</div>}
+                            {!userPerms.canEditEvent && !userPerms.canManageTeam && !userPerms.canCheckIn && (
+                              <div className="flex items-center gap-2 text-[11px] font-medium text-slate-500 bg-slate-100 px-2 py-1 rounded-md"><Info size={12} /> Chỉ xem thông tin</div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="py-6 text-center">
+                        <p className="text-xs text-slate-400 italic">Bạn đang xem với tư cách khách</p>
+                      </div>
+                    )}
+                  </div>
+
                   <div>
                     <h3 className="font-semibold text-base mb-3 flex items-center gap-2"><Info size={18} className="text-blue-600" /> Thông tin chung</h3>
                     <div className="space-y-2.5 text-sm">
@@ -340,12 +507,35 @@ const EventDetailManagement = ({
                 <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden shadow-sm">
                   <table className="w-full text-sm">
                     <thead className="bg-slate-50 border-b border-gray-200">
-                      <tr><th className="p-4 text-left text-gray-600">Mã vé</th><th className="p-4 text-left text-gray-600">Mã người tham gia</th><th className="p-4 text-left text-gray-600">Trạng thái</th><th className="p-4 text-left text-gray-600">Đăng ký lúc</th></tr>
+                      <tr><th className="p-4 text-left text-gray-600 w-[150px]">Mã vé</th><th className="p-4 text-left text-gray-600">Người tham gia</th><th className="p-4 text-left text-gray-600">Trạng thái</th><th className="p-4 text-left text-gray-600">Đăng ký lúc</th></tr>
                     </thead>
                     <tbody className="divide-y divide-gray-100">
                       {event.registrations?.length > 0 ? event.registrations.map((reg, idx) => {
                         const statusDisplay = getRegistrationStatus(reg.status);
-                        return (<tr key={idx} className="hover:bg-slate-50 transition-colors"><td className="p-4 font-mono text-xs text-blue-600">{reg.ticketCode || "—"}</td><td className="p-4 font-medium text-slate-800">{reg.participantAccountId}</td><td className="p-4"><span className={`inline-block px-3 py-1 rounded-full text-xs font-medium ${statusDisplay.color}`}>{statusDisplay.label}</span></td><td className="p-4 text-gray-600 text-xs">{formatDateTime(reg.registeredAt)}</td></tr>);
+                        return (
+                          <tr key={idx} className="hover:bg-slate-50 transition-colors">
+                            <td className="p-4 font-mono text-xs text-blue-600">{reg.ticketCode || "—"}</td>
+                            <td className="p-4">
+                              <div className="flex items-center gap-3">
+                                <div className="w-8 h-8 rounded-full overflow-hidden bg-slate-100 flex-shrink-0 border border-gray-100">
+                                  {reg.avatarUrl ? (
+                                    <img src={reg.avatarUrl} alt="" className="w-full h-full object-cover" />
+                                  ) : (
+                                    <div className="w-full h-full flex items-center justify-center text-slate-400 text-[10px] font-black uppercase">
+                                      {reg.fullName?.charAt(0) || reg.participantAccountId?.charAt(0)}
+                                    </div>
+                                  )}
+                                </div>
+                                <div>
+                                  <p className="font-bold text-slate-800 leading-tight text-xs">{reg.fullName || "—"}</p>
+                                  <p className="text-[10px] text-gray-400 font-mono">{reg.participantAccountId}</p>
+                                </div>
+                              </div>
+                            </td>
+                            <td className="p-4"><span className={`inline-block px-3 py-1 rounded-full text-xs font-medium ${statusDisplay.color}`}>{statusDisplay.label}</span></td>
+                            <td className="p-4 text-gray-600 text-xs">{formatDateTime(reg.registeredAt)}</td>
+                          </tr>
+                        );
                       }) : <tr><td colSpan="4" className="p-20 text-center text-gray-500">Chưa có người đăng ký nào</td></tr>}
                     </tbody>
                   </table>
@@ -356,7 +546,17 @@ const EventDetailManagement = ({
             {/* ĐIỂM DANH */}
             {activeTab === "Điểm danh" && (
               <div>
-                <h3 className="font-semibold text-lg mb-6">Điểm danh ({checkedInCount} / {event.registeredCount})</h3>
+                <div className="flex items-center justify-between mb-6">
+                  <h3 className="font-semibold text-lg">Điểm danh ({checkedInCount} / {event.registeredCount})</h3>
+                  {userPerms.canCheckIn && (
+                    <button
+                      onClick={() => setShowQRScanner(true)}
+                      className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-xl text-xs font-bold hover:bg-indigo-700 transition-all shadow-md shadow-indigo-200"
+                    >
+                      <Camera size={16} /> Quét mã QR
+                    </button>
+                  )}
+                </div>
                 <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden shadow-sm">
                   <table className="w-full text-sm">
                     <thead className="bg-slate-50 border-b border-gray-200">
@@ -364,7 +564,48 @@ const EventDetailManagement = ({
                     </thead>
                     <tbody className="divide-y divide-gray-100">
                       {event.registrations?.length > 0 ? event.registrations.map((reg, idx) => (
-                        <tr key={idx} className="hover:bg-slate-50 transition-colors"><td className="p-4 font-mono text-xs text-blue-600">{reg.ticketCode || "—"}</td><td className="p-4 font-medium text-slate-800">{reg.participantAccountId}</td><td className="p-4">{reg.checkedIn ? <span className="text-emerald-600 flex items-center gap-1"><CheckCircle size={16} /> Đã check-in</span> : <span className="text-gray-400">Chưa check-in</span>}</td><td className="p-4 text-xs text-gray-600">{reg.checkInTime ? formatDateTime(reg.checkInTime) : "—"}</td></tr>
+                        <tr key={idx} className="hover:bg-slate-50 transition-colors">
+                          <td className="p-4 font-mono text-xs text-blue-600">{reg.ticketCode || "—"}</td>
+                          <td className="p-4">
+                            <div className="flex items-center gap-3">
+                              <div className="w-8 h-8 rounded-full overflow-hidden bg-slate-100 flex-shrink-0 border border-gray-100">
+                                {reg.avatarUrl ? (
+                                  <img src={reg.avatarUrl} alt="" className="w-full h-full object-cover" />
+                                ) : (
+                                  <div className="w-full h-full flex items-center justify-center text-slate-400 text-[10px] font-black uppercase">
+                                    {reg.fullName?.charAt(0) || reg.participantAccountId?.charAt(0)}
+                                  </div>
+                                )}
+                              </div>
+                              <div>
+                                <p className="font-bold text-slate-800 leading-tight text-xs">{reg.fullName || "—"}</p>
+                                <p className="text-[10px] text-gray-400 font-mono">{reg.participantAccountId}</p>
+                              </div>
+                            </div>
+                          </td>
+                          <td className="p-4">
+                            {reg.checkedIn ? (
+                              <div className="flex items-center gap-2">
+                                <span className="text-emerald-600 flex items-center gap-1 font-bold text-xs uppercase">
+                                  <CheckCircle size={14} /> Đã điểm danh
+                                </span>
+                                {userPerms.canCheckIn && (
+                                  <button
+                                    onClick={() => onUndoCheckIn(reg.id)}
+                                    className="ml-auto text-[10px] text-gray-400 hover:text-red-500 font-bold uppercase transition-colors underline decoration-dotted"
+                                  >
+                                    Hủy
+                                  </button>
+                                )}
+                              </div>
+                            ) : (
+                              <div className="flex items-center gap-3">
+                                <span className="text-slate-400 text-xs font-bold uppercase tracking-tight italic">Chưa check-in</span>
+                              </div>
+                            )}
+                          </td>
+                          <td className="p-4 text-xs text-gray-600">{reg.checkInTime ? formatDateTime(reg.checkInTime) : "—"}</td>
+                        </tr>
                       )) : <tr><td colSpan="4" className="p-20 text-center text-gray-500">Chưa có dữ liệu</td></tr>}
                     </tbody>
                   </table>
@@ -377,7 +618,7 @@ const EventDetailManagement = ({
               <div className="space-y-8">
                 <div className="flex justify-between items-center mb-4">
                   {!isAddingMember ? (
-                    <><h3 className="font-semibold text-lg">Ban tổ chức ({event.organizers?.length || 0} người)</h3>{canEdit && <button onClick={() => setIsAddingMember(true)} className="bg-slate-100 hover:bg-slate-200 text-slate-700 px-4 py-2.5 rounded-xl text-sm font-bold flex items-center gap-2"><UserPlus size={18} /> Thêm</button>}</>
+                    <><h3 className="font-semibold text-lg">Ban tổ chức ({event.organizers?.length || 0} người)</h3>{userPerms.canManageTeam && <button onClick={() => setIsAddingMember(true)} className="bg-slate-100 hover:bg-slate-200 text-slate-700 px-4 py-2.5 rounded-xl text-sm font-bold flex items-center gap-2"><UserPlus size={18} /> Thêm</button>}</>
                   ) : (
                     <><h3 className="font-bold flex items-center gap-2"><UserPlus size={20} className="text-emerald-500" /> Mời thành viên mới</h3><div className="flex gap-3"><button onClick={() => { onFetchUsers(); setShowUserSuggestions(!showUserSuggestions); }} className="bg-slate-100 px-4 py-2 rounded-xl text-sm font-bold">AI gợi ý</button><button onClick={() => addInvite()} className="bg-slate-100 px-4 py-2 rounded-xl text-sm font-bold">Thêm thủ công</button><button onClick={() => setIsAddingMember(false)} className="bg-white border border-gray-200 px-4 py-2 rounded-xl text-sm font-bold">Hủy</button></div></>
                   )}
@@ -417,20 +658,29 @@ const EventDetailManagement = ({
                         <th className="p-4 text-left text-gray-600">Họ tên</th>
                         <th className="p-4 text-left text-gray-600">Vai trò</th>
                         <th className="p-4 text-left text-gray-600 text-center">Ngày phân công</th>
-                        {canEdit && <th className="p-4 text-center text-gray-600">Gỡ</th>}
+                        {userPerms.canManageTeam && <th className="p-4 text-center text-gray-600">Gỡ</th>}
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-100">
                       {event.organizers?.length > 0 ? event.organizers.map((org, idx) => (
                         <tr key={idx} className="hover:bg-slate-50 transition-colors">
-                          <td className="p-4 font-medium text-slate-800">{org.fullName}</td>
+                          <td className="p-4">
+                            <div className="flex items-center gap-3">
+                              <img
+                                src={org.avatarUrl || "https://cdn-icons-png.flaticon.com/512/3135/3135715.png"}
+                                alt="Avatar"
+                                className="w-8 h-8 rounded-full object-cover border border-slate-200"
+                              />
+                              <span className="font-medium text-slate-800">{org.fullName}</span>
+                            </div>
+                          </td>
                           <td className="p-4">
                             <span className={`inline-block px-3 py-1 rounded-full text-xs font-medium ${getOrganizerRole(org.role).color}`}>
                               {getOrganizerRole(org.role).label}
                             </span>
                           </td>
                           <td className="p-4 text-xs text-gray-600 text-center">{formatDateTime(org.assignedAt)}</td>
-                          {canEdit && (
+                          {userPerms.canManageTeam && (
                             <td className="p-4 text-center">
                               {org.role !== 'LEADER' && (
                                 <button
@@ -448,7 +698,7 @@ const EventDetailManagement = ({
                             </td>
                           )}
                         </tr>
-                      )) : <tr><td colSpan={canEdit ? "4" : "3"} className="p-20 text-center text-gray-500">Chưa có thành viên</td></tr>}
+                      )) : <tr><td colSpan={userPerms.canManageTeam ? "4" : "3"} className="p-20 text-center text-gray-500">Chưa có thành viên</td></tr>}
                     </tbody>
                   </table>
                 </div>
@@ -460,7 +710,7 @@ const EventDetailManagement = ({
               <div className="space-y-8">
                 <div className="flex justify-between items-center mb-4">
                   {!isAddingPresenter ? (
-                    <><h3 className="font-semibold text-lg">Danh sách diễn giả ({event.presenters?.length || 0} người)</h3>{canEdit && <button onClick={() => setIsAddingPresenter(true)} className="bg-slate-100 hover:bg-slate-200 text-slate-700 px-4 py-2.5 rounded-xl text-sm font-bold flex items-center gap-2"><UserPlus size={18} /> Thêm</button>}</>
+                    <><h3 className="font-semibold text-lg">Danh sách diễn giả ({event.presenters?.length || 0} người)</h3>{userPerms.canManageTeam && <button onClick={() => setIsAddingPresenter(true)} className="bg-slate-100 hover:bg-slate-200 text-slate-700 px-4 py-2.5 rounded-xl text-sm font-bold flex items-center gap-2"><UserPlus size={18} /> Thêm</button>}</>
                   ) : (
                     <><h3 className="font-bold flex items-center gap-2"><Sparkles size={20} className="text-emerald-500" /> Mời diễn giả mới</h3><div className="flex gap-3"><button onClick={() => { onFetchUsers(); setShowUserSuggestions(!showUserSuggestions); }} className="bg-slate-100 px-4 py-2 rounded-xl text-sm font-bold">AI gợi ý</button><button onClick={() => addPresenterInvite()} className="bg-slate-100 px-4 py-2 rounded-xl text-sm font-bold">Thêm thủ công</button><button onClick={() => setIsAddingPresenter(false)} className="bg-white border border-gray-200 px-4 py-2 rounded-xl text-sm font-bold">Hủy</button></div></>
                   )}
@@ -486,33 +736,44 @@ const EventDetailManagement = ({
                     {presenterInvitations.length > 0 && <div className="flex justify-end"><button onClick={handleSendPresenterInvites} disabled={isInvitingPresenter} className="px-8 py-3 bg-indigo-600 text-white rounded-xl font-bold shadow-lg shadow-indigo-100 disabled:opacity-50">{isInvitingPresenter ? "Đang gửi..." : "Gửi lời mời ngay"}</button></div>}
                   </div>
                 )}
-
                 <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden shadow-sm">
                   <table className="w-full text-sm">
                     <thead className="bg-slate-50 border-b border-gray-200">
                       <tr>
-                        <th className="p-4 text-left text-gray-600">Ảnh</th>
-                        <th className="p-4 text-left text-gray-600">Họ tên</th>
+                        <th className="p-4 text-left text-gray-600">Diễn giả</th>
+                        <th className="p-4 text-left text-gray-600">Liên hệ</th>
                         <th className="p-4 text-left text-gray-600">Phiên</th>
-                        {canEdit && <th className="p-4 text-center text-gray-600">Gỡ</th>}
+                        {userPerms.canManageTeam && <th className="p-4 text-center text-gray-600">Gỡ</th>}
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-100">
                       {event.presenters?.length > 0 ? event.presenters.map((p, idx) => (
                         <tr key={idx} className="hover:bg-slate-50 transition-colors">
                           <td className="p-4">
-                            <img src={p.avatarUrl || "https://ui-avatars.com/api/?name=" + p.fullName} className="w-10 h-10 rounded-xl object-cover" />
+                            <div className="flex items-center gap-3">
+                              <img
+                                src={p.avatarUrl || "https://cdn-icons-png.flaticon.com/512/3135/3135715.png"}
+                                alt="Avatar"
+                                className="w-10 h-10 rounded-xl object-cover border border-slate-200"
+                              />
+                              <div>
+                                <p className="font-bold text-slate-800">{p.fullName}</p>
+                                <p className="text-[10px] text-slate-400 font-bold uppercase truncate max-w-[200px]" title={p.bio}>{p.bio || "Chưa có tiểu sử"}</p>
+                              </div>
+                            </div>
                           </td>
-                          <td className="p-4">
-                            <div className="font-bold text-slate-800">{p.fullName}</div>
-                            <div className="text-xs text-gray-500">{p.email}</div>
+                          <td className="p-4 text-xs text-gray-600">
+                            <div className="space-y-1">
+                              <p className="flex items-center gap-2"><Mail size={12} className="text-slate-400" /> {p.email}</p>
+                              {p.phone && <p className="flex items-center gap-2"><Phone size={12} className="text-slate-400" /> {p.phone}</p>}
+                            </div>
                           </td>
                           <td className="p-4">
                             <span className="px-3 py-1 bg-blue-50 text-blue-600 rounded-full text-[10px] font-bold uppercase">
-                              {p.targetSessionName || (p.sessions?.length > 0 ? p.sessions.sort((a, b) => a.orderIndex - b.orderIndex).map(s => `P${s.orderIndex}: ${s.title}`).join(' | ') : "N/A")}
+                              {p.sessions?.length > 0 ? p.sessions.map(s => `P${s.orderIndex}: ${s.title}`).join(' | ') : "N/A"}
                             </span>
                           </td>
-                          {canEdit && (
+                          {userPerms.canManageTeam && (
                             <td className="p-4 text-center">
                               <button
                                 onClick={() => {
@@ -528,7 +789,7 @@ const EventDetailManagement = ({
                             </td>
                           )}
                         </tr>
-                      )) : <tr><td colSpan={canEdit ? "4" : "3"} className="p-20 text-center text-gray-500">Chưa có diễn giả</td></tr>}
+                      )) : <tr><td colSpan={userPerms.canManageTeam ? "4" : "3"} className="p-20 text-center text-gray-500">Chưa có diễn giả</td></tr>}
                     </tbody>
                   </table>
                 </div>
@@ -619,7 +880,9 @@ const EventDetailManagement = ({
           <div className="relative bg-white w-full max-w-sm rounded-3xl p-8 text-center shadow-2xl animate-in zoom-in-95 duration-200">
             <div className="w-16 h-16 bg-rose-100 text-rose-600 rounded-full flex items-center justify-center mx-auto mb-4"><Trash2 size={32} /></div>
             <h3 className="text-xl font-bold text-slate-800 mb-2">Xác nhận xóa?</h3>
-            <p className="text-slate-500 text-sm mb-8 leading-relaxed">Bạn có chắc chắn muốn xóa sự kiện này? Hành động này không thể hoàn tác.</p>
+            <p className="text-slate-500 text-sm mb-8 leading-relaxed">
+              Bạn có chắc chắn muốn xóa sự kiện này? Các thông tin liên quan như <strong>phiên họp (sessions)</strong> và <strong>bài viết (posts)</strong> cũng sẽ bị xóa mềm. Hành động này không thể hoàn tác.
+            </p>
             <div className="flex gap-3">
               <button onClick={() => setShowDeleteConfirm(false)} className="flex-1 py-3 bg-slate-100 text-slate-600 rounded-xl font-bold hover:bg-slate-200 transition-all">Hủy bỏ</button>
               <button onClick={onDeleteEvent} disabled={isDeleting} className="flex-1 py-3 bg-rose-600 text-white rounded-xl font-bold hover:bg-rose-700 shadow-lg shadow-rose-100 disabled:opacity-50 transition-all">{isDeleting ? "Đang xóa..." : "Xác nhận xóa"}</button>
@@ -627,6 +890,12 @@ const EventDetailManagement = ({
           </div>
         </div>
       )}
+      {/* MODALS */}
+      <QRScannerModal
+        isOpen={showQRScanner}
+        onClose={() => setShowQRScanner(false)}
+        onScanSuccess={onQRScanSuccess}
+      />
     </div>
   );
 };

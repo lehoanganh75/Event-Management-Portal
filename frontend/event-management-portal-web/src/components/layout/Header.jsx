@@ -34,7 +34,7 @@ import notificationService from "../../services/notificationService";
 const roleMap = {
   SUPER_ADMIN: "Quản Trị Viên Cao Cấp",
   ADMIN: "Quản Trị Viên",
-  MEMBER: "Sinh Viên",
+  STUDENT: "Sinh Viên",
   GUEST: "Người dùng",
 };
 

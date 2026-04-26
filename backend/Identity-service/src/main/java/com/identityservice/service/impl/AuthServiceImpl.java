@@ -133,7 +133,7 @@ public class AuthServiceImpl implements AuthService {
                 role = Role.ADMIN;
                 break;
             case "@student.iuh.edu.vn":
-                role = Role.MEMBER;
+                role = Role.STUDENT;
                 break;
             default:
                 role = Role.GUEST;

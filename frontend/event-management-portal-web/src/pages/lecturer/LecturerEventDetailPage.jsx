@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { useNavigate, useParams } from "react-router-dom";
+import { useAuth } from "../../context/AuthContext";
 import { toast } from "react-toastify";
 import eventService from "../../services/eventService";
 import luckyDrawService from "../../services/luckyDrawService";
@@ -21,6 +22,7 @@ const LecturerEventDetailPage = () => {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [showQRScanner, setShowQRScanner] = useState(false);
 
   // Invitation States
   const [showUserSuggestions, setShowUserSuggestions] = useState(false);
@@ -132,6 +134,29 @@ const LecturerEventDetailPage = () => {
       fetchData();
     } catch (err) {
       toast.error("Lỗi khi gỡ diễn giả");
+    }
+  };
+
+  const handleManualCheckIn = async (registrationId) => {
+    try {
+      if (!user?.id) return;
+      await eventService.manualCheckIn(registrationId, user.id);
+      toast.success("Điểm danh thủ công thành công!");
+      fetchData();
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Lỗi khi điểm danh");
+    }
+  };
+
+  const handleQRScanSuccess = async (ticketCode) => {
+    setShowQRScanner(false);
+    try {
+      if (!user?.id) return;
+      await eventService.checkIn(ticketCode, user.id);
+      toast.success("Điểm danh qua mã QR thành công!");
+      fetchData();
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Mã vé không hợp lệ hoặc đã sử dụng");
     }
   };
 
@@ -250,6 +275,10 @@ const LecturerEventDetailPage = () => {
         setShowDeleteConfirm={setShowDeleteConfirm}
         isDeleting={isDeleting}
         onFetchUsers={fetchUsers}
+        onManualCheckIn={handleManualCheckIn}
+        showQRScanner={showQRScanner}
+        setShowQRScanner={setShowQRScanner}
+        onQRScanSuccess={handleQRScanSuccess}
       />
 
       <EditEventModal
