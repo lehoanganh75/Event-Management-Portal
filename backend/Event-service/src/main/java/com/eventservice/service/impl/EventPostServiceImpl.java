@@ -33,8 +33,9 @@ public class EventPostServiceImpl implements EventPostService {
     @Override
     public Page<PostDetailResponse> getAllPosts(String title, PostStatus status, Pageable pageable) {
         Page<EventPost> postPage = eventPostRepository.findAllWithFilters(title, status, pageable);
-        
-        if (postPage.isEmpty()) return Page.empty(pageable);
+
+        if (postPage.isEmpty())
+            return Page.empty(pageable);
 
         // 1. Thu thập tất cả Author IDs trong trang hiện tại
         Set<String> authorIds = postPage.getContent().stream()
@@ -44,7 +45,8 @@ public class EventPostServiceImpl implements EventPostService {
         // 2. Fetch User Map (Batching)
         Map<String, UserDto> userMap = fetchUsersMap(authorIds);
 
-        // 3. Map sang DTO (Lưu ý: List bài đăng không nhất thiết phải map comments để giảm tải)
+        // 3. Map sang DTO (Lưu ý: List bài đăng không nhất thiết phải map comments để
+        // giảm tải)
         return postPage.map(post -> mapToPostDetailResponse(post, userMap));
     }
 
