@@ -18,4 +18,10 @@ public interface IdentityServiceClient {
 
     @GetMapping("/profiles/invite")
     UserDto getUsersById(@RequestParam("id") String id);
+
+    @GetMapping("/accounts/admin-ids")
+    List<String> getAdminAccountIds();
+
+    @GetMapping("/profiles/by-emails")
+    List<UserDto> getUsersByEmails(@RequestParam("emails") List<String> emails);
 }

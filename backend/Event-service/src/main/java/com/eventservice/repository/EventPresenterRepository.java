@@ -13,7 +13,7 @@ public interface EventPresenterRepository extends JpaRepository<EventPresenter, 
 
 //    List<EventPresenter> findByEventIdOrderByOrderIndexAsc(String eventId);
 
-    List<EventPresenter> findByEventIdAndSession(String eventId, String session);
+    List<EventPresenter> findByEventIdAndSessions_Id(String eventId, String sessionId);
 
     // Optional<EventPresenter> findByEventIdAndEmail(String eventId, String email);
 

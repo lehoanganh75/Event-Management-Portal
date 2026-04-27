@@ -1,7 +1,5 @@
-@import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700;900&display=swap');
-
 .font-roboto {
-  font-family: 'Roboto', system-ui, sans-serif;
+  font-family: 'Inter', system-ui, sans-serif;
 }
 
 #root {
@@ -351,6 +349,7 @@
 .no-scrollbar::-webkit-scrollbar {
   display: none;
 }
+
 .no-scrollbar {
   -ms-overflow-style: none;
   scrollbar-width: none;

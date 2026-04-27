@@ -18,4 +18,5 @@ public interface UserService {
     List<UserDto> getUsersByIds(List<String> ids);
 
     UserDto getUserById(String id);
+    List<UserDto> getUsersByEmails(List<String> emails);
 }

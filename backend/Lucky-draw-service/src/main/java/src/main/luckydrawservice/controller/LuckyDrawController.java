@@ -6,6 +6,7 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
+import jakarta.validation.Valid;
 import src.main.luckydrawservice.dto.DrawResultResponse;
 import src.main.luckydrawservice.dto.LuckyDrawCreateRequest;
 import src.main.luckydrawservice.dto.LuckyDrawResponse;
@@ -18,9 +19,12 @@ import java.util.Optional;
 
 @RestController
 @RequestMapping("/lucky-draws")
-@RequiredArgsConstructor
 public class LuckyDrawController {
     private final LuckyDrawService luckyDrawService;
+
+    public LuckyDrawController(LuckyDrawService luckyDrawService) {
+        this.luckyDrawService = luckyDrawService;
+    }
 
     @GetMapping
     public ResponseEntity<List<LuckyDraw>> getAllLuckyDraws() {
@@ -39,7 +43,7 @@ public class LuckyDrawController {
 
     @PostMapping
     public ResponseEntity<LuckyDraw> createLuckyDraw(
-            @RequestBody LuckyDrawCreateRequest request,
+            @Valid @RequestBody LuckyDrawCreateRequest request,
             @AuthenticationPrincipal Jwt jwt) {
         String accountId = jwt.getSubject();
         return ResponseEntity.ok(luckyDrawService.createLuckyDraw(request, accountId));
@@ -48,7 +52,7 @@ public class LuckyDrawController {
     @PutMapping("/{id}")
     public ResponseEntity<LuckyDraw> updateLuckyDraw(
             @PathVariable String id, // Lấy ID từ URL
-            @RequestBody LuckyDrawCreateRequest request,
+            @Valid @RequestBody LuckyDrawCreateRequest request,
             @AuthenticationPrincipal Jwt jwt) {
         String accountId = jwt.getSubject();
         return ResponseEntity.ok(luckyDrawService.updateLuckyDraw(id, request, accountId));
@@ -78,6 +82,12 @@ public class LuckyDrawController {
     ) {
         String userId = jwt.getSubject();
         return ResponseEntity.ok(luckyDrawService.createDrawEntry(userId, luckyDrawId));
+    }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> deleteLuckyDraw(@PathVariable String id) {
+        luckyDrawService.deleteLuckyDraw(id);
+        return ResponseEntity.noContent().build();
     }
 
     @DeleteMapping("/events/{eventId}/soft-delete")

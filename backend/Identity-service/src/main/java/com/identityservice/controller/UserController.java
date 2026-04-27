@@ -14,9 +14,12 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/profiles")
-@RequiredArgsConstructor
 public class UserController {
     private final UserService userService;
+
+    public UserController(UserService userService) {
+        this.userService = userService;
+    }
 
     @GetMapping("/me")
     public ResponseEntity<User> getMyProfile(@AuthenticationPrincipal Jwt jwt) {
@@ -67,5 +70,10 @@ public class UserController {
     @GetMapping("/invite")
     public ResponseEntity<UserDto> getUsersById(@RequestParam String id) {
         return ResponseEntity.ok(userService.getUserById(id));
+    }
+
+    @GetMapping("/by-emails")
+    public ResponseEntity<List<UserDto>> getUsersByEmails(@RequestParam List<String> emails) {
+        return ResponseEntity.ok(userService.getUsersByEmails(emails));
     }
 }

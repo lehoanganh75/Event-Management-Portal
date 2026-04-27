@@ -20,7 +20,7 @@ public interface EventPresenterService {
     @Transactional
     EventPresenter updatePresenterTopic(String presenterId, String topic);
 
-    List<EventPresenter> getPresentersBySession(String eventId, String session);
+    List<EventPresenter> getPresentersBySession(String eventId, String sessionId);
 
     boolean existsByEventIdAndEmail(String eventId, String email);
 }

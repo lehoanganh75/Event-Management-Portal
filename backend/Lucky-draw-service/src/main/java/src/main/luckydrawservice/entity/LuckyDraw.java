@@ -11,10 +11,10 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 @Entity
+@Data
+@AllArgsConstructor
+@NoArgsConstructor
 @Table(name = "lucky_draws")
-@Getter
-@Setter
-@ToString
 public class LuckyDraw {
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)

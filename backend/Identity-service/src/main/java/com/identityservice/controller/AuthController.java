@@ -1,6 +1,7 @@
 package com.identityservice.controller;
 
 import com.identityservice.dto.request.LogoutRequest;
+import com.identityservice.dto.request.RefreshRequest;
 import com.identityservice.dto.request.VerifyOtpRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
@@ -18,9 +19,22 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/auth")
-@RequiredArgsConstructor
 public class AuthController {
     private final AuthService authService;
+
+    public AuthController(AuthService authService) {
+        this.authService = authService;
+    }
+
+    @GetMapping("/check-email")
+    public ResponseEntity<Boolean> checkEmail(@RequestParam String email) {
+        return ResponseEntity.ok(authService.existsByEmail(email));
+    }
+
+    @GetMapping("/check-username")
+    public ResponseEntity<Boolean> checkUsername(@RequestParam String username) {
+        return ResponseEntity.ok(authService.existsByUsername(username));
+    }
 
     @PostMapping("/register")
     public ResponseEntity<Map<String, String>> register(@RequestBody RegisterRequest request) {
@@ -30,6 +44,11 @@ public class AuthController {
     @PostMapping("/login")
     public ResponseEntity<AuthResponse> login(@RequestBody LoginRequest request) {
         return ResponseEntity.ok(authService.login(request));
+    }
+
+    @PostMapping("/refresh")
+    public ResponseEntity<AuthResponse> refresh(@RequestBody RefreshRequest request) {
+        return ResponseEntity.ok(authService.refreshToken(request.getRefreshToken()));
     }
 
     @PostMapping("/logout")
@@ -59,6 +78,12 @@ public class AuthController {
 
         Map<String, String> result = authService.verifyMobileOTP(otp, username);
         return ResponseEntity.ok(result);
+    }
+
+    @PostMapping("/resend-otp")
+    public ResponseEntity<String> resendOtp(@RequestParam String username) {
+        authService.resendOtp(username);
+        return ResponseEntity.ok("Mã xác thực OTP mới đã được gửi vào Email của bạn.");
     }
 
     @PostMapping("/forgot-password")

@@ -4,5 +4,7 @@ public enum PostType {
     ANNOUNCEMENT,
     UPDATE,
     REMINDER,
-    NEWS
+    NEWS,
+    RECAP,
+    GUIDELINE
 }

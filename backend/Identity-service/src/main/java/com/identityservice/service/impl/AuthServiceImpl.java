@@ -25,7 +25,6 @@ import java.time.LocalDateTime;
 import java.util.*;
 
 @Service
-@RequiredArgsConstructor
 public class AuthServiceImpl implements AuthService {
     private final AccountRepository accountRepository;
     private final RefreshTokenRepository refreshTokenRepository;
@@ -33,8 +32,23 @@ public class AuthServiceImpl implements AuthService {
     private final VerificationTokenRepository verificationTokenRepository;
     private final JwtUtils jwtUtils;
     private final PasswordEncoder passwordEncoder;
-
     private final EmailService emailService;
+
+    public AuthServiceImpl(AccountRepository accountRepository,
+                           RefreshTokenRepository refreshTokenRepository,
+                           PasswordResetTokenRepository passwordResetTokenRepository,
+                           VerificationTokenRepository verificationTokenRepository,
+                           JwtUtils jwtUtils,
+                           PasswordEncoder passwordEncoder,
+                           EmailService emailService) {
+        this.accountRepository = accountRepository;
+        this.refreshTokenRepository = refreshTokenRepository;
+        this.passwordResetTokenRepository = passwordResetTokenRepository;
+        this.verificationTokenRepository = verificationTokenRepository;
+        this.jwtUtils = jwtUtils;
+        this.passwordEncoder = passwordEncoder;
+        this.emailService = emailService;
+    }
 
     @Value("${server.port}")
     private String PORT;
@@ -279,5 +293,73 @@ public class AuthServiceImpl implements AuthService {
         passwordResetTokenRepository.save(resetToken);
 
         System.out.println("Mật khẩu của tài khoản " + account.getUsername() + " đã được thay đổi thành công.");
+    }
+
+    @Override
+    @Transactional
+    public void resendOtp(String username) {
+        Account account = accountRepository.findByUsername(username)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.CONFLICT, "Tên đăng nhập không tồn tại."));
+
+        if (account.getStatus() == AccountStatus.ACTIVE) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Tài khoản đã được kích hoạt.");
+        }
+
+        // Xóa mã cũ
+        verificationTokenRepository.deleteByAccount(account);
+
+        // Tạo mã mới
+        String otp = String.valueOf(new Random().nextInt(899999) + 100000);
+        VerificationToken vToken = createVerificationToken(account, otp);
+        vToken.setExpiryDate(LocalDateTime.now().plusMinutes(5));
+        verificationTokenRepository.save(vToken);
+
+        // Gửi email mới
+        emailService.sendOtpEmail(account.getEmail(), otp, account.getUser().getFullName());
+    }
+
+    @Override
+    @Transactional
+    public AuthResponse refreshToken(String token) {
+        RefreshToken refreshToken = refreshTokenRepository.findByToken(token)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Refresh Token không tồn tại"));
+
+        if (refreshToken.isRevoked() || refreshToken.isUsed()) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Refresh Token đã bị vô hiệu hóa hoặc đã được sử dụng");
+        }
+
+        if (refreshToken.getExpiryDate().isBefore(LocalDateTime.now())) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Refresh Token đã hết hạn");
+        }
+
+        Account account = refreshToken.getAccount();
+        UserPrincipal principal = new UserPrincipal(account.getId(), account.getRole());
+        String newAccessToken = jwtUtils.generateAccessToken(principal);
+
+        // Đánh dấu token cũ đã sử dụng
+        refreshToken.setUsed(true);
+        refreshTokenRepository.save(refreshToken);
+
+        // Tạo refresh token mới (Rotation)
+        String newRefreshTokenStr = UUID.randomUUID().toString();
+        RefreshToken newRefreshToken = new RefreshToken();
+        newRefreshToken.setToken(newRefreshTokenStr);
+        newRefreshToken.setAccount(account);
+        newRefreshToken.setExpiryDate(LocalDateTime.now().plusDays(7));
+        newRefreshToken.setRevoked(false);
+        newRefreshToken.setUsed(false);
+        refreshTokenRepository.save(newRefreshToken);
+
+        return new AuthResponse(newAccessToken, newRefreshTokenStr);
+    }
+
+    @Override
+    public boolean existsByEmail(String email) {
+        return accountRepository.findByEmail(email).isPresent();
+    }
+
+    @Override
+    public boolean existsByUsername(String username) {
+        return accountRepository.findByUsername(username).isPresent();
     }
 }

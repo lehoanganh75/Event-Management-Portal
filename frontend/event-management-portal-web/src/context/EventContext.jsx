@@ -1,5 +1,7 @@
 import React, { createContext, useContext, useState, useCallback } from 'react';
 import eventService from '../services/eventService';
+import notificationService from '../services/notificationService';
+import { useAuth } from './AuthContext';
 
 const EventContext = createContext();
 
@@ -20,6 +22,8 @@ export const EventProvider = ({ children }) => {
     
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
+
+    const { user } = useAuth();
 
     const fetchAllEvents = useCallback(async () => {
         setLoading(true);
@@ -174,7 +178,88 @@ export const EventProvider = ({ children }) => {
         }
     }, [fetchAllPosts]);
 
+    // Phê duyệt kế hoạch
+    const approvePlan = useCallback(async (id, planDetails) => {
+        setLoading(true);
+        try {
+            await eventService.approvePlan(id);
+            
+            // 1. Gửi thông báo cho người tạo (Realtime)
+            if (planDetails?.createdByAccountId) {
+                await notificationService.sendNotification({
+                    userProfileId: planDetails.createdByAccountId,
+                    type: "EVENT_APPROVED", // Sử dụng giá trị hợp lệ từ Enum backend
+                    title: "🎉 Kế hoạch đã được phê duyệt!",
+                    message: `Chúc mừng! Kế hoạch "${planDetails.title}" của bạn đã được quản trị viên phê duyệt.`,
+                    relatedEntityId: id,
+                    relatedEntityType: "PLAN",
+                    actionUrl: `/manage-plans/${id}`,
+                    priority: 1
+                });
+            }
+
+            // 2. Gửi thông báo cho chính Admin (Xác nhận thao tác)
+            if (user?.id) {
+                await notificationService.sendNotification({
+                    userProfileId: user.id,
+                    type: "SYSTEM",
+                    title: "✅ Đã phê duyệt kế hoạch thành công",
+                    message: `Bạn đã phê duyệt kế hoạch "${planDetails?.title || id}".`,
+                    relatedEntityId: id,
+                    relatedEntityType: "PLAN",
+                    priority: 2
+                });
+            }
+        } catch (err) {
+            setError("Không thể phê duyệt kế hoạch");
+            throw err;
+        } finally {
+            setLoading(false);
+        }
+    }, [user?.id]);
+
+    // Từ chối kế hoạch
+    const rejectPlan = useCallback(async (id, reason, planDetails) => {
+        setLoading(true);
+        try {
+            await eventService.rejectPlan(id, reason);
+            
+            // 1. Gửi thông báo cho người tạo (Realtime)
+            if (planDetails?.createdByAccountId) {
+                await notificationService.sendNotification({
+                    userProfileId: planDetails.createdByAccountId,
+                    type: "EVENT_REJECTED", // Sử dụng giá trị hợp lệ từ Enum backend
+                    title: "❌ Kế hoạch bị từ chối phê duyệt",
+                    message: `Rất tiếc, kế hoạch "${planDetails.title}" của bạn không được phê duyệt. Lý do: ${reason}`,
+                    relatedEntityId: id,
+                    relatedEntityType: "PLAN",
+                    actionUrl: `/manage-plans/${id}`,
+                    priority: 1
+                });
+            }
+
+            // 2. Gửi thông báo cho chính Admin
+            if (user?.id) {
+                await notificationService.sendNotification({
+                    userProfileId: user.id,
+                    type: "SYSTEM",
+                    title: "🚫 Đã từ chối kế hoạch",
+                    message: `Bạn đã từ chối kế hoạch "${planDetails?.title || id}". Lý do: ${reason}`,
+                    relatedEntityId: id,
+                    relatedEntityType: "PLAN",
+                    priority: 2
+                });
+            }
+        } catch (err) {
+            setError("Không thể từ chối kế hoạch");
+            throw err;
+        } finally {
+            setLoading(false);
+        }
+    }, [user?.id]);
+
     const value = {
+        events: eventService,
         userAll,
         ongoing,
         upcoming,
@@ -195,6 +280,8 @@ export const EventProvider = ({ children }) => {
         createPost,
         updatePost,
         deletePost,
+        approvePlan,
+        rejectPlan,
     };
 
     return (

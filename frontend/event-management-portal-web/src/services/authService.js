@@ -1,44 +1,56 @@
 import axios from 'axios';
 
-const IDENTITY_URL = 'http://localhost:8083';
+const BASE_URL = 'http://localhost:8083';
 
-// --- INSTANCE 1: DÀNH CHO PUBLIC (Auth) ---
-const publicIdentity = axios.create({
-    baseURL: IDENTITY_URL,
+// 1. PUBLIC API (No Token)
+const publicApi = axios.create({
+    baseURL: BASE_URL,
     headers: { 'Content-Type': 'application/json' },
+    timeout: 15000,
 });
 
-// --- INSTANCE 2: DÀNH CHO PRIVATE (Profiles & Admin) ---
-const privateIdentity = axios.create({
-    baseURL: IDENTITY_URL,
+// 2. PRIVATE API (With Token + Refresh Logic)
+const privateApi = axios.create({
+    baseURL: BASE_URL,
     headers: { 'Content-Type': 'application/json' },
+    timeout: 15000,
 });
 
-// Gắn token cho privateIdentity
-privateIdentity.interceptors.request.use((config) => {
-    const token = localStorage.getItem('accessToken');
-    if (token) config.headers.Authorization = `Bearer ${token}`;
-    return config;
-});
+// Request Interceptor: Attach Access Token
+privateApi.interceptors.request.use(
+    (config) => {
+        const token = localStorage.getItem('accessToken');
+        if (token) config.headers.Authorization = `Bearer ${token}`;
+        return config;
+    },
+    (error) => Promise.reject(error)
+);
 
-// Tự động Refresh Token cho privateIdentity
-privateIdentity.interceptors.response.use(
-    (res) => res,
+// Response Interceptor: Handle 401 & Refresh Token
+privateApi.interceptors.response.use(
+    (response) => response,
     async (error) => {
         const originalRequest = error.config;
         if (error.response?.status === 401 && !originalRequest._retry) {
             originalRequest._retry = true;
             try {
                 const refreshToken = localStorage.getItem('refreshToken');
-                // Gọi API refresh dùng instance PUBLIC để tránh loop
-                const res = await publicIdentity.post('/auth/refresh', { refreshToken });
-                localStorage.setItem('accessToken', res.data.accessToken);
-                
-                originalRequest.headers.Authorization = `Bearer ${res.data.accessToken}`;
-                return privateIdentity(originalRequest);
-            } catch (err) {
-                localStorage.clear();
-                window.location.href = '/login';
+                if (!refreshToken) throw new Error("No refresh token");
+
+                // Refresh call (Always to Identity Service)
+                const res = await axios.post(`${BASE_URL}/auth/refresh`, { refreshToken });
+                const { accessToken, refreshToken: newRefreshToken } = res.data;
+
+                localStorage.setItem('accessToken', accessToken);
+                if (newRefreshToken) localStorage.setItem('refreshToken', newRefreshToken);
+
+                originalRequest.headers.Authorization = `Bearer ${accessToken}`;
+                return privateApi(originalRequest);
+            } catch (refreshError) {
+                localStorage.removeItem('accessToken');
+                localStorage.removeItem('refreshToken');
+                if (!originalRequest._silent) window.location.href = '/login';
+                return Promise.reject(refreshError);
             }
         }
         return Promise.reject(error);
@@ -46,35 +58,37 @@ privateIdentity.interceptors.response.use(
 );
 
 const authService = {
-    register: (data) => publicIdentity.post('/auth/register', data),
-    login: (data) => publicIdentity.post('/auth/login', data),
-    logout: (refreshToken) => publicIdentity.post('/auth/logout', null, { params: { refreshToken } }),
-    verifyOtp: (username, otp) => publicIdentity.post("/auth/verify-otp", {
-        username,
-        otp
+    // --- AUTH (Public) ---
+    register: (data) => publicApi.post('/auth/register', data),
+    checkEmail: (email) => publicApi.get('/auth/check-email', { params: { email } }),
+    checkUsername: (username) => publicApi.get('/auth/check-username', { params: { username } }),
+    login: (credentials) => publicApi.post('/auth/login', credentials),
+    logout: (refreshToken) => privateApi.post('/auth/logout', { refreshToken }),
+    verifyOtp: (username, otp) => publicApi.post('/auth/verify-otp', { username, otp }),
+    resendOtp: (username) => publicApi.post('/auth/resend-otp', null, { params: { username } }),
+    forgotPassword: (email) => publicApi.post('/auth/forgot-password', null, { params: { email } }),
+    resetPassword: (token, newPassword) => publicApi.post('/auth/reset-password', null, { params: { token, newPassword } }),
+    changePassword: (passwordData) => privateApi.patch('/auth/change-password', passwordData),
+
+    // --- PROFILES (Private) ---
+    getMyProfile: (options = {}) => privateApi.get('/profiles/me', options),
+    updateMyProfile: (updatedData) => privateApi.put('/profiles/me', updatedData),
+    searchUsers: (keyword) => privateApi.get('/profiles/search', { params: { keyword } }),
+    getUsersByIds: (ids) => privateApi.get('/profiles/batch', {
+        params: { ids },
+        paramsSerializer: { indexes: null }
     }),
-    forgotPassword: (email) => publicIdentity.post('/auth/forgot-password', null, { params: { email } }),
-    resetPassword: (token, newPassword) => publicIdentity.post('/auth/reset-password', null, { params: { token, newPassword } }),
-    
+    getUserById: (id) => privateApi.get('/profiles/invite', { params: { id } }),
 
-    getMyProfile: () => privateIdentity.get('/profiles/me'),
-    updateMyProfile: (updatedData) => privateIdentity.put('/profiles/me', updatedData),
-
-    getAllAccounts: () => privateIdentity.get('/accounts'),
-    getAccountById: (id) => privateIdentity.get(`/accounts/${id}`),
-    updateAccount: (id, data) => privateIdentity.put(`/accounts/${id}`, data),
-    updateAccountStatus: (id, status) => privateIdentity.put(`/accounts/${id}/status`, { status }),
-    updateAccountRoles: (id, role) => privateIdentity.put(`/accounts/${id}/roles`, role, {
+    // --- ACCOUNTS (Admin) ---
+    getAllAccounts: () => privateApi.get('/accounts'),
+    getAccountById: (id) => privateApi.get(`/accounts/${id}`),
+    updateAccount: (id, data) => privateApi.put(`/accounts/${id}`, data),
+    updateAccountStatus: (id, status) => privateApi.put(`/accounts/${id}/status`, { status }),
+    updateAccountRoles: (id, role) => privateApi.put(`/accounts/${id}/roles`, role, {
         headers: { 'Content-Type': 'text/plain' }
     }),
-    deleteAccount: (id) => privateIdentity.delete(`/accounts/${id}`),
-
-    searchUsers: (keyword) => privateIdentity.get('/profiles/search', { params: { keyword } }),
-    getUsersByIds: (ids) => privateIdentity.get('/profiles/batch', {
-        params: { ids },
-        paramsSerializer: { indexes: null } 
-    }),
-    getUserById: (id) => privateIdentity.get('/profiles/invite', { params: { id } }),
+    deleteAccount: (id) => privateApi.delete(`/accounts/${id}`),
 };
 
 export default authService;

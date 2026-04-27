@@ -9,4 +9,6 @@ import java.util.Optional;
 @Repository
 public interface EventInvitationRepository extends JpaRepository<EventInvitation, String> {
     Optional<EventInvitation> findByToken(String token);
+
+    Optional<EventInvitation> findByEventIdAndToken(String eventId, String token);
 }

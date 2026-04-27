@@ -11,6 +11,7 @@ import org.hibernate.annotations.UpdateTimestamp;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 
 @Data
 public class PostDetailResponse {
@@ -32,4 +33,10 @@ public class PostDetailResponse {
 
     // Danh sách bình luận đã được xử lý phân cấp
     private List<CommentResponse> comments;
+
+    private List<String> imageUrls;
+    private Map<String, String> reactions;
+
+    private String eventId;
+    private String eventTitle;
 }

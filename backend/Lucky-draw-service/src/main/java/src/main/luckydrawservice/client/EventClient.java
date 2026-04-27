@@ -10,5 +10,5 @@ import src.main.luckydrawservice.config.FeignClientConfig;
 public interface EventClient {
 
     @PutMapping("/events/{eventId}/lucky-draw")
-    void updateLuckyDrawId(@PathVariable("eventId") String eventId);
+    void updateLuckyDrawId(@PathVariable("eventId") String eventId, @RequestParam("hasLuckyDraw") boolean hasLuckyDraw);
 }

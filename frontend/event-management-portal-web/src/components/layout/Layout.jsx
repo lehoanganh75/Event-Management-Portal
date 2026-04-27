@@ -1,6 +1,6 @@
 import React from "react";
-import Header from "../common/Header";
-import Footer from "../common/Footer";
+import Header from "./Header";
+import Footer from "./Footer";
 
 const Layout = ({ children, user, onLogin, onLogout, headerProps = {} }) => {
   return (

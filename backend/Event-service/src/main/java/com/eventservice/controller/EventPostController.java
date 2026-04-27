@@ -8,6 +8,8 @@ import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.*;
 import com.eventservice.dto.PostRequestDto;
 import com.eventservice.dto.PostResponseDto;
@@ -16,6 +18,7 @@ import com.eventservice.entity.enums.PostStatus;
 import com.eventservice.service.EventPostService;
 
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/posts")
@@ -54,8 +57,8 @@ public class EventPostController {
     @PutMapping("/{id}")
     public ResponseEntity<EventPost> updatePost(
             @PathVariable String id,
-            @RequestBody EventPost postDetails) {
-        return ResponseEntity.ok(eventPostService.updatePost(id, postDetails));
+            @RequestBody PostRequestDto postDto) {
+        return ResponseEntity.ok(eventPostService.updatePost(id, postDto));
     }
 
     @DeleteMapping("/{id}")
@@ -77,5 +80,14 @@ public class EventPostController {
             @PathVariable String eventId) {
         List<PostResponseDto> posts = eventPostService.getPostsByAccountIdAndEventId(accountId, eventId);
         return ResponseEntity.ok(posts);
+    }
+    @PostMapping("/{id}/react")
+    public ResponseEntity<EventPost> reactToPost(
+            @PathVariable String id,
+            @RequestBody Map<String, String> request,
+            @AuthenticationPrincipal Jwt jwt) {
+        String accountId = jwt.getSubject();
+        String emoji = request.get("emoji");
+        return ResponseEntity.ok(eventPostService.reactToPost(id, accountId, emoji));
     }
 }

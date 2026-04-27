@@ -26,11 +26,14 @@ public interface EventPostService {
 
     // 4. Cập nhật bài viết
     @Transactional
-    EventPost updatePost(String id, EventPost postDetails);
+    EventPost updatePost(String id, PostRequestDto postDto);
 
     // 5. Xóa bài viết (Soft Delete)
     @Transactional
     void deletePost(String id);
+
+    @Transactional
+    EventPost reactToPost(String postId, String accountId, String emoji);
 
     List<PostResponseDto> getPostsByAccountId(String accountId);
 

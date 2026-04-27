@@ -1,6 +1,7 @@
 package com.eventservice.entity;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
@@ -37,9 +38,6 @@ public class EventSession {
     private LocalDateTime startTime;
     private LocalDateTime endTime;
 
-    // --- Management & Logistics ---
-    private int maxParticipants; // Giới hạn riêng cho phiên này
-
     private int orderIndex; // Thứ tự sắp xếp (1, 2, 3...)
 
     @Enumerated(EnumType.STRING)
@@ -61,4 +59,9 @@ public class EventSession {
     @JoinColumn(name = "event_id", nullable = false)
     @JsonIgnore
     private Event event;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "presenter_id")
+    @JsonIgnoreProperties({"event", "sessions"})
+    private EventPresenter presenter;
 }

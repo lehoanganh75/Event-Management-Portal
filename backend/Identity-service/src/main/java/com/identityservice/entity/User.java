@@ -3,21 +3,18 @@ package com.identityservice.entity;
 import com.fasterxml.jackson.annotation.JsonUnwrapped;
 import jakarta.persistence.*;
 import lombok.*;
-import org.hibernate.annotations.CreationTimestamp;
-import org.hibernate.annotations.UpdateTimestamp;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "user")
 @Getter
 @Setter
+@Table(name = "user")
 @NoArgsConstructor
 @AllArgsConstructor
 public class User {
     @Id
-    @GeneratedValue(strategy = GenerationType.UUID)
     private String id;
 
     private String loginCode;
@@ -31,11 +28,13 @@ public class User {
     private String phone;
     private String avatarUrl;
 
-    @CreationTimestamp
+    private String organizationId;
+    private String organizationName;
+    private String position;
+
     @Column(nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
-    @UpdateTimestamp
     private LocalDateTime updatedAt;
 
     private boolean isDeleted = false;
@@ -45,4 +44,15 @@ public class User {
     @JoinColumn(name = "id")
     @JsonUnwrapped
     private Account account;
+
+    @PrePersist
+    protected void onCreate() {
+        createdAt = LocalDateTime.now();
+        updatedAt = LocalDateTime.now();
+    }
+
+    @PreUpdate
+    protected void onUpdate() {
+        updatedAt = LocalDateTime.now();
+    }
 }

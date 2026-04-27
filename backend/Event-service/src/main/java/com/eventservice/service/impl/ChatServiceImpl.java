@@ -19,6 +19,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -74,13 +75,30 @@ public class ChatServiceImpl implements ChatService {
     @Override
     @Transactional
     public ChatMessageResponse sendMessage(ChatMessageRequest request, String userId) {
-        // Get session
+        // Get session or create a new one if not found (fixes 500 error when session expires/DB reset)
         ChatSession session = chatSessionRepository.findBySessionId(request.getSessionId())
-                .orElseThrow(() -> new RuntimeException("Chat session not found"));
+                .orElseGet(() -> {
+                    log.info("Session {} not found, creating a fallback session", request.getSessionId());
+                    ChatSession newSession = ChatSession.builder()
+                            .sessionId(UUID.randomUUID().toString())
+                            .userId(userId)
+                            .status(ChatSessionStatus.ACTIVE)
+                            .contextType("GENERAL_INQUIRY")
+                            .build();
+                    return chatSessionRepository.save(newSession);
+                });
         
-        // Validate session ownership (allow guest access)
+        // Validate session ownership (allow guest access if session userId is null)
         if (userId != null && session.getUserId() != null && !session.getUserId().equals(userId)) {
-            throw new RuntimeException("Unauthorized access to chat session");
+            // If mismatch, we create a new session for this user instead of throwing error
+            log.warn("Session userId mismatch. Creating new session for user {}", userId);
+            session = ChatSession.builder()
+                    .sessionId(UUID.randomUUID().toString())
+                    .userId(userId)
+                    .status(ChatSessionStatus.ACTIVE)
+                    .contextType("GENERAL_INQUIRY")
+                    .build();
+            session = chatSessionRepository.save(session);
         }
         
         // Save user message
@@ -92,6 +110,9 @@ public class ChatServiceImpl implements ChatService {
                 .build();
         
         userMessage = chatMessageRepository.save(userMessage);
+
+        // Ensure we update session ID in response if it's a new one
+        String currentSessionId = session.getSessionId();
         
         // Analyze intent
         String intent = geminiChatService.analyzeUserIntent(request.getContent());
@@ -134,12 +155,12 @@ public class ChatServiceImpl implements ChatService {
             contextEvents = eventRepository.findByIsDeletedFalseOrderByStartTimeDesc();
         }
         
-        // Limit to 8 most relevant events to save tokens and avoid 400 errors
-        if (contextEvents.size() > 8) {
-            contextEvents = contextEvents.subList(0, 8);
-        }
+        // Limit to 10 most relevant events to save tokens and avoid 400 errors
+        List<com.eventservice.entity.Event> finalContextEvents = contextEvents.size() > 10 
+                ? new ArrayList<>(contextEvents.subList(0, 10)) 
+                : new ArrayList<>(contextEvents);
         
-        String eventContext = buildEventContext(contextEvents);
+        String eventContext = buildEventContext(finalContextEvents);
 
         String enhancedUserMessage = request.getContent();
         if (!eventContext.isEmpty()) {
@@ -340,21 +361,31 @@ public class ChatServiceImpl implements ChatService {
     
     /**
      * Tách từ khóa chính từ câu hỏi của người dùng để tìm kiếm sự kiện.
+     * Cải tiến để nhận diện các từ ngắn (AI, IUH, IT) và cụm từ đặc trưng.
      */
     private String extractSearchKeyword(String message) {
         if (message == null || message.isBlank()) return null;
         
+        String lowerMsg = message.toLowerCase();
+        
+        // Nếu người dùng hỏi về "sự kiện nổi bật" hoặc tương tự mà không có tên cụ thể
+        if (lowerMsg.contains("nổi bật") || lowerMsg.contains("hot") || lowerMsg.contains("mới nhất")) {
+            return ""; // Trả về rỗng để kích hoạt fallback lấy sự kiện mới nhất
+        }
+
         // Loại bỏ các từ phổ biến
-        String cleaned = message.toLowerCase()
-            .replaceAll("(?i)sự kiện|event|hội thảo|workshop|seminar|có gì hot|ở đâu|khi nào|bao giờ|là gì", "")
+        String cleaned = message
+            .replaceAll("(?i)sự kiện|event|hội thảo|workshop|seminar|có gì|ở đâu|khi nào|bao giờ|là gì|cho tôi hỏi|giúp tôi", "")
             .trim();
             
         if (cleaned.isEmpty()) return null;
         
-        // Nếu còn lại ít hơn 3 ký tự thì có thể không phải từ khóa tốt
-        if (cleaned.length() < 3) return null;
+        // Nếu là từ viết hoa (AI, IUH, IT, AWS) thì giữ lại dù ngắn
+        if (cleaned.equals(cleaned.toUpperCase()) && cleaned.length() >= 2) {
+            return cleaned;
+        }
         
-        // Lấy 2-3 từ đầu tiên nếu quá dài
+        // Lấy 3 từ đầu tiên nếu quá dài để tìm kiếm hiệu quả hơn
         String[] words = cleaned.split("\\s+");
         if (words.length > 3) {
             return words[0] + " " + words[1] + " " + words[2];

@@ -1,5 +1,6 @@
 package com.eventservice.entity;
 
+import com.eventservice.dto.UserDto;
 import com.fasterxml.jackson.annotation.JsonBackReference;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
@@ -7,11 +8,15 @@ import com.fasterxml.jackson.annotation.JsonManagedReference;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.annotations.UpdateTimestamp;
+import org.hibernate.type.SqlTypes;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 @Entity
 @Table(name = "post_comments")
@@ -29,6 +34,9 @@ public class PostComment {
     @Column(nullable = false)
     private String commenterAccountId; // ID người bình luận
 
+    @Transient
+    private UserDto author;
+
     // --- Content ---
     @Column(nullable = false, length = 1000) // Tăng độ dài cho thảo luận thoải mái
     private String content;
@@ -45,6 +53,10 @@ public class PostComment {
 
     @UpdateTimestamp
     private LocalDateTime updatedAt;
+
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(columnDefinition = "JSON")
+    private Map<String, String> reactions = new HashMap<>(); // accountId -> emoji
 
     // --- Relationships ---
     @ManyToOne(fetch = FetchType.LAZY)

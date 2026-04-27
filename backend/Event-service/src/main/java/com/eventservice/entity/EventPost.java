@@ -14,7 +14,9 @@ import com.eventservice.entity.enums.PostType;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 @Entity
 @Table(name = "event_posts")
@@ -44,9 +46,11 @@ public class EventPost {
 
     // --- Classification ---
     @Enumerated(EnumType.STRING)
+    @Column(length = 50)
     private PostType postType; // ANNOUNCEMENT, NEWS, RECAP, GUIDELINE
 
     @Enumerated(EnumType.STRING)
+    @Column(length = 50)
     private PostStatus status = PostStatus.DRAFT; // DRAFT, PUBLISHED
 
     // --- Settings & Metrics ---
@@ -68,13 +72,17 @@ public class EventPost {
 
     @OneToMany(mappedBy = "post", cascade = CascadeType.ALL, orphanRemoval = true)
     @JsonManagedReference
-    @JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
+    @JsonIgnoreProperties({ "hibernateLazyInitializer", "handler" })
     @Builder.Default
     private List<PostComment> comments = new ArrayList<>();
 
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(columnDefinition = "JSON")
     private List<String> imageUrls; // Danh sách ảnh trong bài viết
+
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(columnDefinition = "JSON")
+    private Map<String, String> reactions = new HashMap<>(); // accountId -> emoji
 
     // --- Relationships ---
     @ManyToOne(fetch = FetchType.LAZY)

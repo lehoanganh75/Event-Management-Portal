@@ -30,6 +30,13 @@ public enum NotificationType {
     POLICY_UPDATE,                // Cập nhật chính sách
 
     INVITATION,                   // Lời mời tham gia sự kiện (đã có)
-     REMINDER,                     // Nhắc nhở về sự kiện (đã có)
-     ANNOUNCEMENT,                  // Thông báo chung (đã có)
+    REMINDER,                     // Nhắc nhở về sự kiện (đã có)
+    ANNOUNCEMENT,                  // Thông báo chung (đã có)
+    GENERAL,                       // Thông báo tổng quát
+    
+    // Thêm các loại thông báo kế hoạch
+    PLAN_CREATED,
+    PLAN_SUBMITTED,
+    PLAN_APPROVED,
+    PLAN_REJECTED
 }

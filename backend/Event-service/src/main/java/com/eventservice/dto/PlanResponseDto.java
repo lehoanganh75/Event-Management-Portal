@@ -6,6 +6,7 @@ import com.eventservice.entity.EventOrganizer;
 import com.eventservice.entity.EventParticipant;
 import com.eventservice.entity.EventPresenter;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -86,9 +87,9 @@ public class PlanResponseDto {
 
 
         dto.setTargetObjects(event.getTargetObjects());
-//        dto.setPresentersList(event.getPresenters());
-//        dto.setOrganizersList(event.getOrganizers());
-//        dto.setParticipantsList(event.getParticipants());
+        dto.setPresentersList(new ArrayList<>(event.getPresenters()));
+        dto.setOrganizersList(new ArrayList<>(event.getOrganizers()));
+        dto.setParticipantsList(new ArrayList<>(event.getParticipants()));
 
         if (approver != null) {
             dto.setApprovedByName(approver.getFullName());

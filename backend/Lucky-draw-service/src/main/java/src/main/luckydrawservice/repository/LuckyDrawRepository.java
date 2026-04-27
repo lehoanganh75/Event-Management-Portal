@@ -11,4 +11,5 @@ public interface LuckyDrawRepository extends JpaRepository<LuckyDraw, String> {
     Optional<LuckyDraw> findByEventId(String eventId);
 
     Optional<LuckyDraw> findByEventIdAndIsDeletedFalse(String eventId);
+    java.util.List<LuckyDraw> findAllByIsDeletedFalse();
 }

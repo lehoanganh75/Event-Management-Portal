@@ -11,10 +11,13 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/accounts")
-@RequiredArgsConstructor
 public class AccountController {
 
     private final AccountService accountService;
+
+    public AccountController(AccountService accountService) {
+        this.accountService = accountService;
+    }
 
     @GetMapping
     public ResponseEntity<List<AccountAdminDTO>> getAllAccounts() {
@@ -55,5 +58,10 @@ public class AccountController {
     @GetMapping("/{id}")
     public ResponseEntity<AccountAdminDTO> getAccountById(@PathVariable String id) {
         return ResponseEntity.ok(accountService.getAccountByIdForAdmin(id));
+    }
+
+    @GetMapping("/admin-ids")
+    public ResponseEntity<List<String>> getAdminAccountIds() {
+        return ResponseEntity.ok(accountService.getAdminAccountIds());
     }
 }

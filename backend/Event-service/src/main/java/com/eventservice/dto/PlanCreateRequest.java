@@ -13,6 +13,7 @@ public class PlanCreateRequest {
     private String organizationId;
     private String title;
     private String description;
+    private String coverImage;
     private String eventTopic;
     private String location;
     private String eventMode;
@@ -62,7 +63,7 @@ public class PlanCreateRequest {
         private String title;
         private String position;
         private String department;
-        private OrganizerRole role;
+        private String role;
     }
 
     @Data

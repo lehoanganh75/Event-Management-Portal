@@ -1,11 +1,15 @@
 package com.eventservice.entity;
 
+import com.eventservice.entity.enums.ParticipationStatus;
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
 
 import java.time.LocalDateTime;
+import java.util.HashSet;
+import java.util.Set;
 
 @Entity
 @Table(name = "event_presenters")
@@ -29,22 +33,17 @@ public class EventPresenter {
     @Column(nullable = false)
     private String email;
 
-    private String phone;
-
     private String avatarUrl; // Ảnh đại diện của diễn giả
 
-    // --- Professional Info ---
-    private String position;   // Chức vụ (Vd: Giám đốc kỹ thuật, PGS.TS)
-    private String department; // Đơn vị công tác (Vd: Khoa CNTT, Google Việt Nam)
-
     @Column(columnDefinition = "TEXT")
-    private String bio;        // Tiểu sử tóm tắt
+    private String bio;
 
-    private String linkedInUrl;
+    // --- Status & Invitation ---
+    @Builder.Default
+    @Enumerated(EnumType.STRING)
+    private ParticipationStatus status = ParticipationStatus.PENDING;
 
     // --- Event Context ---
-    private String session;    // Tên phiên/chủ đề bài nói (Vd: "Ứng dụng AI trong y tế")
-
     private boolean isDeleted = false; // Cờ đánh dấu đã xóa (soft delete)
 
     // --- Audit ---
@@ -52,9 +51,35 @@ public class EventPresenter {
     @Column(updatable = false)
     private LocalDateTime assignedAt;
 
+    @Transient
+    private String targetSessionName; // Dùng để nhận từ FE lúc tạo (vd: "ALL" hoặc tên session)
+
     // --- Relationships ---
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "event_id", nullable = false)
     @JsonIgnore
     private Event event;
+
+    @OneToMany(mappedBy = "presenter", cascade = {CascadeType.PERSIST, CascadeType.MERGE})
+    @JsonIgnoreProperties("presenter")
+    private Set<EventSession> sessions = new HashSet<>();
+
+    @PreRemove
+    private void preRemove() {
+        if (sessions != null) {
+            sessions.forEach(s -> s.setPresenter(null));
+        }
+    }
+
+    public EventPresenter copy() {
+        return EventPresenter.builder()
+                .presenterAccountId(this.presenterAccountId)
+                .fullName(this.fullName)
+                .email(this.email)
+                .avatarUrl(this.avatarUrl)
+                .bio(this.bio)
+                .sessions(this.sessions)
+                .isDeleted(this.isDeleted)
+                .build();
+    }
 }

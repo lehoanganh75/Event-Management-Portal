@@ -14,7 +14,9 @@ public interface EventTemplateService {
 
     Event createFromTemplate(String templateId, String accountId);
 
-    EventTemplate saveTemplate(EventTemplate template);
+    EventTemplate saveTemplate(EventTemplate template, String accountId);
+
+    EventTemplate toggleStar(String id, String userId);
 
     List<EventTemplate> getAllTemplatesByOrg(String organizationId);
 
@@ -24,5 +26,7 @@ public interface EventTemplateService {
 
     List<EventTemplate> getAllTemplates();
 
-    Page<EventTemplate> getAllTemplatesGlobal(String search, Pageable pageable);
+    Page<EventTemplate> getAllTemplatesGlobal(String search, String userId, Pageable pageable);
+
+    Page<EventTemplate> getAvailableTemplates(String organizationId, String search, String userId, Pageable pageable);
 }

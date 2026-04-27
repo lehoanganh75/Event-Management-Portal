@@ -34,7 +34,7 @@ public class EventParticipantServiceImpl implements EventParticipantService {
         }
 
         participant.setEvent(event);
-        participant.setStatus(ParticipationStatus.REGISTERED);
+//        participant.setStatus(ParticipationStatus.REGISTERED);
 //        participant.setRegisteredAt(LocalDateTime.now());
         return participantRepository.save(participant);
     }

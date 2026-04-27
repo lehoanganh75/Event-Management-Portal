@@ -27,6 +27,7 @@ public class ChatController {
     public ResponseEntity<ApiResponse<ChatSessionResponse>> createOrResumeSession(
             @Valid @RequestBody ChatSessionRequest request
     ) {
+        log.info("Incoming chat session request for sessionId: {}", request.getSessionId());
         String userId = getCurrentUserId(); // null for guest
         ChatSessionResponse response = chatService.createOrResumeSession(request, userId);
         
@@ -44,6 +45,7 @@ public class ChatController {
     public ResponseEntity<ApiResponse<ChatMessageResponse>> sendMessage(
             @Valid @RequestBody ChatMessageRequest request
     ) {
+        log.info("Incoming chat message request for sessionId: {}", request.getSessionId());
         String userId = getCurrentUserId(); // null for guest
         ChatMessageResponse response = chatService.sendMessage(request, userId);
         

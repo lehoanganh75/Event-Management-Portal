@@ -1,22 +1,23 @@
 import axios from 'axios';
 
-const EVENT_URL = "http://localhost:8082";
+const BASE_URL = 'http://localhost:8082';
+const IDENTITY_BASE_URL = 'http://localhost:8083';
 
-// --- INSTANCE 1: DÀNH CHO PUBLIC (Không gắn Interceptor chặn lỗi 401) ---
+// 1. PUBLIC API
 const publicApi = axios.create({
-    baseURL: EVENT_URL,
+    baseURL: BASE_URL,
     headers: { 'Content-Type': 'application/json' },
     timeout: 15000,
 });
 
-// --- INSTANCE 2: DÀNH CHO PRIVATE (Có đầy đủ Interceptor) ---
+// 2. PRIVATE API
 const privateApi = axios.create({
-    baseURL: EVENT_URL,
+    baseURL: BASE_URL,
     headers: { 'Content-Type': 'application/json' },
     timeout: 15000,
 });
 
-// Request Interceptor cho Private
+// Request Interceptor
 privateApi.interceptors.request.use(
     (config) => {
         const token = localStorage.getItem('accessToken');
@@ -26,7 +27,7 @@ privateApi.interceptors.request.use(
     (error) => Promise.reject(error)
 );
 
-// Response Interceptor cho Private - Xử lý Refresh Token
+// Response Interceptor: Handle 401 & Refresh Token
 privateApi.interceptors.response.use(
     (response) => response,
     async (error) => {
@@ -35,205 +36,159 @@ privateApi.interceptors.response.use(
             originalRequest._retry = true;
             try {
                 const refreshToken = localStorage.getItem('refreshToken');
-                if (!refreshToken) throw new Error();
+                if (!refreshToken) throw new Error("No refresh token");
 
-                // Refresh Token gọi sang Auth Service (Port 8080)
-                const res = await axios.post(`http://localhost:8080/auth/refresh`, { refreshToken });
-                const { accessToken } = res.data;
-                
+                // Refresh call (Always to Identity Service)
+                const res = await axios.post(`${IDENTITY_BASE_URL}/auth/refresh`, { refreshToken });
+                const { accessToken, refreshToken: newRefreshToken } = res.data;
+
                 localStorage.setItem('accessToken', accessToken);
+                if (newRefreshToken) localStorage.setItem('refreshToken', newRefreshToken);
+
                 originalRequest.headers.Authorization = `Bearer ${accessToken}`;
                 return privateApi(originalRequest);
-            } catch (err) {
-                localStorage.clear();
-                window.location.href = '/login';
+            } catch (refreshError) {
+                localStorage.removeItem('accessToken');
+                localStorage.removeItem('refreshToken');
+                if (!originalRequest._silent) window.location.href = '/login';
+                return Promise.reject(refreshError);
             }
         }
         return Promise.reject(error);
     }
 );
 
+// Helper for data transformation
+const transformBaseData = (data) => {
+    if (!data) return null;
+    const start = data.startTime ? new Date(data.startTime) : null;
+    const end = data.endTime ? new Date(data.endTime) : null;
+
+    return {
+        ...data,
+        imageUrl: data.coverImage,
+        eventDate: start ? start.toLocaleDateString("vi-VN") : "",
+        eventTime: start && end
+            ? `${start.toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" })} - ${end.toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" })}`
+            : "",
+        startTime: start,
+        endTime: end,
+        registrationDeadline: data.registrationDeadline ? new Date(data.registrationDeadline) : null,
+        createdAt: data.createdAt ? new Date(data.createdAt) : null,
+    };
+};
+
+const transformListResponse = (res) => ({
+    ...res,
+    data: (Array.isArray(res.data) ? res.data : res.data?.content || []).map(transformBaseData)
+});
+
 const eventService = {
-    // Sử dụng publicApi: Không sợ bị chặn khi token hết hạn
-    getEventsForUser: () => publicApi.get('/events'),
-    getOngoingEvents: () => publicApi.get('/events/ongoing'),
-    getUpcomingEvents: () => publicApi.get('/events/upcoming-week'),
-    getFeaturedEvents: () => publicApi.get('/events/featured'),
-    getCompletedEvents: () => publicApi.get('events/news'),
-    getEventPosts: (eventId) => publicApi.get(`/posts/detail/${eventId}`),
+    // --- GROUP 1: PUBLIC / GENERAL EVENTS ---
+    getEventsForUser: (params = {}) => publicApi.get('/events', { params }).then(transformListResponse),
+    getOngoingEvents: () => publicApi.get('/events/ongoing').then(transformListResponse),
+    getUpcomingEvents: () => publicApi.get('/events/upcoming-week').then(transformListResponse),
+    getFeaturedEvents: () => publicApi.get('/events/featured').then(transformListResponse),
+    getCompletedEvents: () => publicApi.get('/events/news').then(transformListResponse),
+    getEventById: (id) => privateApi.get(`/events/${id}`).then(res => ({ ...res, data: transformBaseData(res.data) })),
+    getByStatus: (status) => privateApi.get('/events/by-statuses', { params: { statuses: status.toUpperCase() } }).then(res => ({ ...res, data: (res.data || []).map(transformBaseData) })),
+    getAllPlans: (params = {}) => publicApi.get('/events/plans', { params }),
 
-    // Sử dụng privateApi: Bắt buộc check token/refresh token
-    getEventById: (id) => privateApi.get(`/events/${id}`),
-    getMyEvents: (role = 'ALL') => privateApi.get('/events/my-events', { params: { role } }),
-    getAdminAllEvents: () => privateApi.get('/events/admin/all'),
+    // --- Related Info (Public) ---
+    getPresenters: (eventId) => publicApi.get(`/events/${eventId}/presenters`),
+    getParticipants: (eventId) => publicApi.get(`/events/${eventId}/participants`),
+    getOrganizers: (eventId) => publicApi.get(`/events/${eventId}/organizers`),
+    registerParticipant: (eventId, data) => publicApi.post(`/events/${eventId}/participants/register`, data),
+
+    getAllOrganizations: () => privateApi.get('/organizations'),
+    createOrganization: (data) => privateApi.post('/organizations', data),
+
+    // --- GROUP 2: AUTHENTICATED / MY EVENTS ---
+    getMyEvents: (role = 'ALL') => privateApi.get('/events/my-events', { params: { role } }).then(transformListResponse),
+    getAdminAllEvents: () => privateApi.get('/events/admin/all').then(transformListResponse),
     updateLuckyDraw: (eventId) => privateApi.put(`/events/${eventId}/lucky-draw`),
-    
-    registerEvent: (id) => privateApi.post(`/registrations/register/${id}`),
-    getTicketByEventId: (id) => privateApi.get(`/registrations/${id}`),
+    createEvent: (payload) => {
+        if (payload instanceof FormData) {
+            return privateApi.post('/events', payload, {
+                headers: { 'Content-Type': 'multipart/form-data' }
+            });
+        }
+        return privateApi.post('/events', payload);
+    },
+    updateEvent: (id, data) => privateApi.put(`/events/update/${id}`, data),
+    deleteEvent: (id) => privateApi.delete(`/events/delete/${id}`),
+    cancelEvent: (id, reason) => privateApi.patch(`/events/${id}/cancel`, null, { params: { reason } }),
 
-    getAllPosts: (params) => privateApi.get('/posts', { params }),
-    getPostById: (id) => privateApi.get(`/posts/${id}`),
+    // --- GROUP 3: POSTS ---
+    getAllPosts: (params) => publicApi.get('/posts', { params }),
+    getPostById: (id) => publicApi.get(`/posts/${id}`),
+    getEventPosts: (eventId) => publicApi.get(`/posts/detail/${eventId}`),
+    getPostsByUser: (accountId) => privateApi.get(`/posts/user/${accountId}`),
     createPost: (postData) => privateApi.post('/posts', postData),
     updatePost: (id, postDetails) => privateApi.put(`/posts/${id}`, postDetails),
     deletePost: (id) => privateApi.delete(`/posts/${id}`),
+    reactToPost: (postId, data) => privateApi.post(`/posts/${postId}/react`, data),
 
+    // --- Comments ---
+    createComment: (postId, data) => privateApi.post(`/posts/comments/${postId}`, data),
+    getComments: (postId) => privateApi.get(`/posts/comments/${postId}`),
+    deleteComment: (commentId) => privateApi.delete(`/posts/comments/${commentId}`),
+    reactToComment: (commentId, data) => privateApi.post(`/posts/comments/${commentId}/react`, data),
+
+    // --- GROUP 4: TEMPLATES ---
     getTemplates: () => privateApi.get('/templates'),
-    getTemplatesById: (id) => privateApi.get(`/templates/${id}`)
+    getTemplateById: (id) => privateApi.get(`/templates/${id}`).then(res => res.data),
+    getAllTemplates: (organizationId, search = '', { page = 0, size = 10, sortBy = 'usageCount', direction = 'desc' } = {}) =>
+        privateApi.get('/templates/all', { params: { organizationId, search, page, size, sortBy, direction } }).then(res => res.data),
+    createTemplate: (data) => privateApi.post('/templates', data),
+    updateTemplate: (id, data) => privateApi.put(`/templates/${id}`, data),
+    deleteTemplate: (id) => privateApi.delete(`/templates/${id}`),
+    toggleTemplateStar: (id) => privateApi.patch(`/templates/${id}/star`),
+
+    // --- GROUP 5: PLANS ---
+    getMyPlans: () => privateApi.get('/events/plans/my').then(res => ({ ...res, data: (res.data || []).map(transformBaseData) })),
+    getPlanById: (id) => privateApi.get(`/events/plans/${id}`).then(res => ({ ...res, data: transformBaseData(res.data) })),
+    getPlansByStatus: (statusName, accountId) => privateApi.get(`/events/plans/status/${statusName}`, { params: { accountId } }),
+    createPlan: (data, submit = false) => privateApi.post(`/events/plans?submit=${submit}`, data),
+    updatePlan: (id, data) => privateApi.put(`/events/plans/${id}`, data),
+    deletePlan: (id) => privateApi.delete(`/events/plans/${id}`),
+    submitPlanForApproval: (id) => privateApi.post(`/events/plans/${id}/submit`),
+    createEventFromPlan: (id, payload = {}) => privateApi.post(`/events/plans/${id}/create-event`, payload),
+
+    // --- GROUP 6: REGISTRATIONS ---
+    checkRegistration: (eventId) => privateApi.get(`/registrations/check/${eventId}`),
+    registerEvent: (eventId) => privateApi.post(`/registrations/${eventId}`),
+    getTicketByEventId: (id) => privateApi.get(`/registrations/${id}`),
+    getQR: (registrationId) => privateApi.get(`/registrations/${registrationId}/qr`),
+    cancelRegistration: (eventId) => privateApi.patch(`/registrations/cancel/${eventId}`),
+    getUsersByEvent: (eventId) => privateApi.get(`/registrations/event/${eventId}`),
+
+    // --- GROUP 7: ADMIN APPROVAL ---
+    getPlansPendingApproval: () => privateApi.get('/events/admin/plans/pending'),
+    getEventsPendingApproval: () => privateApi.get('/events/admin/events/pending'),
+    approvePlan: (id) => privateApi.patch(`/events/admin/plans/${id}/approve`),
+    rejectPlan: (id, reason) => privateApi.patch(`/events/admin/plans/${id}/reject`, null, { params: { reason } }),
+    approveEvent: (id) => privateApi.patch(`/events/admin/events/${id}/approve`),
+    rejectEvent: (id, reason) => privateApi.patch(`/events/admin/events/${id}/reject`, null, { params: { reason } }),
+
+    // --- GROUP 8: LUCKY DRAW ---
+    createLuckyDrawEntry: (drawId) => privateApi.post(`/entries/${drawId}`),
+
+    // --- GROUP 9: AI CHAT ---
+    createChatSession: (data) => privateApi.post('/api/v1/chat/sessions', data),
+    sendChatMessage: (data) => privateApi.post('/api/v1/chat/messages', data),
+
+    // --- GROUP 10: UTILS ---
+    uploadImage: (formData) => privateApi.post('/events/upload-image', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+    }),
+    // --- GROUP 11: INVITATIONS ---
+    getInvitationDetails: (eventId, token) => publicApi.get(`/events/${eventId}/invitations`, { params: { token } }),
+    acceptInvitation: (eventId, token) => publicApi.post(`/events/${eventId}/accept-invite`, null, { params: { token } }),
+    rejectInvitation: (eventId, token, reason) => publicApi.post(`/events/${eventId}/reject-invite`, null, { params: { token, reason } }),
+
+    sendOrganizerInvitations: (eventId, payload) => privateApi.post(`/events/${eventId}/organizer-invitations`, payload),
+    sendPresenterInvitations: (eventId, payload) => privateApi.post(`/events/${eventId}/presenter-invitations`, payload),
 };
 
 export default eventService;
-    // // Lấy bài đăng theo Account ID
-    // getPostsByAccountId: (accountId) => eventApi.get(`/events/posts/user/${accountId}`),
-
-    // // Lấy bài đăng theo Account ID và Event ID cụ thể
-    // getPostsByAccountIdAndEventId: (accountId, eventId) => 
-    //     eventApi.get(`/events/posts/user/${accountId}/event/${eventId}`),
-
-    // // ==================== REGISTRATIONS (Đăng ký & Trạng thái) ====================
-    // // Hàm đăng ký mới
-    // registerToEvent: (eventId) => 
-    //     eventApi.post(`/events/registrations/${eventId}`),
-
-    // // Hàm kiểm tra trạng thái đăng ký của user hiện tại (Thay thế events.events.get)
-    // checkRegistration: (eventId) => 
-    //     eventApi.get(`/events/registrations/check/${eventId}`),
-
-    // // Hàm hủy đăng ký (Thay thế events.events.put)
-    // cancelRegistration: (eventId) => 
-    //     eventApi.put(`/events/registrations/cancel/${eventId}`),
-
-    // // Lấy QR Code
-    // getQR: (registrationId) => 
-    //     eventApi.get(`/events/registrations/${registrationId}/qr`),
-
-    // // ==================== MY EVENTS ====================
-    // getMyEvents: () => eventApi.get('/events/events/my-events'),
-    
-    // getMyEventsThisMonth: () => eventApi.get('/events/events/my-events/this-month'),
-
-    // // ==================== PLANS (Kế hoạch sự kiện) ====================
-    // getAllPlans: () => eventApi.get('/events/events/plans'),
-    
-    // getMyPlans: () => eventApi.get('/events/events/plans/my'),
-    
-    // getPlansByStatus: (statusName, accountId) => 
-    //     eventApi.get(`/events/plans/status/${statusName}`, { 
-    //         params: { accountId } 
-    //     }),
-
-    // createPlan: (planData) => eventApi.post('/events/plans', planData),
-    
-    // updatePlan: (id, planDetails) => eventApi.put(`/events/plans/${id}`, planDetails),
-    
-    // deletePlan: (id) => eventApi.delete(`/events/plans/${id}`),
-    
-    // submitPlanForApproval: (id) => eventApi.post(`/events/plans/${id}/submit`),
-
-    // // ==================== APPROVAL (Admin) ====================
-    // getPlansPendingApproval: () => eventApi.get('/events/admin/plans/pending'),
-    
-    // getEventsPendingApproval: () => eventApi.get('/events/admin/events/pending'),
-
-    // approvePlan: (id) => eventApi.patch(`/events/admin/plans/${id}/approve`),
-    
-    // rejectPlan: (id, reason) => 
-    //     eventApi.patch(`/events/admin/plans/${id}/reject`, null, {
-    //         params: { reason }
-    //     }),
-
-    // approveEvent: (id) => eventApi.patch(`/events/admin/events/${id}/approve`),
-    
-    // rejectEvent: (id, reason) => 
-    //     eventApi.patch(`/events/admin/events/${id}/reject`, null, {
-    //         params: { reason }
-    //     }),
-
-    // createEventFromPlan: (planId, eventDetails) => 
-    //     eventApi.post(`/events/plans/${planId}/create-event`, eventDetails),
-
-    // // ==================== EVENT STATUS ACTIONS ====================
-    // startEvent: (id) => eventApi.patch(`/events/${id}/start`),
-    
-    // completeEvent: (id) => eventApi.patch(`/events/${id}/complete`),
-    
-    // cancelEvent: (id, reason) => 
-    //     eventApi.patch(`/events/${id}/cancel`, null, { params: { reason } }),
-
-    // // ==================== CRUD Event ====================
-    // createEvent: (event) => eventApi.post('/events', event),
-    
-    // updateEvent: (id, eventDetails) => eventApi.put(`/events/update/${id}`, eventDetails),
-    
-    // deleteEvent: (id) => eventApi.put(`/events/delete/${id}`),   // backend dùng PUT /delete
-
-    // updateLuckyDrawId: (id, luckyDrawId) => 
-    //     eventApi.put(`/events/${id}/lucky-draw`, null, { params: { luckyDrawId } }),
-
-    // // ==================== PRESENTERS ====================
-    // getPresenters: (eventId) => eventApi.get(`/events/${eventId}/presenters`),
-    
-    // addPresenter: (eventId, presenter) => 
-    //     eventApi.post(`/events/${eventId}/presenters`, presenter),
-    
-    // removePresenter: (presenterId) => eventApi.delete(`/events/presenters/${presenterId}`),
-    
-    // updatePresenterTopic: (presenterId, topic) => 
-    //     eventApi.patch(`/events/presenters/${presenterId}/topic`, null, { params: { topic } }),
-
-    // // ==================== PARTICIPANTS ====================
-    // getParticipants: (eventId) => eventApi.get(`/events/${eventId}/participants`),
-    
-    // registerParticipant: (eventId, participant) => 
-    //     eventApi.post(`/events/${eventId}/participants/register`, participant),
-    
-    // cancelParticipant: (participantId, reason) => 
-    //     eventApi.delete(`/events/participants/${participantId}`, { 
-    //         params: { reason } 
-    //     }),
-
-    // checkInParticipant: (participantId, checkedInBy) => 
-    //     eventApi.patch(`/events/participants/${participantId}/checkin`, null, {
-    //         params: { checkedInBy }
-    //     }),
-
-    // checkIn: (token) => eventApi.post('/events/events/registrations/check-in', { qrToken: token }),
-
-    // countParticipants: (eventId) => eventApi.get(`/events/${eventId}/participants/count`),
-
-    // // ==================== ORGANIZERS ====================
-    // getOrganizers: (eventId) => eventApi.get(`/events/${eventId}/organizers`),
-    
-    // addOrganizer: (eventId, organizer) => 
-    //     eventApi.post(`/events/${eventId}/organizers`, organizer),
-
-    // removeOrganizer: (organizerId) => eventApi.delete(`/events/organizers/${organizerId}`),
-
-    // // ==================== INVITE & REGISTRATION ====================
-    // inviteParticipants: (eventId, inviteeIds) => 
-    //     eventApi.post(`/events/${eventId}/invite`, inviteeIds),
-
-    // acceptInvite: (eventId, token) => 
-    //     eventApi.get(`/events/${eventId}/accept-invite`, { 
-    //         params: { token } 
-    //     }),
-
-    // getAllTemplates: (organizationId, search = '', { page = 0, size = 10, sortBy = 'usageCount', direction = 'desc' } = {}) => 
-    //     eventApi.get('/events/templates/all', {
-    //         params: {
-    //             organizationId,
-    //             search,
-    //             page,
-    //             size,
-    //             sortBy,
-    //             direction
-    //         }
-    //     }),
-
-    // // Thêm các hàm CRUD template khác nếu cần
-    // createTemplate: (data) => eventApi.post('/events/templates', data),
-    
-    // updateTemplate: (id, data) => eventApi.put(`/events/templates/${id}`, data),
-    
-    // deleteTemplate: (id) => eventApi.delete(`/events/templates/${id}`),
-
-    // getTemplateById: (id) => eventApi.get(`/events/templates/${id}`),

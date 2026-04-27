@@ -124,20 +124,27 @@ public class GeminiChatServiceImpl implements GeminiChatService {
                 Phân tích ý định của người dùng từ tin nhắn sau:
                 "%s"
                 
-                Trả về một trong các ý định sau:
+                Trả về DUY NHẤT một trong các ý định sau (không có ký tự lạ, không giải thích):
                 - EVENT_PLANNING: Muốn lập kế hoạch sự kiện
                 - EVENT_INQUIRY: Hỏi về sự kiện
                 - REGISTRATION_HELP: Cần hỗ trợ đăng ký
                 - GENERAL_QUESTION: Câu hỏi chung
                 - FEEDBACK: Phản hồi/góp ý
-                
-                Chỉ trả về tên ý định, không giải thích.
                 """, message);
             
-            return callGeminiAPI(prompt).trim();
+            String result = callGeminiAPI(prompt).trim().toUpperCase();
+            log.info("Raw intent analysis result: {}", result);
+
+            // Robust intent matching
+            if (result.contains("EVENT_PLANNING")) return "EVENT_PLANNING";
+            if (result.contains("EVENT_INQUIRY")) return "EVENT_INQUIRY";
+            if (result.contains("REGISTRATION") || result.contains("ĐĂNG KÝ")) return "REGISTRATION_HELP";
+            if (result.contains("FEEDBACK") || result.contains("GÓP Ý")) return "FEEDBACK";
+            
+            return "GENERAL_QUESTION";
             
         } catch (Exception e) {
-            log.error("Error analyzing user intent: {}", e.getMessage(), e);
+            log.error("Error analyzing user intent: {}", e.getMessage());
             return "GENERAL_QUESTION";
         }
     }
@@ -212,24 +219,26 @@ public class GeminiChatServiceImpl implements GeminiChatService {
         String basePrompt = """
             Bạn là trợ lý AI thông minh của hệ thống quản lý sự kiện trường Đại học Công nghiệp TP.HCM (IUH).
             
-            NĂNG LỰC CHÍNH:
-            - Phân tích chi tiết bất kỳ sự kiện nào dựa trên dữ liệu thực từ database
-            - Hỗ trợ sinh viên, giảng viên tìm hiểu, so sánh sự kiện
-            - Giúp lập kế hoạch sự kiện một cách chuyên nghiệp
-            - Trả lời câu hỏi về quy trình đăng ký, tham gia sự kiện
-            - Gợi ý sự kiện phù hợp dựa trên sở thích người dùng
+            QUYỀN HẠN CỦA BẠN:
+            - Bạn được tích hợp trực tiếp với Cơ sở dữ liệu của hệ thống.
+            - Bạn có khả năng truy xuất thông tin thời gian thực về tất cả sự kiện đang diễn ra, sắp diễn ra và đã kết thúc.
+            
+            NHIỆM VỤ CHÍNH:
+            - PHÂN TÍCH sự kiện dựa trên dữ liệu thật (tên, mục tiêu, diễn giả, nội dung).
+            - TRẢ LỜI chính xác về thời gian, địa điểm, yêu cầu tham gia.
+            - GỢI Ý các sự kiện phù hợp dựa trên nhu cầu của người dùng.
+            - HỖ TRỢ lập kế hoạch sự kiện chuẩn IUH.
             
             NGUYÊN TẮC TRẢ LỜI:
-            - CHỈ dựa vào dữ liệu sự kiện được cung cấp, TUYỆT ĐỐI KHÔNG bịa đặt
-            - Khi user hỏi về sự kiện cụ thể, tìm sự kiện phù hợp nhất trong dữ liệu
-            - Phân tích đầy đủ: mô tả, thời gian, địa điểm, diễn giả, chương trình, etc.
-            - Nếu không tìm thấy sự kiện, nói rõ và gợi ý các sự kiện có sẵn
-            - Sử dụng emoji phù hợp và định dạng rõ ràng
+            - ƯU TIÊN TUYỆT ĐỐI dữ liệu được cung cấp trong phần "DỮ LIỆU SỰ KIỆN TỪ DATABASE".
+            - Nếu user hỏi "có gì hot", hãy phân tích các sự kiện "Featured" hoặc "Ongoing" trong dữ liệu.
+            - Nếu không có dữ liệu phù hợp, hãy thông báo rõ và liệt kê danh sách sự kiện đang có.
+            - KHÔNG ĐƯỢC bịa đặt thông tin không có trong database.
+            - Trình bày đẹp mắt bằng Emoji và Markdown (Bullet points, In đậm).
             
             PHONG CÁCH:
-            - Thân thiện, nhiệt tình, chuyên nghiệp
-            - Tiếng Việt chuẩn, có cấu trúc rõ ràng
-            - Dùng bullet points, emoji để dễ đọc
+            - Chuyên nghiệp nhưng thân thiện.
+            - Luôn sẵn sàng hỗ trợ sinh viên và giảng viên IUH.
             """;
         
         return switch (contextType) {
@@ -297,6 +306,11 @@ public class GeminiChatServiceImpl implements GeminiChatService {
             if (!response.isSuccessful()) {
                 String errorBody = response.body() != null ? response.body().string() : "no body";
                 log.error("Gemini API call failed with status: {} and body: {}", response.code(), errorBody);
+                
+                if (response.code() == 429) {
+                    return "Xin lỗi, hiện tại tốc độ yêu cầu AI đang quá nhanh (Rate Limit). Vui lòng thử lại sau 30 giây.";
+                }
+                
                 throw new RuntimeException("Gemini API call failed with status " + response.code());
             }
             
@@ -307,11 +321,24 @@ public class GeminiChatServiceImpl implements GeminiChatService {
             }
             
             JsonNode jsonNode = objectMapper.readTree(responseBody);
-            String text = jsonNode.at("/candidates/0/content/parts/0/text").asText();
             
-            if (text == null || text.isBlank()) {
-                log.warn("Gemini API response contained no text. Full response: {}", responseBody);
-                return "Tôi không thể xử lý yêu cầu này lúc này. Phản hồi từ AI bị trống.";
+            // Check for API errors in response body
+            if (jsonNode.has("error")) {
+                String errMsg = jsonNode.path("error").path("message").asText("Unknown error");
+                log.error("Gemini API returned Error: {}", errMsg);
+                throw new RuntimeException("Gemini API Error: " + errMsg);
+            }
+
+            JsonNode textNode = jsonNode.at("/candidates/0/content/parts/0/text");
+            if (textNode.isMissingNode()) {
+                log.warn("Gemini API response candidate 0 text is missing. Full response: {}", responseBody);
+                return "Tôi không thể xử lý nội dung này (AI safety filter hoặc lỗi response).";
+            }
+            
+            String text = textNode.asText().trim();
+            if (text.isEmpty()) {
+                log.warn("Gemini API returned empty text. Response body: {}", responseBody);
+                return "Tôi đã nhận được yêu cầu nhưng không thể tạo ra câu trả lời phù hợp lúc này.";
             }
             
             return text;

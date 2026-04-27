@@ -19,6 +19,9 @@ public class PostResponseDto {
     private UserDto createdBy;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
+    private java.util.List<String> imageUrls;
+    private java.util.Map<String, String> reactions;
+    private String eventTitle;
 
     public static PostResponseDto from(EventPost post, UserDto creator) {
         PostResponseDto dto = new PostResponseDto();
@@ -28,10 +31,13 @@ public class PostResponseDto {
         dto.setPostType(post.getPostType());
         dto.setStatus(post.getStatus());
         dto.setEventId(post.getEvent().getId());
-//        dto.setCreatedByAccountId(post.getCreatedByAccountId());
+        dto.setEventTitle(post.getEvent().getTitle());
+        // dto.setCreatedByAccountId(post.getCreatedByAccountId());
         dto.setCreatedBy(creator);
         dto.setCreatedAt(post.getCreatedAt());
         dto.setUpdatedAt(post.getUpdatedAt());
+        dto.setImageUrls(post.getImageUrls());
+        dto.setReactions(post.getReactions());
         return dto;
     }
 }
