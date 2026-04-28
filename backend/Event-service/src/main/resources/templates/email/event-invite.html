@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Thư mời Sự kiện - IUH</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            width: 100% !important;
+            background: linear-gradient(180deg, #f8fafc 0%, #eef2f7 100%);
+            font-family: 'Segoe UI', Roboto, -apple-system, BlinkMacSystemFont, sans-serif;
+            color: #1e293b;
+        }
+
+        .wrapper {
+            width: 100%;
+            padding: 50px 0;
+        }
+
+        .main-table {
+            max-width: 620px;
+            margin: 0 auto;
+            background: #ffffff;
+            border-radius: 16px;
+            overflow: hidden;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.08);
+        }
+
+        /* HEADER */
+        .header {
+            background: linear-gradient(135deg, #c21807, #ef4444);
+            padding: 35px 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            color: #ffffff;
+            margin: 0;
+            font-size: 18px;
+            letter-spacing: 2px;
+            font-weight: 700;
+        }
+
+        /* CONTENT */
+        .content {
+            padding: 45px 40px;
+            line-height: 1.7;
+        }
+
+        .greeting {
+            font-size: 18px;
+            font-weight: 700;
+            margin-bottom: 18px;
+        }
+
+        /* EVENT BOX */
+        .event-box {
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            padding: 28px;
+            margin: 28px 0;
+            border-radius: 12px;
+            box-shadow: 0 6px 14px rgba(0, 0, 0, 0.05);
+            position: relative;
+        }
+
+        .event-box::before {
+            content: "";
+            position: absolute;
+            left: 0;
+            top: 20px;
+            bottom: 20px;
+            width: 4px;
+            border-radius: 4px;
+            background: linear-gradient(180deg, #c21807, #ef4444);
+        }
+
+        .event-name {
+            font-size: 22px;
+            font-weight: 800;
+            color: #b91c1c;
+            margin-bottom: 18px;
+        }
+
+        .info-row {
+            margin-bottom: 12px;
+            font-size: 14px;
+        }
+
+        .info-label {
+            font-weight: 600;
+            color: #64748b;
+            display: inline-block;
+            min-width: 110px;
+        }
+
+        /* BUTTON */
+        .btn-container {
+            text-align: center;
+            margin: 40px 0;
+        }
+
+        .btn {
+            background: linear-gradient(135deg, #c21807, #ef4444);
+            color: #ffffff !important;
+            padding: 14px 34px;
+            text-decoration: none;
+            border-radius: 8px;
+            font-weight: 700;
+            font-size: 15px;
+            display: inline-block;
+            box-shadow: 0 6px 14px rgba(239, 68, 68, 0.4);
+            transition: all 0.25s ease;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 18px rgba(239, 68, 68, 0.5);
+        }
+
+        /* FOOTER */
+        .footer {
+            background: #f8fafc;
+            padding: 28px;
+            text-align: center;
+            font-size: 12px;
+            color: #64748b;
+            border-top: 1px solid #e2e8f0;
+        }
+
+        .footer p {
+            margin: 6px 0;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="wrapper">
+        <table class="main-table">
+            <tr>
+                <td class="header">
+                    <h1>HỆ THỐNG QUẢN LÝ SỰ KIỆN IUH</h1>
+                </td>
+            </tr>
+            <tr>
+                <td class="content">
+                    <p class="greeting">Kính gửi Quý Thầy/Cô và các bạn Sinh viên,</p>
+                    <p>Ban Tổ chức sự kiện Trường Đại học Công nghiệp TP. Hồ Chí Minh (IUH) trân trọng kính mời bạn tham
+                        dự sự kiện:</p>
+
+                    <div class="event-box">
+                        <h2 class="event-name" th:text="${eventName}">Tên Sự Kiện</h2>
+                        <div class="info-row">
+                            <span class="info-label">⏰ Thời gian:</span>
+                            <span th:text="${startTime} + ' - ' + ${endTime}">18/04/2026</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="info-label">📍 Địa điểm:</span>
+                            <span th:text="${location}">Hội trường A7</span>
+                        </div>
+                        <div class="info-row" th:if="${description != null && !description.isEmpty()}">
+                            <span class="info-label">📝 Mô tả:</span>
+                            <span th:text="${description}">Mô tả sự kiện</span>
+                        </div>
+                    </div>
+
+                    <p>Sự hiện diện của bạn là niềm vinh dự của Ban Tổ chức chúng tôi.</p>
+                    <p>Vui lòng nhấn vào nút bên dưới để xem chi tiết và phản hồi lời mời:</p>
+
+                    <div class="btn-container">
+                        <a th:href="${inviteUrl}" class="btn">XEM CHI TIẾT & PHẢN HỒI</a>
+                    </div>
+
+                    <p style="font-size: 13px; color: #be123c; font-weight: 600;">* Lưu ý: Link xác nhận này sẽ hết hạn
+                        sau <span th:text="${expirySeconds}">30</span> giây.</p>
+                </td>
+            </tr>
+            <tr>
+                <td class="footer">
+                    <p><strong>Ban Tổ chức Sự kiện IUH</strong></p>
+                    <p>Website: iuh.edu.vn | Email: btc-events@iuh.edu.vn</p>
+                    <p>Địa chỉ: 12 Nguyễn Văn Bảo, P.4, Q. Gò Vấp, TP.HCM</p>
+                    <p>&copy; 2026 Industrial University of Ho Chi Minh City</p>
+                </td>
+            </tr>
+        </table>
+    </div>
+</body>
+
+</html>

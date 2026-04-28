@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Xác nhận mã OTP</title>
+</head>
+<body style="margin:0; padding:0; font-family:Arial, Helvetica, sans-serif; background-color:#f4f4f4;">
+<table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%" style="max-width:600px; margin:20px auto; background:#ffffff; border-radius:12px; overflow:hidden; box-shadow:0 4px 15px rgba(0,0,0,0.1);">
+    <tr>
+        <td style="background:#1a3a6b; padding:30px; text-align:center;">
+            <img th:src="${logoUrl}" alt="IUH Logo" style="max-width:140px; height:auto; margin-bottom:10px;">
+            <h1 style="color:#ffffff; margin:0; font-size:24px;">Xác thực tài khoản</h1>
+        </td>
+    </tr>
+    <tr>
+        <td style="padding:40px 30px; text-align:center;">
+            <p style="font-size:18px; color:#333333; margin:0 0 20px 0;">Xin chào <strong th:text="${fullName}"></strong>,</p>
+            <p style="font-size:16px; color:#555555; line-height:1.6; margin:0 0 20px 0;">
+                Bạn đang thực hiện đăng ký tài khoản tại <strong>Hệ thống Quản lý Sự kiện IUH</strong>.
+            </p>
+            <p style="font-size:16px; color:#555555; line-height:1.6; margin:0 0 10px 0;">
+                Vui lòng sử dụng mã OTP dưới đây để hoàn tất đăng ký:
+            </p>
+
+            <div style="background:#f8f9fa; border:2px dashed #1a3a6b; border-radius:10px; padding:20px; margin:30px 0;">
+                <span th:text="${otp}" style="font-size:42px; font-weight:bold; color:#1a3a6b; letter-spacing:10px; font-family: 'Courier New', Courier, monospace;">000000</span>
+            </div>
+
+            <p style="font-size:14px; color:#ef4444; font-weight:bold; margin:20px 0;">
+                Mã này có hiệu lực trong vòng 5 phút.
+            </p>
+
+            <p style="font-size:14px; color:#777777; line-height:1.4; margin-top:30px;">
+                Nếu bạn không thực hiện yêu cầu này, vui lòng bỏ qua email này hoặc liên hệ bộ phận hỗ trợ nếu thấy dấu hiệu bất thường.
+            </p>
+        </td>
+    </tr>
+    <tr>
+        <td style="background:#f1f5f9; padding:20px; text-align:center; font-size:12px; color:#64748b;">
+            <p style="margin:5px 0;">Trân trọng,<br><strong>Đội ngũ kỹ thuật IUH Event</strong></p>
+            <p style="margin:5px 0;">© 2026 IUH Event Portal. All rights reserved.</p>
+        </td>
+    </tr>
+</table>
+</body>
+</html>

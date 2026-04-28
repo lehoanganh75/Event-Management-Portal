@@ -1,0 +1,193 @@
+version: '3.8'
+
+services:
+  mariadb:
+    image: mariadb:11
+    container_name: mariadb-server
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+    ports:
+      - "3309:3306"
+    volumes:
+      - mariadb_data:/var/lib/mysql
+    networks:
+      - micro-network
+
+  mongodb:
+    image: mongo:7
+    container_name: mongodb-server
+    restart: always
+    ports:
+      - "27020:27017"
+    volumes:
+      - mongo_data:/data/db
+    networks:
+      - micro-network
+
+  redis:
+    image: redis:7-alpine
+    container_name: redis-server
+    restart: always
+    ports:
+      - "6379:6379"
+    networks:
+      - micro-network
+
+  kafka:
+    image: apache/kafka:3.7.0
+    container_name: kafka-server
+    restart: always
+    ports:
+      - "9092:9092"
+      - "29092:29092"   # cho host access nếu cần
+    environment:
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_LISTENERS: PLAINTEXT://:9092,PLAINTEXT_HOST://:29092,CONTROLLER://:9093
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092,PLAINTEXT_HOST://localhost:29092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT,CONTROLLER:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_LOG_DIRS: /tmp/kraft-combined-logs
+    networks:
+      - micro-network
+
+# ========================
+# MICROSERVICES
+# ========================
+  analytics-service:
+    build: ./Analytics-service
+    container_name: analytics-service
+    restart: always
+    ports:
+      - "8081:8081"
+    environment:
+      EUREKA_CLIENT_ENABLED: "false"
+      SPRING_DATASOURCE_URL: jdbc:mariadb://mariadb:3306/analytics_db?createDatabaseIfNotExist=true
+      SPRING_DATASOURCE_USERNAME: root
+      SPRING_DATASOURCE_PASSWORD: root
+    depends_on:
+      - mariadb
+    networks:
+      - micro-network
+
+  event-service:
+    build: ./Event-service
+    container_name: event-service
+    restart: always
+    ports:
+      - "8082:8082"
+    env_file:
+      - ./Event-service/.env
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:mariadb://mariadb:3306/event_db?createDatabaseIfNotExist=true
+      SPRING_DATASOURCE_USERNAME: root
+      SPRING_DATASOURCE_PASSWORD: root
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      SPRING_DATA_REDIS_HOST: redis
+      SPRING_DATA_REDIS_PORT: 6379
+    depends_on:
+      - mariadb
+      - kafka
+      - redis
+    networks:
+      - micro-network
+
+  identity-service:
+    build: ./Identity-service
+    container_name: identity-service
+    restart: always
+    ports:
+      - "8083:8083"
+    env_file:
+      - ./Identity-service/.env
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:mariadb://mariadb:3306/identity_db?createDatabaseIfNotExist=true
+      SPRING_DATASOURCE_USERNAME: root
+      SPRING_DATASOURCE_PASSWORD: root
+    depends_on:
+      - mariadb
+    networks:
+      - micro-network
+
+  lucky-draw-service:
+    build: ./Lucky-draw-service
+    container_name: lucky-draw-service
+    restart: always
+    ports:
+      - "8084:8084"
+    env_file:
+        - ./Lucky-draw-service/.env
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:mariadb://mariadb:3306/lucky_draw_db?createDatabaseIfNotExist=true
+      SPRING_DATASOURCE_USERNAME: root
+      SPRING_DATASOURCE_PASSWORD: root
+    depends_on:
+      - mariadb
+    networks:
+      - micro-network
+
+  notification-service:
+    build: ./Notification-service
+    container_name: notification-service
+    restart: always
+    ports:
+      - "8085:8085"
+    env_file:
+      - ./Notification-service/.env
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:mariadb://mariadb:3306/notification_db?createDatabaseIfNotExist=true
+      SPRING_DATASOURCE_USERNAME: root
+      SPRING_DATASOURCE_PASSWORD: root
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+    depends_on:
+      - mariadb
+      - kafka
+    networks:
+      - micro-network
+
+# ========================
+# KONG API GATEWAY
+# ========================
+  kong:
+    image: kong:3.6
+    container_name: kong-server
+    restart: always
+    ports:
+      - "8000:8000"
+      - "8001:8001"
+    environment:
+      KONG_DATABASE: "off"
+      KONG_DECLARATIVE_CONFIG: /kong/kong.yml
+      KONG_PROXY_ACCESS_LOG: /dev/stdout
+      KONG_ADMIN_ACCESS_LOG: /dev/stdout
+      KONG_ADMIN_LISTEN: 0.0.0.0:8001
+    volumes:
+      - ./kong/kong.yml:/kong/kong.yml
+    depends_on:
+      - analytics-service
+      - event-service
+      - identity-service
+      - lucky-draw-service
+      - notification-service
+    networks:
+      - micro-network
+
+# ========================
+# NETWORK
+# ========================
+networks:
+  micro-network:
+    driver: bridge
+
+# ========================
+# VOLUME
+# ========================
+volumes:
+  mariadb_data:
+  mongo_data:

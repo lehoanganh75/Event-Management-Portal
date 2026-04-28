@@ -1,0 +1,17 @@
+name: CI Pipeline Debug
+
+on:
+  push:
+    branches: [ "main" ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: List all files (Thám tử thư mục)
+        run: |
+          echo "Dưới đây là cấu trúc thư mục thực tế:"
+          find . -maxdepth 3 -not -path '*/.*'

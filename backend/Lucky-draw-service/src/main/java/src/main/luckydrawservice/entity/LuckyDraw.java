@@ -1,0 +1,66 @@
+package src.main.luckydrawservice.entity;
+
+import com.fasterxml.jackson.annotation.JsonFormat;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import jakarta.persistence.*;
+import lombok.*;
+import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.UpdateTimestamp;
+
+import java.time.LocalDateTime;
+import java.util.List;
+
+@Entity
+@Data
+@AllArgsConstructor
+@NoArgsConstructor
+@Table(name = "lucky_draws")
+public class LuckyDraw {
+    @Id
+    @GeneratedValue(strategy = GenerationType.UUID)
+    private String id;
+
+    @Column(nullable = false)
+    private String eventId;
+    private String createdByAccountId;
+
+    @Column(nullable = false)
+    private String title;
+    private String description;
+
+    @Enumerated(EnumType.STRING)
+    private DrawStatus status = DrawStatus.PENDING;
+
+    private boolean allowMultipleWins;
+    @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss")
+    private LocalDateTime startTime;
+    @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss")
+    private LocalDateTime endTime;
+
+    // 1 LuckyDraw có nhiều Prize
+    @OneToMany(mappedBy = "luckyDraw",
+            cascade = CascadeType.ALL,
+            orphanRemoval = true)
+    @JsonIgnoreProperties("luckyDraw")
+    private List<Prize> prizes;
+
+    // 1 LuckyDraw có nhiều Entry
+    @OneToMany(mappedBy = "luckyDraw",
+            cascade = CascadeType.ALL,
+            orphanRemoval = true)
+    @JsonIgnoreProperties("luckyDraw")
+    private List<DrawEntry> entries;
+
+    // 1 LuckyDraw có nhiều Result
+    @OneToMany(mappedBy = "luckyDraw",
+            cascade = CascadeType.ALL,
+            orphanRemoval = true)
+    @JsonIgnoreProperties("luckyDraw")
+    private List<DrawResult> results;
+
+    @CreationTimestamp
+    private LocalDateTime createdAt;
+    @UpdateTimestamp
+    private LocalDateTime updatedAt;
+    private boolean isDeleted = false;
+}
