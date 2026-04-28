@@ -22,6 +22,8 @@ import {
   XCircle,
   Info,
   LayoutDashboard,
+  FileText,
+  Send,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Client } from "@stomp/stompjs";
@@ -32,9 +34,15 @@ import { useAuth } from "../../context/AuthContext";
 import notificationService from "../../services/notificationService";
 
 const roleMap = {
-  SUPER_ADMIN: "Quản Trị Viên Cao Cấp",
-  ADMIN: "Quản Trị Viên",
-  STUDENT: "Sinh Viên",
+  SUPER_ADMIN: "Quản trị viên cấp cao",
+  ADMIN: "Quản trị viên",
+  LECTURER: "Giảng viên / Tổ chức",
+  STUDENT: "Sinh viên",
+  MEMBER: "Sinh viên",
+  LEADER: "Trưởng nhóm / Leader",
+  SUB_LEADER: "Phó nhóm / Sub-leader",
+  SECRETARY: "Thư ký",
+  MEMBER_ORG: "Thành viên",
   GUEST: "Người dùng",
 };
 
@@ -215,8 +223,21 @@ const Header = () => {
 
   const getPrimaryRole = () => {
     const rawRole = user?.role || user?.roles?.[0] || "";
-    const cleanRole = rawRole.toUpperCase();
-    return roleMap[cleanRole] || roleMap[rawRole] || "Thành viên";
+    const systemRole = rawRole.toUpperCase();
+
+    // 1. Ưu tiên các vai trò quản trị hệ thống (SUPER_ADMIN, ADMIN)
+    if (systemRole === "SUPER_ADMIN" || systemRole === "ADMIN") {
+      return roleMap[systemRole] || (systemRole === "ADMIN" ? "Quản trị viên" : "Quản trị viên cấp cao");
+    }
+
+    // 2. Tiếp theo là vai trò trong sự kiện (LEADER, SECRETARY...) dành cho MEMBER/LECTURER
+    if (user?.eventRoles && user.eventRoles.length > 0) {
+      const eRole = user.eventRoles[0];
+      return roleMap[eRole] || eRole;
+    }
+
+    // 3. Cuối cùng hiển thị vai trò hệ thống khác (LECTURER, MEMBER)
+    return roleMap[systemRole] || roleMap[rawRole] || "Sinh viên";
   };
 
   const getNotificationIcon = (type) => {
@@ -228,6 +249,7 @@ const Header = () => {
       case "EVENT_SUBMITTED": return <Send size={18} className="text-orange-500" />;
       case "EVENT_CREATED": return <Calendar size={18} className="text-purple-500" />;
       case "REGISTRATION_CONFIRMED": return <Mail size={18} className="text-blue-500" />;
+      case "INVITATION": return <Mail size={18} className="text-amber-500" />;
       case "SYSTEM": return <Info size={18} className="text-slate-500" />;
       case "GENERAL": return <Bell size={18} className="text-blue-500" />;
       default: return <Bell size={18} className="text-slate-400" />;
@@ -259,6 +281,14 @@ const Header = () => {
   const isAdminOnly = () => {
     const roles = user?.roles || (user?.role ? [user.role] : []);
     return roles.some((r) => r?.toUpperCase() === "ADMIN") && !isSuperAdmin();
+  };
+
+  const isEventStaff = () => {
+    return user?.eventRoles && user.eventRoles.length > 0;
+  };
+
+  const isLeaderRole = () => {
+    return user?.eventRoles?.some(role => role.toUpperCase() === 'LEADER');
   };
 
   const isActive = (path) => location.pathname === path;
@@ -372,6 +402,15 @@ const Header = () => {
                   Quản lý
                 </Link>
               )}
+
+              {isEventStaff() && !isAdminOnly() && !isSuperAdmin() && (
+                <Link
+                  to={isLeaderRole() ? "/lecturer" : "/lecturer/events"}
+                  className="ml-4 px-5 py-2.5 rounded-xl text-sm font-medium bg-indigo-50 text-indigo-600 hover:bg-indigo-100 transition-all border border-indigo-100 shadow-sm"
+                >
+                  Ban tổ chức
+                </Link>
+              )}
             </nav>
 
             {/* Right Side */}
@@ -443,7 +482,13 @@ const Header = () => {
                                 initial={{ opacity: 0, x: -10 }}
                                 animate={{ opacity: 1, x: 0 }}
                                 transition={{ delay: index * 0.03 }}
-                                onClick={() => !notification.read && handleMarkAsRead(notification.id)}
+                                onClick={() => {
+                                  if (!notification.read) handleMarkAsRead(notification.id);
+                                  if (notification.actionUrl) {
+                                    setIsNotificationOpen(false);
+                                    navigate(notification.actionUrl);
+                                  }
+                                }}
                                 className={`px-6 py-4 cursor-pointer transition-all hover:bg-slate-50 ${!notification.read ? "bg-blue-50/60" : ""
                                   }`}
                               >
@@ -604,6 +649,17 @@ const Header = () => {
                             >
                               <LayoutDashboard size={20} className="text-blue-500" />
                               Trang Quản lý
+                            </Link>
+                          )}
+
+                          {isEventStaff() && !isAdminOnly() && !isSuperAdmin() && (
+                            <Link
+                              to={isLeaderRole() ? "/lecturer" : "/lecturer/events"}
+                              onClick={() => setIsMenuOpen(false)}
+                              className="flex items-center gap-4 px-5 py-3.5 text-[15px] font-medium text-indigo-600 hover:bg-indigo-50 rounded-2xl transition-all active:bg-indigo-100"
+                            >
+                              <ShieldCheck size={20} className="text-indigo-500" />
+                              Ban tổ chức
                             </Link>
                           )}
 

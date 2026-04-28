@@ -248,8 +248,7 @@ INSERT INTO events (
     notes,
     created_by_account_id,
     template_id, has_lucky_draw,
-    is_deleted, archived, finalized,
-    created_at
+    is_deleted, created_at
 )
 VALUES
 
@@ -268,7 +267,7 @@ VALUES
  'Sự kiện quy mô lớn toàn trường',
  'USE004',
  'a2311a05-2f22-11f1-a793-726639b4c8d6', false,
- false, false, false,
+ false,
  NOW()),
 
 -- 2
@@ -286,7 +285,7 @@ VALUES
  'Sự kiện online giới thiệu về điện toán đám mây',
  'USE004',
  'a2311a05-2f22-11f1-a793-726639b4c8d6', false,
- false, false, false,
+ false,
  NOW()),
 
 -- 3
@@ -304,7 +303,7 @@ VALUES
  'Thực hành xây dựng ứng dụng Spring Boot',
  'USE001',
  'a2311a05-2f22-11f1-a793-726639b4c8d6',false,
- false, false, false,
+ false,
  NOW()),
 
 -- 4
@@ -322,7 +321,7 @@ VALUES
  'Cuộc thi lập trình thường niên của CLB HIT',
  'USE002',
  'a2311a05-2f22-11f1-a793-726639b4c8d6',false,
- false, false, false,
+ false,
  NOW()),
 
 -- 5
@@ -340,7 +339,7 @@ VALUES
  'Sự kiện chào đón tân sinh viên IT năm 2026',
  'USE001',
  'a2311a05-2f22-11f1-a793-726639b4c8d6',false,
- false, false, false,
+ false,
  NOW()),
 
 -- 6
@@ -358,7 +357,7 @@ VALUES
  'Talkshow định hướng nghề nghiệp cho sinh viên IT',
  'USE001',
  'a2311a05-2f22-11f1-a793-726639b4c8d6',false,
- false, false, false,
+ false,
  NOW()),
 
 -- 7
@@ -376,7 +375,7 @@ VALUES
  'Sự kiện đào tạo Linux cơ bản cho sinh viên',
  'USE010',
  'a2311a05-2f22-11f1-a793-726639b4c8d6',false,
- false, true, true,
+ false,
  '2026-02-15 10:00:00'),
 
 -- 8
@@ -394,7 +393,7 @@ VALUES
  'Cuộc thi lập trình về giải pháp thành phố xanh',
  'USE008',
  'a2311a05-2f22-11f1-a793-726639b4c8d6',false,
- false, false, false,
+ false,
  NOW()),
 
 -- 9
@@ -412,7 +411,7 @@ VALUES
  'Sự kiện này',
  'USE007',
  'a2311a05-2f22-11f1-a793-726639b4c8d6',false,
- true, false, false,
+ true,
  NOW()),
 
 -- 10
@@ -430,114 +429,83 @@ VALUES
  'Sự kiện đào tạo về AI thế hệ mới',
  'USE003',
  'a2311a05-2f22-11f1-a793-726639b4c8d6',false,
- false, false, false,
+ false,
  NOW());
 
 -- Lịch trình cho IUH Tech Day (evt-1)
-INSERT INTO event_sessions (id, event_id, title, description, room, type, start_time, end_time, max_participants, order_index, status, created_at, is_deleted)
+INSERT INTO event_sessions (id, event_id, title, description, room, type, start_time, end_time, order_index, status, created_at, is_deleted)
 VALUES
-    (UUID(), 'evt-1', 'Khai mạc & Keynote AI 2026', 'Giới thiệu xu hướng AI mới nhất', 'Hội trường A7', 'KEYNOTE', '2026-05-15 08:30:00', '2026-05-15 09:30:00', 500, 1, 'KEYNOTE', NOW(),false),
-    (UUID(), 'evt-1', 'Tiệc trà giữa giờ', 'Giao lưu và dùng teabreak', 'Sảnh A7', 'BREAK', '2026-05-15 09:30:00', '2026-05-15 10:00:00', 500, 2, 'BREAK', NOW(),false),
-    (UUID(), 'evt-1', 'Workshop: Microservices với Spring Boot', 'Thực hành xây dựng hệ thống phân tán', 'Phòng H5.1', 'WORKSHOP', '2026-05-15 10:00:00', '2026-05-15 12:00:00', 50, 3, 'WORKSHOP', NOW(),false),
-    (UUID(), 'evt-1', 'Thảo luận: Cơ hội việc làm IT', 'Hỏi đáp cùng các chuyên gia doanh nghiệp', 'Hội trường A7', 'WORKSHOP', '2026-05-15 13:30:00', '2026-05-15 15:30:00', 300, 4, 'WORKSHOP', NOW(), false);
+    (UUID(), 'evt-1', 'Khai mạc & Keynote AI 2026', 'Giới thiệu xu hướng AI mới nhất', 'Hội trường A7', 'KEYNOTE', '2026-05-15 08:30:00', '2026-05-15 09:30:00', 1, 'KEYNOTE', NOW(),false),
+    (UUID(), 'evt-1', 'Tiệc trà giữa giờ', 'Giao lưu và dùng teabreak', 'Sảnh A7', 'BREAK', '2026-05-15 09:30:00', '2026-05-15 10:00:00', 2, 'BREAK', NOW(),false),
+    (UUID(), 'evt-1', 'Workshop: Microservices với Spring Boot', 'Thực hành xây dựng hệ thống phân tán', 'Phòng H5.1', 'WORKSHOP', '2026-05-15 10:00:00', '2026-05-15 12:00:00', 3, 'WORKSHOP', NOW(),false),
+    (UUID(), 'evt-1', 'Thảo luận: Cơ hội việc làm IT', 'Hỏi đáp cùng các chuyên gia doanh nghiệp', 'Hội trường A7', 'WORKSHOP', '2026-05-15 13:30:00', '2026-05-15 15:30:00', 4, 'WORKSHOP', NOW(), false);
 
 -- Lịch trình cho HIT Code War (evt-4)
-INSERT INTO event_sessions (id, event_id, title, description, room, type, start_time, end_time, max_participants, order_index, status, created_at, is_deleted)
+INSERT INTO event_sessions (id, event_id, title, description, room, type, start_time, end_time, order_index, status, created_at, is_deleted)
 VALUES
-    (UUID(), 'evt-4', 'Check-in & Phát số báo danh', 'Nhận tài khoản thi đấu', 'E4.1', 'BREAK', '2026-06-10 07:00:00', '2026-06-10 08:00:00', 100, 1, 'BREAK', NOW(),false),
-    (UUID(), 'evt-4', 'Vòng thi đấu chính thức', 'Giải quyết 10 bài toán thuật toán', 'Phòng máy E4', 'KEYNOTE', '2026-06-10 08:00:00', '2026-06-10 11:30:00', 100, 2, 'KEYNOTE', NOW(),false),
-    (UUID(), 'evt-4', 'Trao giải & Bế mạc', 'Công bố bảng xếp hạng', 'Hội trường E4', 'KEYNOTE', '2026-06-10 11:30:00', '2026-06-10 12:00:00', 100, 3, 'KEYNOTE', NOW(), false);
+    (UUID(), 'evt-4', 'Check-in & Phát số báo danh', 'Nhận tài khoản thi đấu', 'E4.1', 'BREAK', '2026-06-10 07:00:00', '2026-06-10 08:00:00', 1, 'BREAK', NOW(),false),
+    (UUID(), 'evt-4', 'Vòng thi đấu chính thức', 'Giải quyết 10 bài toán thuật toán', 'Phòng máy E4', 'KEYNOTE', '2026-06-10 08:00:00', '2026-06-10 11:30:00', 2, 'KEYNOTE', NOW(),false),
+    (UUID(), 'evt-4', 'Trao giải & Bế mạc', 'Công bố bảng xếp hạng', 'Hội trường E4', 'KEYNOTE', '2026-06-10 11:30:00', '2026-06-10 12:00:00', 3, 'KEYNOTE', NOW(), false);
 
 INSERT INTO event_presenters (
     id, event_id, presenter_account_id,
-    linked_in_url, phone, assigned_at,
-    full_name, email, position, department,
-    bio, session, avatar_url, is_deleted
+    assigned_at, full_name, email,
+    bio, avatar_url, is_deleted
 )
 VALUES
 
 -- Tech Day
-(UUID(), 'evt-1', 'USE001',
- 'https://linkedin.com/in/nguyenvanan', '0901000001', NOW(),
+(UUID(), 'evt-1', 'USE001', NOW(),
  'TS. Nguyễn Văn An', 'an.nv@iuh.edu.vn',
- 'Trưởng bộ môn', 'Khoa CNTT - IUH',
  'Chuyên gia 20 năm kinh nghiệm mảng Cloud & Big Data.',
- 'Keynote: Tương lai Cloud 2026',
  'https://api.dicebear.com/7.x/avataaars/svg?seed=An', false),
 
-(UUID(), 'evt-1', 'USE001',
- 'https://linkedin.com/in/stevehoang', '0901000002', NOW(),
+(UUID(), 'evt-1', 'USE001', NOW(),
  'Mr. Steve Hoàng', 'steve.h@google.com',
- 'Senior Developer', 'Google Vietnam',
  'Cựu sinh viên IUH, hiện làm việc tại Google.',
- 'Workshop: Scaling Microservices',
  'https://api.dicebear.com/7.x/avataaars/svg?seed=Steve', false),
 
-(UUID(), 'evt-1', 'USE001',
- 'https://linkedin.com/in/stevehoang', '0901000003', NOW(),
+(UUID(), 'evt-1', 'USE001', NOW(),
  'Lê Thị Bình', 'binh.lt@student.iuh.edu.vn',
- 'Sinh viên tiêu biểu', 'CLB IEC',
  'Giải nhất Hùng biện tiếng Anh cấp TP.',
- 'Talkshow: Kỹ năng mềm cho Dev',
  'https://api.dicebear.com/7.x/avataaars/svg?seed=Binh', false),
 
 -- Code War
-(UUID(), 'evt-4', 'USE002',
- 'https://linkedin.com/in/stevehoang', '0902000001', NOW(),
+(UUID(), 'evt-4', 'USE002', NOW(),
  'ThS. Trần Minh Đức', 'duc.tm@iuh.edu.vn',
- 'Giảng viên', 'Khoa CNTT - IUH',
  'Trọng tài ICPC quốc gia.',
- 'Trưởng ban đề thi',
  'https://api.dicebear.com/7.x/avataaars/svg?seed=Duc', false),
 
-(UUID(), 'evt-4', 'USE002',
- 'https://linkedin.com/in/stevehoang', '0902000002', NOW(),
+(UUID(), 'evt-4', 'USE002', NOW(),
  'Nguyễn Quốc Cường', 'cuong.nq@vng.com.vn',
- 'Lead Engineer', 'ZaloPay',
  'Chuyên gia tối ưu hệ thống thanh toán.',
- 'Giám khảo khách mời',
  'https://api.dicebear.com/7.x/avataaars/svg?seed=Cuong', false),
 
 -- Other events
-(UUID(), 'evt-2', 'USE003',
- 'https://linkedin.com/in/stevehoang', '0903000001', NOW(),
+(UUID(), 'evt-2', 'USE003', NOW(),
  'TS. Phạm Hải Nam', 'nam.ph@iuh.edu.vn',
- 'Phó khoa', 'Khoa CNTT',
  'Chuyên gia bảo mật hệ thống.',
- 'Bảo mật trong Cloud',
- 'https://linkedin.com/in/stevehoang', false),
+ 'https://api.dicebear.com/7.x/avataaars/svg?seed=Nam', false),
 
-(UUID(), 'evt-3', 'USE003',
- 'https://linkedin.com/in/stevehoang', '0903000002', NOW(),
+(UUID(), 'evt-3', 'USE003', NOW(),
  'Trần Văn Master', 'master.t@java.org',
- 'Java Champion', 'Oracle Partner',
  'Tác giả sách Java.',
- 'Spring Boot 3.x',
- 'https://linkedin.com/in/stevehoang', false),
+ 'https://api.dicebear.com/7.x/avataaars/svg?seed=Master', false),
 
-(UUID(), 'evt-6', 'USE002',
- 'https://linkedin.com/in/stevehoang', '0902000003', NOW(),
+(UUID(), 'evt-6', 'USE002', NOW(),
  'Nguyễn Minh Tuấn', 'tuan.nm@student.iuh.edu.vn',
- 'Chủ nhiệm CLB', 'CLB HIT',
  'Intern tại VinAI.',
- 'Career path IT',
- 'https://linkedin.com/in/stevehoang', false),
+ 'https://api.dicebear.com/7.x/avataaars/svg?seed=Tuan', false),
 
-(UUID(), 'evt-10', 'USE003',
- 'https://linkedin.com/in/stevehoang', '0903000003', NOW(),
+(UUID(), 'evt-10', 'USE003', NOW(),
  'Dr. Emily Watson', 'emily@openai.com',
- 'Research Scientist', 'OpenAI',
  'Chuyên gia LLM.',
- 'Generative AI',
- 'https://linkedin.com/in/stevehoang', false),
+ 'https://api.dicebear.com/7.x/avataaars/svg?seed=Emily', false),
 
-(UUID(), 'evt-8', 'USE005',
- 'https://linkedin.com/in/stevehoang', '0905000001', NOW(),
+(UUID(), 'evt-8', 'USE005', NOW(),
  'Hoàng Thu Thủy', 'thuy.ht@iuh.edu.vn',
- 'Giảng viên', 'Khoa QTKD',
  'Chuyên gia startup.',
- 'Khởi nghiệp xanh',
- 'https://linkedin.com/in/stevehoang', false);
+ 'https://api.dicebear.com/7.x/avataaars/svg?seed=Thuy', false);
 
 -- 1. Tạo lời mời mẫu (Invitations) cho IUH Tech Day (evt-1)
 INSERT INTO event_invitations (
@@ -625,18 +593,18 @@ VALUES
  NULL, NOW(),
  NOW(), DATE_ADD(NOW(), INTERVAL 7 DAY));
 
-INSERT INTO event_organizers (id, event_id, account_id, full_name, email, position, role, assigned_at, organization_id, is_deleted)
+INSERT INTO event_organizers (id, event_id, account_id, full_name, email, role, assigned_at, organization_id, is_deleted)
 VALUES
 -- BTC Khoa CNTT (Sự kiện evt-1: IUH Tech Day)
-(UUID(), 'evt-1', 'USE001', 'ThS. Nguyễn Văn Quản Lý', 'quanly.fit@iuh.edu.vn', 'Giảng viên', 'LEADER', NOW(), 'org-1', false),
-(UUID(), 'evt-1', 'USE002', 'Lê Hoàng Anh', 'hoanganh.staff@iuh.edu.vn', 'Chuyên viên', 'COORDINATOR', NOW(), 'org-1', false),
-(UUID(), 'evt-1', 'USE004', 'Trần Minh Tuấn', 'tuan.sv@student.iuh.edu.vn', 'Sinh viên', 'MEMBER', NOW(), 'org-1', false),
+(UUID(), 'evt-1', 'USE001', 'ThS. Nguyễn Văn Quản Lý', 'quanly.fit@iuh.edu.vn', 'LEADER', NOW(), 'org-1', false),
+(UUID(), 'evt-1', 'USE002', 'Lê Hoàng Anh', 'hoanganh.staff@iuh.edu.vn', 'COORDINATOR', NOW(), 'org-1', false),
+(UUID(), 'evt-1', 'USE004', 'Trần Minh Tuấn', 'tuan.sv@student.iuh.edu.vn', 'MEMBER', NOW(), 'org-1', false),
 
 -- BTC CLB HIT (Sự kiện evt-4: HIT Code War)
-(UUID(), 'evt-4', 'USE001', 'Nguyễn Văn Chủ Nhiệm', 'chunhiem.hit@gmail.com', 'Chủ nhiệm CLB', 'LEADER', NOW(), 'org-2', false),
-(UUID(), 'evt-4', 'USE005', 'Đặng Thu Thảo', 'thao.hit@student.iuh.edu.vn', 'Thành viên BCN', 'MEMBER', NOW(), 'org-2', false),
-(UUID(), 'evt-4', 'USE006', 'Vũ Minh Quân', 'quan.hit@student.iuh.edu.vn', 'Trưởng ban chuyên môn', 'MEMBER', NOW(), 'org-2', false),
-(UUID(), 'evt-4', 'USE007', 'Hoàng Anh Đức', 'duc.hit@student.iuh.edu.vn', 'Cộng tác viên', 'MEMBER', NOW(), 'org-2', false);
+(UUID(), 'evt-4', 'USE001', 'Nguyễn Văn Chủ Nhiệm', 'chunhiem.hit@gmail.com', 'LEADER', NOW(), 'org-2', false),
+(UUID(), 'evt-4', 'USE005', 'Đặng Thu Thảo', 'thao.hit@student.iuh.edu.vn', 'MEMBER', NOW(), 'org-2', false),
+(UUID(), 'evt-4', 'USE006', 'Vũ Minh Quân', 'quan.hit@student.iuh.edu.vn', 'MEMBER', NOW(), 'org-2', false),
+(UUID(), 'evt-4', 'USE007', 'Hoàng Anh Đức', 'duc.hit@student.iuh.edu.vn', 'MEMBER', NOW(), 'org-2', false);
 
 INSERT INTO event_registrations (
     id,
@@ -924,59 +892,58 @@ INSERT INTO events (
     notes,
     created_by_account_id,
     template_id, has_lucky_draw,
-    is_deleted, archived, finalized,
-    created_at
+    is_deleted, created_at
 )
 VALUES
 -- 11. Đang diễn ra (Bắt đầu 1 ngày trước, kết thúc sau 2 ngày)
 ('evt-011', 'USE001', 'workshop-ui-ux-design', 'Workshop UI/UX nâng cao', 'Thiết kế giao diện người dùng hiện đại', 'Thiết kế', 'https://picsum.photos/seed/uiux/800/400', 'Phòng máy 502-H', 'OFFLINE',
  DATE_SUB(NOW(), INTERVAL 1 DAY), DATE_ADD(NOW(), INTERVAL 2 DAY), NOW(),
- 60, 'WORKSHOP', 'ONGOING', '[{"type":"STUDENT"}]', 'org-1', 'Cài sẵn Figma', 'USE004', NULL, true, false, false, false, NOW()),
+ 60, 'WORKSHOP', 'ONGOING', '[{"type":"STUDENT"}]', 'org-1', 'Cài sẵn Figma', 'USE004', NULL, true, false, NOW()),
 
 -- 12. Sắp diễn ra (Bắt đầu sau 3 ngày)
 ('evt-012', 'USE001', 'clb-tieng-anh-offline', 'English Club: Speaking Day', 'Luyện giao tiếp cùng người nước ngoài', 'Ngoại ngữ', 'https://picsum.photos/seed/english/800/400', 'Vườn học thuật', 'OFFLINE',
  DATE_ADD(NOW(), INTERVAL 3 DAY), DATE_ADD(NOW(), INTERVAL 3 DAY) + INTERVAL 4 HOUR, DATE_ADD(NOW(), INTERVAL 2 DAY),
- 100, 'SEMINAR', 'PUBLISHED', '[]', 'org-3', 'No Vietnamese allowed', 'USE004', NULL, false, false, false, false, NOW()),
+ 100, 'SEMINAR', 'PUBLISHED', '[]', 'org-3', 'No Vietnamese allowed', 'USE004', NULL, false, false, NOW()),
 
 -- 13. Đang diễn ra (Sự kiện Online dài ngày)
 ('evt-013', 'USE001', 'cuoc-thi-anh-online', 'Khoảnh khắc IUH', 'Cuộc thi ảnh qua góc nhìn sinh viên', 'Nghệ thuật', 'https://picsum.photos/seed/art/800/400', 'Fanpage CLB', 'ONLINE',
  DATE_SUB(NOW(), INTERVAL 5 DAY), DATE_ADD(NOW(), INTERVAL 10 DAY), DATE_ADD(NOW(), INTERVAL 5 DAY),
- 5000, 'COMPETITION', 'ONGOING', '[]', 'org-2', 'Nộp bài qua form', 'USE004', NULL, true, false, false, false, NOW()),
+ 5000, 'COMPETITION', 'ONGOING', '[]', 'org-2', 'Nộp bài qua form', 'USE004', NULL, true, false, NOW()),
 
 -- 14. Workshop Cloud Computing
 ('evt-014', 'USE001', 'aws-cloud-workshop', 'Làm chủ AWS Cloud', 'Triển khai Microservices lên AWS', 'Công nghệ', 'https://picsum.photos/seed/cloud/800/400', 'Phòng E4.1', 'OFFLINE',
  DATE_SUB(NOW(), INTERVAL 2 HOUR), DATE_ADD(NOW(), INTERVAL 5 HOUR), NOW(),
- 80, 'WORKSHOP', 'ONGOING', '[{"type":"STUDENT","faculty":"CNTT"}]', 'org-1', 'Tài khoản AWS Education', 'USE004', NULL, false, false, false, false, NOW()),
+ 80, 'WORKSHOP', 'ONGOING', '[{"type":"STUDENT","faculty":"CNTT"}]', 'org-1', 'Tài khoản AWS Education', 'USE004', NULL, false, false, NOW()),
 
 -- 15. Tọa đàm tâm lý
 ('evt-015', 'USE001', 'tam-ly-sinh-vien', 'Gen Z và Áp lực đồng lứa', 'Vượt qua Peer Pressure', 'Kỹ năng', 'https://picsum.photos/seed/peace/800/400', 'Hội trường A7', 'OFFLINE',
  DATE_SUB(NOW(), INTERVAL 1 HOUR), DATE_ADD(NOW(), INTERVAL 3 HOUR), NOW(),
- 400, 'SEMINAR', 'ONGOING', '[]', 'org-4', 'Khách mời: TS. Tâm lý', 'USE004', NULL, false, false, false, false, NOW()),
+ 400, 'SEMINAR', 'ONGOING', '[]', 'org-4', 'Khách mời: TS. Tâm lý', 'USE004', NULL, false, false, NOW()),
 
 -- 16. Ngày hội hiến máu
 ('evt-016', 'USE001', 'hien-mau-nhan-dao-2026', 'Hiến máu nhân đạo 2026', 'Một giọt máu đào - Trao đời hy vọng', 'Tình nguyện', 'https://picsum.photos/seed/blood/800/400', 'Sảnh nhà V', 'OFFLINE',
  DATE_SUB(NOW(), INTERVAL 4 HOUR), DATE_ADD(NOW(), INTERVAL 4 HOUR), NOW(),
- 1000, 'FESTIVAL', 'ONGOING', '[]', 'org-5', 'Nhận quà và giấy chứng nhận', 'USE004', NULL, false, false, false, false, NOW()),
+ 1000, 'FESTIVAL', 'ONGOING', '[]', 'org-5', 'Nhận quà và giấy chứng nhận', 'USE004', NULL, false, false, NOW()),
 
 -- 17. Workshop Arduino cho người mới
 ('evt-017', 'USE001', 'arduino-robot-basic', 'Chế tạo Robot đơn giản', 'Lập trình Arduino căn bản', 'Kỹ thuật', 'https://picsum.photos/seed/robot/800/400', 'Lab 201-B', 'OFFLINE',
  DATE_SUB(NOW(), INTERVAL 1 DAY), DATE_ADD(NOW(), INTERVAL 1 DAY), NOW(),
- 40, 'WORKSHOP', 'ONGOING', '[{"type":"STUDENT"}]', 'org-1', 'Cung cấp linh kiện miễn phí', 'USE004', NULL, false, false, false, false, NOW()),
+ 40, 'WORKSHOP', 'ONGOING', '[{"type":"STUDENT"}]', 'org-1', 'Cung cấp linh kiện miễn phí', 'USE004', NULL, false, false, NOW()),
 
 -- 18. Talkshow khởi nghiệp xanh
 ('evt-018', 'USE001', 'green-startup-talk', 'Khởi nghiệp Xanh 2026', 'Kinh doanh bền vững', 'Kinh tế', 'https://picsum.photos/seed/green/800/400', 'Zoom Meeting', 'ONLINE',
  DATE_ADD(NOW(), INTERVAL 7 DAY), DATE_ADD(NOW(), INTERVAL 7 DAY) + INTERVAL 2 HOUR, DATE_ADD(NOW(), INTERVAL 6 DAY),
- 500, 'SEMINAR', 'PUBLISHED', '[]', 'org-2', 'Dành cho SV yêu môi trường', 'USE004', NULL, true, false, false, false, NOW()),
+ 500, 'SEMINAR', 'PUBLISHED', '[]', 'org-2', 'Dành cho SV yêu môi trường', 'USE004', NULL, true, false, NOW()),
 
 -- 19. Hội thao Esport
 ('evt-019', 'USE001', 'iuh-esport-championship', 'IUH Esport Championship', 'Giải đấu Liên Quân Mobile', 'Thể thao', 'https://picsum.photos/seed/game/800/400', 'Nhà thi đấu', 'OFFLINE',
  DATE_SUB(NOW(), INTERVAL 2 DAY), DATE_ADD(NOW(), INTERVAL 2 DAY), DATE_SUB(NOW(), INTERVAL 3 DAY),
- 256, 'COMPETITION', 'ONGOING', '[]', 'org-1', 'Vòng tứ kết', 'USE004', NULL, true, false, false, false, NOW()),
+ 256, 'COMPETITION', 'ONGOING', '[]', 'org-1', 'Vòng tứ kết', 'USE004', NULL, true, false, NOW()),
 
 -- 20. Workshop Yoga Buổi chiều
 ('evt-020', 'USE001', 'yoga-sunset-iuh', 'Yoga Sunset IUH', 'Tập luyện trong ánh hoàng hôn', 'Sức khỏe', 'https://picsum.photos/seed/meditation/800/400', 'Sân thượng nhà H', 'OFFLINE',
  DATE_ADD(NOW(), INTERVAL 5 HOUR), DATE_ADD(NOW(), INTERVAL 7 HOUR), NOW(),
- 30, 'WORKSHOP', 'PUBLISHED', '[]', 'org-4', 'Trải nghiệm thư giãn tuyệt đối', 'USE004', NULL, false, false, false, false, NOW());
+ 30, 'WORKSHOP', 'PUBLISHED', '[]', 'org-4', 'Trải nghiệm thư giãn tuyệt đối', 'USE004', NULL, false, false, NOW());
 
 INSERT INTO events (
     id, approved_by_account_id, slug, title, description,
@@ -990,44 +957,43 @@ INSERT INTO events (
     notes,
     created_by_account_id,
     template_id, has_lucky_draw,
-    is_deleted, archived, finalized,
-    created_at
+    is_deleted, created_at
 )
 VALUES
 -- 21. Sửa lỗi cú pháp cộng INTERVAL bằng cách dùng chuỗi "23:59:59"
 ('evt-021', 'USE001', 'workshop-ui-ux-design-v2', 'Workshop UI/UX nâng cao', 'Thiết kế giao diện người dùng hiện đại', 'Thiết kế', 'https://picsum.photos/seed/uiux/800/400', 'Phòng máy 502-H', 'OFFLINE',
  CURDATE(), DATE_ADD(CURDATE(), INTERVAL '23:59:59' HOUR_SECOND), CURDATE(),
- 60, 'WORKSHOP', 'ONGOING', '[{"type":"STUDENT"}]', 'org-1', 'Cài sẵn Figma', 'USE004', NULL, true, false, false, false, NOW()),
+ 60, 'WORKSHOP', 'ONGOING', '[{"type":"STUDENT"}]', 'org-1', 'Cài sẵn Figma', 'USE004', NULL, true, false, NOW()),
 
 -- 22. Diễn ra từ 7h sáng đến 11h sáng
 ('evt-022', 'USE001', 'clb-tieng-anh-2026', 'English Club: Speaking Day', 'Luyện giao tiếp cùng người nước ngoài', 'Ngoại ngữ', 'https://picsum.photos/seed/english/800/400', 'Vườn học thuật', 'OFFLINE',
  DATE_ADD(CURDATE(), INTERVAL 7 HOUR), DATE_ADD(CURDATE(), INTERVAL 11 HOUR), CURDATE(),
- 100, 'SEMINAR', 'ONGOING', '[]', 'org-3', 'No Vietnamese allowed', 'USE004', NULL, false, false, false, false, NOW()),
+ 100, 'SEMINAR', 'ONGOING', '[]', 'org-3', 'No Vietnamese allowed', 'USE004', NULL, false, false, NOW()),
 
 -- 23. Diễn ra từ 8h sáng đến 5h chiều
 ('evt-023', 'USE001', 'khoanh-khac-iuh-2026', 'Khoảnh khắc IUH', 'Cuộc thi ảnh qua góc nhìn sinh viên', 'Nghệ thuật', 'https://picsum.photos/seed/art/800/400', 'Fanpage CLB', 'ONLINE',
  DATE_ADD(CURDATE(), INTERVAL 8 HOUR), DATE_ADD(CURDATE(), INTERVAL 17 HOUR), CURDATE(),
- 5000, 'COMPETITION', 'ONGOING', '[]', 'org-2', 'Nộp bài qua form', 'USE004', NULL, true, false, false, false, NOW()),
+ 5000, 'COMPETITION', 'ONGOING', '[]', 'org-2', 'Nộp bài qua form', 'USE004', NULL, true, false, NOW()),
 
 -- 24. Diễn ra từ 9h sáng đến 12h trưa
 ('evt-024', 'USE001', 'cloud-aws-2026', 'Làm chủ AWS Cloud', 'Triển khai Microservices lên AWS', 'Công nghệ', 'https://picsum.photos/seed/cloud/800/400', 'Phòng E4.1', 'OFFLINE',
  DATE_ADD(CURDATE(), INTERVAL 9 HOUR), DATE_ADD(CURDATE(), INTERVAL 12 HOUR), CURDATE(),
- 80, 'WORKSHOP', 'ONGOING', '[{"type":"STUDENT","faculty":"CNTT"}]', 'org-1', 'Tài khoản AWS Education', 'USE004', NULL, false, false, false, false, NOW()),
+ 80, 'WORKSHOP', 'ONGOING', '[{"type":"STUDENT","faculty":"CNTT"}]', 'org-1', 'Tài khoản AWS Education', 'USE004', NULL, false, false, NOW()),
 
 -- 25. Diễn ra từ 13h chiều đến 16h chiều
 ('evt-025', 'USE001', 'gen-z-pressure-2026', 'Gen Z và Áp lực đồng lứa', 'Vượt qua Peer Pressure', 'Kỹ năng', 'https://picsum.photos/seed/peace/800/400', 'Hội trường A7', 'OFFLINE',
  DATE_ADD(CURDATE(), INTERVAL 13 HOUR), DATE_ADD(CURDATE(), INTERVAL 16 HOUR), CURDATE(),
- 400, 'SEMINAR', 'ONGOING', '[]', 'org-4', 'Khách mời: TS. Tâm lý', 'USE004', NULL, false, false, false, false, NOW()),
+ 400, 'SEMINAR', 'ONGOING', '[]', 'org-4', 'Khách mời: TS. Tâm lý', 'USE004', NULL, false, false, NOW()),
 
 -- 26. Diễn ra từ 7h sáng đến 4h chiều
 ('evt-026', 'USE001', 'blood-donation-2026', 'Hiến máu nhân đạo 2026', 'Một giọt máu đào - Trao đời hy vọng', 'Tình nguyện', 'https://picsum.photos/seed/blood/800/400', 'Sảnh nhà V', 'OFFLINE',
  DATE_ADD(CURDATE(), INTERVAL 7 HOUR), DATE_ADD(CURDATE(), INTERVAL 16 HOUR), CURDATE(),
- 1000, 'FESTIVAL', 'ONGOING', '[]', 'org-5', 'Nhận quà và giấy chứng nhận', 'USE004', NULL, false, false, false, false, NOW()),
+ 1000, 'FESTIVAL', 'ONGOING', '[]', 'org-5', 'Nhận quà và giấy chứng nhận', 'USE004', NULL, false, false, NOW()),
 
 -- 27. Diễn ra từ 14h chiều đến 18h tối
 ('evt-027', 'USE001', 'arduino-basic-2026', 'Chế tạo Robot đơn giản', 'Lập trình Arduino căn bản', 'Kỹ thuật', 'https://picsum.photos/seed/robot/800/400', 'Lab 201-B', 'OFFLINE',
  DATE_ADD(CURDATE(), INTERVAL 14 HOUR), DATE_ADD(CURDATE(), INTERVAL 18 HOUR), CURDATE(),
- 40, 'WORKSHOP', 'ONGOING', '[{"type":"STUDENT"}]', 'org-1', 'Cung cấp linh kiện miễn phí', 'USE004', NULL, false, false, false, false, NOW()),
+ 40, 'WORKSHOP', 'ONGOING', '[{"type":"STUDENT"}]', 'org-1', 'Cung cấp linh kiện miễn phí', 'USE004', NULL, false, false, NOW()),
 
 -- 28. Diễn ra từ 19h tối đến 21h tối
 ('evt-028', 'USE001', 'startup-green-2026', 'Khởi nghiệp Xanh 2026', 'Kinh doanh bền vững', 'Kinh tế', 'https://picsum.photos/seed/green/800/400', 'Zoom Meeting', 'ONLINE',

@@ -17,4 +17,13 @@ public interface EventOrganizerService {
 
     @Transactional
     EventOrganizer updateOrganizerRole(String organizerId, OrganizerRole role);
+
+    @Transactional
+    void requestToLeave(String eventId, String accountId);
+
+    @Transactional
+    void approveLeaveRequest(String organizerId, String approverAccountId);
+
+    @Transactional
+    void rejectLeaveRequest(String organizerId, String approverAccountId);
 }

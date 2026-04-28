@@ -183,33 +183,45 @@ public class GeminiChatServiceImpl implements GeminiChatService {
     
     @Override
     public EventPlanSuggestion extractEventDetails(String naturalLanguageInput) {
+        log.info("Starting AI extraction for text (length: {})", naturalLanguageInput.length());
         try {
             String prompt = String.format("""
-                Trích xuất thông tin sự kiện từ văn bản sau:
+                Trích xuất thông tin sự kiện từ văn bản sau và trả về DUY NHẤT định dạng JSON.
+                
+                Văn bản:
                 "%s"
                 
-                Trả về JSON với cấu trúc:
+                Cấu trúc JSON bắt buộc:
                 {
-                  "title": "Tên sự kiện (nếu có)",
-                  "subject": "Chủ đề",
-                  "purpose": "Mục đích",
-                  "description": "Mô tả",
-                  "suggestedStartTime": "ISO datetime hoặc null",
-                  "suggestedEndTime": "ISO datetime hoặc null",
-                  "suggestedLocation": "Địa điểm hoặc null",
-                  "estimatedParticipants": số người hoặc null,
+                  "title": "Tên sự kiện rõ ràng",
+                  "subject": "Chủ đề chính",
+                  "purpose": "Mục đích tổ chức",
+                  "description": "Mô tả ngắn gọn",
+                  "suggestedStartTime": "ISO 8601 datetime (YYYY-MM-DDTHH:mm:ss) hoặc null",
+                  "suggestedEndTime": "ISO 8601 datetime (YYYY-MM-DDTHH:mm:ss) hoặc null",
+                  "suggestedLocation": "Địa điểm cụ thể",
+                  "estimatedParticipants": số người dự kiến,
                   "confidenceScore": 0.0-1.0
                 }
                 
-                Chỉ trả về JSON.
+                Lưu ý: Không thêm bất kỳ văn bản giải thích nào ngoài JSON.
                 """, naturalLanguageInput);
             
             String jsonResponse = callGeminiAPI(prompt);
-            return parseEventPlanSuggestion(jsonResponse);
+            log.info("AI extraction completed. Parsing response...");
+            EventPlanSuggestion suggestion = parseEventPlanSuggestion(jsonResponse);
+            
+            if (suggestion == null) {
+                log.error("Failed to parse AI response as EventPlanSuggestion. Raw response: {}", jsonResponse);
+            } else {
+                log.info("Successfully extracted details for event: {}", suggestion.getTitle());
+            }
+            
+            return suggestion;
             
         } catch (Exception e) {
-            log.error("Error extracting event details: {}", e.getMessage(), e);
-            return null;
+            log.error("Error during AI extraction process: {}", e.getMessage(), e);
+            throw new RuntimeException("AI extraction failed: " + e.getMessage());
         }
     }
     

@@ -11,7 +11,7 @@ import {
   Dot,
 } from 'recharts';
 
-const data = [
+const defaultData = [
   { name: 'T1', post: 2, plan: 4, recap: 1, event: 3 },
   { name: 'T2', post: 3, plan: 3, recap: 2, event: 2 },
   { name: 'T3', post: 4, plan: 2, recap: 3, event: 1 },
@@ -83,10 +83,10 @@ const CustomDot = (props) => {
   );
 };
 
-const ActivityChart = () => {
+const ActivityChart = ({ data = defaultData }) => {
   return (
-    <div className="h-80 md:h-95 w-full bg-white rounded-2xl p-2 md:p-4">
-      <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={300}>
+    <div className="h-80 md:h-96 w-full bg-white rounded-2xl p-2 md:p-4">
+      <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
         <LineChart
           data={data}
           margin={{ top: 20, right: 30, left: 10, bottom: 20 }}

@@ -21,6 +21,9 @@ public interface IdentityServiceClient {
 
     @GetMapping("/accounts/admin-ids")
     List<String> getAdminAccountIds();
+    
+    @GetMapping("/accounts/super-admin-ids")
+    List<String> getSuperAdminAccountIds();
 
     @GetMapping("/profiles/by-emails")
     List<UserDto> getUsersByEmails(@RequestParam("emails") List<String> emails);

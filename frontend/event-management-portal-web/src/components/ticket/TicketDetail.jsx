@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useState } from "react";
-import { RefreshCw, AlertCircle, Clock, MapPin } from "lucide-react";
-import QRCode from "react-qr-code";
+import { RefreshCw, AlertCircle, Clock, MapPin, QrCode } from "lucide-react";
+import { motion } from "framer-motion";
 import eventService from "../../services/eventService";
 
 export default function TicketDetail({ eventId }) {
@@ -71,15 +71,14 @@ export default function TicketDetail({ eventId }) {
 
         {/* QR Section - Tinh giản */}
         <div className="px-6 pb-6 pt-2 text-center">
-          <p className="uppercase text-[9px] tracking-[2px] font-black text-slate-300 mb-4">
-            MÃ QR CHECK-IN
-          </p>
-          <div className="inline-block p-4 bg-white rounded-2xl border border-slate-50 shadow-sm">
-            <QRCode 
-               value={registration.qrToken || ""} 
-               size={140} // Giảm size QR
-               fgColor="#1e293b" 
-            />
+          <div className="py-8 px-4 bg-slate-50 rounded-[2rem] border border-dashed border-slate-200 mb-4 flex flex-col items-center gap-3">
+             <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center shadow-sm border border-slate-100">
+                <QrCode size={32} className="text-blue-500 opacity-20" />
+             </div>
+             <p className="text-xs text-slate-500 font-bold uppercase tracking-wider">Sử dụng tính năng quét mã</p>
+             <p className="text-[10px] text-slate-400 max-w-[200px] leading-relaxed">
+                Để thực hiện điểm danh, vui lòng sử dụng nút <strong>"QUÉT MÃ ĐIỂM DANH"</strong> tại trang chi tiết sự kiện để quét mã QR từ Ban tổ chức.
+             </p>
           </div>
           
           <div className="mt-5">
@@ -91,7 +90,7 @@ export default function TicketDetail({ eventId }) {
                 ? "bg-emerald-50 text-emerald-600 border border-emerald-100" 
                 : "bg-blue-50 text-blue-600 border border-blue-100"
             }`}>
-                {registration.checkedIn ? "✓ Đã Check-in" : registration.status}
+                {registration.checkedIn ? "✓ Đã Check-in" : "Đã đăng ký"}
             </div>
           </div>
         </div>
@@ -120,6 +119,7 @@ export default function TicketDetail({ eventId }) {
           {event.notes || "Vui lòng chuẩn bị mã QR này tại lối vào để thủ tục check-in nhanh chóng hơn."}
         </p>
       </div>
+
     </div>
   );
-}
+}

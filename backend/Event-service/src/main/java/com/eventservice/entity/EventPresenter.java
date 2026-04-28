@@ -39,6 +39,11 @@ public class EventPresenter {
     @Column(columnDefinition = "TEXT")
     private String bio;
 
+    // --- Status & Invitation ---
+    @Builder.Default
+    @Enumerated(EnumType.STRING)
+    private ParticipationStatus status = ParticipationStatus.PENDING;
+
     // --- Event Context ---
     private boolean isDeleted = false; // Cờ đánh dấu đã xóa (soft delete)
 
@@ -57,7 +62,7 @@ public class EventPresenter {
     private Event event;
 
     @OneToMany(mappedBy = "presenter", cascade = {CascadeType.PERSIST, CascadeType.MERGE})
-    @JsonIgnoreProperties("presenter")
+    @JsonIgnore
     private Set<EventSession> sessions = new HashSet<>();
 
     @PreRemove
@@ -73,7 +78,6 @@ public class EventPresenter {
                 .fullName(this.fullName)
                 .email(this.email)
                 .avatarUrl(this.avatarUrl)
-                .phone(this.phone)
                 .bio(this.bio)
                 .sessions(this.sessions)
                 .isDeleted(this.isDeleted)

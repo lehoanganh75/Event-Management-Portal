@@ -15,10 +15,12 @@ const MOCK_DEPARTMENTS = [
 ];
 
 const MOCK_ROLES = [
-  { id: "1", name: "SUPER_ADMIN", label: "Quản trị viên cao cấp", description: "Toàn quyền hệ thống", color: "purple", userCount: 1 },
+  { id: "1", name: "SUPER_ADMIN", label: "Quản trị viên cấp cao", description: "Toàn quyền hệ thống", color: "purple", userCount: 1 },
   { id: "2", name: "ADMIN", label: "Quản trị viên", description: "Quản lý sự kiện và người dùng", color: "blue", userCount: 5 },
-  { id: "3", name: "STUDENT", label: "Sinh viên", description: "Đăng ký và tham gia sự kiện", color: "cyan", userCount: 3420 },
-  { id: "4", name: "GUEST", label: "Khách", description: "Xem sự kiện công khai", color: "slate", userCount: 89 },
+  { id: "3", name: "ORGANIZER", label: "Ban tổ chức", description: "Tạo và quản lý sự kiện", color: "orange", userCount: 23 },
+  { id: "4", name: "MEMBER", label: "Sinh viên", description: "Tham gia sự kiện có hạn", color: "green", userCount: 156 },
+  { id: "5", name: "STUDENT", label: "Sinh viên", description: "Đăng ký và tham gia sự kiện", color: "cyan", userCount: 3420 },
+  { id: "6", name: "GUEST", label: "Khách", description: "Xem sự kiện công khai", color: "slate", userCount: 89 },
 ];
 
 const ROLE_COLORS = {

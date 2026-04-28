@@ -1,6 +1,7 @@
 // src/context/AuthContext.jsx
 import { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import authService from '../services/authService';
+import eventService from '../services/eventService';
 
 const AuthContext = createContext();
 
@@ -26,7 +27,18 @@ export const AuthProvider = ({ children }) => {
         try {
             // Sử dụng _silent: true để tránh redirect sang /login nếu token hết hạn
             const res = await authService.getMyProfile({ _silent: true });
-            setUser(res.data);
+            const profileData = res.data;
+            
+            // Fetch organizer roles if available
+            try {
+                const rolesRes = await eventService.getOrganizerRoles();
+                profileData.eventRoles = rolesRes || [];
+            } catch (e) {
+                console.warn("Could not fetch organizer roles", e);
+                profileData.eventRoles = [];
+            }
+
+            setUser(profileData);
             setIsAuthenticated(true);
         } catch (error) {
             console.warn("Phiên đăng nhập hết hạn, tiếp tục với tư cách khách.");
@@ -54,7 +66,17 @@ export const AuthProvider = ({ children }) => {
 
         // 2. Sau khi có token, lấy profile đầy đủ qua privateIdentity
         const profileRes = await authService.getMyProfile();
-        setUser(profileRes.data);
+        const profileData = profileRes.data;
+
+        // Fetch organizer roles
+        try {
+            const rolesRes = await eventService.getOrganizerRoles();
+            profileData.eventRoles = rolesRes || [];
+        } catch (e) {
+            profileData.eventRoles = [];
+        }
+
+        setUser(profileData);
         setIsAuthenticated(true);
         return res.data;
     };

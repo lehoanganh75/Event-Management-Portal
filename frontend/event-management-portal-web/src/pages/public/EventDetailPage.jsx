@@ -9,26 +9,62 @@ import {
   XCircle,
   MessageCircle,
 } from "lucide-react";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 
 import Header from "../../components/layout/Header";
 import Footer from "../../components/layout/Footer";
 import AIChatBot from "../../components/chat/AIChatBot";
 import eventService from "../../services/eventService";
 import TicketDetail from "../../components/ticket/TicketDetail";
+import RegisterModal from "../../components/common/RegisterModal";
+import QRScannerModal from "../../components/common/management/QRScannerModal";
+import QuizModal from "../../components/quiz/QuizModal";
+import SurveyModal from "../../components/survey/SurveyModal";
+import { toast } from "react-toastify";
+import { useAuth } from "../../context/AuthContext";
+import { useQuiz } from "../../hooks/useQuiz";
+import { Sparkles, Trophy, ClipboardCheck } from "lucide-react";
 
 export default function EventDetail() {
   const { eventId } = useParams();
   const navigate = useNavigate();
+  const { user } = useAuth();
+
+  const isSystemAdmin = () => {
+    const roles = user?.roles || (user?.role ? [user.role] : []);
+    return roles.some(r => ["SUPER_ADMIN", "ADMIN"].includes(r?.toUpperCase()));
+  };
 
   const [event, setEvent] = useState(null);
   const [loading, setLoading] = useState(true);
   const [isRegistering, setIsRegistering] = useState(false);
   const [showTicket, setShowTicket] = useState(false);
-  const [showConfirmModal, setShowConfirmModal] = useState(false);
-  const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [showScanner, setShowScanner] = useState(false);
+  const [showRegisterModal, setShowRegisterModal] = useState(false);
   const [showCancelModal, setShowCancelModal] = useState(false);
-  const [isCancelling, setIsCancelling] = useState(false);
+  const [showQuizModal, setShowQuizModal] = useState(false);
+  const [showSurveyModal, setShowSurveyModal] = useState(false);
+  const [quizzes, setQuizzes] = useState([]);
+  const [joiningQuizId, setJoiningQuizId] = useState(null);
+  const [registrationError, setRegistrationError] = useState("");
+
+  const { quizState, activeQuizId } = useQuiz(eventId);
+  const isQuizLive = ['START', 'NEXT_QUESTION', 'LEADERBOARD'].includes(quizState.type);
+
+  useEffect(() => {
+    if (eventId) {
+      eventService.getQuizzesByEvent(eventId)
+        .then(res => setQuizzes(res.data || []))
+        .catch(() => { });
+    }
+  }, [eventId]);
+
+  // Auto-open quiz modal when START event received and student already in lobby
+  useEffect(() => {
+    if (quizState.type === 'START' && showQuizModal) {
+      setJoiningQuizId(activeQuizId);
+    }
+  }, [quizState.type]);
 
   const fetchEvent = async () => {
     try {
@@ -60,60 +96,97 @@ export default function EventDetail() {
   const handleMainAction = async () => {
     if (!event) return;
     const role = event.currentUserRole || {};
+    const hasAdminAccess = isSystemAdmin();
 
-    if (role.creator || role.approver || role.organizer) {
-      // Điều hướng dựa trên vai trò hệ thống
-      const systemRole = event.currentUserRole?.systemRole || "STUDENT";
-      if (systemRole === "ADMIN" || systemRole === "SUPER_ADMIN") {
-        navigate(`/admin/events/${event.id}`);
+    if (role.creator || role.approver || role.organizer || hasAdminAccess) {
+      const orgRole = (role.organizerRole || "").toLowerCase();
+
+      // Super Admin/Admin mặc định vào view Leader để quản lý cao nhất
+      if (hasAdminAccess || orgRole === "leader" || role.creator || role.approver) {
+        navigate(`/events/${event.id}/v3/leader`);
+      } else if (orgRole === "coordinator") {
+        navigate(`/events/${event.id}/v3/coordinator`);
+      } else if (orgRole === "member") {
+        navigate(`/events/${event.id}/v3/member`);
+      } else if (orgRole === "advisor") {
+        navigate(`/events/${event.id}/v3/advisor`);
       } else {
-        navigate(`/lecturer/events/${event.id}`);
+        // Mặc định hoặc các role khác (Advisor...)
+        navigate(`/manage-event/${event.id}`);
       }
       return;
     }
 
     if (role.registered) {
-      setShowTicket(!showTicket);
-      if (!showTicket) {
-        setTimeout(() => {
-          document.getElementById("ticket-section")?.scrollIntoView({
-            behavior: "smooth",
-            block: "nearest",
-          });
-        }, 100);
+      if (role.registration?.checkedIn) {
+        toast.info("Bạn đã điểm danh thành công cho sự kiện này rồi!");
+        return;
       }
+
+      if (!event.checkInEnabled) {
+        toast.warning("Ban tổ chức hiện đang đóng cổng điểm danh. Vui lòng thử lại sau vài giây.");
+        fetchEvent(); // Tự động làm mới dữ liệu
+        return;
+      }
+
+      const now = new Date();
+      const openTime = new Date(new Date(event.startTime).getTime() - 30 * 60000);
+      if (now < openTime) {
+        toast.warning(`Hệ thống điểm danh sẽ mở lúc ${openTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`);
+        return;
+      }
+
+      setShowScanner(true);
       return;
     }
 
-    setShowConfirmModal(true);
+    setRegistrationError("");
+    setShowRegisterModal(true);
   };
 
-  const handleConfirmRegister = async () => {
-    setShowConfirmModal(false);
+  const confirmRegistration = async () => {
     setIsRegistering(true);
+    setRegistrationError("");
     try {
       await eventService.registerEvent(event.id);
-      setShowSuccessModal(true);
+      toast.success("Đăng ký thành công!");
+      setShowRegisterModal(false);
       await fetchEvent(); // Refresh để cập nhật role
       setShowTicket(true);
     } catch (error) {
-      alert(error.response?.data?.message || "Đăng ký thất bại");
+      console.error("Registration error:", error);
+      const data = error.response?.data;
+      const msg = data?.message || data?.error || error.message || "Đăng ký thất bại";
+      setRegistrationError(msg);
+      toast.error(msg);
     } finally {
       setIsRegistering(false);
     }
   };
 
-  const handleConfirmCancel = async () => {
-    setIsCancelling(true);
+  const handleScanSuccess = async (token) => {
+    setShowScanner(false);
+    try {
+      const res = await eventService.checkInByEventToken(token);
+      toast.success(res.data.message || "Điểm danh thành công!");
+      await fetchEvent(); // Refresh to update check-in status
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Mã QR không hợp lệ hoặc đã hết hạn");
+    }
+  };
+
+  const handleCancelRegistration = async () => {
+    setIsRegistering(true);
     try {
       await eventService.cancelRegistration(event.id);
+      toast.success("Đã hủy đăng ký thành công");
       setShowCancelModal(false);
-      setShowTicket(false);
       await fetchEvent();
+      setShowTicket(false);
     } catch (error) {
-      alert(error.response?.data?.message || "Hủy đăng ký thất bại");
+      toast.error(error.response?.data?.message || "Hủy đăng ký thất bại");
     } finally {
-      setIsCancelling(false);
+      setIsRegistering(false);
     }
   };
 
@@ -315,7 +388,7 @@ export default function EventDetail() {
                   (!role.registered && !role.creator && !role.approver && !role.organizer &&
                     isDeadlinePassed(event.registrationDeadline))
                 }
-                className={`w-full h-14 rounded-2xl font-bold text-base flex items-center justify-center gap-3 transition-all shadow-lg active:scale-95 ${role.creator || role.approver || role.organizer
+                className={`w-full h-14 rounded-2xl font-bold text-base flex items-center justify-center gap-3 transition-all shadow-lg active:scale-95 ${role.creator || role.approver || role.organizer || isSystemAdmin()
                   ? "bg-zinc-900 text-white"
                   : role.registered
                     ? showTicket
@@ -328,13 +401,21 @@ export default function EventDetail() {
               >
                 {isRegistering ? (
                   <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                ) : role.creator || role.approver || role.organizer ? (
+                ) : role.creator || role.approver || role.organizer || isSystemAdmin() ? (
                   "QUẢN LÝ SỰ KIỆN"
-                ) : role.registered ? (
+                ) : role.registered && role.registration?.status !== "CANCELLED" ? (
                   <>
-                    {showTicket ? "ĐÓNG VÉ CỦA TÔI" : "XEM VÉ CỦA TÔI"}
+                    {role.registration?.checkedIn ? (
+                      "ĐÃ ĐIỂM DANH ✓"
+                    ) : !event.checkInEnabled ? (
+                      "ĐIỂM DANH ĐANG ĐÓNG"
+                    ) : new Date() < new Date(new Date(event.startTime).getTime() - 30 * 60000) ? (
+                      `MỞ ĐIỂM DANH LÚC ${new Date(new Date(event.startTime).getTime() - 30 * 60000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`
+                    ) : (
+                      "QUÉT MÃ ĐIỂM DANH"
+                    )}
                     <motion.div animate={{ rotate: showTicket ? 180 : 0 }}>
-                      {showTicket ? <XCircle size={22} /> : <QrCode size={22} />}
+                      <QrCode size={22} />
                     </motion.div>
                   </>
                 ) : isDeadlinePassed(event.registrationDeadline) ? (
@@ -344,21 +425,45 @@ export default function EventDetail() {
                 )}
               </button>
 
-              {role.registered && !role.registration?.checkedIn && !isDeadlinePassed(event.endTime) && (
+              {role.registered && role.registration?.status !== "CANCELLED" && !showTicket && (
                 <button
                   onClick={() => setShowCancelModal(true)}
-                  disabled={isCancelling}
-                  className="w-full mt-4 h-12 rounded-2xl font-medium text-red-600 border-2 border-red-50 hover:bg-red-50 transition-all flex items-center justify-center gap-2 active:scale-95"
+                  disabled={isRegistering}
+                  className="w-full mt-3 py-3 text-sm font-semibold text-rose-600 hover:text-rose-700 hover:bg-rose-50 rounded-2xl transition-all border border-transparent hover:border-rose-100"
                 >
-                  {isCancelling ? (
-                    <div className="w-5 h-5 border-2 border-red-600 border-t-transparent rounded-full animate-spin" />
-                  ) : (
-                    "HỦY ĐĂNG KÝ THAM GIA"
-                  )}
+                  Hủy đăng ký tham gia
                 </button>
               )}
 
-              {/* Tham gia tương tác */}
+              {/* Tham gia thử thách */}
+              {event.currentUserRole?.registered && quizzes.length > 0 && (
+                <motion.div
+                  initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.3 }}
+                  className="bg-gradient-to-br from-indigo-600 via-violet-600 to-purple-700 rounded-3xl p-6 shadow-xl shadow-indigo-200"
+                >
+                  <div className="flex items-center gap-3 mb-4">
+                    <Trophy size={24} className="text-amber-300" fill="currentColor" />
+                    <span className="font-black text-white uppercase tracking-tight">Thử thách tương tác</span>
+                  </div>
+                  <div className="space-y-2">
+                    {quizzes.map(quiz => (
+                      <button
+                        key={quiz.id}
+                        onClick={() => { setJoiningQuizId(quiz.id); setShowQuizModal(true); }}
+                        className="w-full flex items-center justify-between bg-white/15 hover:bg-white/25 text-white rounded-2xl px-4 py-3 transition-all font-bold text-sm"
+                      >
+                        <span>{quiz.title}</span>
+                        {quiz.isActive
+                          ? <span className="text-[10px] font-black bg-emerald-400 text-white px-2 py-0.5 rounded-md animate-pulse">ĐANG DIỄN RA</span>
+                          : <span className="text-[10px] font-black bg-white/20 px-2 py-0.5 rounded-md">THAM GIA</span>
+                        }
+                      </button>
+                    ))}
+                  </div>
+                </motion.div>
+              )}
+
+              {/* Khảo sát */}
               <div className="mt-8 bg-white border border-gray-200 rounded-3xl p-6">
                 <div className="flex items-center gap-3 mb-4">
                   <MessageCircle className="text-green-600" size={24} />
@@ -391,142 +496,103 @@ export default function EventDetail() {
 
       <Footer />
 
-      {/* ==================== MODALS ==================== */}
-      {/* Confirmation Modal */}
-      {showConfirmModal && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            className="absolute inset-0 bg-black/60 backdrop-blur-sm"
-            onClick={() => !isRegistering && setShowConfirmModal(false)}
-          />
-          <motion.div
-            initial={{ scale: 0.9, opacity: 0, y: 20 }}
-            animate={{ scale: 1, opacity: 1, y: 0 }}
-            className="relative bg-white rounded-3xl shadow-2xl max-w-md w-full p-8 overflow-hidden"
-          >
-            <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-blue-600 to-indigo-600" />
-            <div className="flex flex-col items-center text-center">
-              <div className="w-16 h-16 bg-blue-50 rounded-2xl flex items-center justify-center mb-6">
-                <Calendar className="text-blue-600" size={32} />
-              </div>
-              <h3 className="text-2xl font-bold text-gray-900 mb-2">Xác nhận đăng ký</h3>
-              <p className="text-gray-600 mb-8 leading-relaxed">
-                Bạn có chắc chắn muốn đăng ký tham gia sự kiện <br />
-                <span className="font-bold text-gray-900">"{event.title}"</span>?
-              </p>
-              <div className="grid grid-cols-2 gap-4 w-full">
-                <button
-                  onClick={() => setShowConfirmModal(false)}
-                  disabled={isRegistering}
-                  className="px-6 py-3.5 rounded-2xl border-2 border-gray-100 text-gray-600 font-bold hover:bg-gray-50 transition-all"
-                >
-                  Để sau
-                </button>
-                <button
-                  onClick={handleConfirmRegister}
-                  disabled={isRegistering}
-                  className="px-6 py-3.5 rounded-2xl bg-blue-600 text-white font-bold hover:bg-blue-700 shadow-lg shadow-blue-200 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
-                >
-                  {isRegistering ? (
-                    <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                  ) : (
-                    "Xác nhận"
-                  )}
-                </button>
-              </div>
-            </div>
-          </motion.div>
-        </div>
-      )}
+      <RegisterModal
+        isOpen={showRegisterModal}
+        onClose={() => setShowRegisterModal(false)}
+        onConfirm={confirmRegistration}
+        event={event}
+        isRegistering={isRegistering}
+        error={registrationError}
+      />
 
-      {/* Success Modal */}
-      {showSuccessModal && (
-        <div className="fixed inset-0 z-[110] flex items-center justify-center p-4">
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            className="absolute inset-0 bg-black/60 backdrop-blur-sm"
-          />
-          <motion.div
-            initial={{ scale: 0.9, opacity: 0, y: 20 }}
-            animate={{ scale: 1, opacity: 1, y: 0 }}
-            className="relative bg-white rounded-3xl shadow-2xl max-w-md w-full p-8 overflow-hidden text-center"
-          >
-            <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-emerald-500 to-green-500" />
-            <div className="w-20 h-20 bg-emerald-50 rounded-full flex items-center justify-center mx-auto mb-6">
-              <motion.div
-                initial={{ scale: 0 }}
-                animate={{ scale: 1 }}
-                transition={{ type: "spring", damping: 12, stiffness: 200, delay: 0.2 }}
-              >
-                <QrCode className="text-emerald-500" size={40} />
-              </motion.div>
-            </div>
-            <h3 className="text-2xl font-bold text-gray-900 mb-2">Đăng ký thành công!</h3>
-            <p className="text-gray-600 mb-8 leading-relaxed">
-              Bạn đã đăng ký tham gia sự kiện thành công. <br />
-              Vui lòng xem thông tin vé bên dưới.
-            </p>
-            <button
-              onClick={() => setShowSuccessModal(false)}
-              className="w-full px-6 py-4 rounded-2xl bg-gray-900 text-white font-bold hover:bg-black transition-all shadow-xl"
-            >
-              Tuyệt vời!
-            </button>
-          </motion.div>
-        </div>
-      )}
+      <QRScannerModal
+        isOpen={showScanner}
+        onClose={() => setShowScanner(false)}
+        onScanSuccess={handleScanSuccess}
+      />
 
       {/* Cancel Confirmation Modal */}
-      {showCancelModal && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            className="absolute inset-0 bg-black/60 backdrop-blur-sm"
-            onClick={() => !isCancelling && setShowCancelModal(false)}
-          />
-          <motion.div
-            initial={{ scale: 0.9, opacity: 0, y: 20 }}
-            animate={{ scale: 1, opacity: 1, y: 0 }}
-            className="relative bg-white rounded-3xl shadow-2xl max-w-md w-full p-8 overflow-hidden text-center"
+      <AnimatePresence>
+        {showCancelModal && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setShowCancelModal(false)}
+              className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+            />
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.9, opacity: 0, y: 20 }}
+              className="relative bg-white p-8 rounded-[32px] shadow-2xl max-w-sm w-full text-center"
+            >
+              <div className="w-20 h-20 bg-rose-50 text-rose-500 rounded-full flex items-center justify-center mx-auto mb-6">
+                <XCircle size={40} />
+              </div>
+              <h3 className="text-xl font-bold text-gray-900 mb-2">Hủy đăng ký?</h3>
+              <p className="text-gray-500 text-sm mb-8">
+                Bạn có chắc chắn muốn hủy đăng ký tham gia sự kiện này không? Hành động này không thể hoàn tác.
+              </p>
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setShowCancelModal(false)}
+                  className="flex-1 py-3.5 bg-gray-100 text-gray-700 font-bold rounded-2xl hover:bg-gray-200 transition-all"
+                >
+                  Quay lại
+                </button>
+                <button
+                  onClick={handleCancelRegistration}
+                  disabled={isRegistering}
+                  className="flex-1 py-3.5 bg-rose-600 text-white font-bold rounded-2xl shadow-lg shadow-rose-200 hover:bg-rose-700 transition-all active:scale-95 disabled:opacity-50"
+                >
+                  {isRegistering ? "Đang xử lý..." : "Xác nhận hủy"}
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* FLOATING ACTION BUTTONS FOR QUIZ/SURVEY */}
+      <div className="fixed bottom-10 right-10 flex flex-col gap-4 z-[99]">
+        {isQuizLive && (
+          <motion.button
+            initial={{ scale: 0, x: 100 }}
+            animate={{ scale: 1, x: 0 }}
+            whileHover={{ scale: 1.1 }}
+            onClick={() => setShowQuizModal(true)}
+            className="w-16 h-16 bg-amber-500 text-white rounded-full shadow-2xl flex items-center justify-center border-4 border-white animate-bounce"
           >
-            <div className="absolute top-0 left-0 w-full h-2 bg-red-500" />
-            <div className="w-16 h-16 bg-red-50 rounded-2xl flex items-center justify-center mx-auto mb-6">
-              <XCircle className="text-red-500" size={32} />
-            </div>
-            <h3 className="text-2xl font-bold text-gray-900 mb-2">Hủy đăng ký?</h3>
-            <p className="text-gray-600 mb-8 leading-relaxed">
-              Bạn có chắc chắn muốn hủy đăng ký tham gia sự kiện <br />
-              <span className="font-bold text-gray-900">"{event.title}"</span>?
-              <br />
-              <span className="text-sm text-red-500 mt-2 block italic">Hành động này không thể hoàn tác.</span>
-            </p>
-            <div className="grid grid-cols-2 gap-4 w-full">
-              <button
-                onClick={() => setShowCancelModal(false)}
-                disabled={isCancelling}
-                className="px-6 py-3.5 rounded-2xl border-2 border-gray-100 text-gray-600 font-bold hover:bg-gray-50 transition-all"
-              >
-                Quay lại
-              </button>
-              <button
-                onClick={handleConfirmCancel}
-                disabled={isCancelling}
-                className="px-6 py-3.5 rounded-2xl bg-red-600 text-white font-bold hover:bg-red-700 shadow-lg shadow-red-200 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
-              >
-                {isCancelling ? (
-                  <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                ) : (
-                  "Xác nhận hủy"
-                )}
-              </button>
-            </div>
-          </motion.div>
-        </div>
-      )}
+            <Trophy size={24} />
+          </motion.button>
+        )}
+
+        {event.currentUserRole?.registered && (
+          <motion.button
+            whileHover={{ scale: 1.1 }}
+            onClick={() => setShowSurveyModal(true)}
+            className="w-16 h-16 bg-indigo-600 text-white rounded-full shadow-2xl flex items-center justify-center border-4 border-white"
+          >
+            <ClipboardCheck size={24} />
+          </motion.button>
+        )}
+      </div>
+
+      <QuizModal
+        isOpen={showQuizModal}
+        onClose={() => { setShowQuizModal(false); setJoiningQuizId(null); }}
+        eventId={eventId}
+        quizId={joiningQuizId}
+        isOrganizer={false}
+      />
+
+      <SurveyModal
+        isOpen={showSurveyModal}
+        onClose={() => setShowSurveyModal(false)}
+        eventId={eventId}
+      />
     </div>
   );
 }

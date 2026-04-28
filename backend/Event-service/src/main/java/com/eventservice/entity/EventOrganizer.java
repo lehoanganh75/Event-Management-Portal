@@ -29,9 +29,15 @@ public class EventOrganizer {
     private String phone;          // Số điện thoại liên hệ
 
     @Enumerated(EnumType.STRING)
-    private OrganizerRole role;    // ORGANIZER, LEADER, COORDINATOR, MEMBER, ADVISOR
+    private OrganizerRole role;    // LEADER, COORDINATOR, MEMBER, ADVISOR
+
+    @Builder.Default
+    @Enumerated(EnumType.STRING)
+    private com.eventservice.entity.enums.OrganizerStatus status = com.eventservice.entity.enums.OrganizerStatus.ACTIVE;
 
     private boolean isDeleted = false; // Cờ đánh dấu đã xóa (soft delete)
+
+    private String addedByAccountId; // ID của người đã mời/thêm người này (Dùng cho phân quyền hiển thị)
 
     @CreationTimestamp
     private LocalDateTime assignedAt;
@@ -51,8 +57,6 @@ public class EventOrganizer {
                 .accountId(this.accountId)
                 .fullName(this.fullName)
                 .email(this.email)
-                .avatarUrl(this.avatarUrl)
-                .phone(this.phone)
                 .role(this.role)
                 .isDeleted(this.isDeleted)
                 .organization(this.organization)

@@ -64,13 +64,24 @@ export default function MyEventsPage() {
   }, [user, roleFilter]);
 
   const getUserRole = (ev) => {
-    if (ev.createdByAccountId === user?.id)
-      return { label: "Chủ trì", icon: <ShieldCheck size={14} /> };
+    const role = ev.currentUserRole || {};
 
-    if (ev.presenters?.some((p) => p.presenterAccountId === user?.id))
+    if (role.creator)
+      return { label: "Chủ trì", icon: <ShieldCheck size={14} /> };
+    
+    if (role.organizer) {
+      const orgRoleLabel = role.organizerRole === 'LEADER' ? "Trưởng Ban" : 
+                           role.organizerRole === 'COORDINATOR' ? "Điều phối" : "Thành viên";
+      return { label: orgRoleLabel, icon: <ShieldCheck size={14} /> };
+    }
+
+    if (role.approver)
+      return { label: "Người duyệt", icon: <ShieldCheck size={14} /> };
+
+    if (role.presented || role.presenter)
       return { label: "Diễn giả", icon: <Mic size={14} /> };
 
-    if (ev.registrations?.some((r) => r.participantAccountId === user?.id))
+    if (role.registered)
       return { label: "Tham gia", icon: <UserCheck size={14} /> };
 
     return { label: "Liên quan", icon: <Ticket size={14} /> };

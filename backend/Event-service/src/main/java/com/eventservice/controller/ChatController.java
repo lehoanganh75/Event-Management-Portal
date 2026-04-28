@@ -167,6 +167,23 @@ public class ChatController {
                 .result(replies)
                 .build());
     }
+
+    /**
+     * Extract event details from raw text (AI-powered)
+     */
+    @PostMapping("/extract-from-text")
+    public ResponseEntity<ApiResponse<EventPlanSuggestion>> extractFromText(
+            @RequestBody String text
+    ) {
+        log.info("Incoming AI extraction request for text length: {}", text.length());
+        EventPlanSuggestion suggestion = chatService.extractFromText(text);
+        
+        return ResponseEntity.ok(ApiResponse.<EventPlanSuggestion>builder()
+                .code(1000)
+                .message("Event details extracted successfully")
+                .result(suggestion)
+                .build());
+    }
     
     // ==================== HELPER METHODS ====================
     

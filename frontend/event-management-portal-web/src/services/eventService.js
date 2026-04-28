@@ -92,7 +92,7 @@ const eventService = {
     getCompletedEvents: () => publicApi.get('/events/news').then(transformListResponse),
     getEventById: (id) => privateApi.get(`/events/${id}`).then(res => ({ ...res, data: transformBaseData(res.data) })),
     getByStatus: (status) => privateApi.get('/events/by-statuses', { params: { statuses: status.toUpperCase() } }).then(res => ({ ...res, data: (res.data || []).map(transformBaseData) })),
-    getAllPlans: (params = {}) => publicApi.get('/events/plans', { params }),
+    getAllPlans: (params = {}) => publicApi.get('/events/plans', { params }).then(transformListResponse),
 
     // --- Related Info (Public) ---
     getPresenters: (eventId) => publicApi.get(`/events/${eventId}/presenters`),
@@ -116,7 +116,7 @@ const eventService = {
         return privateApi.post('/events', payload);
     },
     updateEvent: (id, data) => privateApi.put(`/events/update/${id}`, data),
-    deleteEvent: (id) => privateApi.delete(`/events/delete/${id}`, { timeout: 60000 }),
+    deleteEvent: (id) => privateApi.delete(`/events/delete/${id}`),
     cancelEvent: (id, reason) => privateApi.patch(`/events/${id}/cancel`, null, { params: { reason } }),
 
     // --- GROUP 3: POSTS ---
@@ -144,9 +144,10 @@ const eventService = {
     updateTemplate: (id, data) => privateApi.put(`/templates/${id}`, data),
     deleteTemplate: (id) => privateApi.delete(`/templates/${id}`),
     toggleTemplateStar: (id) => privateApi.patch(`/templates/${id}/star`),
+    incrementTemplateUsage: (id) => privateApi.post(`/templates/${id}/increment-usage`),
 
     // --- GROUP 5: PLANS ---
-    getMyPlans: () => privateApi.get('/events/plans/my').then(res => ({ ...res, data: (res.data || []).map(transformBaseData) })),
+    getMyPlans: () => privateApi.get('/events/plans/my').then(transformListResponse),
     getPlanById: (id) => privateApi.get(`/events/plans/${id}`).then(res => ({ ...res, data: transformBaseData(res.data) })),
     getPlansByStatus: (statusName, accountId) => privateApi.get(`/events/plans/status/${statusName}`, { params: { accountId } }),
     createPlan: (data, submit = false) => privateApi.post(`/events/plans?submit=${submit}`, data),
@@ -160,8 +161,32 @@ const eventService = {
     registerEvent: (eventId) => privateApi.post(`/registrations/${eventId}`),
     getTicketByEventId: (id) => privateApi.get(`/registrations/${id}`),
     getQR: (registrationId) => privateApi.get(`/registrations/${registrationId}/qr`),
-    cancelRegistration: (eventId) => privateApi.put(`/registrations/cancel/${eventId}`),
+    cancelRegistration: (eventId) => privateApi.patch(`/registrations/cancel/${eventId}`),
     getUsersByEvent: (eventId) => privateApi.get(`/registrations/event/${eventId}`),
+    checkIn: (payload) => privateApi.post('/registrations/check-in', payload),
+    manualCheckIn: (registrationId, adminAccountId) => privateApi.post(`/registrations/${registrationId}/manual-check-in`, null, { params: { adminAccountId } }),
+    undoCheckIn: (registrationId) => privateApi.post(`/registrations/${registrationId}/undo-check-in`),
+    updateCheckInTime: (registrationId, newTime) => privateApi.put(`/registrations/${registrationId}/check-in-time`, null, { params: { newTime } }),
+
+    getEventQRToken: (eventId) => privateApi.get(`/registrations/event/${eventId}/qr-token`),
+    checkInByEventToken: (token) => privateApi.post('/registrations/check-in/event', { token }),
+    toggleCheckIn: (eventId, enabled) => privateApi.patch(`/registrations/event/${eventId}/toggle-check-in`, null, { params: { enabled } }),
+    updateQRType: (eventId, qrType) => privateApi.patch(`/registrations/event/${eventId}/qr-type`, null, { params: { qrType } }),
+
+    // --- QUIZ API ---
+    getQuizzesByEvent: (eventId) => privateApi.get(`/quizzes/event/${eventId}`),
+    createQuiz: (quizData) => privateApi.post('/quizzes', quizData),
+    startQuiz: (quizId) => privateApi.post(`/quizzes/${quizId}/start`),
+    nextQuizQuestion: (quizId, index) => privateApi.post(`/quizzes/${quizId}/next`, null, { params: { index } }),
+    submitQuizAnswer: (submission) => privateApi.post('/quizzes/submit', submission),
+    getQuizLeaderboard: (quizId) => privateApi.get(`/quizzes/${quizId}/leaderboard`),
+
+    // --- SURVEY API ---
+    getSurveyByEvent: (eventId) => privateApi.get(`/surveys/event/${eventId}`),
+    createOrUpdateSurvey: (surveyData) => privateApi.post('/surveys', surveyData),
+    publishSurvey: (surveyId) => privateApi.post(`/surveys/${surveyId}/publish`),
+    submitSurveyResponse: (surveyId, answers) => privateApi.post(`/surveys/${surveyId}/submit`, { answers }),
+    checkSurveySubmission: (surveyId) => privateApi.get(`/surveys/${surveyId}/has-submitted`),
 
     // --- GROUP 7: ADMIN APPROVAL ---
     getPlansPendingApproval: () => privateApi.get('/events/admin/plans/pending'),
@@ -189,15 +214,16 @@ const eventService = {
 
     sendOrganizerInvitations: (eventId, payload) => privateApi.post(`/events/${eventId}/organizer-invitations`, payload),
     sendPresenterInvitations: (eventId, payload) => privateApi.post(`/events/${eventId}/presenter-invitations`, payload),
-
+    cancelInvitation: (invitationId) => privateApi.delete(`/events/invitations/${invitationId}`),
     removeOrganizer: (organizerId) => privateApi.delete(`/events/organizers/${organizerId}`),
     removePresenter: (presenterId) => privateApi.delete(`/events/presenters/${presenterId}`),
-    manualCheckIn: (registrationId, adminAccountId) =>
-        privateApi.post(`/registrations/${registrationId}/manual-check-in`, null, { params: { adminAccountId } }),
-    checkIn: (qrToken, adminAccountId) =>
-        privateApi.post('/registrations/check-in', { qrToken, adminAccountId }),
-    undoCheckIn: (registrationId) =>
-        privateApi.post(`/registrations/${registrationId}/undo-check-in`),
+
+    getEventSummary: (id) => privateApi.get(`/events/${id}/summary`),
+    getOrganizerRoles: () => privateApi.get('/events/organizer-roles').then(res => res.data),
+
+    leaveTeam: (eventId) => privateApi.post(`/events/${eventId}/organizers/leave`),
+    approveLeaveRequest: (organizerId) => privateApi.post(`/events/organizers/${organizerId}/approve-leave`),
+    rejectLeaveRequest: (organizerId) => privateApi.post(`/events/organizers/${organizerId}/reject-leave`),
 };
 
 export default eventService;

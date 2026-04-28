@@ -40,5 +40,6 @@ public class Organization {
     private boolean isDeleted = false;
 
     @OneToMany(mappedBy = "organization", cascade = CascadeType.ALL, orphanRemoval = true)
+    @com.fasterxml.jackson.annotation.JsonIgnore
     private List<Event> events; // Danh sách sự kiện thuộc đơn vị này
 }

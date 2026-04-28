@@ -106,6 +106,7 @@ const NotificationManagement = ({
       case "EVENT_UPDATED": return "Cập nhật sự kiện";
       case "REGISTRATION_CONFIRMED": return "Xác nhận đăng ký";
       case "CHECKIN_REMINDER": return "Nhắc nhở";
+      case "INVITATION": return "Lời mời tham gia";
       case "QUESTION_CREATED": return "Câu hỏi mới";
       case "POLL_CREATED": return "Khảo sát mới";
       default: return type;
@@ -235,6 +236,7 @@ const NotificationManagement = ({
         >
           <option value="all">Tất cả loại</option>
           <option value="SYSTEM">Hệ thống</option>
+          <option value="INVITATION">Lời mời</option>
           <option value="EVENT_UPDATED">Cập nhật sự kiện</option>
           <option value="EVENT_APPROVED">Sự kiện duyệt</option>
           <option value="EVENT_REJECTED">Sự kiện từ chối</option>

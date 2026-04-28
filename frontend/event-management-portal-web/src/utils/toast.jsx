@@ -1,11 +1,9 @@
 import React from 'react';
 import { toast } from 'react-toastify';
-import { CheckSquare } from 'lucide-react';
 
 export const showToast = (message, type = 'success') => {
   const content = (
     <div className="custom-toast-message">
-      {type === 'success' && <CheckSquare size={18} className="custom-toast-inner-icon" />}
       <span>{message}</span>
     </div>
   );

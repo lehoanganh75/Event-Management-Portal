@@ -5,36 +5,28 @@ import eventService from "../../services/eventService";
 import NotificationManagement from "../../components/common/management/NotificationManagement";
 import { toast } from "react-toastify";
 
+import { useNotification } from "../../context/NotificationContext";
+
 const LecturerNotificationsPage = () => {
   const { user } = useAuth();
-  const [notifications, setNotifications] = useState([]);
+  const { notifications, loading: isLoading, refreshNotifications, markAsRead, markAllAsRead } = useNotification();
   const [userEvents, setUserEvents] = useState([]);
-  const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
   const userId = useMemo(() => user?.id || user?.accountId, [user]);
 
   const fetchNotifications = useCallback(async (isRefresh = false) => {
     if (!userId) return;
-    isRefresh ? setIsRefreshing(true) : setIsLoading(true);
+    isRefresh ? setIsRefreshing(true) : null;
     try {
-      const response = await notificationService.getNotificationsByUser(userId);
-      let data = [];
-      if (Array.isArray(response.data)) data = response.data;
-      else if (response.data?.content) data = response.data.content;
-      else if (response.data?.data) data = response.data.data;
-
-      setNotifications(data.map(n => ({
-        ...n,
-        read: n.read === true || n.status === "READ"
-      })));
+      await refreshNotifications();
     } catch (error) {
       console.error("Lỗi tải thông báo:", error);
       toast.error("Không thể tải danh sách thông báo");
     } finally {
-      isRefresh ? setIsRefreshing(false) : setIsLoading(false);
+      setIsRefreshing(false);
     }
-  }, [userId]);
+  }, [userId, refreshNotifications]);
 
   const fetchUserEvents = useCallback(async () => {
     try {
@@ -47,25 +39,18 @@ const LecturerNotificationsPage = () => {
 
   useEffect(() => {
     if (userId) {
-      fetchNotifications();
       fetchUserEvents();
     }
-  }, [userId, fetchNotifications, fetchUserEvents]);
+  }, [userId, fetchUserEvents]);
 
   const handleMarkAsRead = async (id) => {
-    try {
-      await notificationService.markAsRead(id);
-      setNotifications(prev => prev.map(n => n.id === id ? { ...n, read: true } : n));
-    } catch (error) { console.error(error); }
+    await markAsRead(id);
   };
 
   const handleMarkAllAsRead = async () => {
     if (!userId) return;
-    try {
-      await notificationService.markAllAsRead(userId);
-      setNotifications(prev => prev.map(n => ({ ...n, read: true })));
-      toast.success("Đã đánh dấu tất cả là đã đọc");
-    } catch (error) { console.error(error); }
+    await markAllAsRead();
+    toast.success("Đã đánh dấu tất cả là đã đọc");
   };
 
   const handleDelete = async (id) => {

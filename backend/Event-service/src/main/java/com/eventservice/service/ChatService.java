@@ -46,4 +46,9 @@ public interface ChatService {
      * Get quick reply suggestions
      */
     List<String> getQuickReplies(String sessionId);
+
+    /**
+     * Extract event details from raw text using AI
+     */
+    EventPlanSuggestion extractFromText(String text);
 }

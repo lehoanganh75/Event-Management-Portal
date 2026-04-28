@@ -9,6 +9,9 @@ import com.identityservice.entity.User;
 import com.identityservice.repository.AccountRepository;
 import com.identityservice.repository.UserRepository;
 import com.identityservice.service.UserService;
+import com.identityservice.entity.AccountStatus;
+import org.springframework.http.HttpStatus;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
 import java.util.Set;
@@ -26,8 +29,13 @@ public class UserServiceImpl implements UserService {
 
     @Override
     public User getProfileByUserId(String userId) {
-        return userRepository.findById(userId)
-                .orElseThrow(() -> new RuntimeException("User profile not found for userId ID: " + userId));
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User profile not found for userId ID: " + userId));
+
+        if (user.getAccount().getStatus() != AccountStatus.ACTIVE) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Tài khoản của bạn đã bị khóa hoặc chưa được kích hoạt.");
+        }
+        return user;
     }
 
     @Override
@@ -38,7 +46,11 @@ public class UserServiceImpl implements UserService {
         userProfile.setDateOfBirth(updatedProfile.getDateOfBirth());
         userProfile.setGender(updatedProfile.getGender());
         userProfile.setMajorName(updatedProfile.getMajorName());
+        userProfile.setLoginCode(updatedProfile.getLoginCode());
         userProfile.setPhone(updatedProfile.getPhone());
+        userProfile.setOrganizationId(updatedProfile.getOrganizationId());
+        userProfile.setOrganizationName(updatedProfile.getOrganizationName());
+        userProfile.setPosition(updatedProfile.getPosition());
         return userRepository.save(userProfile);
     }
 

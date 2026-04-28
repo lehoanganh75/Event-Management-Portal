@@ -96,6 +96,12 @@ public class Event {
     @Column(columnDefinition = "TEXT")
     private String additionalInfo;
 
+    @Builder.Default
+    private boolean checkInEnabled = false;
+
+    @Builder.Default
+    private String qrType = "DYNAMIC"; // "DYNAMIC" or "STATIC"
+
     // --- AUDIT ---
     @CreationTimestamp
     @Column(updatable = false)
@@ -144,38 +150,46 @@ public class Event {
     // --- RELATIONSHIPS ---
 
     @OneToMany(mappedBy = "event", cascade = CascadeType.ALL, orphanRemoval = true)
-    @JsonIgnoreProperties("event")
+    @JsonIgnore
+    @Builder.Default
     private Set<EventRegistration> registrations = new HashSet<>();
 
     @OneToMany(mappedBy = "event", cascade = CascadeType.ALL, orphanRemoval = true)
     @SQLRestriction("is_deleted = false")
     @JsonIgnoreProperties("event")
+    @Builder.Default
     private Set<EventOrganizer> organizers = new HashSet<>();
 
     @OneToMany(mappedBy = "event", cascade = CascadeType.ALL, orphanRemoval = true)
     @SQLRestriction("is_deleted = false")
     @JsonIgnoreProperties("event")
+    @Builder.Default
     private Set<EventPresenter> presenters = new HashSet<>();
 
     @OneToMany(mappedBy = "event", cascade = CascadeType.ALL, orphanRemoval = true)
     @SQLRestriction("is_deleted = false")
     @JsonIgnore
+    @Builder.Default
     private Set<EventParticipant> participants = new HashSet<>();
 
     @OneToMany(mappedBy = "event", cascade = CascadeType.ALL, orphanRemoval = true)
     @JsonIgnoreProperties("event")
+    @Builder.Default
     private Set<EventSession> sessions = new HashSet<>();
 
     @OneToMany(mappedBy = "event", cascade = CascadeType.ALL, orphanRemoval = true)
     @JsonIgnore
+    @Builder.Default
     private Set<EventPost> posts = new HashSet<>();
 
     @OneToMany(mappedBy = "event", cascade = CascadeType.ALL, orphanRemoval = true)
     @JsonIgnore
+    @Builder.Default
     private Set<EventFeedback> feedbacks = new HashSet<>();
 
     @OneToMany(mappedBy = "event", cascade = CascadeType.ALL, orphanRemoval = true)
     @JsonIgnoreProperties("event")
+    @Builder.Default
     private Set<EventInvitation> invitations = new HashSet<>();
 
     @OneToOne(mappedBy = "event", cascade = CascadeType.ALL, orphanRemoval = true)

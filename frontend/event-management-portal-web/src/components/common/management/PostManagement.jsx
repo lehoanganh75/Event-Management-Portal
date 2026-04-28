@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback, useEffect } from "react";
+import React, { useState, useMemo, useCallback } from "react";
 import {
   FileText,
   Plus,
@@ -64,7 +64,6 @@ const PostManagement = ({
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [typeFilter, setTypeFilter] = useState("all");
-  const [eventFilter, setEventFilter] = useState("all");
   const [currentPage, setCurrentPage] = useState(1);
   const [activeTab, setActiveTab] = useState("Tất cả");
 
@@ -96,64 +95,29 @@ const PostManagement = ({
     setEditingPostId(null);
   }, []);
 
-
-  // Tự động chọn sự kiện đầu tiên khi mở modal hoặc danh sách sự kiện thay đổi
-  useEffect(() => {
-    if (isCreateModalOpen && !postFormData.eventId && eligibleEvents && eligibleEvents.length > 0) {
-      setPostFormData(prev => ({ ...prev, eventId: eligibleEvents[0].id }));
-    }
-  }, [isCreateModalOpen, eligibleEvents, postFormData.eventId]);
-
   const canPostForSelectedEvent = useMemo(() => {
     if (!postFormData.eventId) return true;
     const selectedEvent = eligibleEvents.find(e => e.id === postFormData.eventId);
     if (!selectedEvent) return false;
-
+    if (isSystemAdmin) return true;
     const role = selectedEvent.currentUserRole;
-    // Bất kỳ ai có vai trò (BTC/Diễn giả) hoặc là tác giả thì mới được đăng
-    return role?.organizer || role?.presented;
-  }, [postFormData.eventId, eligibleEvents]);
+    const isInOrganization = user?.organizationId === selectedEvent?.organization?.id || 
+                             user?.orgId === selectedEvent?.organization?.id;
+    return role?.organizer || role?.presented || isInOrganization;
+  }, [postFormData.eventId, eligibleEvents, isSystemAdmin, user]);
 
   const needsApproval = useMemo(() => {
+    if (isSystemAdmin) return false;
     const selectedEvent = eligibleEvents.find(e => e.id === postFormData.eventId);
-    // Nếu chưa chọn sự kiện hoặc không tìm thấy, mặc định là cần duyệt cho an toàn
-    if (!selectedEvent) return true;
-
-    const roleInfo = selectedEvent.currentUserRole;
-
-    // 1. Diễn giả (Presenter) -> KHÔNG cần duyệt
-    if (roleInfo?.presented || roleInfo?.isPresented) return false;
-
-    // 2. Ban tổ chức (Organizer)
-    if (roleInfo?.organizer || roleInfo?.isOrganizer) {
-      const role = roleInfo.organizerRole;
-      // Danh sách role được đăng trực tiếp: LEADER, ADVISOR, COORDINATOR, ORGANIZER
-      const autoApproveRoles = ["LEADER", "ADVISOR", "COORDINATOR", "ORGANIZER"];
-
-      if (autoApproveRoles.includes(role)) {
-        return false;
-      }
-
-      // Nếu là MEMBER hoặc role khác trong BTC -> CẦN duyệt
-      return true;
-    }
-
-    // 3. Toàn bộ người dùng khác -> CẦN duyệt
-    return true;
-  }, [eligibleEvents, postFormData.eventId]);
+    const isInOrganization = user?.organizationId === selectedEvent?.organization?.id || 
+                             user?.orgId === selectedEvent?.organization?.id;
+    if (isInOrganization) return false;
+    return true; // Lecturers/Presenters/Organizers who are not admins/org members need approval
+  }, [isSystemAdmin, user, eligibleEvents, postFormData.eventId]);
 
   const handleOpenModal = () => {
     resetForm();
     if (fetchEligibleEvents) fetchEligibleEvents();
-
-    // Tự động chọn sự kiện đầu tiên nếu có danh sách
-    if (eligibleEvents && eligibleEvents.length > 0) {
-      setPostFormData(prev => ({
-        ...prev,
-        eventId: eligibleEvents[0].id
-      }));
-    }
-
     setIsCreateModalOpen(true);
   };
 
@@ -186,9 +150,20 @@ const PostManagement = ({
     setIsSubmitting(true);
     try {
       // Determine final status based on user roles
+      // logic: organizations -> PUBLISHED, EventPresenter/EventOrganizer -> PENDING
+      const selectedEvent = eligibleEvents.find(e => e.id === postFormData.eventId);
+      const isOrganizerOrPresenter = selectedEvent?.currentUserRole?.organizer || selectedEvent?.currentUserRole?.presented;
+      const isInOrganization = user?.organizationId === selectedEvent?.organization?.id || 
+                               user?.orgId === selectedEvent?.organization?.id || 
+                               isSystemAdmin;
+
       let finalStatus = postFormData.status;
-      if (finalStatus === "PUBLISHED" && needsApproval) {
-        finalStatus = "PENDING";
+      if (finalStatus === "PUBLISHED") {
+        if (isInOrganization) {
+          finalStatus = "PUBLISHED";
+        } else if (isOrganizerOrPresenter) {
+          finalStatus = "PENDING";
+        }
       }
 
       const payload = {
@@ -202,8 +177,8 @@ const PostManagement = ({
         toast.success("Đã cập nhật bài viết thành công!");
       } else {
         await createPost(payload);
-        const successMsg = finalStatus === "PENDING"
-          ? "Bài viết đã được gửi và đang chờ phê duyệt!"
+        const successMsg = finalStatus === "PENDING" 
+          ? "Bài viết đã được gửi và đang chờ phê duyệt!" 
           : "Đã đăng bài viết thành công!";
         toast.success(successMsg);
       }
@@ -259,23 +234,19 @@ const PostManagement = ({
         const isAuthor = post.accountId === (user?.id || user?.accountId);
         const eventId = post.eventId || post.event?.id;
         const eventInfo = eligibleEvents.find(e => e.id === eventId);
-
+        
         const hasEventRole = eventInfo?.currentUserRole?.organizer || eventInfo?.currentUserRole?.presented;
-        const isInEventOrg = user?.organizationId === eventInfo?.organization?.id ||
-          user?.orgId === eventInfo?.organization?.id;
-
+        const isInEventOrg = user?.organizationId === eventInfo?.organization?.id || 
+                             user?.orgId === eventInfo?.organization?.id;
+        
         // If not author AND no role/org in the event, hide the post
         if (!isAuthor && !hasEventRole && !isInEventOrg) return false;
       }
 
       // 2. Search & Tab Filter
       const searchLower = searchTerm.toLowerCase();
-      const eventTitleStr = (post.eventTitle || post.event?.title || "");
-      const matchSearch = !searchTerm ||
-        post.title?.toLowerCase().includes(searchLower) ||
-        post.content?.toLowerCase().includes(searchLower) ||
-        eventTitleStr.toLowerCase().includes(searchLower);
-
+      const matchSearch = !searchTerm || post.title?.toLowerCase().includes(searchLower) || post.content?.toLowerCase().includes(searchLower);
+      
       let matchTab = true;
       switch (activeTab) {
         case "Đã đăng": matchTab = post.status === "PUBLISHED"; break;
@@ -287,9 +258,8 @@ const PostManagement = ({
 
       const matchStatus = statusFilter === "all" || post.status === statusFilter;
       const matchType = typeFilter === "all" || post.postType === typeFilter;
-      const matchEvent = eventFilter === "all" || (post.eventId || post.event?.id) === eventFilter;
 
-      return matchSearch && matchTab && matchStatus && matchType && matchEvent;
+      return matchSearch && matchTab && matchStatus && matchType;
     });
   }, [posts, searchTerm, statusFilter, typeFilter, activeTab, isSystemAdmin, user, eligibleEvents]);
 
@@ -318,9 +288,6 @@ const PostManagement = ({
     pending: posts?.filter(p => p.status === "PENDING").length || 0,
     draft: posts?.filter(p => p.status === "DRAFT").length || 0,
   }), [posts]);
-
-  console.log(posts);
-
 
   return (
     <div className="p-6 bg-slate-50 min-h-screen text-left">
@@ -372,14 +339,7 @@ const PostManagement = ({
           {Object.entries(POST_TYPES).map(([key, value]) => (<option key={key} value={key}>{value.label}</option>))}
         </select>
 
-        <select className="border border-gray-100 bg-slate-50 px-4 py-3 rounded-xl text-sm focus:outline-none focus:border-blue-500 min-w-[200px]" value={eventFilter} onChange={(e) => setEventFilter(e.target.value)}>
-          <option value="all">Tất cả sự kiện</option>
-          {eligibleEvents.map(ev => (
-            <option key={ev.id} value={ev.id}>{ev.title}</option>
-          ))}
-        </select>
-
-        <button onClick={() => { setSearchTerm(""); setStatusFilter("all"); setTypeFilter("all"); setEventFilter("all"); setActiveTab("Tất cả"); }} className="px-5 py-3 text-gray-600 hover:bg-gray-100 rounded-xl text-sm font-medium transition-all">Đặt lại</button>
+        <button onClick={() => { setSearchTerm(""); setStatusFilter("all"); setTypeFilter("all"); setActiveTab("Tất cả"); }} className="px-5 py-3 text-gray-600 hover:bg-gray-100 rounded-xl text-sm font-medium transition-all">Đặt lại</button>
       </div>
 
       <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden shadow-sm">
@@ -391,7 +351,6 @@ const PostManagement = ({
               <thead className="bg-slate-50 border-b border-gray-200">
                 <tr>
                   <th className="p-4 text-left font-semibold text-slate-700">Tiêu đề bài viết</th>
-                  <th className="p-4 text-left font-semibold text-slate-700">Sự kiện</th>
                   <th className="p-4 text-left font-semibold text-slate-700">Nội dung</th>
                   <th className="p-4 text-left font-semibold text-slate-700">Loại</th>
                   <th className="p-4 text-left font-semibold text-slate-700">Ngày tạo</th>
@@ -404,11 +363,6 @@ const PostManagement = ({
                   paginatedPosts.map((post) => (
                     <tr key={post.id} className="hover:bg-slate-50/80 transition-colors">
                       <td className="p-4"><p className="font-bold text-slate-800 truncate max-w-[200px]">{post.title}</p></td>
-                      <td className="p-4">
-                        <div className="flex flex-col">
-                          <span className="font-medium text-blue-600 truncate max-w-[150px]">{post.eventTitle || post.event?.title || "Không rõ"}</span>
-                        </div>
-                      </td>
                       <td className="p-4"><p className="text-sm text-gray-600 line-clamp-2 leading-relaxed max-w-[300px]">{post.content}</p></td>
                       <td className="p-4">
                         <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium ${POST_TYPES[post.postType]?.color || "bg-gray-100"}`}>
@@ -435,7 +389,7 @@ const PostManagement = ({
                     </tr>
                   ))
                 ) : (
-                  <tr><td colSpan={7} className="p-20 text-center"><div className="flex flex-col items-center"><div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center text-slate-400 mb-4"><Search size={32} /></div><p className="text-gray-500 font-medium">Không tìm thấy bài viết nào</p></div></td></tr>
+                  <tr><td colSpan={6} className="p-20 text-center"><div className="flex flex-col items-center"><div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center text-slate-400 mb-4"><Search size={32} /></div><p className="text-gray-500 font-medium">Không tìm thấy bài viết nào</p></div></td></tr>
                 )}
               </tbody>
             </table>
@@ -490,6 +444,10 @@ const PostManagement = ({
                         }
                       </select>
                       <select value={postFormData.postType} onChange={(e) => setPostFormData({ ...postFormData, postType: e.target.value })} className="text-[10px] font-bold bg-slate-100 text-slate-600 px-2 py-1 rounded-md border-none focus:ring-0 cursor-pointer hover:bg-slate-200 transition-colors">{Object.entries(POST_TYPES).map(([key, value]) => (<option key={key} value={key}>{value.label.toUpperCase()}</option>))}</select>
+                      <select value={postFormData.status} onChange={(e) => setPostFormData({ ...postFormData, status: e.target.value })} className="text-[10px] font-bold bg-slate-100 text-slate-600 px-2 py-1 rounded-md border-none focus:ring-0 cursor-pointer hover:bg-slate-200 transition-colors uppercase">
+                        <option value="PUBLISHED">{needsApproval ? "GỬI DUYỆT" : "CÔNG KHAI"}</option>
+                        <option value="DRAFT">BẢN NHÁP</option>
+                      </select>
                     </div>
                   </div>
                 </div>
@@ -516,9 +474,11 @@ const PostManagement = ({
               <div className="p-4 bg-white border-t border-slate-100">
                 <button onClick={handleCreatePost} disabled={isSubmitting || (postFormData.eventId && !canPostForSelectedEvent)} className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-slate-300 text-white py-3 rounded-xl font-bold shadow-lg transition-all flex items-center justify-center gap-2">
                   {isSubmitting ? <Loader2 size={18} className="animate-spin" /> : <Send size={18} />}
-                  {editingPostId
-                    ? "Cập nhật bài viết"
-                    : (needsApproval ? "Gửi bài duyệt" : "Đăng bài ngay")}
+                  {editingPostId 
+                    ? "Cập nhật bài viết" 
+                    : (postFormData.status === "PUBLISHED" 
+                        ? (needsApproval ? "Gửi bài duyệt" : "Đăng bài ngay") 
+                        : "Lưu bản nháp")}
                 </button>
               </div>
             </motion.div>

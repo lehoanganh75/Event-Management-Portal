@@ -9,15 +9,16 @@ public class UserDto {
     private String fullName;
     private String avatarUrl;
     private String email;
+    private String loginCode;
     private String phone;
     private Gender gender;
     private LocalDate dateOfBirth;
     private String majorName;
-    private String role;
-    private String bio;
+    private String organizationId;
+    private String organizationName;
+    private String position;
 
-    public UserDto() {
-    }
+    public UserDto() {}
 
     public String getId() {
         return id;
@@ -49,6 +50,14 @@ public class UserDto {
 
     public void setEmail(String email) {
         this.email = email;
+    }
+
+    public String getLoginCode() {
+        return loginCode;
+    }
+
+    public void setLoginCode(String loginCode) {
+        this.loginCode = loginCode;
     }
 
     public String getPhone() {
@@ -83,39 +92,46 @@ public class UserDto {
         this.majorName = majorName;
     }
 
-    public String getRole() {
-        return role;
+    public String getOrganizationId() {
+        return organizationId;
     }
 
-    public void setRole(String role) {
-        this.role = role;
+    public void setOrganizationId(String organizationId) {
+        this.organizationId = organizationId;
     }
 
-    public String getBio() {
-        return bio;
+    public String getOrganizationName() {
+        return organizationName;
     }
 
-    public void setBio(String bio) {
-        this.bio = bio;
+    public void setOrganizationName(String organizationName) {
+        this.organizationName = organizationName;
+    }
+
+    public String getPosition() {
+        return position;
+    }
+
+    public void setPosition(String position) {
+        this.position = position;
     }
 
     public static UserDto from(User user) {
-        if (user == null)
-            return null;
+        if (user == null) return null;
 
         UserDto dto = new UserDto();
         dto.setId(user.getId());
         dto.setFullName(user.getFullName());
         dto.setAvatarUrl(user.getAvatarUrl());
         dto.setEmail(user.getAccount() != null ? user.getAccount().getEmail() : null);
+        dto.setLoginCode(user.getLoginCode());
         dto.setPhone(user.getPhone());
         dto.setGender(user.getGender());
         dto.setDateOfBirth(user.getDateOfBirth());
         dto.setMajorName(user.getMajorName());
-        dto.setBio(user.getBio());
-        dto.setRole(
-                user.getAccount() != null && user.getAccount().getRole() != null ? user.getAccount().getRole().name()
-                        : null);
+        dto.setOrganizationId(user.getOrganizationId());
+        dto.setOrganizationName(user.getOrganizationName());
+        dto.setPosition(user.getPosition());
         return dto;
     }
 }

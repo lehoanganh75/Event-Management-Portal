@@ -29,4 +29,10 @@ public interface EventRegistrationService {
 
     RegistrationResponseDto getTicketForUser(String eventId, String currentUserId);
     CheckInResponse undoCheckIn(String registrationId);
+    CheckInResponse updateCheckInTime(String registrationId, java.time.LocalDateTime newTime, String adminAccountId);
+
+    CheckInResponse getEventQRToken(String eventId);
+    CheckInResponse checkInByEventToken(String eventToken, String userId);
+    void toggleCheckInEnabled(String eventId, boolean enabled);
+    void updateEventQRType(String eventId, String qrType);
 }

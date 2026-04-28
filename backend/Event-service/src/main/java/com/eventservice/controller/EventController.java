@@ -107,8 +107,44 @@ public class EventController {
     public ResponseEntity<Event> getEventById(
             @PathVariable String id,
             @AuthenticationPrincipal Jwt jwt) {
-        String accountId = (jwt != null) ? jwt.getSubject() : null;
+        String accountId = jwt != null ? jwt.getSubject() : null;
         return ResponseEntity.ok(eventService.getEventById(id, accountId));
+    }
+
+    @PostMapping("/{eventId}/organizers/leave")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<Void> requestToLeave(
+            @PathVariable String eventId,
+            @AuthenticationPrincipal Jwt jwt) {
+        String accountId = jwt.getSubject();
+        organizerService.requestToLeave(eventId, accountId);
+        return ResponseEntity.ok().build();
+    }
+
+    @PostMapping("/organizers/{organizerId}/approve-leave")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<Void> approveLeaveRequest(
+            @PathVariable String organizerId,
+            @AuthenticationPrincipal Jwt jwt) {
+        String approverAccountId = jwt.getSubject();
+        organizerService.approveLeaveRequest(organizerId, approverAccountId);
+        return ResponseEntity.ok().build();
+    }
+
+    @PostMapping("/organizers/{organizerId}/reject-leave")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<Void> rejectLeaveRequest(
+            @PathVariable String organizerId,
+            @AuthenticationPrincipal Jwt jwt) {
+        String approverAccountId = jwt.getSubject();
+        organizerService.rejectLeaveRequest(organizerId, approverAccountId);
+        return ResponseEntity.ok().build();
+    }
+
+    @GetMapping("/organizer-roles")
+    public ResponseEntity<List<String>> getMyOrganizerRoles(@AuthenticationPrincipal Jwt jwt) {
+        String accountId = jwt.getSubject();
+        return ResponseEntity.ok(eventService.getOrganizerRoles(accountId));
     }
 
     @PutMapping("/{eventId}/lucky-draw")
@@ -439,6 +475,11 @@ public class EventController {
         }
     }
 
+    @GetMapping("/{id}/summary")
+    public ResponseEntity<com.eventservice.dto.EventSummaryDto> getEventSummary(@PathVariable String id) {
+        return ResponseEntity.ok(eventService.getEventSummary(id));
+    }
+
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<Event> createEvent(
             @RequestPart("request") CreateEventRequest request,
@@ -608,7 +649,7 @@ public class EventController {
             @RequestBody com.eventservice.dto.InvitationBatchRequest request,
             @AuthenticationPrincipal Jwt jwt) {
         String organizerId = jwt.getSubject();
-        Map<String, String> response = eventService.invitateParticipants(eventId, organizerId, request);
+        Map<String, String> response = eventService.inviteParticipants(eventId, organizerId, request);
         return ResponseEntity.ok(response);
     }
 
@@ -638,7 +679,7 @@ public class EventController {
     }
 
     @PostMapping("/{eventId}/organizer-invitations")
-    @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<Void> sendOrganizerInvitations(
             @PathVariable String eventId,
             @RequestBody Map<String, List<Map<String, Object>>> request) {
@@ -647,11 +688,18 @@ public class EventController {
     }
 
     @PostMapping("/{eventId}/presenter-invitations")
-    @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<Void> sendPresenterInvitations(
             @PathVariable String eventId,
             @RequestBody Map<String, List<Map<String, Object>>> request) {
         eventService.sendPresenterInvitations(eventId, request.get("invitations"));
         return ResponseEntity.ok().build();
+    }
+
+    @DeleteMapping("/invitations/{invitationId}")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<Void> cancelInvitation(@PathVariable String invitationId) {
+        eventService.cancelInvitation(invitationId);
+        return ResponseEntity.noContent().build();
     }
 }

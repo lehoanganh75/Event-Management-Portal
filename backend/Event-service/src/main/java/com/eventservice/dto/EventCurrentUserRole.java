@@ -30,4 +30,5 @@ public class EventCurrentUserRole {
     private boolean canViewAnalytics;
     private boolean canCheckIn;
     // thêm sau: canCheckIn, canExport, ...
+    private boolean canScanQR; // keep this one if it's already used
 }

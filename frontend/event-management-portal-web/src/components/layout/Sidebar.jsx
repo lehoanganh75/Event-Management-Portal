@@ -1,7 +1,16 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
+import { useNotification } from '../../context/NotificationContext';
+import { useAuth } from '../../context/AuthContext';
+import { Home } from 'lucide-react';
 
 const Sidebar = ({ menuItems }) => {
+  const { unreadCount } = useNotification();
+  const { user } = useAuth();
+
+  // Kiểm tra nếu là Leader thì ẩn "Quay về trang chủ"
+  const isLeader = user?.eventRoles?.some(role => role.toUpperCase() === 'LEADER');
+
   return (
     <aside
       className="
@@ -12,13 +21,9 @@ const Sidebar = ({ menuItems }) => {
         backdrop-blur-[1px] z-20
       "
     >
-      {/* Header / Logo */}
-      <div className="p-6 pb-4 flex justify-center items-center border-b border-slate-100/80">
-        <img
-          src="/src/assets/images/logo_iuh.png"
-          alt="IUH Logo"
-          className="h-12 w-auto object-contain"
-        />
+      {/* Header / Logo (Emptied per user request) */}
+      <div className="p-6 pb-4 flex justify-center items-center">
+        {/* Logo removed */}
       </div>
 
       {/* Section Label */}
@@ -65,7 +70,14 @@ const Sidebar = ({ menuItems }) => {
                     <Icon size={20} strokeWidth={isActive ? 2.2 : 1.8} />
                   </div>
 
-                  <span className="truncate">{item.name}</span>
+                  <span className="truncate flex-1">{item.name}</span>
+
+                  {/* Notification badge */}
+                  {item.name?.toLowerCase().includes('thông báo') && unreadCount > 0 && (
+                    <span className="ml-auto min-w-[20px] h-5 px-1.5 flex items-center justify-center rounded-full bg-red-500 text-white text-[10px] font-bold leading-none shadow-sm">
+                      {unreadCount > 99 ? '99+' : unreadCount}
+                    </span>
+                  )}
 
                   {/* Active indicator */}
                   {isActive && (
@@ -78,8 +90,19 @@ const Sidebar = ({ menuItems }) => {
         })}
       </nav>
 
+      {/* Return Home Link (Fixed at the bottom) */}
+      <div className="p-4 border-t border-slate-100 bg-white/50">
+        <NavLink to="/" className="outline-none block">
+          <div className="group relative flex items-center gap-3.5 px-4 py-3 rounded-xl text-sm font-bold text-slate-500 hover:bg-indigo-50 hover:text-indigo-600 transition-all duration-200 border border-transparent hover:border-indigo-100">
+            <div className="flex items-center justify-center w-9 h-9 rounded-lg bg-slate-100 text-slate-500 group-hover:bg-indigo-600 group-hover:text-white transition-all shadow-sm">
+              <Home size={20} strokeWidth={2} />
+            </div>
+            <span className="truncate flex-1">Quay về trang chủ</span>
+          </div>
+        </NavLink>
+      </div>
+
     </aside>
   );
 };
-
 export default Sidebar;

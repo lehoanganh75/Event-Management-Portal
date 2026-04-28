@@ -111,6 +111,10 @@ public class EventTemplateServiceImpl implements EventTemplateService {
             template.setPublic(true); // Nếu không chọn org thì mặc định là công khai
         }
 
+        if (accountId != null && !accountId.equals("anonymous")) {
+            template.setCreatedByAccountId(accountId);
+        }
+
         template.setUpdatedAt(LocalDateTime.now());
         EventTemplate saved = templateRepository.save(template);
 
@@ -229,5 +233,14 @@ public class EventTemplateServiceImpl implements EventTemplateService {
             t.setStarred(isStarred);
         });
         return templates;
+    }
+
+    @Override
+    @Transactional
+    public void incrementUsageCount(String templateId) {
+        EventTemplate template = templateRepository.findById(templateId)
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy bản mẫu với ID: " + templateId));
+        template.setUsageCount(template.getUsageCount() + 1);
+        templateRepository.save(template);
     }
 }

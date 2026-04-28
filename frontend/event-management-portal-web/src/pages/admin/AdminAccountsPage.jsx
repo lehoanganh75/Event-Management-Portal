@@ -8,19 +8,19 @@ import {
 import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from '../../context/AuthContext';
 
-const ROLES = ["SUPER_ADMIN", "ADMIN", "STUDENT", "GUEST"];
+const ROLES = ["SUPER_ADMIN", "ADMIN", "MEMBER", "GUEST"];
 
 const ROLE_LABELS = {
-  SUPER_ADMIN: "S.Admin",
-  ADMIN: "Quản trị",
-  STUDENT: "Sinh viên",
+  SUPER_ADMIN: "Quản trị viên cấp cao",
+  ADMIN: "Quản trị viên",
+  MEMBER: "Sinh viên",
   GUEST: "Khách",
 };
 
 const ROLE_COLORS = {
   SUPER_ADMIN: "bg-purple-100 text-purple-700 border-purple-200",
   ADMIN: "bg-blue-100 text-blue-700 border-blue-200",
-  STUDENT: "bg-indigo-100 text-indigo-700 border-indigo-200",
+  MEMBER: "bg-indigo-100 text-indigo-700 border-indigo-200",
   GUEST: "bg-slate-100 text-slate-600 border-slate-200",
 };
 
@@ -44,7 +44,7 @@ const AdminAccountsPage = () => {
     username: "",
     email: "",
     fullName: "",
-    role: "STUDENT",
+    role: "MEMBER",
     status: "ACTIVE",
   });
 
@@ -62,7 +62,7 @@ const AdminAccountsPage = () => {
     total: accounts?.length || 0,
     active: accounts?.filter(a => a.status === "ACTIVE").length || 0,
     admin: accounts?.filter(a => ["ADMIN", "SUPER_ADMIN"].includes(a.role)).length || 0,
-    member: accounts?.filter(a => a.role === "STUDENT").length || 0,
+    member: accounts?.filter(a => a.role === "MEMBER").length || 0,
     locked: accounts?.filter(a => a.status !== "ACTIVE").length || 0,
   }), [accounts]);
 
@@ -94,7 +94,7 @@ const AdminAccountsPage = () => {
       username: acc.username || "",
       email: acc.email || "",
       fullName: acc.fullName || "",
-      role: acc.role || "STUDENT",
+      role: acc.role || "MEMBER",
       status: acc.status || "ACTIVE",
     });
     setModalMode("edit");

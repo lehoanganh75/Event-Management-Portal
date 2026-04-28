@@ -290,7 +290,7 @@ function PeopleSearch({ onSelect, accentColor = "blue" }) {
       email: email,
       dept: u.majorName || "",
       avatar: (u.fullName || "").charAt(0).toUpperCase() || "NG",
-      role: u.account?.role || u.role || "STUDENT",
+      role: u.account?.role || u.role || "MEMBER",
       loginCode: u.loginCode,
       phone: u.phone || "",
     });

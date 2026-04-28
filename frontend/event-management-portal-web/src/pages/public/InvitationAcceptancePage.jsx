@@ -32,6 +32,34 @@ const InvitationAcceptancePage = () => {
   const [rejectionReason, setRejectionReason] = useState("");
   const hasCalled = useRef(false); // Chống double-call đồng bộ
 
+  const formatDate = (dateString) => {
+    if (!dateString) return "Chưa xác định";
+    try {
+      const d = new Date(dateString);
+      if (isNaN(d.getTime())) return "Chưa xác định";
+      return d.toLocaleDateString("vi-VN", {
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit"
+      });
+    } catch {
+      return "Chưa xác định";
+    }
+  };
+
+  const formatOnlyDate = (dateString) => {
+    if (!dateString) return "Chưa xác định";
+    try {
+      const d = new Date(dateString);
+      if (isNaN(d.getTime())) return "Chưa xác định";
+      return d.toLocaleDateString("vi-VN");
+    } catch {
+      return "Chưa xác định";
+    }
+  };
+
   const token = searchParams.get("token");
   const eventId = searchParams.get("eventId");
   const isPresenter = invitation?.type === "PRESENTER";
@@ -233,7 +261,7 @@ const InvitationAcceptancePage = () => {
                   {isPresenter ? "Lời mời Diễn giả" : "Lời mời Ban tổ chức"}
                 </h1>
                 <p className="text-slate-500 text-sm leading-relaxed mb-8">
-                  Chào mừng <span className="text-slate-900 font-bold">{invitation.inviteeName}</span>, bạn đã nhận được một lời mời tham gia sự kiện chuyên nghiệp từ IUH.
+                  Chào mừng <span className="text-slate-900 font-bold">{invitation.inviteeName}</span>, bạn đã nhận được một lời mời từ <span className="text-indigo-600 font-bold">{invitation.inviter?.fullName || "Ban tổ chức"}</span> để tham gia sự kiện chuyên nghiệp tại IUH.
                 </p>
 
                 <div className="space-y-6">
@@ -252,7 +280,26 @@ const InvitationAcceptancePage = () => {
                     </div>
                     <div>
                       <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wide">Thời hạn phản hồi</p>
-                      <p className="text-sm font-bold">Hạn chót: {new Date(invitation.expiredAt).toLocaleDateString("vi-VN")}</p>
+                      <p className="text-sm font-bold">Hạn chót: {formatOnlyDate(invitation.expiredAt)}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-4">
+                    <div className="w-10 h-10 bg-white/10 rounded-xl flex items-center justify-center shrink-0">
+                      <ShieldCheck size={20} className="text-indigo-400" />
+                    </div>
+                    <div>
+                      <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wide">Hạn đăng ký sự kiện</p>
+                      <p className="text-sm font-bold">{formatOnlyDate(invitation.event?.registrationDeadline)}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-4">
+                    <div className="w-10 h-10 bg-white/10 rounded-xl flex items-center justify-center shrink-0">
+                      <User size={20} className="text-indigo-400" />
+                    </div>
+                    <div>
+                      <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wide">Người mời</p>
+                      <p className="text-sm font-bold">{invitation.inviter?.fullName || "Ban tổ chức"}</p>
+                      {invitation.inviter?.email && <p className="text-[10px] text-slate-400 font-medium">{invitation.inviter.email}</p>}
                     </div>
                   </div>
                 </div>
@@ -271,13 +318,13 @@ const InvitationAcceptancePage = () => {
                   {invitation.event?.title}
                 </h2>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 p-6 bg-slate-50 rounded-2xl border border-slate-100">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 p-6 bg-slate-50 rounded-2xl border border-slate-100 mb-8">
                   <div className="flex items-center gap-3">
                     <Calendar className="w-5 h-5 text-indigo-500" />
                     <div>
-                      <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Thời gian</p>
+                      <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Thời gian diễn ra</p>
                       <p className="text-sm font-bold text-slate-700">
-                        {new Date(invitation.event?.startTime).toLocaleDateString("vi-VN")}
+                        {formatDate(invitation.event?.startTime)}
                       </p>
                     </div>
                   </div>
@@ -289,6 +336,22 @@ const InvitationAcceptancePage = () => {
                     </div>
                   </div>
                 </div>
+
+                {invitation.event?.eventTopic && (
+                  <div className="mb-8">
+                    <h3 className="text-xs font-bold text-indigo-600 uppercase tracking-widest mb-3">Chủ đề chính</h3>
+                    <p className="text-lg font-bold text-slate-700">{invitation.event.eventTopic}</p>
+                  </div>
+                )}
+
+                {invitation.event?.description && (
+                  <div className="mb-8">
+                    <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-3">Mô tả sự kiện</h3>
+                    <div className="text-slate-600 text-sm leading-relaxed whitespace-pre-wrap">
+                      {invitation.event.description}
+                    </div>
+                  </div>
+                )}
               </div>
 
               {invitation.message && (

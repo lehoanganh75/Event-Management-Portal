@@ -6,14 +6,15 @@ import eventService from "../../services/eventService";
 import luckyDrawService from "../../services/luckyDrawService";
 import authService from "../../services/authService";
 import EventDetailManagement from "../../components/common/management/EventDetailManagement";
-import EditEventModal from "../../components/common/management/EditEventModal";
 
 const LecturerEventDetailPage = () => {
   const navigate = useNavigate();
   const { id } = useParams();
+  const { user } = useAuth();
 
   const [event, setEvent] = useState(null);
   const [luckyDraw, setLuckyDraw] = useState(null);
+  const [eventSummary, setEventSummary] = useState(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("Tổng quan");
   const [showCancelInput, setShowCancelInput] = useState(false);
@@ -21,7 +22,6 @@ const LecturerEventDetailPage = () => {
   const [isCancelling, setIsCancelling] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
-  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [showQRScanner, setShowQRScanner] = useState(false);
 
   // Invitation States
@@ -42,7 +42,29 @@ const LecturerEventDetailPage = () => {
     try {
       setLoading(true);
       const resEvent = await eventService.getEventById(id);
+
+      // ✅ Nếu không còn là ban tổ chức (và không phải Admin hệ thống) thì đá ra ngoài Home
+      const roles = user?.roles || (user?.role ? [user.role] : []);
+      const isSystemAdmin = roles.some(r => ["SUPER_ADMIN", "ADMIN"].includes(r?.toUpperCase()));
+
+      if (!resEvent.data?.currentUserRole?.organizer && !isSystemAdmin) {
+        toast.info("Bạn không còn thuộc ban tổ chức sự kiện này.");
+        navigate('/');
+        return;
+      }
+
       setEvent(resEvent.data);
+      
+      // Fetch summary if completed
+      if (resEvent.data?.status === "COMPLETED") {
+        try {
+          const resSummary = await eventService.getEventSummary(id);
+          setEventSummary(resSummary.data);
+        } catch (e) {
+          console.warn("Chưa có báo cáo tổng kết.");
+        }
+      }
+
       if (resEvent.data?.hasLuckyDraw) {
         try {
           const resLucky = await luckyDrawService.findLuckyDrawByEventId(id);
@@ -51,8 +73,21 @@ const LecturerEventDetailPage = () => {
           console.warn("Lucky Draw chưa khởi tạo.");
         }
       }
+
+      // Fetch registrations for stats and management
+      try {
+        const resRegs = await eventService.getUsersByEvent(id);
+        setEvent(prev => ({
+          ...prev,
+          registrations: resRegs.data || []
+        }));
+      } catch (e) {
+        console.warn("Không thể tải danh sách đăng ký");
+      }
     } catch (err) {
-      toast.error("Lỗi tải dữ liệu");
+      console.error("Error fetching event details:", err);
+      const serverMsg = err.response?.data?.message || err.message;
+      toast.error(`Lỗi tải dữ liệu: ${serverMsg}`);
     } finally {
       setLoading(false);
     }
@@ -106,41 +141,33 @@ const LecturerEventDetailPage = () => {
     }
   };
 
-  const handleUpdateEvent = async (updatedData) => {
+  const handleStartEvent = async () => {
     try {
-      await eventService.updateEvent(id, updatedData);
-      toast.success("Cập nhật thông tin thành công!");
+      await eventService.startEvent(id);
+      toast.success("Sự kiện đã bắt đầu!");
       fetchData();
     } catch (err) {
-      toast.error("Lỗi khi cập nhật thông tin");
-      throw err;
+      toast.error("Lỗi khi bắt đầu sự kiện");
     }
   };
 
-  const handleRemoveMember = async (memberId) => {
+  const handleCompleteEvent = async () => {
     try {
-      await eventService.removeOrganizer(memberId);
-      toast.success("Đã gỡ thành viên khỏi Ban tổ chức");
+      await eventService.completeEvent(id);
+      toast.success("Sự kiện đã kết thúc & báo cáo đã được tạo!");
       fetchData();
     } catch (err) {
-      toast.error("Lỗi khi gỡ thành viên");
-    }
-  };
-
-  const handleRemovePresenter = async (presenterId) => {
-    try {
-      await eventService.removePresenter(presenterId);
-      toast.success("Đã gỡ diễn giả khỏi sự kiện");
-      fetchData();
-    } catch (err) {
-      toast.error("Lỗi khi gỡ diễn giả");
+      toast.error("Lỗi khi kết thúc sự kiện");
     }
   };
 
   const handleManualCheckIn = async (registrationId) => {
     try {
-      if (!user?.id) return;
-      await eventService.manualCheckIn(registrationId, user.id);
+      if (!user?.id) {
+        toast.error("Không xác định được người thực hiện");
+        return;
+      }
+      await eventService.manualCheckIn(registrationId, user.id); 
       toast.success("Điểm danh thủ công thành công!");
       fetchData();
     } catch (err) {
@@ -148,11 +175,10 @@ const LecturerEventDetailPage = () => {
     }
   };
 
-  const handleQRScanSuccess = async (ticketCode) => {
+  const handleQRScanSuccess = async (qrToken) => {
     setShowQRScanner(false);
     try {
-      if (!user?.id) return;
-      await eventService.checkIn(ticketCode, user.id);
+      await eventService.checkIn({ qrToken });
       toast.success("Điểm danh qua mã QR thành công!");
       fetchData();
     } catch (err) {
@@ -160,12 +186,44 @@ const LecturerEventDetailPage = () => {
     }
   };
 
+  const handleUndoCheckIn = async (registrationId) => {
+    try {
+      await eventService.undoCheckIn(registrationId);
+      toast.success("Đã hủy trạng thái điểm danh");
+      fetchData();
+    } catch (err) {
+      toast.error("Lỗi khi hủy điểm danh");
+    }
+  };
+
+  const handleUpdateCheckInTime = async (registrationId, newTime) => {
+    try {
+      await eventService.updateCheckInTime(registrationId, newTime);
+      toast.success("Đã cập nhật thời gian điểm danh");
+      fetchData();
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Lỗi khi cập nhật thời gian");
+    }
+  };
+
   const addInvite = (user = null) => {
     const newInvite = user ? {
       inviteeEmail: user.email || "",
+      inviteeAccountId: user.id || "",
+      fullName: user.fullName || user.profile?.fullName || user.username || "",
       targetRole: "MEMBER",
       message: ""
-    } : { inviteeEmail: "", targetRole: "MEMBER", message: "" };
+    } : { inviteeEmail: "", inviteeAccountId: "", fullName: "", targetRole: "MEMBER", message: "" };
+
+    if (user) {
+      const emptyIdx = invitations.findIndex(inv => !inv.inviteeEmail);
+      if (emptyIdx !== -1) {
+        const newList = [...invitations];
+        newList[emptyIdx] = newInvite;
+        setInvitations(newList);
+        return;
+      }
+    }
     setInvitations([...invitations, newInvite]);
   };
 
@@ -189,9 +247,21 @@ const LecturerEventDetailPage = () => {
   const addPresenterInvite = (user = null) => {
     const newInvite = user ? {
       inviteeEmail: user.email || "",
+      inviteeAccountId: user.id || "",
+      fullName: user.fullName || user.profile?.fullName || user.username || "",
       session: "ALL",
       bio: ""
-    } : { inviteeEmail: "", session: "ALL", bio: "" };
+    } : { inviteeEmail: "", inviteeAccountId: "", fullName: "", session: "ALL", bio: "" };
+
+    if (user) {
+      const emptyIdx = presenterInvitations.findIndex(inv => !inv.inviteeEmail);
+      if (emptyIdx !== -1) {
+        const newList = [...presenterInvitations];
+        newList[emptyIdx] = newInvite;
+        setPresenterInvitations(newList);
+        return;
+      }
+    }
     setPresenterInvitations([...presenterInvitations, newInvite]);
   };
 
@@ -219,75 +289,117 @@ const LecturerEventDetailPage = () => {
     );
   }, [systemUsers, searchKey]);
 
-  if (loading) return null;
+  const handleRemoveMember = async (member) => {
+    try {
+      if (member.isPending) {
+        await eventService.cancelInvitation(member.id);
+        toast.success("Đã hủy lời mời");
+      } else {
+        await eventService.removeOrganizer(member.id);
+        toast.success("Đã gỡ thành viên khỏi ban tổ chức");
+      }
+      fetchData();
+    } catch (err) {
+      toast.error("Lỗi khi thực hiện thao tác");
+    }
+  };
+
+  const handleLeaveTeam = async () => {
+    try {
+      await eventService.leaveTeam(id);
+      toast.success("Thao tác thành công!");
+      fetchData();
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Lỗi khi thực hiện rời nhóm");
+    }
+  };
+
+  const handleApproveLeave = async (organizerId) => {
+    try {
+      await eventService.approveLeaveRequest(organizerId);
+      toast.success("Đã phê duyệt yêu cầu rời nhóm");
+      fetchData();
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Lỗi khi phê duyệt");
+    }
+  };
+
+  const handleRejectLeave = async (organizerId) => {
+    try {
+      await eventService.rejectLeaveRequest(organizerId);
+      toast.success("Đã từ chối yêu cầu rời nhóm");
+      fetchData();
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Lỗi khi từ chối");
+    }
+  };
 
   return (
-    <>
-      <EventDetailManagement
-        event={event}
-        luckyDraw={luckyDraw}
-        loading={loading}
-        activeTab={activeTab}
-        setActiveTab={setActiveTab}
-        canEdit={event?.currentUserRole?.canEditEvent}
-        onBack={() => navigate(-1)}
-        onEditInfo={() => setIsEditModalOpen(true)}
-        onCancelEvent={handleCancelEvent}
-        onDeleteEvent={handleDeleteEvent}
-        onRemoveMember={handleRemoveMember}
-        onRemovePresenter={handleRemovePresenter}
-        isAddingMember={isAddingMember}
-        setIsAddingMember={setIsAddingMember}
-        showUserSuggestions={showUserSuggestions}
-        setShowUserSuggestions={setShowUserSuggestions}
-        searchKey={searchKey}
-        setSearchKey={setSearchKey}
-        loadingUsers={loadingUsers}
-        filteredUsers={filteredUsers}
-        invitations={invitations}
-        addInvite={addInvite}
-        updateInvite={(idx, field, val) => {
-          const newList = [...invitations];
-          newList[idx][field] = val;
-          setInvitations(newList);
-        }}
-        removeInvite={(idx) => setInvitations(invitations.filter((_, i) => i !== idx))}
-        handleSendInvites={handleSendInvites}
-        isInviting={isInviting}
-        isAddingPresenter={isAddingPresenter}
-        setIsAddingPresenter={setIsAddingPresenter}
-        presenterInvitations={presenterInvitations}
-        addPresenterInvite={addPresenterInvite}
-        updatePresenterInvite={(idx, field, val) => {
-          const newList = [...presenterInvitations];
-          newList[idx][field] = val;
-          setPresenterInvitations(newList);
-        }}
-        removePresenterInvite={(idx) => setPresenterInvitations(presenterInvitations.filter((_, i) => i !== idx))}
-        handleSendPresenterInvites={handleSendPresenterInvites}
-        isInvitingPresenter={isInvitingPresenter}
-        showCancelInput={showCancelInput}
-        setShowCancelInput={setShowCancelInput}
-        cancelReason={cancelReason}
-        setCancelReason={setCancelReason}
-        isCancelling={isCancelling}
-        showDeleteConfirm={showDeleteConfirm}
-        setShowDeleteConfirm={setShowDeleteConfirm}
-        isDeleting={isDeleting}
-        onFetchUsers={fetchUsers}
-        onManualCheckIn={handleManualCheckIn}
-        showQRScanner={showQRScanner}
-        setShowQRScanner={setShowQRScanner}
-        onQRScanSuccess={handleQRScanSuccess}
-      />
-
-      <EditEventModal
-        isOpen={isEditModalOpen}
-        onClose={() => setIsEditModalOpen(false)}
-        event={event}
-        onSave={handleUpdateEvent}
-      />
-    </>
+    <EventDetailManagement
+      event={event}
+      luckyDraw={luckyDraw}
+      eventSummary={eventSummary}
+      loading={loading}
+      activeTab={activeTab}
+      setActiveTab={setActiveTab}
+      canEdit={event?.currentUserRole?.canEditEvent}
+      onBack={() => navigate(-1)}
+      onEditInfo={() => navigate(`${pathPrefix}/events/edit/${id}`)}
+      onCancelEvent={handleCancelEvent}
+      onDeleteEvent={handleDeleteEvent}
+      onRemoveMember={handleRemoveMember}
+      onLeaveTeam={handleLeaveTeam}
+      onApproveLeave={handleApproveLeave}
+      onRejectLeave={handleRejectLeave}
+      isAddingMember={isAddingMember}
+      setIsAddingMember={setIsAddingMember}
+      showUserSuggestions={showUserSuggestions}
+      setShowUserSuggestions={setShowUserSuggestions}
+      searchKey={searchKey}
+      setSearchKey={setSearchKey}
+      loadingUsers={loadingUsers}
+      filteredUsers={filteredUsers}
+      invitations={invitations}
+      addInvite={addInvite}
+      updateInvite={(idx, field, val) => {
+        const newList = [...invitations];
+        newList[idx][field] = val;
+        setInvitations(newList);
+      }}
+      removeInvite={(idx) => setInvitations(invitations.filter((_, i) => i !== idx))}
+      handleSendInvites={handleSendInvites}
+      isInviting={isInviting}
+      isAddingPresenter={isAddingPresenter}
+      setIsAddingPresenter={setIsAddingPresenter}
+      presenterInvitations={presenterInvitations}
+      addPresenterInvite={addPresenterInvite}
+      updatePresenterInvite={(idx, field, val) => {
+        const newList = [...presenterInvitations];
+        newList[idx][field] = val;
+        setPresenterInvitations(newList);
+      }}
+      removePresenterInvite={(idx) => setPresenterInvitations(presenterInvitations.filter((_, i) => i !== idx))}
+      handleSendPresenterInvites={handleSendPresenterInvites}
+      isInvitingPresenter={isInvitingPresenter}
+      showCancelInput={showCancelInput}
+      setShowCancelInput={setShowCancelInput}
+      cancelReason={cancelReason}
+      setCancelReason={setCancelReason}
+      isCancelling={isCancelling}
+      showDeleteConfirm={showDeleteConfirm}
+      setShowDeleteConfirm={setShowDeleteConfirm}
+      isDeleting={isDeleting}
+      onFetchUsers={fetchUsers}
+      onStartEvent={handleStartEvent}
+      onCompleteEvent={handleCompleteEvent}
+      onManualCheckIn={handleManualCheckIn}
+      onUndoCheckIn={handleUndoCheckIn}
+      onUpdateCheckInTime={handleUpdateCheckInTime}
+      showQRScanner={showQRScanner}
+      setShowQRScanner={setShowQRScanner}
+      onQRScanSuccess={handleQRScanSuccess}
+      onRefresh={fetchData}
+    />
   );
 };
 

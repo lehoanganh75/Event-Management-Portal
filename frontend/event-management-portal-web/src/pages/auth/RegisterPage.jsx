@@ -107,7 +107,7 @@ const RegisterPage = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
-  const [userType, setUserType] = useState("STUDENT");
+  const [userType, setUserType] = useState("MEMBER");
   const [formData, setFormData] = useState({
     fullName: "",
     email: "",
@@ -151,7 +151,7 @@ const RegisterPage = () => {
     try {
       const res = await checkUsername(formData.username);
       if (res.data) {
-        const typeLabel = userType === "STUDENT" ? "MSSV" : userType === "ADMIN" ? "MSGV" : "Tên đăng nhập";
+        const typeLabel = userType === "MEMBER" ? "MSSV" : userType === "ADMIN" ? "MSGV" : "Tên đăng nhập";
         setErrors(prev => ({ ...prev, username: `${typeLabel} này đã tồn tại` }));
       }
     } catch (err) {}
@@ -177,7 +177,7 @@ const RegisterPage = () => {
   const validateStep2 = () => {
     const newErrors = {};
     if (!formData.username.trim()) {
-      newErrors.username = userType === "STUDENT" ? "MSSV không được để trống" : userType === "ADMIN" ? "MSGV không được để trống" : "Tên đăng nhập không được để trống";
+      newErrors.username = userType === "MEMBER" ? "MSSV không được để trống" : userType === "ADMIN" ? "MSGV không được để trống" : "Tên đăng nhập không được để trống";
     }
     
     if (!formData.password) {
@@ -212,7 +212,7 @@ const RegisterPage = () => {
         setErrors({ email: msg });
         setStep(1); // Go back to fix email
       } else if (msg.toLowerCase().includes("tên đăng nhập") || msg.toLowerCase().includes("username") || msg.toLowerCase().includes("mssv") || msg.toLowerCase().includes("msgv")) {
-        const typeLabel = userType === "STUDENT" ? "MSSV" : userType === "ADMIN" ? "MSGV" : "Tên đăng nhập";
+        const typeLabel = userType === "MEMBER" ? "MSSV" : userType === "ADMIN" ? "MSGV" : "Tên đăng nhập";
         setErrors({ username: `${typeLabel} đã tồn tại` });
       } else {
         showToast(msg || "Đăng ký thất bại", "error");
@@ -321,7 +321,7 @@ const RegisterPage = () => {
               {/* ROLE SELECTOR */}
               <div className="flex bg-gray-100 p-1 rounded-xl mb-4 shadow-inner">
                 {[
-                  { id: "STUDENT", label: "Sinh viên" },
+                  { id: "MEMBER", label: "Sinh viên" },
                   { id: "ADMIN", label: "Giảng viên" },
                   { id: "GUEST", label: "Vãng lai" },
                 ].map((role) => (
@@ -341,10 +341,10 @@ const RegisterPage = () => {
 
               <InputField 
                 id="username" 
-                label={userType === "STUDENT" ? "MSSV" : userType === "ADMIN" ? "MSGV" : "Tên đăng nhập"} 
+                label={userType === "MEMBER" ? "MSSV" : userType === "ADMIN" ? "MSGV" : "Tên đăng nhập"} 
                 value={formData.username} 
                 error={errors.username}
-                placeholder={userType === "STUDENT" ? "Nhập MSSV" : userType === "ADMIN" ? "Nhập MSGV" : "Nhập tên đăng nhập"} 
+                placeholder={userType === "MEMBER" ? "Nhập MSSV" : userType === "ADMIN" ? "Nhập MSGV" : "Nhập tên đăng nhập"} 
                 placeholderColor="#1a3a6b" 
                 onChange={handleChange} 
                 onBlur={handleCheckUsername}

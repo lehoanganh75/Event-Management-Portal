@@ -9,4 +9,6 @@ import java.util.List;
 @Repository
 public interface OrganizationRepository extends JpaRepository<Organization, String> {
     List<Organization> findByIsDeletedFalse();
+    long countByIsDeletedFalse();
+    List<Organization> findByOwnerAccountIdAndIsDeletedFalse(String ownerAccountId);
 }

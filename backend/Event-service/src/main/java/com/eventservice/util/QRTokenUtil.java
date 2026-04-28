@@ -38,6 +38,25 @@ public class QRTokenUtil {
                 .compact();
     }
 
+    public String generateEventQRToken(String eventId, LocalDateTime eventEndTime, String qrType) {
+        Date expiry;
+        if ("STATIC".equalsIgnoreCase(qrType) && eventEndTime != null) {
+            expiry = Date.from(eventEndTime.atZone(ZoneId.systemDefault()).toInstant());
+        } else {
+            // Dynamic tokens are short-lived (e.g., 60 seconds)
+            expiry = new Date(System.currentTimeMillis() + 60 * 1000);
+        }
+
+        return Jwts.builder()
+                .setId(UUID.randomUUID().toString())
+                .claim("eventId", eventId)
+                .claim("isEventToken", true)
+                .setIssuedAt(new Date())
+                .setExpiration(expiry)
+                .signWith(KEY)
+                .compact();
+    }
+
     public Claims verifyQRToken(String token) {
         return Jwts.parser()
                 .verifyWith((javax.crypto.SecretKey) KEY)

@@ -9,6 +9,7 @@ import com.eventservice.entity.EventPresenter;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.stream.Collectors;
 
 @Data
@@ -54,7 +55,10 @@ public class PlanResponseDto {
     private List<EventParticipant> participantsList;
 
 
-    public static PlanResponseDto from(Event event, UserDto creator, UserDto approver) {
+    public static PlanResponseDto from(Event event, UserDto creator, UserDto approver,
+                                      List<EventPresenter> presenters,
+                                      List<EventOrganizer> organizers,
+                                      List<EventParticipant> participants) {
         PlanResponseDto dto = new PlanResponseDto();
         dto.setId(event.getId());
         dto.setTitle(event.getTitle());
@@ -79,17 +83,22 @@ public class PlanResponseDto {
 
         if (event.getRecipients() != null) {
             List<String> recipientNames = event.getRecipients().stream()
-                    .map(r -> (String) r.get("name"))
-                    .filter(name -> name != null)
+                    .filter(Objects::nonNull)
+                    .map(r -> {
+                        Object name = r.get("name");
+                        return name != null ? name.toString() : null;
+                    })
+                    .filter(Objects::nonNull)
                     .collect(Collectors.toList());
             dto.setRecipients(recipientNames);
         }
 
-
         dto.setTargetObjects(event.getTargetObjects());
-        dto.setPresentersList(new ArrayList<>(event.getPresenters()));
-        dto.setOrganizersList(new ArrayList<>(event.getOrganizers()));
-        dto.setParticipantsList(new ArrayList<>(event.getParticipants()));
+        
+        // Use provided lists instead of entity collections
+        dto.setPresentersList(presenters != null ? new ArrayList<>(presenters) : new ArrayList<>());
+        dto.setOrganizersList(organizers != null ? new ArrayList<>(organizers) : new ArrayList<>());
+        dto.setParticipantsList(participants != null ? new ArrayList<>(participants) : new ArrayList<>());
 
         if (approver != null) {
             dto.setApprovedByName(approver.getFullName());
@@ -99,5 +108,13 @@ public class PlanResponseDto {
             dto.setCreatedByAvatar(creator.getAvatarUrl());
         }
         return dto;
+    }
+
+    // Keep the old signature for backward compatibility if needed, calling the new one
+    public static PlanResponseDto from(Event event, UserDto creator, UserDto approver) {
+        return from(event, creator, approver, 
+                   event.getPresenters() != null ? new ArrayList<>(event.getPresenters()) : null,
+                   event.getOrganizers() != null ? new ArrayList<>(event.getOrganizers()) : null,
+                   event.getParticipants() != null ? new ArrayList<>(event.getParticipants()) : null);
     }
 }

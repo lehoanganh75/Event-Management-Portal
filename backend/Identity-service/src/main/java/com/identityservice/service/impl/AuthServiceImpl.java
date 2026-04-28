@@ -127,7 +127,7 @@ public class AuthServiceImpl implements AuthService {
 
     public void assignRolesByEmail(Account account, String email) {
         Role role;
-        String domain = email.substring(email.indexOf("@"));
+        String domain = email.substring(email.indexOf("@")).toLowerCase();
         switch (domain) {
             case "@iuh.edu.vn":
                 role = Role.ADMIN;
@@ -206,6 +206,10 @@ public class AuthServiceImpl implements AuthService {
 
         if (account.getStatus() == AccountStatus.PENDING) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Tài khoản chưa được kích hoạt. Vui lòng kiểm tra email để xác nhận.");
+        }
+
+        if (account.getStatus() != AccountStatus.ACTIVE) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Tài khoản của bạn đã bị khóa hoặc vô hiệu hóa.");
         }
 
         account.setLastLoginAt(LocalDateTime.now());
@@ -333,8 +337,8 @@ public class AuthServiceImpl implements AuthService {
         }
 
         Account account = refreshToken.getAccount();
-        if (account == null) {
-            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Tài khoản không tồn tại");
+        if (account.getStatus() != AccountStatus.ACTIVE) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Tài khoản đã bị khóa hoặc vô hiệu hóa");
         }
         UserPrincipal principal = new UserPrincipal(account.getId(), account.getRole());
         String newAccessToken = jwtUtils.generateAccessToken(principal);

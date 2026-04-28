@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo, useCallback } from "react";
 import {
   Plus, Search, BarChart3, ChevronLeft, ChevronRight, Loader2, Eye, X,
   Globe, Lock, Users, MapPin, Layers, Settings, Tag, Calendar,
-  FileText, CheckCircle2, Info, Pencil, Trash2, Save, AlertCircle
+  FileText, CheckCircle2, Info, Pencil, Trash2, Save, AlertCircle, UserCog
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useNavigate } from "react-router-dom";
@@ -67,6 +67,9 @@ const AdminTemplatesPage = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [activeTab, setActiveTab] = useState("Tất cả");
 
+  const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
+  const currentUserId = currentUser.id;
+
   /* --- Modal States --- */
   const [modalMode, setModalMode] = useState("view"); // view, edit, create
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -104,7 +107,11 @@ const AdminTemplatesPage = () => {
       const matchSearch = (t.templateName || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
         (t.defaultTitle || "").toLowerCase().includes(searchTerm.toLowerCase());
       const matchType = typeFilter === "all" || t.templateType === typeFilter;
-      const matchTab = activeTab === "Tất cả" || (activeTab === "Công khai" && t.public) || (activeTab === "Nội bộ" && !t.public);
+      const matchTab = 
+        activeTab === "Tất cả" || 
+        (activeTab === "Công khai" && t.public) || 
+        (activeTab === "Nội bộ" && !t.public) ||
+        (activeTab === "Của bản thân" && t.createdByAccountId === currentUserId);
       return matchSearch && matchType && matchTab;
     });
   }, [templates, searchTerm, typeFilter, activeTab]);
@@ -213,6 +220,7 @@ const AdminTemplatesPage = () => {
           { id: "Tất cả", label: "Tất cả", icon: Layers, count: templates.length },
           { id: "Công khai", label: "Công khai", icon: Globe, count: templates.filter(t => t.public).length },
           { id: "Nội bộ", label: "Nội bộ", icon: Lock, count: templates.filter(t => !t.public).length },
+          { id: "Của bản thân", label: "Của bản thân", icon: UserCog, count: templates.filter(t => t.createdByAccountId === currentUserId).length },
         ].map((tab) => (
           <button
             key={tab.id}
@@ -342,20 +350,24 @@ const AdminTemplatesPage = () => {
                         >
                           <Eye size={18} />
                         </button>
-                        <button
-                          onClick={() => openModal(t, "edit")}
-                          className="p-2 hover:bg-gray-100 rounded-lg text-gray-500 hover:text-amber-600 transition-all"
-                          title="Chỉnh sửa"
-                        >
-                          <Settings size={18} />
-                        </button>
-                        <button
-                          onClick={() => setTemplateToDelete(t)}
-                          className="p-2 hover:bg-gray-100 rounded-lg text-gray-500 hover:text-rose-600 transition-all"
-                          title="Xóa mẫu"
-                        >
-                          <Trash2 size={18} />
-                        </button>
+                        {t.createdByAccountId === currentUserId && (
+                          <>
+                            <button
+                              onClick={() => openModal(t, "edit")}
+                              className="p-2 hover:bg-gray-100 rounded-lg text-gray-500 hover:text-amber-600 transition-all"
+                              title="Chỉnh sửa"
+                            >
+                              <Settings size={18} />
+                            </button>
+                            <button
+                              onClick={() => setTemplateToDelete(t)}
+                              className="p-2 hover:bg-gray-100 rounded-lg text-gray-500 hover:text-rose-600 transition-all"
+                              title="Xóa mẫu"
+                            >
+                              <Trash2 size={18} />
+                            </button>
+                          </>
+                        )}
                       </div>
                     </td>
                   </tr>

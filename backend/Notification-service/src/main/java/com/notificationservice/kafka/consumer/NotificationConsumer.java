@@ -47,7 +47,8 @@ public class NotificationConsumer {
 
         try {
             Notification savedNotification = notificationRepository.save(notification);
-            log.info("#### [KAFKA CONSUMER] Notification saved successfully with ID: {}", savedNotification.getId());
+            log.info("#### [KAFKA CONSUMER] Notification saved successfully with ID: {} for Account: {}", savedNotification.getId(), savedNotification.getAccountId());
+            log.info("#### [KAFKA CONSUMER] Title: {}, Type: {}", savedNotification.getTitle(), savedNotification.getType());
 
             // Gửi thông báo real-time
             String destination = "/topic/notifications." + savedNotification.getAccountId();
@@ -57,5 +58,13 @@ public class NotificationConsumer {
         } catch (Exception e) {
             log.error("#### [KAFKA CONSUMER] Critical error in processing: {}", e.getMessage(), e);
         }
+    }
+
+    @KafkaListener(topics = "quiz-topic", groupId = "quiz-group")
+    public void consumeQuizEvent(com.eventservice.dto.quiz.QuizEvent event) {
+        log.info("#### [KAFKA CONSUMER] Received QuizEvent: {}", event);
+        String destination = "/topic/quiz." + event.getEventId();
+        log.info("#### [KAFKA CONSUMER] Broadcasting Quiz to WebSocket: {}", destination);
+        messagingTemplate.convertAndSend(destination, event);
     }
 }

@@ -30,7 +30,7 @@ public class Account {
     private String passwordHash;
 
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
+    @Column(nullable = false, length = 50)
     private AccountStatus status = AccountStatus.PENDING;
 
     @Column(nullable = false, updatable = false)
@@ -39,6 +39,7 @@ public class Account {
     private LocalDateTime lastLoginAt;
 
     @Enumerated(EnumType.STRING)
+    @Column(length = 50)
     private Role role;
 
     @OneToMany(mappedBy = "account", cascade = CascadeType.ALL, orphanRemoval = true)

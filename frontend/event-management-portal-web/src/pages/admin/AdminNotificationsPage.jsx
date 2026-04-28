@@ -2,50 +2,35 @@ import React, { useState, useEffect, useCallback } from "react";
 import notificationService from "../../services/notificationService";
 import NotificationManagement from "../../components/common/management/NotificationManagement";
 import { toast } from "react-toastify";
+import { useAuth } from "../../context/AuthContext";
+import { useNotification } from "../../context/NotificationContext";
 
 const AdminNotificationsPage = () => {
-  const [notifications, setNotifications] = useState([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const { notifications, loading: isLoading, refreshNotifications, markAsRead, markAllAsRead, deleteNotification } = useNotification();
   const [isRefreshing, setIsRefreshing] = useState(false);
 
   const fetchNotifications = useCallback(async (isRefresh = false) => {
-    isRefresh ? setIsRefreshing(true) : setIsLoading(true);
+    isRefresh ? setIsRefreshing(true) : null;
     try {
-      const response = await notificationService.getAllNotificationsForAdmin();
-      setNotifications(response.data || []);
-    } catch (error) {
-      console.error("Lỗi fetch:", error);
-      toast.error("Không thể tải danh sách thông báo");
-      setNotifications([]);
+      await refreshNotifications();
     } finally {
-      isRefresh ? setIsRefreshing(false) : setIsLoading(false);
+      setIsRefreshing(false);
     }
-  }, []);
-
-  useEffect(() => {
-    fetchNotifications();
-  }, [fetchNotifications]);
+  }, [refreshNotifications]);
 
   const handleMarkAsRead = async (id) => {
-    try {
-      await notificationService.markAsRead(id);
-      setNotifications(prev => prev.map((n) => (n.id === id ? { ...n, read: true } : n)));
-    } catch (error) { console.error(error); }
+    await markAsRead(id);
   };
 
   const handleMarkAllAsRead = async () => {
-    try {
-      await notificationService.markAllAsReadAdmin();
-      setNotifications(prev => prev.map((n) => ({ ...n, read: true })));
-      toast.success("Đã đánh dấu tất cả là đã đọc");
-    } catch (error) { console.error(error); }
+    await markAllAsRead();
+    toast.success("Đã đánh dấu tất cả là đã đọc");
   };
 
   const handleDelete = async (id) => {
     if (window.confirm("Bạn có chắc chắn muốn xóa thông báo này?")) {
       try {
-        await notificationService.deleteNotification(id);
-        setNotifications(prev => prev.filter(n => n.id !== id));
+        await deleteNotification(id);
         toast.success("Đã xóa thông báo");
       } catch (error) { console.error(error); }
     }

@@ -20,4 +20,8 @@ public class RegistrationResponseDto {
     private String eventStartTime;
     private String eventEndTime;
     private String eventLocation;
+
+    private String fullName;
+    private String avatarUrl;
+    private String ticketCode;
 }

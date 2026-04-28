@@ -19,4 +19,5 @@ public interface AccountService {
     AccountAdminDTO updateAccount(String accountId, AccountAdminDTO updateRequest);
 
     List<String> getAdminAccountIds();
+    List<String> getSuperAdminAccountIds();
 }

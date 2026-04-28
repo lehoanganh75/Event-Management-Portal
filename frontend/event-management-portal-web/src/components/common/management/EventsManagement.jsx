@@ -3,7 +3,7 @@ import {
   Search, Eye, Edit2, Trash2, Send, Loader2, ChevronLeft, ChevronRight, Plus,
   Calendar, Clock, Users, PlayCircle, CheckCircle2, Download, AlertCircle, X,
   XCircle, CheckCircle,
-  FileText
+  FileText, LayoutDashboard, FileUp
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
@@ -15,6 +15,7 @@ import { exportEventsToExcel } from "../../../utils/exportExcel";
 import { useAuth } from "../../../context/AuthContext";
 import { EventCreator } from "../../event-planner/EventCreator";
 import CreateEventModal from "../../event-planner/CreateEventModal";
+import { extractDataFromDocx } from "../../../services/docxImportService";
 
 /* ================= CONFIG ================= */
 const STATUS_LABELS = {
@@ -44,7 +45,7 @@ const STATUS_COLOR = {
 };
 
 /* ================= MAIN ================= */
-const EventsManagement = ({ type = "lecturer" }) => {
+const EventsManagement = ({ type = "lecturer", mode = "all" }) => {
   const navigate = useNavigate();
   const { user } = useAuth();
 
@@ -58,8 +59,15 @@ const EventsManagement = ({ type = "lecturer" }) => {
   const [statusFilter, setStatusFilter] = useState("ALL");
   const [activeTab, setActiveTab] = useState("Tất cả");
 
+  // Determine allowed statuses based on mode
+  const allowedStatuses = useMemo(() => {
+    if (mode === "plan") return ["DRAFT", "PLAN_PENDING_APPROVAL", "PLAN_APPROVED", "REJECTED"];
+    if (mode === "event") return ["EVENT_PENDING_APPROVAL", "PUBLISHED", "ONGOING", "COMPLETED", "CANCELLED", "CONVERTED"];
+    return Object.keys(STATUS_LABELS);
+  }, [mode]);
+
   const [page, setPage] = useState(1);
-  const perPage = 8;
+  const perPage = 5;
 
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [showEventCreator, setShowEventCreator] = useState(false);
@@ -70,17 +78,35 @@ const EventsManagement = ({ type = "lecturer" }) => {
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      const res = isAdminMode
-        ? await eventService.getAdminAllEvents()
-        : await eventService.getMyEvents();
-      setEvents(res.data || []);
+      let res;
+      if (isAdminMode) {
+        if (mode === "plan") {
+          res = await eventService.getAllPlans();
+        } else if (mode === "event") {
+          // You might need a specific getAdminAllEvents that only returns non-plan events
+          // or just filter from all. But let's use the separate plan endpoint for plans.
+          res = await eventService.getAdminAllEvents();
+        } else {
+          res = await eventService.getAdminAllEvents();
+        }
+      } else {
+        res = mode === "plan"
+          ? await eventService.getMyPlans()
+          : await eventService.getMyEvents();
+      }
+
+      let allData = res.data || [];
+      if (mode !== "all") {
+        allData = allData.filter(e => allowedStatuses.includes(e.status));
+      }
+      setEvents(allData);
     } catch (err) {
       console.error(err);
       toast.error("Lỗi tải dữ liệu");
     } finally {
       setLoading(false);
     }
-  }, [isAdminMode]);
+  }, [isAdminMode, mode, allowedStatuses]);
 
   useEffect(() => {
     fetchData();
@@ -89,13 +115,22 @@ const EventsManagement = ({ type = "lecturer" }) => {
   /* ===== STATISTICS ===== */
   const stats = useMemo(() => {
     const total = events.length;
-    const upcoming = events.filter(e => ["PUBLISHED", "EVENT_PENDING_APPROVAL", "PLAN_PENDING_APPROVAL"].includes(e.status)).length;
+
+    if (mode === "plan") {
+      const drafts = events.filter(e => e.status === "DRAFT").length;
+      const pending = events.filter(e => e.status === "PLAN_PENDING_APPROVAL").length;
+      const approved = events.filter(e => e.status === "PLAN_APPROVED").length;
+      const rejected = events.filter(e => e.status === "REJECTED").length;
+      return { total, drafts, pending, approved, rejected };
+    }
+
+    const upcoming = events.filter(e => ["PUBLISHED", "EVENT_PENDING_APPROVAL"].includes(e.status)).length;
     const ongoing = events.filter(e => e.status === "ONGOING").length;
     const completed = events.filter(e => e.status === "COMPLETED").length;
     const totalRegistered = events.reduce((sum, e) => sum + (e.registeredCount || 0), 0);
 
     return { total, upcoming, ongoing, completed, totalRegistered };
-  }, [events]);
+  }, [events, mode]);
 
   /* ===== FILTER ===== */
   const filteredEvents = useMemo(() => {
@@ -109,8 +144,10 @@ const EventsManagement = ({ type = "lecturer" }) => {
           if (statusFilter !== "ALL") return e.status === statusFilter;
           return true;
         }
-        if (activeTab === "Chờ duyệt") return ["PLAN_PENDING_APPROVAL", "EVENT_PENDING_APPROVAL"].includes(e.status);
-        if (activeTab === "Kế hoạch") return ["PLAN_APPROVED", "DRAFT", "REJECTED"].includes(e.status);
+        if (activeTab === "Kế hoạch") return ["DRAFT", "REJECTED"].includes(e.status);
+        if (activeTab === "Chờ duyệt") return ["PLAN_PENDING_APPROVAL"].includes(e.status);
+        if (activeTab === "Đã duyệt") return ["PLAN_APPROVED"].includes(e.status);
+        if (activeTab === "Chờ duyệt sự kiện") return ["EVENT_PENDING_APPROVAL"].includes(e.status);
         if (activeTab === "Công bố") return ["PUBLISHED", "ONGOING"].includes(e.status);
         if (activeTab === "Hoàn thành") return e.status === "COMPLETED";
         if (activeTab === "Đã hủy") return e.status === "CANCELLED";
@@ -172,7 +209,12 @@ const EventsManagement = ({ type = "lecturer" }) => {
 
   const handleEdit = (event) => {
     setCreatorConfig({
-      initialFormData: event,
+      initialFormData: {
+        ...event,
+        eventTitle: event.title || "",
+        eventPurpose: event.description || "",
+        eventType: event.type || "OTHER"
+      },
       fromPlan: event.status.includes("PLAN")
     });
     setShowEventCreator(true);
@@ -224,122 +266,292 @@ const EventsManagement = ({ type = "lecturer" }) => {
       showToast("Không thể cập nhật trạng thái", "error");
     }
   };
+  
+  const [isImporting, setIsImporting] = useState(false);
+
+  const handleImportDocx = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    if (!file.name.endsWith(".docx")) {
+      showToast("Vui lòng chọn file định dạng .docx", "error");
+      return;
+    }
+
+    setIsImporting(true);
+    try {
+      showToast("⏳ Đang phân tích nội dung kế hoạch bằng AI...", "info");
+      const extracted = await extractDataFromDocx(file);
+      
+      if (!extracted) {
+        throw new Error("AI không thể trích xuất thông tin từ file này. Vui lòng kiểm tra lại nội dung file.");
+      }
+        // Map AI result to our form structure
+        const mappedData = {
+          eventTitle: extracted.title || "",
+          eventTopic: extracted.subject || "",
+          eventPurpose: extracted.purpose || extracted.description || "",
+          location: extracted.suggestedLocation || "",
+          maxParticipants: extracted.estimatedParticipants || 50,
+        };
+
+        // Handle datetimes
+        if (extracted.suggestedStartTime) {
+          mappedData.startTime = new Date(extracted.suggestedStartTime).toISOString().slice(0, 16);
+        }
+        if (extracted.suggestedEndTime) {
+          mappedData.endTime = new Date(extracted.suggestedEndTime).toISOString().slice(0, 16);
+        }
+
+        setCreatorConfig({ 
+          initialFormData: mappedData, 
+          fromPlan: false, // Creating a NEW plan (or event), not FROM an existing plan
+          startAtStep: mode === "plan" ? 3 : 5 // Review step is 3 for plans, 5 for events
+        });
+        setShowEventCreator(true);
+        showToast("✨ Đã trích xuất thông tin thành công!", "success");
+      } catch (err) {
+      console.error("Docx import error:", err);
+      const errorMsg = err.response?.data?.message || err.message || "Lỗi không xác định khi nhập dữ liệu";
+      showToast("❌ " + errorMsg, "error");
+    } finally {
+      setIsImporting(false);
+      e.target.value = "";
+    }
+  };
 
   /* ===== MODAL HANDLERS ===== */
   const handleSelectPlan = (data) => {
     setCreatorConfig({
       initialFormData: data.initialFormData || {},
-      fromPlan: data.fromPlan || false
+      fromPlan: data.fromPlan || false,
+      startAtStep: 1
     });
     setIsCreateModalOpen(false);
     setShowEventCreator(true);
   };
 
   const handleCreateNew = () => {
-    setCreatorConfig({ initialFormData: {}, fromPlan: false });
+    setCreatorConfig({ 
+      initialFormData: {}, 
+      fromPlan: false,
+      startAtStep: 1
+    });
     setIsCreateModalOpen(false);
     setShowEventCreator(true);
   };
 
   if (showEventCreator) {
-    return <EventCreator onBack={() => { setShowEventCreator(false); fetchData(); }} initialData={creatorConfig.initialFormData} fromPlan={creatorConfig.fromPlan} />;
+    return (
+      <EventCreator 
+        onBack={() => { setShowEventCreator(false); fetchData(); }} 
+        initialFormData={creatorConfig.initialFormData} 
+        fromPlan={creatorConfig.fromPlan} 
+        planId={creatorConfig.initialFormData.id}
+        startAtStep={creatorConfig.startAtStep}
+      />
+    );
   }
 
   return (
     <div className="p-6 bg-slate-50 min-h-screen">
-      {/* TOAST removed in favor of global showToast */}
+      {/* Loading Overlay for AI Import */}
+      <AnimatePresence>
+        {isImporting && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[100] flex flex-col items-center justify-center bg-slate-900/60 backdrop-blur-md"
+          >
+            <div className="relative">
+              <div className="w-24 h-24 border-4 border-indigo-500/20 border-t-indigo-500 rounded-full animate-spin"></div>
+              <div className="absolute inset-0 flex items-center justify-center">
+                <FileUp className="text-indigo-400 animate-pulse" size={32} />
+              </div>
+            </div>
+            <motion.div 
+              initial={{ y: 10, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              transition={{ delay: 0.2 }}
+              className="mt-8 text-center"
+            >
+              <h3 className="text-xl font-black text-white mb-2">Đang phân tích kế hoạch</h3>
+              <p className="text-slate-300 text-sm max-w-xs mx-auto">
+                AI đang trích xuất thông tin từ file Word của bạn. Quá trình này có thể mất từ 10-30 giây...
+              </p>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* HEADER */}
       <div className="flex justify-between items-center mb-6">
         <div className="flex items-center gap-3">
           <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center text-white font-bold">©</div>
           <h1 className="text-2xl font-semibold text-slate-800">
-            {isAdminMode ? "Quản lý sự kiện hệ thống" : "Sự kiện của tôi"}
+            {isAdminMode ? (mode === "plan" ? "Quản lý kế hoạch hệ thống" : "Quản lý sự kiện hệ thống") : (mode === "plan" ? "Kế hoạch của tôi" : "Sự kiện của tôi")}
           </h1>
         </div>
 
-        {(user?.role === 'ADMIN' || user?.role === 'SUPER_ADMIN') && (
-          <div className="flex gap-3">
-            <button
-              onClick={() => setIsCreateModalOpen(true)}
-              className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-lg text-sm font-medium transition-all"
-            >
-              <Plus size={18} />
-              Tạo sự kiện mới
-            </button>
+        <div className="flex gap-3">
+          {(mode === "plan" || mode === "all") && (
+            <>
+              <label className={`flex items-center gap-2 bg-indigo-50 text-indigo-600 hover:bg-indigo-100 px-5 py-2.5 rounded-lg text-sm font-bold transition-all cursor-pointer border border-indigo-200 shadow-sm ${isImporting ? 'opacity-50 pointer-events-none' : ''}`}>
+                <input
+                  type="file"
+                  className="hidden"
+                  accept=".docx"
+                  onChange={handleImportDocx}
+                  disabled={isImporting}
+                />
+                {isImporting ? (
+                  <Loader2 size={18} className="animate-spin" />
+                ) : (
+                  <FileUp size={18} />
+                )}
+                {isImporting ? "Đang xử lý..." : "Import Word"}
+              </label>
+
+              <button
+                onClick={() => setIsCreateModalOpen(true)}
+                className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-lg text-sm font-medium transition-all shadow-sm"
+              >
+                <Plus size={18} />
+                {mode === "plan" ? "Tạo kế hoạch mới" : "Tạo sự kiện mới"}
+              </button>
+            </>
+          )}
+          {mode !== "plan" && (
             <button
               onClick={handleExport}
-              className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-5 py-2.5 rounded-lg text-sm font-medium transition-all"
+              className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-5 py-2.5 rounded-lg text-sm font-medium transition-all shadow-sm"
             >
               <Download size={18} />
               Xuất Excel
             </button>
-          </div>
-        )}
+          )}
+        </div>
       </div>
 
       {/* STATISTICS CARDS */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-8">
-        <div className="bg-blue-600 text-white p-5 rounded-2xl shadow-sm">
-          <div className="flex items-center gap-3">
-            <Calendar size={28} />
-            <div>
-              <p className="text-sm opacity-90">Tổng sự kiện</p>
-              <p className="text-3xl font-semibold mt-1">{stats.total}</p>
+      {mode === "plan" ? (
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-8">
+          <div className="bg-blue-600 text-white p-5 rounded-2xl shadow-sm">
+            <div className="flex items-center gap-3">
+              <FileText size={28} />
+              <div>
+                <p className="text-sm opacity-90">Tổng kế hoạch</p>
+                <p className="text-3xl font-semibold mt-1">{stats.total}</p>
+              </div>
+            </div>
+          </div>
+          <div className="bg-gray-500 text-white p-5 rounded-2xl shadow-sm">
+            <div className="flex items-center gap-3">
+              <Edit2 size={28} />
+              <div>
+                <p className="text-sm opacity-90">Bản nháp</p>
+                <p className="text-3xl font-semibold mt-1">{stats.drafts}</p>
+              </div>
+            </div>
+          </div>
+          <div className="bg-orange-500 text-white p-5 rounded-2xl shadow-sm">
+            <div className="flex items-center gap-3">
+              <AlertCircle size={28} />
+              <div>
+                <p className="text-sm opacity-90">Chờ duyệt</p>
+                <p className="text-3xl font-semibold mt-1">{stats.pending}</p>
+              </div>
+            </div>
+          </div>
+          <div className="bg-emerald-600 text-white p-5 rounded-2xl shadow-sm">
+            <div className="flex items-center gap-3">
+              <CheckCircle2 size={28} />
+              <div>
+                <p className="text-sm opacity-90">Đã duyệt</p>
+                <p className="text-3xl font-semibold mt-1">{stats.approved}</p>
+              </div>
+            </div>
+          </div>
+          <div className="bg-rose-500 text-white p-5 rounded-2xl shadow-sm">
+            <div className="flex items-center gap-3">
+              <XCircle size={28} />
+              <div>
+                <p className="text-sm opacity-90">Từ chối</p>
+                <p className="text-3xl font-semibold mt-1">{stats.rejected}</p>
+              </div>
             </div>
           </div>
         </div>
+      ) : (
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-8">
+          <div className="bg-blue-600 text-white p-5 rounded-2xl shadow-sm">
+            <div className="flex items-center gap-3">
+              <Calendar size={28} />
+              <div>
+                <p className="text-sm opacity-90">Tổng sự kiện</p>
+                <p className="text-3xl font-semibold mt-1">{stats.total}</p>
+              </div>
+            </div>
+          </div>
 
-        <div className="bg-blue-500 text-white p-5 rounded-2xl shadow-sm">
-          <div className="flex items-center gap-3">
-            <Clock size={28} />
-            <div>
-              <p className="text-sm opacity-90">Sắp diễn ra</p>
-              <p className="text-3xl font-semibold mt-1">{stats.upcoming}</p>
+          <div className="bg-blue-500 text-white p-5 rounded-2xl shadow-sm">
+            <div className="flex items-center gap-3">
+              <Clock size={28} />
+              <div>
+                <p className="text-sm opacity-90">Sắp diễn ra</p>
+                <p className="text-3xl font-semibold mt-1">{stats.upcoming}</p>
+              </div>
             </div>
           </div>
-        </div>
 
-        <div className="bg-emerald-500 text-white p-5 rounded-2xl shadow-sm">
-          <div className="flex items-center gap-3">
-            <PlayCircle size={28} />
-            <div>
-              <p className="text-sm opacity-90">Đang diễn ra</p>
-              <p className="text-3xl font-semibold mt-1">{stats.ongoing}</p>
+          <div className="bg-emerald-500 text-white p-5 rounded-2xl shadow-sm">
+            <div className="flex items-center gap-3">
+              <PlayCircle size={28} />
+              <div>
+                <p className="text-sm opacity-90">Đang diễn ra</p>
+                <p className="text-3xl font-semibold mt-1">{stats.ongoing}</p>
+              </div>
             </div>
           </div>
-        </div>
 
-        <div className="bg-slate-700 text-white p-5 rounded-2xl shadow-sm">
-          <div className="flex items-center gap-3">
-            <CheckCircle2 size={28} />
-            <div>
-              <p className="text-sm opacity-90">Đã hoàn thành</p>
-              <p className="text-3xl font-semibold mt-1">{stats.completed}</p>
+          <div className="bg-slate-700 text-white p-5 rounded-2xl shadow-sm">
+            <div className="flex items-center gap-3">
+              <CheckCircle2 size={28} />
+              <div>
+                <p className="text-sm opacity-90">Đã hoàn thành</p>
+                <p className="text-3xl font-semibold mt-1">{stats.completed}</p>
+              </div>
             </div>
           </div>
-        </div>
 
-        <div className="bg-blue-600 text-white p-5 rounded-2xl shadow-sm">
-          <div className="flex items-center gap-3">
-            <Users size={28} />
-            <div>
-              <p className="text-sm opacity-90">Tổng đăng ký</p>
-              <p className="text-3xl font-semibold mt-1">{stats.totalRegistered}</p>
+          <div className="bg-blue-600 text-white p-5 rounded-2xl shadow-sm">
+            <div className="flex items-center gap-3">
+              <Users size={28} />
+              <div>
+                <p className="text-sm opacity-90">Tổng đăng ký</p>
+                <p className="text-3xl font-semibold mt-1">{stats.totalRegistered}</p>
+              </div>
             </div>
           </div>
         </div>
-      </div>
+      )}
 
       {/* TABS */}
       <div className="flex border-b border-slate-200 mb-6 overflow-x-auto pb-1 gap-2 no-scrollbar">
         {[
           { id: "Tất cả", label: "Tất cả", icon: Calendar, count: events.length },
-          { id: "Chờ duyệt", label: "Chờ duyệt", icon: AlertCircle, count: events.filter(e => ["PLAN_PENDING_APPROVAL", "EVENT_PENDING_APPROVAL"].includes(e.status)).length },
-          { id: "Kế hoạch", label: "Kế hoạch", icon: FileText, count: events.filter(e => ["PLAN_APPROVED", "DRAFT", "REJECTED"].includes(e.status)).length },
-          { id: "Công bố", label: "Công bố", icon: Clock, count: events.filter(e => ["PUBLISHED", "ONGOING"].includes(e.status)).length },
-          { id: "Hoàn thành", label: "Hoàn thành", icon: CheckCircle2, count: events.filter(e => e.status === "COMPLETED").length },
-          { id: "Đã hủy", label: "Đã hủy", icon: XCircle, count: events.filter(e => e.status === "CANCELLED").length },
+          ...(mode === "all" || mode === "plan" ? [
+            { id: "Kế hoạch", label: "Bản nháp & Từ chối", icon: FileText, count: events.filter(e => ["DRAFT", "REJECTED"].includes(e.status)).length },
+            { id: "Chờ duyệt", label: "Chờ duyệt", icon: AlertCircle, count: events.filter(e => ["PLAN_PENDING_APPROVAL"].includes(e.status)).length },
+            { id: "Đã duyệt", label: "Đã duyệt", icon: CheckCircle2, count: events.filter(e => ["PLAN_APPROVED"].includes(e.status)).length }
+          ] : []),
+          ...(mode === "all" || mode === "event" ? [
+            { id: "Chờ duyệt sự kiện", label: "Chờ duyệt", icon: AlertCircle, count: events.filter(e => ["EVENT_PENDING_APPROVAL"].includes(e.status)).length },
+            { id: "Công bố", label: "Công bố", icon: Clock, count: events.filter(e => ["PUBLISHED", "ONGOING"].includes(e.status)).length },
+            { id: "Hoàn thành", label: "Hoàn thành", icon: CheckCircle2, count: events.filter(e => e.status === "COMPLETED").length },
+            { id: "Đã hủy", label: "Đã hủy", icon: XCircle, count: events.filter(e => e.status === "CANCELLED").length }
+          ] : [])
         ].map((tab) => (
           <button
             key={tab.id}
@@ -379,7 +591,7 @@ const EventsManagement = ({ type = "lecturer" }) => {
           onChange={(e) => { setStatusFilter(e.target.value); setPage(1); }}
         >
           <option value="ALL">Tất cả trạng thái</option>
-          {Object.keys(STATUS_LABELS).map(k => (
+          {allowedStatuses.map(k => (
             <option key={k} value={k}>
               {STATUS_LABELS[k]}
             </option>
@@ -407,7 +619,7 @@ const EventsManagement = ({ type = "lecturer" }) => {
           <table className="w-full text-sm">
             <thead className="bg-slate-50 border-b border-gray-200">
               <tr>
-                <th className="p-4 text-left font-medium text-gray-600">Tên sự kiện</th>
+                <th className="p-4 text-left font-medium text-gray-600">{mode === "plan" ? "Tên kế hoạch" : "Tên sự kiện"}</th>
                 <th className="p-4 text-left font-medium text-gray-600">Địa điểm</th>
                 <th className="p-4 text-left font-medium text-gray-600">Thời gian</th>
                 <th className="p-4 text-left font-medium text-gray-600">Trạng thái</th>
@@ -425,43 +637,18 @@ const EventsManagement = ({ type = "lecturer" }) => {
                       {new Date(e.startTime).toLocaleDateString('vi-VN')}
                     </td>
                     <td className="p-4">
-                      {isAdminMode ? (
-                        <div className="relative group">
-                          <select
-                            value={e.status}
-                            onChange={(val) => handleStatusUpdate(e.id, val.target.value)}
-                            className={`w-full px-3 py-1.5 rounded-full text-[10px] font-black uppercase border border-gray-200 cursor-pointer transition-all shadow-sm outline-none focus:ring-2 focus:ring-blue-500/20 ${STATUS_COLOR[e.status] || "bg-gray-100 text-gray-600"}`}
-                            style={{ appearance: 'auto' }}
-                          >
-                            {Object.entries(STATUS_LABELS).map(([key, label]) => (
-                              <option key={key} value={key} className="bg-white text-slate-800 font-bold py-2 normal-case">
-                                {label}
-                              </option>
-                            ))}
-                          </select>
-                        </div>
-                      ) : (
-                        <span className={`inline-block px-3 py-1 rounded-full text-[10px] font-black uppercase ${STATUS_COLOR[e.status] || "bg-gray-100 text-gray-600"}`}>
-                          {STATUS_LABELS[e.status] || e.status}
-                        </span>
-                      )}
+                      <span className={`inline-block px-3 py-1 rounded-full text-[10px] font-black uppercase ${STATUS_COLOR[e.status] || "bg-gray-100 text-gray-600"}`}>
+                        {STATUS_LABELS[e.status] || e.status}
+                      </span>
                     </td>
                     <td className="p-4">
                       <div className="flex justify-center gap-1.5">
                         <button
-                          onClick={() => {
-                            if (isAdminMode) {
-                              navigate(`/admin/events/${e.id}`);
-                            } else if (user?.role === 'STUDENT') {
-                              navigate(`/staff/events/${e.id}`);
-                            } else {
-                              navigate(`/lecturer/events/${e.id}`);
-                            }
-                          }}
+                          onClick={() => navigate(isAdminMode ? `/admin/events/${e.id}` : `/lecturer/events/${e.id}`)}
                           className="p-2 hover:bg-gray-100 rounded-lg text-gray-600 hover:text-blue-600 transition-all"
-                          title="Xem chi tiết"
+                          title="Bảng điều khiển"
                         >
-                          <Eye size={18} />
+                          <LayoutDashboard size={18} />
                         </button>
 
                         {/* ACTIONS FOR ADMIN */}
@@ -503,6 +690,14 @@ const EventsManagement = ({ type = "lecturer" }) => {
                           <div className="flex gap-1.5">
                             {e.currentUserRole?.canEditEvent && (
                               <>
+                                <button
+                                  onClick={() => handleEdit(e)}
+                                  className="p-2 hover:bg-amber-100 rounded-lg text-amber-600 transition-all"
+                                  title="Chỉnh sửa"
+                                >
+                                  <Edit2 size={18} />
+                                </button>
+
                                 {(e.status === "DRAFT" || e.status === "REJECTED") && (
                                   <button
                                     onClick={() => handleSubmitForApproval(e.id, e.title)}
@@ -534,7 +729,7 @@ const EventsManagement = ({ type = "lecturer" }) => {
               ) : (
                 <tr>
                   <td colSpan={5} className="p-12 text-center text-gray-500">
-                    Không tìm thấy sự kiện nào
+                    {mode === "plan" ? "Không tìm thấy kế hoạch nào" : "Không tìm thấy sự kiện nào"}
                   </td>
                 </tr>
               )}

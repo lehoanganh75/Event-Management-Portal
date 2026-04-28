@@ -1,5 +1,6 @@
 package com.eventservice.entity;
 
+import com.eventservice.dto.UserDto;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
@@ -39,9 +40,10 @@ public class EventInvitation {
     private InvitationType type = InvitationType.ORGANIZER;
 
     @Enumerated(EnumType.STRING)
-    private OrganizerRole targetRole; // Vai trò dự kiến (Nếu là ORGANIZER): ORGANIZER, LEADER, MEMBER...
+    private OrganizerRole targetRole; // Vai trò dự kiến (Nếu là ORGANIZER): LEADER, MEMBER...
 
     // --- Presenter Specific Info ---
+    private String presenterBio; // Tiểu sử (Nếu là PRESENTER)
     private String presenterSession; // Tên phiên/chủ đề thuyết trình
 
     // --- Content ---
@@ -70,4 +72,7 @@ public class EventInvitation {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "event_id", nullable = false)
     private Event event;
-}
+
+    @Transient
+    private UserDto inviter;
+}

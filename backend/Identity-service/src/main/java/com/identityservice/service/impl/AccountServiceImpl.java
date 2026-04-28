@@ -13,6 +13,8 @@ import com.identityservice.repository.AccountRepository;
 import com.identityservice.repository.UserRepository;
 import com.identityservice.service.AccountService;
 import org.springframework.web.server.ResponseStatusException;
+import org.springframework.kafka.core.KafkaTemplate;
+import com.identityservice.dto.NotificationEvent;
 
 import java.time.format.DateTimeFormatter;
 import java.util.List;
@@ -25,10 +27,14 @@ public class AccountServiceImpl implements AccountService {
 
     private final AccountRepository accountRepository;
     private final UserRepository userRepository;
+    private final KafkaTemplate<String, Object> kafkaTemplate;
 
-    public AccountServiceImpl(AccountRepository accountRepository, UserRepository userRepository) {
+    public AccountServiceImpl(AccountRepository accountRepository, 
+                              UserRepository userRepository,
+                              KafkaTemplate<String, Object> kafkaTemplate) {
         this.accountRepository = accountRepository;
         this.userRepository = userRepository;
+        this.kafkaTemplate = kafkaTemplate;
     }
 
     @Override
@@ -73,8 +79,20 @@ public class AccountServiceImpl implements AccountService {
         }
 
         try {
+            AccountStatus oldStatus = account.getStatus();
             AccountStatus statusEnum = AccountStatus.valueOf(status.toUpperCase());
             account.setStatus(statusEnum);
+
+            // Nếu khóa tài khoản, gửi thông báo realtime để logout
+            if (statusEnum != AccountStatus.ACTIVE && oldStatus == AccountStatus.ACTIVE) {
+                NotificationEvent event = NotificationEvent.builder()
+                        .recipientId(accountId)
+                        .title("Tài khoản bị khóa")
+                        .message("Tài khoản của bạn đã bị quản trị viên khóa. Bạn sẽ bị đăng xuất ngay lập tức.")
+                        .type("ACCOUNT_LOCKED")
+                        .build();
+                kafkaTemplate.send("notification-topic", event);
+            }
         } catch (IllegalArgumentException e) {
             throw new ResponseStatusException(HttpStatus.CONFLICT,
                     "Trạng thái không hợp lệ: " + status +
@@ -164,10 +182,19 @@ public class AccountServiceImpl implements AccountService {
             profile.setFullName(updateRequest.fullName());
         }
 
+        if (updateRequest.role() != null) {
+            account.setRole(updateRequest.role());
+        }
+
         return toAdminDTO(accountRepository.save(account));
     }
     @Override
     public List<String> getAdminAccountIds() {
         return accountRepository.findIdsByRoleIn(List.of(Role.ADMIN, Role.SUPER_ADMIN));
+    }
+
+    @Override
+    public List<String> getSuperAdminAccountIds() {
+        return accountRepository.findIdsByRoleIn(List.of(Role.SUPER_ADMIN));
     }
 }

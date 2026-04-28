@@ -62,10 +62,9 @@ const RenderComment = ({
     }
   }, [replyContent, activeReplyId, comment.id]);
 
-  const authorInfo = comment.author || comment.commenter;
-  const avatar = authorInfo?.avatarUrl && authorInfo.avatarUrl !== "default-avatar-url.png"
-    ? authorInfo.avatarUrl
-    : `https://api.dicebear.com/7.x/initials/svg?seed=${authorInfo?.fullName || authorInfo?.email || 'User'}`;
+  const avatar = comment.author?.avatarUrl && comment.author.avatarUrl !== "default-avatar-url.png"
+    ? comment.author.avatarUrl
+    : `https://api.dicebear.com/7.x/initials/svg?seed=${comment.author?.fullName || 'User'}`;
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -93,14 +92,10 @@ const RenderComment = ({
       <div className="flex-1 min-w-0">
         <div className="inline-block bg-slate-100 rounded-2xl px-4 py-2 max-w-full shadow-sm relative group">
           <div className="flex items-center gap-2 mb-0.5">
-            <p className="font-bold text-[13px] text-slate-900">{authorInfo?.fullName || "Người dùng"}</p>
-            {(() => {
-              const postAuthorId = post?.author?.id || post?.authorAccountId || post?.accountId;
-              const commentAuthorId = comment.author?.id || comment.commenter?.id || comment.authorAccountId || comment.commenterAccountId;
-              return postAuthorId && commentAuthorId && postAuthorId === commentAuthorId;
-            })() && (
-                <span className="bg-blue-600 text-white text-[9px] px-1.5 py-0.5 rounded font-bold uppercase tracking-wider">Tác giả</span>
-              )}
+            <p className="font-bold text-[13px] text-slate-900">{comment.author?.fullName || "Người dùng"}</p>
+            {comment.authorAccountId === post?.authorAccountId && (
+              <span className="bg-blue-600 text-white text-[9px] px-1.5 py-0.5 rounded font-bold uppercase tracking-wider">Tác giả</span>
+            )}
           </div>
           <p className="text-[14px] text-slate-800 break-all leading-relaxed">{comment.content}</p>
           {reactionList.length > 0 && (
@@ -143,15 +138,9 @@ const RenderComment = ({
 
         {activeReplyId === comment.id && (
           <div className="mt-3 flex gap-2 animate-in slide-in-from-top-1 reply-input-container">
-            <div className="w-6 h-6 rounded-full bg-slate-200 overflow-hidden flex-shrink-0">
-              <img
-                src={currentUser?.avatarUrl || `https://api.dicebear.com/7.x/initials/svg?seed=${currentUser?.fullName || 'User'}`}
-                className="w-full h-full object-cover"
-                alt="User"
-              />
-            </div>
+            <div className="w-6 h-6 rounded-full bg-slate-200 overflow-hidden flex-shrink-0"><img src={DEFAULT_AVATAR} className="w-full h-full object-cover" alt="User" /></div>
             <div className="flex-1 relative">
-              <textarea ref={replyTextareaRef} autoFocus value={replyContent} onChange={(e) => setReplyContent(e.target.value)} placeholder={`Phản hồi ${comment.author?.fullName}...`} className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-4 py-2.5 text-[13px] opacity-70 focus:opacity-100 focus:bg-white focus:border-slate-300 transition-all duration-300 resize-none min-h-[40px] pr-20 outline-none overflow-hidden" onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSubmitReply(comment.id, replyContent); setReplyContent(""); } }} />
+              <textarea ref={replyTextareaRef} autoFocus value={replyContent} onChange={(e) => setReplyContent(e.target.value)} placeholder={`Phản hồi ${comment.author?.fullName}...`} className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-4 py-2.5 text-[13px] opacity-70 focus:opacity-100 focus:bg-white focus:border-slate-300 transition-all duration-300 resize-none min-h-[40px] pr-20 outline-none overflow-hidden" onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSubmitReply(comment.id); } }} />
               <div className="absolute right-2 bottom-1.5 flex items-center gap-1.5">
                 <button onClick={() => setShowLocalEmojiPicker(!showLocalEmojiPicker)} className={`p-1.5 rounded-full transition-colors ${showLocalEmojiPicker ? 'bg-amber-100 text-amber-500' : 'text-slate-400 hover:bg-slate-200'}`}><Smile size={18} /></button>
                 {showLocalEmojiPicker && (
@@ -159,7 +148,7 @@ const RenderComment = ({
                     {EMOJIS.map(emoji => <button key={emoji} onClick={() => addEmojiToReply(emoji)} className="w-9 h-9 flex items-center justify-center hover:bg-slate-50 rounded-xl text-xl transition-all hover:scale-110 active:scale-90">{emoji}</button>)}
                   </div>
                 )}
-                <button onClick={() => handleSubmitReply(comment.id, replyContent)} disabled={!replyContent.trim() || isSubmittingComment} className="p-1.5 bg-blue-600 text-white rounded-full disabled:bg-slate-200 disabled:text-slate-400 transition-all hover:bg-blue-700 active:scale-90 shadow-sm">{isSubmittingComment ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}</button>
+                <button onClick={() => handleSubmitReply(comment.id)} disabled={!replyContent.trim() || isSubmittingComment} className="p-1.5 bg-blue-600 text-white rounded-full disabled:bg-slate-200 disabled:text-slate-400 transition-all hover:bg-blue-700 active:scale-90 shadow-sm">{isSubmittingComment ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}</button>
               </div>
             </div>
           </div>
@@ -235,10 +224,6 @@ const PostDetailManagement = ({
   const postReactionList = Object.values(postReactions);
   const userReaction = currentUser ? postReactions[currentUser.id] : null;
   const hasLiked = !!userReaction;
-
-  console.log("User: ", currentUser);
-  console.log("Post: ", post);
-
 
   return (
     <div className="bg-slate-50 min-h-screen p-6 md:p-6 flex flex-col items-center">

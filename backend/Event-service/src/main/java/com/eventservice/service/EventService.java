@@ -98,7 +98,7 @@ public interface EventService {
 
     Event updateEventStatus(String id, EventStatus status, String approverId, String accountId);
 
-    Map<String, String> invitateParticipants(String eventId, String organizerId,
+    Map<String, String> inviteParticipants(String eventId, String organizerId,
             com.eventservice.dto.InvitationBatchRequest request);
 
     Map<String, String> acceptInvite(String eventId, String token);
@@ -112,4 +112,21 @@ public interface EventService {
 
     @Transactional
     void sendPresenterInvitations(String eventId, List<Map<String, Object>> invitations);
+
+    @Transactional
+    void cancelInvitation(String invitationId);
+
+    com.eventservice.dto.EventSummaryDto getEventSummary(String id);
+
+    List<Event> findEventsByOrganization(String orgId);
+
+    List<Event> findEventsByOrganizationOwner(String ownerId);
+
+    Map<String, Long> getQuickStats();
+
+    Map<String, Object> getLecturerStats(String accountId);
+
+    Event saveDraft(Event event);
+
+    List<String> getOrganizerRoles(String accountId);
 }

@@ -64,4 +64,9 @@ public class AccountController {
     public ResponseEntity<List<String>> getAdminAccountIds() {
         return ResponseEntity.ok(accountService.getAdminAccountIds());
     }
+
+    @GetMapping("/super-admin-ids")
+    public ResponseEntity<List<String>> getSuperAdminAccountIds() {
+        return ResponseEntity.ok(accountService.getSuperAdminAccountIds());
+    }
 }

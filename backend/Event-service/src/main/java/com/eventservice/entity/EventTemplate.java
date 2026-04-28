@@ -59,6 +59,7 @@ public class EventTemplate {
     private Map<String, Object> configData;
 
     private boolean isPublic = false; // Mẫu dùng chung hay nội bộ
+    private String createdByAccountId; // Người tạo bản mẫu
 
     @Transient
     @Getter(AccessLevel.NONE)

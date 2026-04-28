@@ -29,4 +29,6 @@ public interface EventTemplateService {
     Page<EventTemplate> getAllTemplatesGlobal(String search, String userId, Pageable pageable);
 
     Page<EventTemplate> getAvailableTemplates(String organizationId, String search, String userId, Pageable pageable);
+
+    void incrementUsageCount(String templateId);
 }

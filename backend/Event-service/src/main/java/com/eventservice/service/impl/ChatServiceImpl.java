@@ -334,6 +334,13 @@ public class ChatServiceImpl implements ChatService {
         ChatMessage lastMessage = messages.get(messages.size() - 1);
         return geminiChatService.generateQuickReplies(lastMessage.getContent(), session.getContextType());
     }
+
+    @Override
+    public EventPlanSuggestion extractFromText(String text) {
+        if (text == null || text.isBlank()) return null;
+        log.info("Requesting AI to extract event details from provided text");
+        return geminiChatService.extractEventDetails(text);
+    }
     
     private void sendWelcomeMessage(ChatSession session) {
         String welcomeText = """

@@ -1,6 +1,9 @@
 import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
 import notificationService from '../services/notificationService';
 import { useAuth } from './AuthContext';
+import { Client } from "@stomp/stompjs";
+import SockJS from "sockjs-client";
+import { showToast } from "../utils/toast.jsx";
 
 const NotificationContext = createContext();
 
@@ -11,7 +14,7 @@ export const useNotification = () => {
 };
 
 export const NotificationProvider = ({ children }) => {
-    const { user } = useAuth();
+    const { user, isAuthenticated } = useAuth();
     const [notifications, setNotifications] = useState([]);
     const [unreadCount, setUnreadCount] = useState(0);
     const [loading, setLoading] = useState(false);
@@ -39,18 +42,86 @@ export const NotificationProvider = ({ children }) => {
 
     // Tự động tải lại thông báo khi user đăng nhập
     useEffect(() => {
-        refreshNotifications();
-        
-        // (Tùy chọn) Có thể thiết lập interval để poll thông báo mới mỗi 1 phút
-        // const interval = setInterval(refreshNotifications, 60000);
-        // return () => clearInterval(interval);
-    }, [refreshNotifications]);
+        if (isAuthenticated) {
+            refreshNotifications();
+        }
+    }, [refreshNotifications, isAuthenticated]);
+
+    // Setup Realtime Listener
+    useEffect(() => {
+        const userId = user?.id || user?.accountId;
+        if (isAuthenticated && userId) {
+            const stompClient = new Client({
+                brokerURL: "ws://localhost:8085/ws",
+                webSocketFactory: () => new SockJS("http://localhost:8085/ws"),
+                reconnectDelay: 5000,
+                heartbeatIncoming: 4000,
+                heartbeatOutgoing: 4000,
+                onConnect: () => {
+                    console.log("✅ [Global WS] Connected for User ID:", userId);
+                    stompClient.subscribe(`/topic/notifications.${userId}`, (message) => {
+                        if (message.body) {
+                            const newNotification = JSON.parse(message.body);
+                            console.log("📩 [Global WS] Received notification:", newNotification);
+
+                            setNotifications(prev => [newNotification, ...prev].slice(0, 15));
+                            setUnreadCount(prev => prev + 1);
+
+                            // Nếu tài khoản bị khóa -> Ép đăng xuất ngay lập tức
+                            if (newNotification.type === 'ACCOUNT_LOCKED') {
+                                showToast(
+                                    <div className="flex flex-col gap-0.5 text-left">
+                                        <p className="font-black text-rose-600 uppercase tracking-tight">Tài khoản đã bị khóa</p>
+                                        <p className="text-[11px] font-medium text-slate-600">Bạn sẽ bị đăng xuất ngay lập tức.</p>
+                                    </div>,
+                                    'error'
+                                );
+                                
+                                // Đợi 2s để user kịp nhìn thấy thông báo rồi logout
+                                setTimeout(() => {
+                                    localStorage.clear();
+                                    window.location.href = '/login?reason=locked';
+                                }, 2000);
+                                return;
+                            }
+
+                            // Hiển thị toast thông báo bình thường
+                            showToast(
+                                <div className="flex flex-col gap-0.5 text-left">
+                                    <p className="font-bold text-[13px] uppercase tracking-tight">{newNotification.title}</p>
+                                    <p className="text-[11px] opacity-80 line-clamp-2">{newNotification.message}</p>
+                                </div>,
+                                'info'
+                            );
+                        }
+                    });
+                }
+            });
+
+            stompClient.activate();
+            return () => stompClient.deactivate();
+        }
+    }, [isAuthenticated, user]);
+
+    // Hành động: Xóa thông báo
+    const deleteNotification = async (notificationId) => {
+        try {
+            await notificationService.deleteNotification(notificationId);
+            setNotifications(prev => prev.filter(n => n.id !== notificationId));
+            setUnreadCount(prev => {
+                const deleted = notifications.find(n => n.id === notificationId);
+                return (deleted && !deleted.read) ? Math.max(0, prev - 1) : prev;
+            });
+        } catch (error) {
+            console.error("Lỗi khi xóa thông báo:", error);
+            throw error;
+        }
+    };
 
     // Hành động: Đánh dấu đã đọc
     const markAsRead = async (notificationId) => {
         try {
             await notificationService.markAsRead(notificationId);
-            // Cập nhật UI local ngay lập tức
             setNotifications(prev => 
                 prev.map(n => n.id === notificationId ? { ...n, read: true } : n)
             );
@@ -80,7 +151,8 @@ export const NotificationProvider = ({ children }) => {
         refreshNotifications,
         markAsRead,
         markAllAsRead,
-        service: notificationService // Expose service để dùng các hàm nâng cao (phân trang, export)
+        deleteNotification,
+        service: notificationService
     };
 
     return (

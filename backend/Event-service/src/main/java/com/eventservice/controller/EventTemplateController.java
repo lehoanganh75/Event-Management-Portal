@@ -145,4 +145,10 @@ public class EventTemplateController {
 
         return ResponseEntity.ok(templateService.getAvailableTemplates(organizationId, search, userId, pageable));
     }
+
+    @PostMapping("/{id}/increment-usage")
+    public ResponseEntity<Void> incrementUsageCount(@PathVariable String id) {
+        templateService.incrementUsageCount(id);
+        return ResponseEntity.ok().build();
+    }
 }
