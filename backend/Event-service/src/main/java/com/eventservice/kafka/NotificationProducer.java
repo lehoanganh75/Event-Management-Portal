@@ -1,6 +1,6 @@
 package com.eventservice.kafka;
 
-import com.eventservice.dto.NotificationEvent;
+import com.eventservice.dto.engagement.NotificationEventDto;
 import lombok.RequiredArgsConstructor;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
@@ -14,7 +14,7 @@ public class NotificationProducer {
 
     private final KafkaTemplate<String, Object> kafkaTemplate;
 
-    public void sendNotification(NotificationEvent event) {
+    public void sendNotification(NotificationEventDto event) {
         log.info("Sending notification event to Kafka topic 'notification-topic' for recipient: {}", event.getRecipientId());
         log.info("Event content: {}", event);
         try {

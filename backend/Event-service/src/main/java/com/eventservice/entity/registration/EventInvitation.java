@@ -1,0 +1,71 @@
+package com.eventservice.entity.registration;
+
+import com.eventservice.entity.core.*;
+
+import jakarta.persistence.*;
+import lombok.*;
+import org.hibernate.annotations.CreationTimestamp;
+import com.eventservice.entity.enums.InvitationStatus;
+import com.eventservice.entity.enums.InvitationType;
+import com.eventservice.entity.enums.OrganizerRole;
+
+import java.time.LocalDateTime;
+
+@Entity
+@Table(name = "event_invitations") // SỬA: Phải là event_invitations, không phải feedbacks
+@Getter
+@Setter
+@AllArgsConstructor
+@NoArgsConstructor
+@Builder
+public class EventInvitation {
+    @Id
+    @GeneratedValue(strategy = GenerationType.UUID)
+    private String id;
+
+    // --- Actor Information ---
+    @Column(nullable = false)
+    private String inviterAccountId; // ID người gửi (Trưởng ban/Người tạo event)
+
+    @Column(nullable = false)
+    private String inviteeEmail; // Email người được mời (Dùng email để mời cả người chưa có acc)
+
+    @Enumerated(EnumType.STRING)
+    @Builder.Default
+    private InvitationType type = InvitationType.ORGANIZER;
+
+    @Enumerated(EnumType.STRING)
+    private OrganizerRole targetRole; // Vai trò dự kiến (Nếu là ORGANIZER): LEADER, MEMBER...
+
+    // --- Presenter Specific Info ---
+    private String presenterSession; // Tên phiên/chủ đề thuyết trình
+
+    // --- Content ---
+    @Column(columnDefinition = "TEXT")
+    private String message; // Lời nhắn gửi kèm
+
+    // --- Status & Tracking ---
+    @Builder.Default
+    @Enumerated(EnumType.STRING)
+    private InvitationStatus status = InvitationStatus.PENDING;
+
+    private String rejectionReason; // Lý do từ chối (Nếu họ chọn REJECTED)
+
+    private String token;
+
+    private boolean isDeleted = false; // Cờ đánh dấu đã xóa (soft delete)
+
+    // --- Timestamps ---
+    @CreationTimestamp
+    @Column(updatable = false)
+    private LocalDateTime sentAt;
+
+    private LocalDateTime respondedAt; // Thời điểm phản hồi
+
+    private LocalDateTime expiredAt; // (Nên có) Thời hạn lời mời (vd: sau 7 ngày sẽ hết hạn)
+
+    // --- Relationships ---
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "event_id", nullable = false)
+    private Event event;
+}

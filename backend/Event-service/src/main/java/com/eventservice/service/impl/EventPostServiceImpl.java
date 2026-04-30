@@ -1,15 +1,24 @@
 package com.eventservice.service.impl;
 
 import com.eventservice.client.IdentityServiceClient;
-import com.eventservice.dto.*;
-import com.eventservice.entity.PostComment;
+import com.eventservice.dto.core.request.*;
+import com.eventservice.dto.core.response.*;
+import com.eventservice.dto.registration.request.*;
+import com.eventservice.dto.registration.response.*;
+import com.eventservice.dto.social.request.*;
+import com.eventservice.dto.social.response.*;
+import com.eventservice.dto.plan.request.*;
+import com.eventservice.dto.plan.response.*;
+import com.eventservice.dto.user.*;
+import com.eventservice.dto.engagement.*;
+import com.eventservice.entity.social.PostComment;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import com.eventservice.entity.Event;
-import com.eventservice.entity.EventPost;
+import com.eventservice.entity.core.Event;
+import com.eventservice.entity.social.EventPost;
 import com.eventservice.entity.enums.PostStatus;
 import com.eventservice.repository.EventPostRepository;
 import com.eventservice.repository.EventRepository;
@@ -33,7 +42,7 @@ public class EventPostServiceImpl implements EventPostService {
     }
 
     @Override
-    public List<PostDetailResponse> getPostsByEvent(String eventId) {
+    public List<EventPostDetailResponse> getPostsByEvent(String eventId) {
         List<EventPost> eventPosts = eventPostRepository.findByEventIdAndIsDeletedFalse(eventId);
         if (eventPosts.isEmpty())
             return Collections.emptyList();
@@ -47,7 +56,7 @@ public class EventPostServiceImpl implements EventPostService {
         }
 
         // 2. Fetch User Map (Batching)
-        Map<String, UserDto> userMap = fetchUsersMap(allAccountIds);
+        Map<String, UserResponse> userMap = fetchUsersMap(allAccountIds);
 
         // 3. Map sang DTO
         return eventPosts.stream()
@@ -56,7 +65,7 @@ public class EventPostServiceImpl implements EventPostService {
     }
 
     @Override
-    public PostDetailResponse getPostDetail(String id) {
+    public EventPostDetailResponse getPostDetail(String id) {
         EventPost post = eventPostRepository.findByIdAndIsDeletedFalse(id)
                 .orElseThrow(() -> new RuntimeException("Bài viết không tồn tại!"));
 
@@ -64,7 +73,7 @@ public class EventPostServiceImpl implements EventPostService {
         accountIds.add(post.getAuthorAccountId());
         collectAccountIds(post.getComments(), accountIds);
 
-        Map<String, UserDto> userMap = fetchUsersMap(accountIds);
+        Map<String, UserResponse> userMap = fetchUsersMap(accountIds);
 
         return mapToPostDetailResponse(post, userMap);
     }
@@ -74,8 +83,8 @@ public class EventPostServiceImpl implements EventPostService {
     /**
      * Hàm trung tâm để chuyển đổi từ Entity sang DTO
      */
-    private PostDetailResponse mapToPostDetailResponse(EventPost post, Map<String, UserDto> userMap) {
-        PostDetailResponse res = new PostDetailResponse();
+    private EventPostDetailResponse mapToPostDetailResponse(EventPost post, Map<String, UserResponse> userMap) {
+        EventPostDetailResponse res = new EventPostDetailResponse();
         // Copy properties đơn giản
         res.setId(post.getId());
         res.setSlug(post.getSlug());
@@ -124,8 +133,8 @@ public class EventPostServiceImpl implements EventPostService {
     }
 
     // Hàm lookup User từ Map (Không gọi API nữa nên rất nhanh và an toàn)
-    private CommentResponse convertToCommentDto(PostComment comment, Map<String, UserDto> userMap) {
-        CommentResponse dto = new CommentResponse();
+    private PostCommentResponse convertToCommentDto(PostComment comment, Map<String, UserResponse> userMap) {
+        PostCommentResponse dto = new PostCommentResponse();
         dto.setId(comment.getId());
         dto.setContent(comment.getContent());
         dto.setCreatedAt(comment.getCreatedAt());
@@ -144,22 +153,22 @@ public class EventPostServiceImpl implements EventPostService {
     }
 
     // User mặc định khi Identity Service lỗi hoặc không tìm thấy profile
-    private UserDto getDefaultUser(String id) {
-        UserDto user = new UserDto();
+    private UserResponse getDefaultUser(String id) {
+        UserResponse user = new UserResponse();
         user.setId(id);
         user.setFullName("Người dùng hệ thống");
         user.setAvatarUrl("default-avatar-url.png"); // Đường dẫn ảnh mặc định
         return user;
     }
 
-    private Map<String, UserDto> fetchUsersMap(Set<String> ids) {
+    private Map<String, UserResponse> fetchUsersMap(Set<String> ids) {
         if (ids == null || ids.isEmpty())
             return new HashMap<>();
         try {
-            List<UserDto> users = identityServiceClient.getUsersByIds(new ArrayList<>(ids));
-            Map<String, UserDto> map = new HashMap<>();
+            List<UserResponse> users = identityServiceClient.getUsersByIds(new ArrayList<>(ids));
+            Map<String, UserResponse> map = new HashMap<>();
             if (users != null) {
-                for (UserDto u : users) {
+                for (UserResponse u : users) {
                     if (u != null && u.getId() != null)
                         map.put(u.getId(), u);
                 }
@@ -186,7 +195,7 @@ public class EventPostServiceImpl implements EventPostService {
 
     @Transactional
     @Override
-    public EventPost updatePost(String id, PostRequestDto postDto) {
+    public EventPost updatePost(String id, EventPostRequest postDto) {
         EventPost existingPost = eventPostRepository.findByIdAndIsDeletedFalse(id)
                 .orElseThrow(() -> new RuntimeException("Bài viết không tồn tại!"));
 
@@ -221,26 +230,26 @@ public class EventPostServiceImpl implements EventPostService {
     }
 
     @Override
-    public List<PostResponseDto> getPostsByAccountId(String accountId) {
+    public List<EventPostResponse> getPostsByAccountId(String accountId) {
         List<EventPost> posts = eventPostRepository.findByAuthorAccountIdOrderByCreatedAtDesc(accountId);
 
         return posts.stream().map(post -> {
-            return PostResponseDto.from(post, null);
+            return EventPostResponse.from(post, null);
         }).collect(Collectors.toList());
     }
 
     @Override
-    public List<PostResponseDto> getPostsByAccountIdAndEventId(String accountId, String eventId) {
+    public List<EventPostResponse> getPostsByAccountIdAndEventId(String accountId, String eventId) {
         List<EventPost> posts = eventPostRepository.findByAuthorAccountIdAndEventId(accountId, eventId);
 
         return posts.stream().map(post -> {
-            return PostResponseDto.from(post, null);
+            return EventPostResponse.from(post, null);
         }).collect(Collectors.toList());
     }
 
     @Transactional
     @Override
-    public EventPost createPost(PostRequestDto postDto) {
+    public EventPost createPost(EventPostRequest postDto) {
         EventPost post = new EventPost();
 
         if (postDto.getEventId() != null) {
@@ -290,3 +299,4 @@ public class EventPostServiceImpl implements EventPostService {
         return eventPostRepository.save(post);
     }
 }
+

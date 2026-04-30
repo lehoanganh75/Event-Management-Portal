@@ -11,4 +11,7 @@ public interface EventClient {
 
     @PutMapping("/events/{eventId}/lucky-draw")
     void updateLuckyDrawId(@PathVariable("eventId") String eventId, @RequestParam("hasLuckyDraw") boolean hasLuckyDraw);
+
+    @org.springframework.web.bind.annotation.GetMapping("/events/{id}")
+    src.main.luckydrawservice.dto.EventResponse getEventById(@PathVariable("id") String id, @org.springframework.web.bind.annotation.RequestHeader("Authorization") String token);
 }

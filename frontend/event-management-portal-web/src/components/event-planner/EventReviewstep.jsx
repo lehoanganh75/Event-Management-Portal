@@ -73,6 +73,7 @@ export const EventReviewStep = ({ formData, onBack, onSubmit, isSubmitting, isPl
   const { user } = useAuth();
   const role = user?.role || "";
   const isSuperAdmin = role === "SUPER_ADMIN";
+  const isAuthority = role === "SUPER_ADMIN" || role === "ADMIN";
   const [savingDraft, setSavingDraft] = useState(false);
   const [savingTemplate, setSavingTemplate] = useState(false);
 
@@ -95,7 +96,7 @@ export const EventReviewStep = ({ formData, onBack, onSubmit, isSubmitting, isPl
     interactions = [],
   } = formData;
 
-  const org = orgSelectionMode === 'new' && newOrg 
+  const org = orgSelectionMode === 'new' && newOrg
     ? { name: newOrg.name, email: newOrg.email, logo: newOrg.logoUrl }
     : { name: formData.organizationName || "Đơn vị đã chọn", email: formData.organizationEmail || "Email liên hệ", logo: null };
 
@@ -112,10 +113,10 @@ export const EventReviewStep = ({ formData, onBack, onSubmit, isSubmitting, isPl
   return (
     <div style={{ width: "100%", margin: "0 auto", padding: "12px 0 80px", fontFamily: fi }}>
       <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-        
+
         {/* Main Content Grid */}
         <div style={{ display: "grid", gridTemplateColumns: "1fr 340px", gap: 24, alignItems: "start" }}>
-          
+
           <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
             {/* Basic Info Card */}
             <div style={{ background: "#fff", border: "1px solid #f1f5f9", borderRadius: 16, padding: "16px 20px" }}>
@@ -125,8 +126,8 @@ export const EventReviewStep = ({ formData, onBack, onSubmit, isSubmitting, isPl
                     <span style={{ padding: "4px 10px", background: "#eff6ff", color: "#2563eb", fontSize: 11, fontWeight: 700, borderRadius: 6, textTransform: "uppercase" }}>
                       {eventType || "Sự kiện"}
                     </span>
-                    <span style={{ padding: "4px 10px", background: isSuperAdmin ? "#f0fdf4" : "#fffbeb", color: isSuperAdmin ? "#16a34a" : "#b45309", fontSize: 11, fontWeight: 700, borderRadius: 6 }}>
-                      {isSuperAdmin ? "CÔNG KHAI NGAY" : "CHỜ PHÊ DUYỆT"}
+                    <span style={{ padding: "4px 10px", background: isAuthority ? "#f0fdf4" : "#fffbeb", color: isAuthority ? "#16a34a" : "#b45309", fontSize: 11, fontWeight: 700, borderRadius: 6 }}>
+                      {isAuthority ? "CÔNG KHAI NGAY" : "CHỜ PHÊ DUYỆT"}
                     </span>
                   </div>
                   <h1 style={{ fontSize: 20, fontWeight: 800, color: "#1e293b", margin: "0 0 8px" }}>{eventTitle || "Tên sự kiện chưa nhập"}</h1>
@@ -221,16 +222,16 @@ export const EventReviewStep = ({ formData, onBack, onSubmit, isSubmitting, isPl
           <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
             {/* Organization Info */}
             <div style={{ background: "#fff", border: "1px solid #f1f5f9", borderRadius: 16, padding: "14px 16px" }}>
-               <h4 style={{ fontSize: 12, fontWeight: 700, color: "#94a3b8", textTransform: "uppercase", marginBottom: 20, letterSpacing: "0.05em" }}>Ban tổ chức</h4>
-               <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                  <div style={{ width: 48, height: 48, borderRadius: 10, background: "#f8fafc", border: "1px solid #f1f5f9", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                    {org.logo ? <img src={org.logo} alt="Logo" style={{ maxWidth: "100%", maxHeight: "100%" }} /> : <Building size={20} className="text-slate-300" />}
-                  </div>
-                  <div>
-                    <div style={{ fontSize: 14, fontWeight: 700, color: "#1e293b" }}>{org.name}</div>
-                    <div style={{ fontSize: 12, color: "#64748b" }}>{org.email}</div>
-                  </div>
-               </div>
+              <h4 style={{ fontSize: 12, fontWeight: 700, color: "#94a3b8", textTransform: "uppercase", marginBottom: 20, letterSpacing: "0.05em" }}>Ban tổ chức</h4>
+              <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                <div style={{ width: 48, height: 48, borderRadius: 10, background: "#f8fafc", border: "1px solid #f1f5f9", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                  {org.logo ? <img src={org.logo} alt="Logo" style={{ maxWidth: "100%", maxHeight: "100%" }} /> : <Building size={20} className="text-slate-300" />}
+                </div>
+                <div>
+                  <div style={{ fontSize: 14, fontWeight: 700, color: "#1e293b" }}>{org.name}</div>
+                  <div style={{ fontSize: 12, color: "#64748b" }}>{org.email}</div>
+                </div>
+              </div>
             </div>
 
             {/* Status Card */}
@@ -245,14 +246,14 @@ export const EventReviewStep = ({ formData, onBack, onSubmit, isSubmitting, isPl
                 </p>
               </div>
             ) : (
-              <div style={{ background: isSuperAdmin ? "#f0fdf4" : "#fffbeb", border: "1px solid", borderColor: isSuperAdmin ? "#bbf7d0" : "#fef3c7", borderRadius: 16, padding: "14px 16px" }}>
+              <div style={{ background: isAuthority ? "#f0fdf4" : "#fffbeb", border: "1px solid", borderColor: isAuthority ? "#bbf7d0" : "#fef3c7", borderRadius: 16, padding: "14px 16px" }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
-                  <div style={{ color: isSuperAdmin ? "#16a34a" : "#b45309" }}><Info size={18} /></div>
-                  <h4 style={{ fontSize: 14, fontWeight: 700, color: isSuperAdmin ? "#166534" : "#92400e", margin: 0 }}>{isSuperAdmin ? "Xuất bản trực tiếp" : "Chờ phê duyệt"}</h4>
+                  <div style={{ color: isAuthority ? "#16a34a" : "#b45309" }}><Info size={18} /></div>
+                  <h4 style={{ fontSize: 14, fontWeight: 700, color: isAuthority ? "#166534" : "#92400e", margin: 0 }}>{isAuthority ? "Xuất bản trực tiếp" : "Chờ phê duyệt"}</h4>
                 </div>
-                <p style={{ fontSize: 13, color: isSuperAdmin ? "#15803d" : "#92400e", lineHeight: 1.5, margin: 0 }}>
-                  {isSuperAdmin 
-                    ? "Với quyền Super Admin, hệ thống sẽ công khai sự kiện ngay sau khi bạn xác nhận."
+                <p style={{ fontSize: 13, color: isAuthority ? "#15803d" : "#92400e", lineHeight: 1.5, margin: 0 }}>
+                  {isAuthority 
+                    ? "Với quyền Quản trị, hệ thống sẽ công khai sự kiện ngay sau khi bạn xác nhận."
                     : "Sự kiện sẽ được gửi đến Admin để kiểm tra và phê duyệt nội dung."}
                 </p>
               </div>
@@ -260,127 +261,99 @@ export const EventReviewStep = ({ formData, onBack, onSubmit, isSubmitting, isPl
 
             {/* Quick Stats Sidebar */}
             <div style={{ background: "#1e1b4b", borderRadius: 16, padding: "14px 16px", color: "#fff" }}>
-               <div style={{ fontSize: 12, fontWeight: 600, color: "rgba(255,255,255,0.5)", textTransform: "uppercase", marginBottom: 12 }}>Tóm tắt quy mô</div>
-               <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                      <Users size={16} />
-                      <span style={{ fontSize: 13 }}>Người tham gia</span>
-                    </div>
-                    <span style={{ fontSize: 15, fontWeight: 700 }}>{maxParticipants || 0}</span>
+              <div style={{ fontSize: 12, fontWeight: 600, color: "rgba(255,255,255,0.5)", textTransform: "uppercase", marginBottom: 12 }}>Tóm tắt quy mô</div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                    <Users size={16} />
+                    <span style={{ fontSize: 13 }}>Người tham gia</span>
                   </div>
-                  <div style={{ height: 1, background: "rgba(255,255,255,0.1)" }} />
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                      <Award size={16} />
-                      <span style={{ fontSize: 13 }}>Giải thưởng</span>
-                    </div>
-                    <span style={{ fontSize: 15, fontWeight: 700 }}>{prizes.length}</span>
+                  <span style={{ fontSize: 15, fontWeight: 700 }}>{maxParticipants || 0}</span>
+                </div>
+                <div style={{ height: 1, background: "rgba(255,255,255,0.1)" }} />
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                    <Award size={16} />
+                    <span style={{ fontSize: 13 }}>Giải thưởng</span>
                   </div>
-               </div>
+                  <span style={{ fontSize: 15, fontWeight: 700 }}>{prizes.length}</span>
+                </div>
+              </div>
             </div>
           </div>
         </div>
 
         {/* Action Bar - Sticky Bottom */}
-        {isPlanMode ? (
-          <div style={{ position: "fixed", bottom: 0, left: 288, right: 0, zIndex: 50, background: "#fff", borderTop: "1px solid #e2e8f0", padding: "12px 32px", boxShadow: "0 -4px 12px rgba(0,0,0,0.06)" }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 12 }}>
-              {/* Left: Back + Reset */}
-              <div style={{ display: "flex", gap: 10 }}>
-                <button
-                  onClick={onBack}
-                  disabled={isSubmitting || savingDraft || savingTemplate}
-                  style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 18px", borderRadius: 10, border: "1px solid #e2e8f0", background: "#fff", color: "#64748b", fontSize: 13, fontWeight: 600, cursor: "pointer" }}
-                >
-                  <ArrowLeft size={16} /> Quay lại
-                </button>
-                <button
-                  onClick={onReset}
-                  disabled={isSubmitting || savingDraft || savingTemplate}
-                  style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 18px", borderRadius: 10, border: "1px solid #fecaca", background: "#fff5f5", color: "#ef4444", fontSize: 13, fontWeight: 600, cursor: "pointer" }}
-                >
-                  <RefreshCw size={15} /> Làm mới
-                </button>
-              </div>
+        {/* Unified Action Bar - Sticky Bottom */}
+        <div style={{ position: "fixed", bottom: 0, left: 288, right: 0, zIndex: 50, background: "#fff", borderTop: "1px solid #e2e8f0", padding: "12px 32px", boxShadow: "0 -4px 12px rgba(0,0,0,0.06)" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 12 }}>
+            {/* Left: Back + Reset */}
+            <div style={{ display: "flex", gap: 10 }}>
+              <button
+                onClick={onBack}
+                disabled={isSubmitting || savingDraft || savingTemplate}
+                style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 18px", borderRadius: 10, border: "1px solid #e2e8f0", background: "#fff", color: "#64748b", fontSize: 13, fontWeight: 600, cursor: "pointer" }}
+              >
+                <ArrowLeft size={16} /> Quay lại
+              </button>
+              <button
+                onClick={onReset}
+                disabled={isSubmitting || savingDraft || savingTemplate}
+                style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 18px", borderRadius: 10, border: "1px solid #fecaca", background: "#fff5f5", color: "#ef4444", fontSize: 13, fontWeight: 600, cursor: "pointer" }}
+              >
+                <RefreshCw size={15} /> Làm mới
+              </button>
+            </div>
 
-              {/* Right: Action Buttons */}
-              <div style={{ display: "flex", gap: 10, flexWrap: "wrap", justifyContent: "flex-end" }}>
-                {/* Save Draft */}
-                <button
-                  onClick={handleSaveDraft}
-                  disabled={savingDraft || isSubmitting}
-                  style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 20px", borderRadius: 10, border: "1px solid #e2e8f0", background: "#f8fafc", color: "#475569", fontSize: 13, fontWeight: 700, cursor: "pointer" }}
-                >
-                  {savingDraft ? <Loader2 size={15} className="animate-spin" /> : <Save size={15} />}
-                  Lưu nháp
-                </button>
+            {/* Right: Action Buttons */}
+            <div style={{ display: "flex", gap: 10, flexWrap: "wrap", justifyContent: "flex-end" }}>
+              {/* Save Draft */}
+              <button
+                onClick={handleSaveDraft}
+                disabled={savingDraft || isSubmitting}
+                style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 20px", borderRadius: 10, border: "1px solid #e2e8f0", background: "#f8fafc", color: "#475569", fontSize: 13, fontWeight: 700, cursor: "pointer" }}
+              >
+                {savingDraft ? <Loader2 size={15} className="animate-spin" /> : <Save size={15} />}
+                Lưu nháp
+              </button>
 
-                {/* Save Template */}
-                <button
-                  onClick={handleSaveTemplate}
-                  disabled={savingTemplate || isSubmitting}
-                  style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 20px", borderRadius: 10, border: "1px solid #ddd6fe", background: "#fdfaff", color: "#7c3aed", fontSize: 13, fontWeight: 700, cursor: "pointer" }}
-                >
-                  {savingTemplate ? <Loader2 size={15} className="animate-spin" /> : <LayoutTemplate size={15} />}
-                  Lưu bản mẫu
-                </button>
+              {/* Save Template */}
+              <button
+                onClick={handleSaveTemplate}
+                disabled={savingTemplate || isSubmitting}
+                style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 20px", borderRadius: 10, border: "1px solid #ddd6fe", background: "#fdfaff", color: "#7c3aed", fontSize: 13, fontWeight: 700, cursor: "pointer" }}
+              >
+                {savingTemplate ? <Loader2 size={15} className="animate-spin" /> : <LayoutTemplate size={15} />}
+                Lưu bản mẫu
+              </button>
 
-                {/* Export Word */}
-                <button
-                  onClick={() => onExportWord?.(formData)}
-                  disabled={isSubmitting}
-                  style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 20px", borderRadius: 10, border: "1px solid #bfdbfe", background: "#eff6ff", color: "#2563eb", fontSize: 13, fontWeight: 700, cursor: "pointer" }}
-                >
-                  <Download size={15} /> Xuất Word
-                </button>
+              {/* Export Word */}
+              <button
+                onClick={() => onExportWord?.(formData)}
+                disabled={isSubmitting}
+                style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 20px", borderRadius: 10, border: "1px solid #bfdbfe", background: "#eff6ff", color: "#2563eb", fontSize: 13, fontWeight: 700, cursor: "pointer" }}
+              >
+                <Download size={15} /> Xuất Word
+              </button>
 
-                {/* Submit for Approval */}
-                <button
-                  onClick={() => onSubmit(formData)}
-                  disabled={isSubmitting || savingDraft || savingTemplate}
-                  style={{ display: "flex", alignItems: "center", gap: 8, padding: "12px 28px", borderRadius: 10, border: "none", background: "#1e1b4b", color: "#fff", fontSize: 13, fontWeight: 700, cursor: "pointer", boxShadow: "0 4px 6px -1px rgba(30,27,75,0.2)" }}
-                >
-                  {isSubmitting ? <><Loader2 size={16} className="animate-spin" /> Đang gửi...</> : <><Send size={15} /> Gửi phê duyệt</>}
-                </button>
-              </div>
+              {/* Main Action Button (Submit or Publish) */}
+              <button
+                onClick={() => onSubmit(formData)}
+                disabled={isSubmitting || savingDraft || savingTemplate}
+                style={{ display: "flex", alignItems: "center", gap: 8, padding: "12px 28px", borderRadius: 10, border: "none", background: "#1e1b4b", color: "#fff", fontSize: 13, fontWeight: 700, cursor: "pointer", boxShadow: "0 4px 6px -1px rgba(30,27,75,0.2)" }}
+              >
+                {isSubmitting ? (
+                  <><Loader2 size={16} className="animate-spin" /> Đang gửi...</>
+                ) : (
+                  <>
+                    <Send size={15} />
+                    {isEdit ? "Cập nhật sự kiện" : (isAuthority && !isPlanMode ? "Xuất bản ngay" : "Gửi phê duyệt")}
+                  </>
+                )}
+              </button>
             </div>
           </div>
-        ) : (
-          <div style={{ 
-            position: "fixed", bottom: 0, left: 288, right: 0, zIndex: 50,
-            background: "#fff", borderTop: "1px solid #e2e8f0", padding: "12px 32px",
-            display: "flex", justifyContent: "space-between", alignItems: "center",
-            boxShadow: "0 -4px 12px rgba(0,0,0,0.06)"
-          }}>
-            <button 
-              onClick={onBack} 
-              disabled={isSubmitting}
-              style={{ 
-                display: "flex", alignItems: "center", gap: 8, padding: "10px 20px", borderRadius: 10, border: "1px solid #e2e8f0", 
-                background: "#fff", color: "#64748b", fontSize: 14, fontWeight: 600, cursor: "pointer" 
-              }}
-            >
-              <ArrowLeft size={18} /> Quay lại
-            </button>
-            
-            <button 
-              onClick={() => onSubmit(formData)} 
-              disabled={isSubmitting}
-              style={{ 
-                display: "flex", alignItems: "center", gap: 10, padding: "12px 32px", borderRadius: 10, border: "none", 
-                background: "#1e1b4b", color: "#fff", fontSize: 14, fontWeight: 700, cursor: "pointer",
-                boxShadow: "0 4px 6px -1px rgba(30, 27, 75, 0.2)"
-              }}
-            >
-              {isSubmitting ? (
-                <><Loader2 size={18} className="animate-spin" /> Đang xử lý...</>
-              ) : (
-                <>{isEdit ? "Cập nhật sự kiện" : (isSuperAdmin ? "Xuất bản ngay" : "Gửi phê duyệt")} <CheckCircle size={18} /></>
-              )}
-            </button>
-          </div>
-        )}
+        </div>
       </div>
     </div>
   );

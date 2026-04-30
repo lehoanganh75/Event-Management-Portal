@@ -1,9 +1,9 @@
 package com.eventservice.service;
 
-import com.eventservice.dto.CheckInRequest;
-import com.eventservice.dto.CheckInResponse;
-import com.eventservice.dto.RegistrationResponseDto;
-import com.eventservice.entity.EventRegistration;
+import com.eventservice.dto.registration.request.EventCheckInRequest;
+import com.eventservice.dto.registration.response.EventCheckInResponse;
+import com.eventservice.dto.registration.response.EventRegistrationResponse;
+import com.eventservice.entity.registration.EventRegistration;
 
 import java.util.List;
 import java.util.Optional;
@@ -15,24 +15,24 @@ public interface EventRegistrationService {
 
     EventRegistration registerUserToEvent(String eventId, String userRegistrationId);
 
-    RegistrationResponseDto getRegistrationWithQR(String registrationId);
+    EventRegistrationResponse getRegistrationWithQR(String registrationId);
 
-    CheckInResponse checkIn(CheckInRequest request);
+    EventCheckInResponse checkIn(EventCheckInRequest request);
 
-    CheckInResponse manualCheckIn(String registrationId, String adminAccountId);
+    EventCheckInResponse manualCheckIn(String registrationId, String adminAccountId);
 
-    List<RegistrationResponseDto> getRegistrationsByEvent(String eventId);
+    List<EventRegistrationResponse> getRegistrationsByEvent(String eventId);
 
-    List<RegistrationResponseDto> getRegistrationsByUser(String userProfileId);
+    List<EventRegistrationResponse> getRegistrationsByUser(String userProfileId);
 
     EventRegistration cancelRegistration(String eventId, String userProfileId);
 
-    RegistrationResponseDto getTicketForUser(String eventId, String currentUserId);
-    CheckInResponse undoCheckIn(String registrationId);
-    CheckInResponse updateCheckInTime(String registrationId, java.time.LocalDateTime newTime, String adminAccountId);
+    EventRegistrationResponse getTicketForUser(String eventId, String currentUserId);
+    EventCheckInResponse undoCheckIn(String registrationId);
+    EventCheckInResponse updateCheckInTime(String registrationId, java.time.LocalDateTime newTime, String adminAccountId);
 
-    CheckInResponse getEventQRToken(String eventId);
-    CheckInResponse checkInByEventToken(String eventToken, String userId);
+    EventCheckInResponse getEventQRToken(String eventId);
+    EventCheckInResponse checkInByEventToken(String eventToken, String userId);
     void toggleCheckInEnabled(String eventId, boolean enabled);
     void updateEventQRType(String eventId, String qrType);
 }

@@ -9,4 +9,10 @@ public interface LuckyDrawClient {
 
     @DeleteMapping("/lucky-draws/events/{eventId}/soft-delete")
     void softDeleteByEventId(@PathVariable("eventId") String eventId);
+
+    @org.springframework.web.bind.annotation.PostMapping("/lucky-draws/internal/events/{eventId}/check-in")
+    void notifyCheckIn(@PathVariable("eventId") String eventId, @org.springframework.web.bind.annotation.RequestParam("userProfileId") String userProfileId);
+
+    @org.springframework.web.bind.annotation.PostMapping("/lucky-draws/internal/events/{eventId}/cancel-check-in")
+    void notifyCancelCheckIn(@PathVariable("eventId") String eventId, @org.springframework.web.bind.annotation.RequestParam("userProfileId") String userProfileId);
 }

@@ -1,7 +1,7 @@
 package com.eventservice.service;
 
 import org.springframework.transaction.annotation.Transactional;
-import com.eventservice.entity.EventPresenter;
+import com.eventservice.entity.people.EventPresenter;
 
 import java.util.List;
 
@@ -22,5 +22,5 @@ public interface EventPresenterService {
 
     List<EventPresenter> getPresentersBySession(String eventId, String sessionId);
 
-    boolean existsByEventIdAndEmail(String eventId, String email);
+    boolean existsByEventIdAndPresenterAccountId(String eventId, String accountId);
 }

@@ -298,7 +298,7 @@ const Header = () => {
       await logout();
       setIsLogoutModalOpen(false);
       showToast("Đăng xuất thành công. Hẹn gặp lại bạn!", "success");
-      setTimeout(() => navigate("/"), 1500);
+      setTimeout(() => navigate("/login"), 1500);
     } catch (error) {
       console.error(error);
     }

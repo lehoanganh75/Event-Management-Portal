@@ -32,12 +32,9 @@ public class LuckyDrawServiceImpl implements LuckyDrawService {
     private final LuckyDrawRepository luckyDrawRepository;
     private final DrawEntryRepository drawEntryRepository;
     private final DrawResultRepository drawResultRepository;
-
-    private final Random random = new SecureRandom();
-
     private final EventClient eventClient;
-
     private final IdentityClient identityClient;
+    private final Random random = new SecureRandom();
 
     @Transactional
     @Override
@@ -71,7 +68,6 @@ public class LuckyDrawServiceImpl implements LuckyDrawService {
                         prize.setName(prizeReq.getName());
                         prize.setQuantity(prizeReq.getQuantity());
                         prize.setRemainingQuantity(prizeReq.getQuantity());
-                        prize.setWinProbabilityPercent(prizeReq.getWinProbabilityPercent());
                         return prize;
                     }).collect(Collectors.toList());
 
@@ -84,26 +80,21 @@ public class LuckyDrawServiceImpl implements LuckyDrawService {
     @Override
     @Transactional
     public LuckyDraw updateLuckyDraw(String id, LuckyDrawCreateRequest request, String createdByAccountId) {
-        // 1. Tìm LuckyDraw dựa trên ID của vòng quay (id), không phải accountId
         LuckyDraw existingDraw = luckyDrawRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy vòng quay với ID: " + id));
 
-        // 3. Cập nhật các thông tin cơ bản
         existingDraw.setTitle(request.getTitle());
         existingDraw.setDescription(request.getDescription());
         existingDraw.setStartTime(request.getStartTime());
         existingDraw.setEndTime(request.getEndTime());
         existingDraw.setAllowMultipleWins(request.isAllowMultipleWins());
 
-        // Cẩn thận: Nếu request.getStatus() null sẽ gây lỗi, nên check trước
         if (request.getStatus() != null) {
             existingDraw.setStatus(request.getStatus());
         }
         existingDraw.setDeleted(request.isDeleted());
-        // 4. Lưu LuckyDraw
         LuckyDraw savedDraw = luckyDrawRepository.save(existingDraw);
 
-        // 5. Cập nhật giải thưởng
         prizeRepository.deleteByLuckyDrawId(id);
 
         if (request.getPrizes() != null && !request.getPrizes().isEmpty()) {
@@ -114,7 +105,6 @@ public class LuckyDrawServiceImpl implements LuckyDrawService {
                         prize.setName(prizeReq.getName());
                         prize.setQuantity(prizeReq.getQuantity());
                         prize.setRemainingQuantity(prizeReq.getQuantity());
-                        prize.setWinProbabilityPercent(prizeReq.getWinProbabilityPercent());
                         return prize;
                     }).collect(Collectors.toList());
 
@@ -139,7 +129,6 @@ public class LuckyDrawServiceImpl implements LuckyDrawService {
     @Override
     public void deleteLuckyDrawByEventId(String eventId) {
         Optional<LuckyDraw> luckyDrawOpt = luckyDrawRepository.findByEventId(eventId);
-        
         if (luckyDrawOpt.isEmpty()) {
             log.warn("Không tìm thấy dữ liệu LuckyDraw để xóa cho sự kiện ID: {}. Bỏ qua bước này.", eventId);
             return;
@@ -150,7 +139,6 @@ public class LuckyDrawServiceImpl implements LuckyDrawService {
         luckyDraw.setUpdatedAt(LocalDateTime.now());
         luckyDrawRepository.save(luckyDraw);
 
-        // Cập nhật trạng thái hasLuckyDraw bên Event-Service
         try {
             eventClient.updateLuckyDrawId(eventId, false);
         } catch (Exception e) {
@@ -162,93 +150,150 @@ public class LuckyDrawServiceImpl implements LuckyDrawService {
     @Override
     public void deleteLuckyDraw(String id) {
         LuckyDraw luckyDraw = luckyDrawRepository.findById(id)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy vòng quay với ID: " + id));
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
+                        "Không tìm thấy vòng quay với ID: " + id));
 
         luckyDraw.setDeleted(true);
         luckyDraw.setUpdatedAt(LocalDateTime.now());
         luckyDrawRepository.save(luckyDraw);
 
-        // Cập nhật trạng thái hasLuckyDraw bên Event-Service
         try {
             eventClient.updateLuckyDrawId(luckyDraw.getEventId(), false);
         } catch (Exception e) {
-            log.error("Lỗi khi cập nhật hasLuckyDraw bên Event-Service cho sự kiện {}: {}", luckyDraw.getEventId(), e.getMessage());
+            log.error("Lỗi khi cập nhật hasLuckyDraw bên Event-Service cho sự kiện {}: {}", luckyDraw.getEventId(),
+                    e.getMessage());
         }
     }
 
     @Override
     @Transactional
-    public DrawResultResponse performLuckyDraw(String luckyDrawId, String userProfileId) {
-        // 1. Kiểm tra LuckyDraw tồn tại và đang active
+    public DrawResultResponse performLuckyDraw(String luckyDrawId, String token, String userProfileId, String prizeId) {
         LuckyDraw luckyDraw = luckyDrawRepository.findById(luckyDrawId)
-                .orElseThrow(
-                        () -> new ResponseStatusException(HttpStatus.CONFLICT, "Lucky Draw not found: " + luckyDrawId));
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Lucky Draw not found"));
 
-        if (luckyDraw.getStatus() != DrawStatus.ACTIVE) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT,
-                    "Chương trình quay thưởng hiện không khả dụng (đã kết thúc hoặc chưa bắt đầu)");
+        if (luckyDraw.getStatus() == DrawStatus.COMPLETED) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Chương trình quay thưởng đã kết thúc");
         }
 
-        // 2. Kiểm tra lượt quay: Tìm lượt quay có status VALID
-        DrawEntry entry = drawEntryRepository
-                .findFirstByLuckyDrawIdAndUserProfileIdAndStatus(luckyDrawId, userProfileId, EntryStatus.VALID)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.CONFLICT,
-                        "Bạn không có lượt quay hợp lệ cho sự kiện này"));
-
-        // 3. Lấy danh sách giải thưởng thực tế còn quà
-        List<Prize> availablePrizes = prizeRepository.findByLuckyDrawIdAndRemainingQuantityGreaterThan(luckyDrawId, 0);
-
-        // 4. Nếu hết giải thưởng trong hệ thống → Mặc định trúng ô "Chúc may mắn" (giải
-        // có tỉ lệ cao nhất hoặc mặc định)
-        if (availablePrizes.isEmpty()) {
-            entry.setStatus(EntryStatus.USED); // Vẫn đánh dấu đã dùng lượt
-            drawEntryRepository.save(entry);
-            return new DrawResultResponse("Chúc bạn may mắn lần sau!", null);
-        }
-
-        // 5. Logic quay thưởng theo xác suất (Weighted Random)
-        BigDecimal randomPercent = BigDecimal.valueOf(random.nextDouble() * 100);
-        BigDecimal cumulative = BigDecimal.ZERO;
-        Prize winningPrize = null;
-
-        for (Prize prize : availablePrizes) {
-            BigDecimal probability = prize.getWinProbabilityPercent() != null ? prize.getWinProbabilityPercent()
-                    : BigDecimal.ZERO;
-            cumulative = cumulative.add(probability);
-            if (randomPercent.compareTo(cumulative) <= 0) {
-                winningPrize = prize;
-                break;
+        // TRƯỜNG HỢP 1: ADMIN QUAY CHO CẢ HỘI TRƯỜNG (userProfileId là null)
+        if (userProfileId == null) {
+            validateAdminAccess(luckyDraw.getEventId(), token);
+            
+            if (luckyDraw.getStatus() == DrawStatus.PENDING) {
+                luckyDraw.setStatus(DrawStatus.ACTIVE);
+                luckyDrawRepository.save(luckyDraw);
             }
+
+            List<DrawEntry> eligibleEntries = getEligibleParticipants(luckyDraw);
+            if (eligibleEntries.isEmpty()) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Không có người tham gia hợp lệ nào tại thời điểm này.");
+            }
+
+            DrawEntry winnerEntry = eligibleEntries.get(random.nextInt(eligibleEntries.size()));
+            return executeDraw(luckyDraw, winnerEntry, prizeId);
+        } 
+        
+        // TRƯỜNG HỢP 2: USER TỰ QUAY CHO CHÍNH MÌNH (userProfileId có giá trị)
+        else {
+            if (luckyDraw.getStatus() != DrawStatus.ACTIVE) {
+                throw new ResponseStatusException(HttpStatus.CONFLICT, "Chương trình hiện không ở trạng thái cho phép cá nhân tự quay");
+            }
+
+            DrawEntry entry = drawEntryRepository
+                    .findFirstByLuckyDrawIdAndUserProfileIdAndStatus(luckyDrawId, userProfileId, EntryStatus.VALID)
+                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "Bạn chưa check-in hoặc không có lượt quay hợp lệ"));
+
+            return executeDraw(luckyDraw, entry, prizeId);
+        }
+    }
+
+    private DrawResultResponse executeDraw(LuckyDraw luckyDraw, DrawEntry winnerEntry, String prizeId) {
+        // 1. Xác định giải thưởng
+        Prize winningPrize;
+        
+        if (prizeId != null && !prizeId.isEmpty()) {
+            winningPrize = prizeRepository.findById(prizeId)
+                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy giải thưởng đã chọn"));
+            
+            if (winningPrize.getRemainingQuantity() <= 0) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Giải thưởng này đã hết số lượng");
+            }
+            if (!winningPrize.getLuckyDraw().getId().equals(luckyDraw.getId())) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Giải thưởng không thuộc chương trình này");
+            }
+        } else {
+            // Chọn ngẫu nhiên nếu không chỉ định
+            List<Prize> availablePrizes = prizeRepository.findByLuckyDrawIdAndRemainingQuantityGreaterThan(luckyDraw.getId(), 0);
+            if (availablePrizes.isEmpty()) {
+                return new DrawResultResponse("Hết giải thưởng! Cảm ơn bạn đã tham gia.", null);
+            }
+            winningPrize = availablePrizes.get(random.nextInt(availablePrizes.size()));
         }
 
-        // 6. Nếu số ngẫu nhiên rơi vào khoảng không có giải (ví dụ tổng % < 100)
-        if (winningPrize == null) {
-            entry.setStatus(EntryStatus.USED);
-            drawEntryRepository.save(entry);
-            return new DrawResultResponse("Chúc bạn may mắn lần sau!", null);
-        }
-
-        // 7. Thực hiện trừ số lượng và lưu kết quả
+        // 3. Cập nhật số lượng và trạng thái
         winningPrize.setRemainingQuantity(winningPrize.getRemainingQuantity() - 1);
         prizeRepository.save(winningPrize);
 
-        entry.setStatus(EntryStatus.USED); // Đổi trạng thái lượt quay thành đã dùng
-        drawEntryRepository.save(entry);
+        winnerEntry.setStatus(EntryStatus.USED);
+        drawEntryRepository.save(winnerEntry);
 
+        // 4. Lưu kết quả
         DrawResult result = new DrawResult();
         result.setLuckyDraw(luckyDraw);
         result.setPrize(winningPrize);
-        result.setWinnerProfileId(userProfileId);
+        result.setWinnerProfileId(winnerEntry.getUserProfileId());
         result.setDrawTime(LocalDateTime.now());
         result.setClaimed(false);
         drawResultRepository.save(result);
 
-        // 8. Log để kiểm tra
-        System.out.println("User " + userProfileId + " trúng giải: " + winningPrize.getName());
+        // 5. Lấy profile hiển thị
+        UserResponse winnerProfile = fetchWinnerProfile(winnerEntry.getUserProfileId());
 
-        return new DrawResultResponse("Chúc mừng! Bạn đã trúng giải: " + winningPrize.getName(),
-                toPrizeResponse(winningPrize));
+        return new DrawResultResponse("Chúc mừng chiến thắng!", toPrizeResponse(winningPrize), winnerProfile);
     }
+
+    private List<DrawEntry> getEligibleParticipants(LuckyDraw luckyDraw) {
+        List<DrawEntry> validEntries = drawEntryRepository.findByLuckyDrawIdAndStatus(luckyDraw.getId(), EntryStatus.VALID);
+        
+        if (luckyDraw.isAllowMultipleWins()) return validEntries;
+
+        Set<String> alreadyWonIds = luckyDraw.getResults().stream()
+                .map(DrawResult::getWinnerProfileId)
+                .collect(Collectors.toSet());
+
+        return validEntries.stream()
+                .filter(e -> !alreadyWonIds.contains(e.getUserProfileId()))
+                .collect(Collectors.toList());
+    }
+
+    private void validateAdminAccess(String eventId, String token) {
+        try {
+            EventResponse eventInfo = eventClient.getEventById(eventId, token);
+            if (eventInfo.getCurrentUserRole() == null || !"LEADER".equalsIgnoreCase(eventInfo.getCurrentUserRole().getOrganizerRole())) {
+                throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Chỉ LEADER mới có quyền thực hiện");
+            }
+        } catch (Exception e) {
+            log.error("Access validation error: {}", e.getMessage());
+            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Không thể xác thực quyền hạn");
+        }
+    }
+
+    private UserResponse fetchWinnerProfile(String profileId) {
+        try {
+            List<UserResponse> profiles = identityClient.getUsersByIds(Collections.singletonList(profileId));
+            if (profiles != null && !profiles.isEmpty() && profiles.get(0) != null) {
+                return profiles.get(0);
+            }
+        } catch (Exception e) {
+            log.error("Winner profile fetch error: {}", e.getMessage());
+        }
+        UserResponse fallback = new UserResponse();
+        fallback.setId(profileId);
+        fallback.setFullName("Người thắng cuộc");
+        return fallback;
+    }
+
+
 
     private PrizeResponse toPrizeResponse(Prize prize) {
         PrizeResponse prizeResponse = new PrizeResponse();
@@ -261,35 +306,26 @@ public class LuckyDrawServiceImpl implements LuckyDrawService {
     @Transactional
     @Override
     public void activateLuckyDraw(String luckyDrawId, String accountId) {
-        // 1. Tìm vòng quay
         LuckyDraw luckyDraw = luckyDrawRepository.findById(luckyDrawId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.CONFLICT,
                         "Không tìm thấy vòng quay với ID: " + luckyDrawId));
 
-        // 2. Kiểm tra quyền sở hữu (Chỉ người tạo mới được kích hoạt)
         if (!luckyDraw.getCreatedByAccountId().equals(accountId)) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Bạn không có quyền kích hoạt vòng quay này");
         }
 
-        // 3. Kiểm tra trạng thái hiện tại (Chỉ kích hoạt nếu đang PENDING)
         if (luckyDraw.getStatus() != DrawStatus.PENDING) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Vòng quay đã được kích hoạt hoặc đã kết thúc");
         }
 
-        // 4. Kiểm tra xem đã có giải thưởng chưa (Tránh kích hoạt vòng quay trống)
         if (luckyDraw.getPrizes() == null || luckyDraw.getPrizes().isEmpty()) {
             throw new ResponseStatusException(HttpStatus.CONFLICT,
                     "Vòng quay phải có ít nhất một giải thưởng trước khi kích hoạt");
         }
 
-        // 5. Cập nhật trạng thái và thời gian cập nhật
         luckyDraw.setStatus(DrawStatus.ACTIVE);
         luckyDraw.setUpdatedAt(LocalDateTime.now());
-
         luckyDrawRepository.save(luckyDraw);
-
-        // Log thông tin
-        System.out.println("Vòng quay '" + luckyDraw.getTitle() + "' đã được kích hoạt bởi: " + accountId);
     }
 
     @Transactional
@@ -308,21 +344,16 @@ public class LuckyDrawServiceImpl implements LuckyDrawService {
     @Transactional
     @Override
     public Optional<DrawEntry> findByLuckyDrawIdAndUserProfileId(String luckyDrawId, String userProfileId) {
-        // Trả về Optional rỗng nếu không tìm thấy, Jackson sẽ chuyển thành null khi gửi
-        // về FE
         return drawEntryRepository.findByLuckyDrawIdAndUserProfileId(luckyDrawId, userProfileId);
     }
 
     @Override
     public Optional<LuckyDrawResponse> findByEventId(String eventId) {
-        // 1. Tìm LuckyDraw từ Repository
         LuckyDraw luckyDraw = luckyDrawRepository.findByEventIdAndIsDeletedFalse(eventId)
-                .orElseThrow(() -> new ResponseStatusException(
-                        HttpStatus.NOT_FOUND, "Không tìm thấy vòng quay cho sự kiện: " + eventId));
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
+                        "Không tìm thấy vòng quay cho sự kiện: " + eventId));
 
-        // 2. Thu thập tất cả ID cần lấy Profile (Người tạo + Danh sách người thắng)
         Set<String> allAccountIds = new HashSet<>();
-
         if (luckyDraw.getCreatedByAccountId() != null) {
             allAccountIds.add(luckyDraw.getCreatedByAccountId());
         }
@@ -335,29 +366,20 @@ public class LuckyDrawServiceImpl implements LuckyDrawService {
             });
         }
 
-        // 3. Gọi Identity Service lấy thông tin User hàng loạt
-        Map<String, UserDto> userMap = new HashMap<>();
+        Map<String, UserResponse> userMap = new HashMap<>();
         if (!allAccountIds.isEmpty()) {
             try {
-                // Chuyển Set sang List để gọi IdentityClient
-                List<UserDto> users = identityClient.getUsersByIds(new ArrayList<>(allAccountIds));
-                userMap = users.stream().collect(Collectors.toMap(UserDto::getId, u -> u));
+                List<UserResponse> users = identityClient.getUsersByIds(new ArrayList<>(allAccountIds));
+                userMap = users.stream().collect(Collectors.toMap(UserResponse::getId, u -> u));
             } catch (Exception e) {
-                // Ghi log lỗi thay vì throw exception để tránh sập trang nếu Identity Service
-                // gặp sự cố nhẹ
-                throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                        "Lỗi không gọi sang identity-service: " + e.getMessage());
+                log.error("Error fetching users from identity-service: {}", e.getMessage());
             }
         }
 
-        // 4. Map kết quả (Enrich data)
-        Map<String, UserDto> finalUserMap = userMap;
-
+        final Map<String, UserResponse> finalUserMap = userMap;
         List<LuckyDrawResponse.DrawResultEnriched> enrichedResults = luckyDraw.getResults().stream()
-                // CHỈ LẤY những kết quả chưa bị xóa
                 .filter(res -> !res.isClaimed())
                 .map(res -> {
-                    // --- Bước A: Convert Prize Entity -> DTO ---
                     PrizeDto pDto = null;
                     if (res.getPrize() != null) {
                         pDto = PrizeDto.builder()
@@ -365,11 +387,9 @@ public class LuckyDrawServiceImpl implements LuckyDrawService {
                                 .prizeName(res.getPrize().getName())
                                 .quantity(res.getPrize().getQuantity())
                                 .description(res.getPrize().getDescription())
-                                .winProbabilityPercent(res.getPrize().getWinProbabilityPercent())
                                 .build();
                     }
 
-                    // --- Bước B: Convert DrawResult Entity -> DTO ---
                     DrawResultDto resDto = DrawResultDto.builder()
                             .id(res.getId())
                             .winner(finalUserMap.get(res.getWinnerProfileId()))
@@ -381,12 +401,35 @@ public class LuckyDrawServiceImpl implements LuckyDrawService {
                 })
                 .collect(Collectors.toList());
 
-        // 5. Trả về kết quả đã được đóng gói vào DTO
         return Optional.of(LuckyDrawResponse.builder()
-                .luckyDraw(convertToDto(luckyDraw)) // <--- Convert ở đây
+                .luckyDraw(convertToDto(luckyDraw))
                 .creator(finalUserMap.get(luckyDraw.getCreatedByAccountId()))
                 .enrichedResults(enrichedResults)
                 .build());
+    }
+
+    @Override
+    public List<UserResponse> getParticipants(String luckyDrawId) {
+        List<DrawEntry> entries = drawEntryRepository.findByLuckyDrawIdAndStatus(luckyDrawId, EntryStatus.VALID);
+
+        if (entries.isEmpty())
+            return Collections.emptyList();
+
+        List<String> userIds = entries.stream()
+                .map(DrawEntry::getUserProfileId)
+                .collect(Collectors.toList());
+
+        try {
+            return identityClient.getUsersByIds(userIds);
+        } catch (Exception e) {
+            log.error("Error fetching profiles: {}", e.getMessage());
+            return userIds.stream().map(id -> {
+                UserResponse u = new UserResponse();
+                u.setId(id);
+                u.setFullName("User " + id.substring(0, 4));
+                return u;
+            }).collect(Collectors.toList());
+        }
     }
 
     private LuckyDrawDto convertToDto(LuckyDraw entity) {
@@ -394,8 +437,7 @@ public class LuckyDrawServiceImpl implements LuckyDrawService {
             return null;
 
         List<PrizeDto> prizeDtos = entity.getPrizes().stream()
-                .map(p -> new PrizeDto(p.getId(), p.getName(), p.getQuantity(), p.getDescription(),
-                        p.getWinProbabilityPercent()))
+                .map(p -> new PrizeDto(p.getId(), p.getName(), p.getQuantity(), p.getDescription()))
                 .collect(Collectors.toList());
 
         return LuckyDrawDto.builder()
@@ -409,5 +451,42 @@ public class LuckyDrawServiceImpl implements LuckyDrawService {
                 .endTime(entity.getEndTime())
                 .prizes(prizeDtos)
                 .build();
+    }
+
+    @Override
+    @Transactional
+    public void handleCheckIn(String eventId, String userProfileId) {
+        luckyDrawRepository.findByEventIdAndIsDeletedFalse(eventId).ifPresent(luckyDraw -> {
+            Optional<DrawEntry> entryOpt = drawEntryRepository.findFirstByLuckyDrawIdAndUserProfileId(luckyDraw.getId(),
+                    userProfileId);
+
+            if (entryOpt.isPresent()) {
+                DrawEntry entry = entryOpt.get();
+                if (entry.getStatus() != EntryStatus.USED) {
+                    entry.setStatus(EntryStatus.VALID);
+                    drawEntryRepository.save(entry);
+                }
+            } else {
+                DrawEntry newEntry = new DrawEntry();
+                newEntry.setLuckyDraw(luckyDraw);
+                newEntry.setUserProfileId(userProfileId);
+                newEntry.setStatus(EntryStatus.VALID);
+                drawEntryRepository.save(newEntry);
+            }
+        });
+    }
+
+    @Override
+    @Transactional
+    public void handleCancelCheckIn(String eventId, String userProfileId) {
+        luckyDrawRepository.findByEventIdAndIsDeletedFalse(eventId).ifPresent(luckyDraw -> {
+            drawEntryRepository.findFirstByLuckyDrawIdAndUserProfileId(luckyDraw.getId(), userProfileId)
+                    .ifPresent(entry -> {
+                        if (entry.getStatus() == EntryStatus.VALID) {
+                            entry.setStatus(EntryStatus.INVALID);
+                            drawEntryRepository.save(entry);
+                        }
+                    });
+        });
     }
 }

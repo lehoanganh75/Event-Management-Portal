@@ -68,7 +68,7 @@ const authService = {
     resendOtp: (username) => publicApi.post('/auth/resend-otp', null, { params: { username } }),
     forgotPassword: (email) => publicApi.post('/auth/forgot-password', null, { params: { email } }),
     resetPassword: (token, newPassword) => publicApi.post('/auth/reset-password', null, { params: { token, newPassword } }),
-    changePassword: (passwordData) => privateApi.patch('/auth/change-password', passwordData),
+    changePassword: (oldPassword, newPassword) => privateApi.post('/auth/change-password', null, { params: { oldPassword, newPassword } }),
 
     // --- PROFILES (Private) ---
     getMyProfile: (options = {}) => privateApi.get('/profiles/me', options),
@@ -81,14 +81,23 @@ const authService = {
     getUserById: (id) => privateApi.get('/profiles/invite', { params: { id } }),
 
     // --- ACCOUNTS (Admin) ---
-    getAllAccounts: () => privateApi.get('/accounts'),
-    getAccountById: (id) => privateApi.get(`/accounts/${id}`),
-    updateAccount: (id, data) => privateApi.put(`/accounts/${id}`, data),
-    updateAccountStatus: (id, status) => privateApi.put(`/accounts/${id}/status`, { status }),
-    updateAccountRoles: (id, role) => privateApi.put(`/accounts/${id}/roles`, role, {
+    getAllAccounts: () => privateApi.get('/profiles'),
+    getAccountById: (id) => privateApi.get('/profiles/invite', { params: { id } }),
+    updateAccount: (id, data) => privateApi.put(`/profiles/${id}`, data),
+    updateAccountStatus: (id, status) => privateApi.put(`/profiles/${id}/status`, { status }),
+    updateAccountRoles: (id, role) => privateApi.put(`/profiles/${id}/roles`, role, {
         headers: { 'Content-Type': 'text/plain' }
     }),
-    deleteAccount: (id) => privateApi.delete(`/accounts/${id}`),
+    deleteAccount: (id) => privateApi.delete(`/profiles/${id}`),
+
+    // --- FILES ---
+    uploadFile: (file) => {
+        const formData = new FormData();
+        formData.append('file', file);
+        return privateApi.post('/files/upload', formData, {
+            headers: { 'Content-Type': 'multipart/form-data' }
+        });
+    },
 };
 
 export default authService;

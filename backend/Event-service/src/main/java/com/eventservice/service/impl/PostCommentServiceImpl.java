@@ -1,9 +1,9 @@
 package com.eventservice.service.impl;
 
 import com.eventservice.client.IdentityServiceClient;
-import com.eventservice.dto.UserDto;
-import com.eventservice.entity.EventPost;
-import com.eventservice.entity.PostComment;
+import com.eventservice.dto.user.UserResponse;
+import com.eventservice.entity.social.EventPost;
+import com.eventservice.entity.social.PostComment;
 import com.eventservice.repository.EventPostRepository;
 import com.eventservice.repository.PostCommentRepository;
 import com.eventservice.service.PostCommentService;
@@ -60,13 +60,13 @@ public class PostCommentServiceImpl implements PostCommentService {
         Set<String> ids = new HashSet<>();
         collectIds(comments, ids);
         
-        Map<String, UserDto> userMap = fetchUsersMap(ids);
+        Map<String, UserResponse> userMap = fetchUsersMap(ids);
         
         applyUsers(comments, userMap);
     }
 
     private void enrichComment(PostComment comment) {
-        UserDto user = identityServiceClient.getUsersById(comment.getCommenterAccountId());
+        UserResponse user = identityServiceClient.getUsersById(comment.getCommenterAccountId());
         comment.setAuthor(user);
     }
 
@@ -77,19 +77,19 @@ public class PostCommentServiceImpl implements PostCommentService {
         }
     }
 
-    private void applyUsers(List<PostComment> comments, Map<String, UserDto> userMap) {
+    private void applyUsers(List<PostComment> comments, Map<String, UserResponse> userMap) {
         for (PostComment c : comments) {
             c.setAuthor(userMap.get(c.getCommenterAccountId()));
             if (c.getReplies() != null) applyUsers(c.getReplies(), userMap);
         }
     }
 
-    private Map<String, UserDto> fetchUsersMap(Set<String> ids) {
+    private Map<String, UserResponse> fetchUsersMap(Set<String> ids) {
         try {
-            Map<String, UserDto> map = new HashMap<>();
+            Map<String, UserResponse> map = new HashMap<>();
             for (String id : ids) {
                 try {
-                    UserDto user = identityServiceClient.getUsersById(id);
+                    UserResponse user = identityServiceClient.getUsersById(id);
                     if (user != null) map.put(id, user);
                 } catch (Exception e) {}
             }

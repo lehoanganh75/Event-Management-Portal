@@ -1,6 +1,6 @@
 package com.eventservice.service;
 
-import com.eventservice.entity.PostComment;
+import com.eventservice.entity.social.PostComment;
 import java.util.List;
 
 public interface PostCommentService {

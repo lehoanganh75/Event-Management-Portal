@@ -71,7 +71,7 @@ const EventsManagement = ({ type = "lecturer", mode = "all" }) => {
 
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [showEventCreator, setShowEventCreator] = useState(false);
-  const [creatorConfig, setCreatorConfig] = useState({ initialFormData: {}, fromPlan: false });
+  const [creatorConfig, setCreatorConfig] = useState({ initialFormData: {}, fromPlan: false, forceEventMode: false });
 
 
   /* ===== FETCH ===== */
@@ -266,7 +266,7 @@ const EventsManagement = ({ type = "lecturer", mode = "all" }) => {
       showToast("Không thể cập nhật trạng thái", "error");
     }
   };
-  
+
   const [isImporting, setIsImporting] = useState(false);
 
   const handleImportDocx = async (e) => {
@@ -282,35 +282,36 @@ const EventsManagement = ({ type = "lecturer", mode = "all" }) => {
     try {
       showToast("⏳ Đang phân tích nội dung kế hoạch bằng AI...", "info");
       const extracted = await extractDataFromDocx(file);
-      
+
       if (!extracted) {
         throw new Error("AI không thể trích xuất thông tin từ file này. Vui lòng kiểm tra lại nội dung file.");
       }
-        // Map AI result to our form structure
-        const mappedData = {
-          eventTitle: extracted.title || "",
-          eventTopic: extracted.subject || "",
-          eventPurpose: extracted.purpose || extracted.description || "",
-          location: extracted.suggestedLocation || "",
-          maxParticipants: extracted.estimatedParticipants || 50,
-        };
+      // Map AI result to our form structure
+      const mappedData = {
+        eventTitle: extracted.title || "",
+        eventTopic: extracted.subject || "",
+        eventPurpose: extracted.purpose || extracted.description || "",
+        location: extracted.suggestedLocation || "",
+        maxParticipants: extracted.estimatedParticipants || 50,
+      };
 
-        // Handle datetimes
-        if (extracted.suggestedStartTime) {
-          mappedData.startTime = new Date(extracted.suggestedStartTime).toISOString().slice(0, 16);
-        }
-        if (extracted.suggestedEndTime) {
-          mappedData.endTime = new Date(extracted.suggestedEndTime).toISOString().slice(0, 16);
-        }
+      // Handle datetimes
+      if (extracted.suggestedStartTime) {
+        mappedData.startTime = new Date(extracted.suggestedStartTime).toISOString().slice(0, 16);
+      }
+      if (extracted.suggestedEndTime) {
+        mappedData.endTime = new Date(extracted.suggestedEndTime).toISOString().slice(0, 16);
+      }
 
-        setCreatorConfig({ 
-          initialFormData: mappedData, 
-          fromPlan: false, // Creating a NEW plan (or event), not FROM an existing plan
-          startAtStep: mode === "plan" ? 3 : 5 // Review step is 3 for plans, 5 for events
-        });
-        setShowEventCreator(true);
-        showToast("✨ Đã trích xuất thông tin thành công!", "success");
-      } catch (err) {
+      setCreatorConfig({
+        initialFormData: mappedData,
+        fromPlan: false,
+        forceEventMode: mode === "event",
+        startAtStep: mode === "plan" ? 3 : 5
+      });
+      setShowEventCreator(true);
+      showToast("✨ Đã trích xuất thông tin thành công!", "success");
+    } catch (err) {
       console.error("Docx import error:", err);
       const errorMsg = err.response?.data?.message || err.message || "Lỗi không xác định khi nhập dữ liệu";
       showToast("❌ " + errorMsg, "error");
@@ -332,9 +333,10 @@ const EventsManagement = ({ type = "lecturer", mode = "all" }) => {
   };
 
   const handleCreateNew = () => {
-    setCreatorConfig({ 
-      initialFormData: {}, 
+    setCreatorConfig({
+      initialFormData: {},
       fromPlan: false,
+      forceEventMode: mode === "event",
       startAtStep: 1
     });
     setIsCreateModalOpen(false);
@@ -343,12 +345,13 @@ const EventsManagement = ({ type = "lecturer", mode = "all" }) => {
 
   if (showEventCreator) {
     return (
-      <EventCreator 
-        onBack={() => { setShowEventCreator(false); fetchData(); }} 
-        initialFormData={creatorConfig.initialFormData} 
-        fromPlan={creatorConfig.fromPlan} 
+      <EventCreator
+        onBack={() => { setShowEventCreator(false); fetchData(); }}
+        initialFormData={creatorConfig.initialFormData}
+        fromPlan={creatorConfig.fromPlan}
         planId={creatorConfig.initialFormData.id}
         startAtStep={creatorConfig.startAtStep}
+        forceEventMode={creatorConfig.forceEventMode}
       />
     );
   }
@@ -370,7 +373,7 @@ const EventsManagement = ({ type = "lecturer", mode = "all" }) => {
                 <FileUp className="text-indigo-400 animate-pulse" size={32} />
               </div>
             </div>
-            <motion.div 
+            <motion.div
               initial={{ y: 10, opacity: 0 }}
               animate={{ y: 0, opacity: 1 }}
               transition={{ delay: 0.2 }}
@@ -395,7 +398,8 @@ const EventsManagement = ({ type = "lecturer", mode = "all" }) => {
         </div>
 
         <div className="flex gap-3">
-          {(mode === "plan" || mode === "all") && (
+          {/* Luôn hiển thị Import và Tạo mới đối với Admin hoặc trong mode Plan */}
+          {(isAdminMode || mode === "plan" || mode === "all") && (
             <>
               <label className={`flex items-center gap-2 bg-indigo-50 text-indigo-600 hover:bg-indigo-100 px-5 py-2.5 rounded-lg text-sm font-bold transition-all cursor-pointer border border-indigo-200 shadow-sm ${isImporting ? 'opacity-50 pointer-events-none' : ''}`}>
                 <input
@@ -421,15 +425,6 @@ const EventsManagement = ({ type = "lecturer", mode = "all" }) => {
                 {mode === "plan" ? "Tạo kế hoạch mới" : "Tạo sự kiện mới"}
               </button>
             </>
-          )}
-          {mode !== "plan" && (
-            <button
-              onClick={handleExport}
-              className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-5 py-2.5 rounded-lg text-sm font-medium transition-all shadow-sm"
-            >
-              <Download size={18} />
-              Xuất Excel
-            </button>
           )}
         </div>
       </div>

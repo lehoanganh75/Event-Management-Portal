@@ -5,6 +5,7 @@ import lombok.*;
 
 import java.time.LocalDateTime;
 
+@Builder
 @Entity
 @Table(name = "registration_verification_tokens")
 @Getter
@@ -25,6 +26,6 @@ public class RegistrationVerificationToken {
     private boolean used = false;
 
     @OneToOne
-    @JoinColumn(name = "account_id", nullable = false)
-    private Account account;
+    @JoinColumn(name = "user_id", nullable = false)
+    private User user;
 }

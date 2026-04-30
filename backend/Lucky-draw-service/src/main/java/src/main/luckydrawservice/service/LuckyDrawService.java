@@ -16,7 +16,7 @@ public interface LuckyDrawService {
     void deleteLuckyDrawByEventId(String eventId);
     void deleteLuckyDraw(String id);
 
-    DrawResultResponse performLuckyDraw(String luckyDrawId, String userProfileId);
+    DrawResultResponse performLuckyDraw(String luckyDrawId, String token, String userProfileId, String prizeId);
     LuckyDraw updateLuckyDraw(String id, LuckyDrawCreateRequest request, String createdByAccountId);
 
     LuckyDraw findById(String luckyDrawId);
@@ -28,4 +28,9 @@ public interface LuckyDrawService {
     Optional<DrawEntry> findByLuckyDrawIdAndUserProfileId(String luckyDrawId, String userProfileId);
 
     Optional<LuckyDrawResponse> findByEventId(String eventId);
+
+    List<src.main.luckydrawservice.dto.UserResponse> getParticipants(String luckyDrawId);
+
+    void handleCheckIn(String eventId, String userProfileId);
+    void handleCancelCheckIn(String eventId, String userProfileId);
 }

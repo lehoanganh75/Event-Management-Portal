@@ -28,7 +28,7 @@ export const AuthProvider = ({ children }) => {
             // Sử dụng _silent: true để tránh redirect sang /login nếu token hết hạn
             const res = await authService.getMyProfile({ _silent: true });
             const profileData = res.data;
-            
+
             // Fetch organizer roles if available
             try {
                 const rolesRes = await eventService.getOrganizerRoles();
@@ -84,7 +84,7 @@ export const AuthProvider = ({ children }) => {
     const register = async (userData) => {
         try {
             const res = await authService.register(userData);
-        
+
             return res.data;
         } catch (error) {
             throw error;
@@ -133,28 +133,30 @@ export const AuthProvider = ({ children }) => {
 
         const newStatus = target.status === "ACTIVE" ? "DISABLED" : "ACTIVE";
         await authService.updateAccountStatus(id, newStatus);
-        setAccounts(prev => prev.map(acc => 
+        setAccounts(prev => prev.map(acc =>
             acc.id === id ? { ...acc, status: newStatus } : acc
         ));
     };
 
     const value = {
-        user, 
-        loading, 
-        isAuthenticated, 
+        user,
+        loading,
+        isAuthenticated,
         accounts,
-        login, 
+        loadUser,
+        login,
         register,
-        logout, 
-        fetchAccounts, 
+        logout,
+        fetchAccounts,
         updateAccount,
-        deleteAccount, 
+        deleteAccount,
         updateAccountStatus,
         resendOtp: authService.resendOtp,
         forgotPassword: authService.forgotPassword,
         resetPassword: authService.resetPassword,
         checkEmail: authService.checkEmail,
         checkUsername: authService.checkUsername,
+        identity: authService,
     };
 
     return (

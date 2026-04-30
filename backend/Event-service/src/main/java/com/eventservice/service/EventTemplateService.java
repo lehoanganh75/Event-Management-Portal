@@ -2,8 +2,8 @@ package com.eventservice.service;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
-import com.eventservice.entity.Event;
-import com.eventservice.entity.EventTemplate;
+import com.eventservice.entity.core.Event;
+import com.eventservice.entity.template.EventTemplate;
 
 import java.util.List;
 import java.util.Optional;

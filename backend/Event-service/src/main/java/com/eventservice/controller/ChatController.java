@@ -1,6 +1,15 @@
 package com.eventservice.controller;
 
-import com.eventservice.dto.*;
+import com.eventservice.dto.core.request.*;
+import com.eventservice.dto.core.response.*;
+import com.eventservice.dto.registration.request.*;
+import com.eventservice.dto.registration.response.*;
+import com.eventservice.dto.social.request.*;
+import com.eventservice.dto.social.response.*;
+import com.eventservice.dto.plan.request.*;
+import com.eventservice.dto.plan.response.*;
+import com.eventservice.dto.user.*;
+import com.eventservice.dto.engagement.*;
 import com.eventservice.service.ChatService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -132,20 +141,20 @@ public class ChatController {
      * Generate event plan from chat conversation
      */
     @PostMapping("/sessions/{sessionId}/generate-plan")
-    public ResponseEntity<ApiResponse<EventPlanSuggestion>> generateEventPlan(
+    public ResponseEntity<ApiResponse<EventPlanSuggestionResponse>> generateEventPlan(
             @PathVariable String sessionId
     ) {
         String userId = getCurrentUserId();
-        EventPlanSuggestion suggestion = chatService.generateEventPlanFromChat(sessionId, userId);
+        EventPlanSuggestionResponse suggestion = chatService.generateEventPlanFromChat(sessionId, userId);
         
         if (suggestion == null) {
-            return ResponseEntity.badRequest().body(ApiResponse.<EventPlanSuggestion>builder()
+            return ResponseEntity.badRequest().body(ApiResponse.<EventPlanSuggestionResponse>builder()
                     .code(4002)
                     .message("Unable to generate event plan from conversation")
                     .build());
         }
         
-        return ResponseEntity.ok(ApiResponse.<EventPlanSuggestion>builder()
+        return ResponseEntity.ok(ApiResponse.<EventPlanSuggestionResponse>builder()
                 .code(1000)
                 .message("Event plan generated successfully")
                 .result(suggestion)
@@ -172,13 +181,13 @@ public class ChatController {
      * Extract event details from raw text (AI-powered)
      */
     @PostMapping("/extract-from-text")
-    public ResponseEntity<ApiResponse<EventPlanSuggestion>> extractFromText(
+    public ResponseEntity<ApiResponse<EventPlanSuggestionResponse>> extractFromText(
             @RequestBody String text
     ) {
         log.info("Incoming AI extraction request for text length: {}", text.length());
-        EventPlanSuggestion suggestion = chatService.extractFromText(text);
+        EventPlanSuggestionResponse suggestion = chatService.extractFromText(text);
         
-        return ResponseEntity.ok(ApiResponse.<EventPlanSuggestion>builder()
+        return ResponseEntity.ok(ApiResponse.<EventPlanSuggestionResponse>builder()
                 .code(1000)
                 .message("Event details extracted successfully")
                 .result(suggestion)
@@ -220,3 +229,4 @@ public class ChatController {
         private T result;
     }
 }
+

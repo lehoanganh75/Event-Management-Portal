@@ -4,7 +4,7 @@ import org.springframework.cloud.openfeign.FeignClient;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import src.main.luckydrawservice.config.FeignClientConfig;
-import src.main.luckydrawservice.dto.UserDto;
+import src.main.luckydrawservice.dto.UserResponse;
 
 import java.util.List;
 
@@ -15,5 +15,5 @@ import java.util.List;
 )
 public interface IdentityClient {
     @GetMapping("/profiles/batch")
-    List<UserDto> getUsersByIds(@RequestParam("ids") List<String> ids);
+    List<UserResponse> getUsersByIds(@RequestParam("ids") List<String> ids);
 }

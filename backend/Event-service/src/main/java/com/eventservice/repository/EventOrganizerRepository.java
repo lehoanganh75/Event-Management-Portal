@@ -4,7 +4,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
-import com.eventservice.entity.EventOrganizer;
+import com.eventservice.entity.people.EventOrganizer;
 
 import java.util.List;
 import java.util.Optional;
@@ -38,4 +38,9 @@ public interface EventOrganizerRepository extends JpaRepository<EventOrganizer, 
             @Param("endTime") java.time.LocalDateTime endTime,
             @Param("excludeEventId") String excludeEventId
     );
+
+    @org.springframework.data.jpa.repository.Modifying(clearAutomatically = true)
+    @org.springframework.transaction.annotation.Transactional
+    @Query(value = "UPDATE event_organizers SET is_deleted = 1, status = 'INACTIVE' WHERE event_id = :eventId", nativeQuery = true)
+    void softDeleteByEventId(@Param("eventId") String eventId);
 }

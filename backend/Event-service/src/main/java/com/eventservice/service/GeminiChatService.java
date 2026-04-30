@@ -1,7 +1,7 @@
 package com.eventservice.service;
 
-import com.eventservice.dto.EventPlanSuggestion;
-import com.eventservice.entity.ChatMessage;
+import com.eventservice.dto.plan.response.EventPlanSuggestionResponse;
+import com.eventservice.entity.social.ChatMessage;
 
 import java.util.List;
 
@@ -15,7 +15,7 @@ public interface GeminiChatService {
     /**
      * Generate event plan suggestions based on conversation
      */
-    EventPlanSuggestion generateEventPlanSuggestion(String userInput, List<ChatMessage> conversationHistory);
+    EventPlanSuggestionResponse generateEventPlanSuggestion(String userInput, List<ChatMessage> conversationHistory);
     
     /**
      * Analyze user intent from message
@@ -35,5 +35,5 @@ public interface GeminiChatService {
     /**
      * Extract event details from natural language
      */
-    EventPlanSuggestion extractEventDetails(String naturalLanguageInput);
+    EventPlanSuggestionResponse extractEventDetails(String naturalLanguageInput);
 }

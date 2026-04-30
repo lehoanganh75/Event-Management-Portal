@@ -1,13 +1,19 @@
 package com.eventservice.controller;
 
-import com.eventservice.dto.CreateEventRequest;
-import com.eventservice.dto.PlanCreateRequest;
-import com.eventservice.dto.PlanResponseDto;
-import com.eventservice.entity.*;
+import com.eventservice.dto.core.request.EventCreateRequest;
+import com.eventservice.dto.core.response.EventResponse;
+import com.eventservice.dto.core.response.EventSummaryResponse;
+import com.eventservice.dto.plan.request.EventPlanCreateRequest;
+import com.eventservice.dto.plan.response.EventPlanResponse;
+import com.eventservice.entity.core.*;
+import com.eventservice.entity.people.*;
+import com.eventservice.entity.registration.*;
+import com.eventservice.entity.social.*;
+import com.eventservice.entity.engagement.*;
+import com.eventservice.entity.template.*;
+import com.eventservice.entity.report.*;
 import com.eventservice.entity.enums.OrganizerRole;
-import com.eventservice.entity.enums.ParticipationStatus;
 import com.eventservice.service.EventOrganizerService;
-import com.eventservice.service.EventParticipantService;
 import com.eventservice.service.EventPresenterService;
 import com.eventservice.service.EventService;
 import jakarta.validation.Valid;
@@ -44,7 +50,6 @@ import java.util.stream.Collectors;
 public class EventController {
     private final EventService eventService;
     private final EventPresenterService presenterService;
-    private final EventParticipantService participantService;
     private final EventOrganizerService organizerService;
     private final OrganizationRepository organizationRepository;
     private final EventTemplateRepository templateRepository;
@@ -53,27 +58,27 @@ public class EventController {
     // --- 1. NHÓM CÔNG KHAI (DÀNH CHO USER & GUEST) ---
 
     @GetMapping
-    public ResponseEntity<List<Event>> getEventsForUser() {
+    public ResponseEntity<List<EventResponse>> getEventsForUser() {
         return ResponseEntity.ok(eventService.findEventsForUser());
     }
 
     @GetMapping("/ongoing")
-    public ResponseEntity<List<Event>> getOngoingEvents() {
+    public ResponseEntity<List<EventResponse>> getOngoingEvents() {
         return ResponseEntity.ok(eventService.getOngoingEvents());
     }
 
     @GetMapping("/upcoming-week")
-    public ResponseEntity<List<Event>> getUpcomingEvents() {
+    public ResponseEntity<List<EventResponse>> getUpcomingEvents() {
         return ResponseEntity.ok(eventService.getUpcomingEventsThisWeek());
     }
 
     @GetMapping("/featured")
-    public ResponseEntity<List<Event>> getFeaturedEvents() {
+    public ResponseEntity<List<EventResponse>> getFeaturedEvents() {
         return ResponseEntity.ok(eventService.getFeaturedEvents());
     }
 
     @GetMapping("/news")
-    public ResponseEntity<List<Event>> getCompletedEvents() {
+    public ResponseEntity<List<EventResponse>> getCompletedEvents() {
         return ResponseEntity.ok(eventService.getCompletedEvents());
     }
 
@@ -81,12 +86,12 @@ public class EventController {
 
     @GetMapping("/admin/all")
     @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
-    public ResponseEntity<List<Event>> getEventsForAdmin() {
+    public ResponseEntity<List<EventResponse>> getEventsForAdmin() {
         return ResponseEntity.ok(eventService.findEventsForAdmin());
     }
 
     @GetMapping("/by-statuses")
-    public ResponseEntity<List<Event>> getEventsByStatuses(
+    public ResponseEntity<List<EventResponse>> getEventsByStatuses(
             @RequestParam List<String> statuses,
             @AuthenticationPrincipal Jwt jwt) {
         String accountId = (jwt != null) ? jwt.getSubject() : null;
@@ -95,7 +100,7 @@ public class EventController {
 
     // --- 3. NHÓM CÁ NHÂN HÓA (DÀNH CHO TRANG CÁ NHÂN) ---
     @GetMapping("/my-events")
-    public ResponseEntity<List<Event>> getMyEvents(
+    public ResponseEntity<List<EventResponse>> getMyEvents(
             @AuthenticationPrincipal Jwt jwt,
             @RequestParam(value = "role", required = false, defaultValue = "ALL") String role) {
 
@@ -104,7 +109,7 @@ public class EventController {
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<Event> getEventById(
+    public ResponseEntity<EventResponse> getEventById(
             @PathVariable String id,
             @AuthenticationPrincipal Jwt jwt) {
         String accountId = jwt != null ? jwt.getSubject() : null;
@@ -161,18 +166,18 @@ public class EventController {
     // 1. Dành cho Sinh viên/Người dùng (Chỉ lấy sự kiện chưa xóa)
 
     @GetMapping("/plans")
-    public ResponseEntity<List<PlanResponseDto>> getAllPlans() {
+    public ResponseEntity<List<EventPlanResponse>> getAllPlans() {
         return ResponseEntity.ok(eventService.getAllPlansEnriched());
     }
 
     @GetMapping("/plans/my")
-    public ResponseEntity<List<PlanResponseDto>> getMyPlans(@AuthenticationPrincipal Jwt jwt) {
+    public ResponseEntity<List<EventPlanResponse>> getMyPlans(@AuthenticationPrincipal Jwt jwt) {
         String accountId = jwt.getSubject();
         return ResponseEntity.ok(eventService.getPlansByAccountId(accountId));
     }
 
     @GetMapping("/plans/status/{statusName}")
-    public ResponseEntity<List<PlanResponseDto>> getPlansByStatus(
+    public ResponseEntity<List<EventPlanResponse>> getPlansByStatus(
             @PathVariable String statusName,
             @AuthenticationPrincipal Jwt jwt) {
         String accountId = jwt.getSubject();
@@ -186,16 +191,15 @@ public class EventController {
                 return ResponseEntity.badRequest().build();
             }
 
-            List<PlanResponseDto> plans = eventService.getPlansByAccountId(accountId)
+            List<EventPlanResponse> plans = eventService.getPlansByAccountId(accountId)
                     .stream()
                     .filter(p -> p.getStatus().equals(status.name()))
                     .collect(Collectors.toList());
 
-            for (PlanResponseDto plan : plans) {
+            for (EventPlanResponse plan : plans) {
                 log.info("Plan {} - targetObjects: {}", plan.getId(), plan.getTargetObjects());
                 log.info("Plan {} - presentersList: {}", plan.getId(), plan.getPresentersList());
                 log.info("Plan {} - organizersList: {}", plan.getId(), plan.getOrganizersList());
-                log.info("Plan {} - participantsList: {}", plan.getId(), plan.getParticipantsList());
             }
 
             return ResponseEntity.ok(plans);
@@ -205,7 +209,7 @@ public class EventController {
     }
 
     @PostMapping("/plans")
-    public ResponseEntity<?> createPlan(@Valid @RequestBody PlanCreateRequest request) {
+    public ResponseEntity<?> createPlan(@Valid @RequestBody EventPlanCreateRequest request) {
         try {
             Event event = new Event();
 
@@ -263,9 +267,8 @@ public class EventController {
                 Set<EventPresenter> presenters = request.getPresenters().stream()
                         .map(dto -> {
                             EventPresenter p = new EventPresenter();
-                            p.setFullName(dto.getFullName());
-                            p.setEmail(dto.getEmail());
-                            p.setTargetSessionName(dto.getSession());
+                            p.setPresenterAccountId(dto.getAccountId());
+                            // Bio and session mapping if needed
                             return p;
                         })
                         .collect(Collectors.toSet());
@@ -277,8 +280,7 @@ public class EventController {
                 Set<EventOrganizer> organizers = request.getOrganizers().stream()
                         .map(dto -> {
                             EventOrganizer o = new EventOrganizer();
-                            o.setFullName(dto.getFullName());
-                            o.setEmail(dto.getEmail());
+                            o.setAccountId(dto.getAccountId());
 
                             // Safe role mapping
                             try {
@@ -302,24 +304,6 @@ public class EventController {
                 }
 
                 event.setOrganizers(organizers);
-            }
-
-            if (request.getParticipants() != null) {
-                log.info("Converting {} participants", request.getParticipants().size());
-                Set<EventParticipant> participants = request.getParticipants().stream()
-                        .map(dto -> {
-                            EventParticipant p = new EventParticipant();
-                            p.setFullName(dto.getFullName());
-                            p.setEmail(dto.getEmail());
-                            p.setTitle(dto.getTitle());
-                            p.setPosition(dto.getPosition());
-                            p.setDepartment(dto.getDepartment());
-                            p.setOrganization(dto.getOrganization());
-                            p.setNotes(dto.getNotes());
-                            return p;
-                        })
-                        .collect(Collectors.toSet());
-                event.setParticipants(participants);
             }
 
             event.setStatus(EventStatus.DRAFT);
@@ -363,12 +347,12 @@ public class EventController {
     }
 
     @GetMapping("/admin/plans/pending")
-    public ResponseEntity<List<PlanResponseDto>> getPlansPendingApproval() {
+    public ResponseEntity<List<EventPlanResponse>> getPlansPendingApproval() {
         return ResponseEntity.ok(eventService.getPlansPendingApproval());
     }
 
     @GetMapping("/admin/events/pending")
-    public ResponseEntity<List<PlanResponseDto>> getEventsPendingApproval() {
+    public ResponseEntity<List<EventPlanResponse>> getEventsPendingApproval() {
         return ResponseEntity.ok(eventService.getEventsPendingApproval());
     }
 
@@ -476,13 +460,13 @@ public class EventController {
     }
 
     @GetMapping("/{id}/summary")
-    public ResponseEntity<com.eventservice.dto.EventSummaryDto> getEventSummary(@PathVariable String id) {
+    public ResponseEntity<EventSummaryResponse> getEventSummary(@PathVariable String id) {
         return ResponseEntity.ok(eventService.getEventSummary(id));
     }
 
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<Event> createEvent(
-            @RequestPart("request") CreateEventRequest request,
+            @RequestPart("request") EventCreateRequest request,
             @RequestPart(value = "file", required = false) MultipartFile file,
             @AuthenticationPrincipal Jwt jwt) {
         Event event = request.getEvent();
@@ -500,7 +484,7 @@ public class EventController {
 
     @PostMapping(consumes = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<Event> createEvent(
-            @RequestBody CreateEventRequest request,
+            @RequestBody EventCreateRequest request,
             @AuthenticationPrincipal Jwt jwt) {
         Event event = request.getEvent();
 
@@ -573,49 +557,6 @@ public class EventController {
         return ResponseEntity.ok(presenterService.updatePresenterOrder(presenterId, orderIndex));
     }
 
-    @GetMapping("/{eventId}/participants")
-    public ResponseEntity<List<EventParticipant>> getParticipants(@PathVariable String eventId) {
-        return ResponseEntity.ok(participantService.getParticipants(eventId));
-    }
-
-    @PostMapping("/{eventId}/participants/register")
-    public ResponseEntity<EventParticipant> registerParticipant(
-            @PathVariable String eventId,
-            @RequestBody EventParticipant participant) {
-        return ResponseEntity.ok(participantService.registerParticipant(eventId, participant));
-    }
-
-    @DeleteMapping("/participants/{participantId}")
-    public ResponseEntity<Void> cancelParticipant(
-            @PathVariable String participantId,
-            @RequestParam(required = false) String reason) {
-        participantService.cancelParticipant(participantId, reason);
-        return ResponseEntity.noContent().build();
-    }
-
-    @PatchMapping("/participants/{participantId}/checkin")
-    public ResponseEntity<Void> checkInParticipant(
-            @PathVariable String participantId,
-            @RequestParam String checkedInBy) {
-        participantService.checkInParticipant(participantId, checkedInBy);
-        return ResponseEntity.noContent().build();
-    }
-
-    @GetMapping("/{eventId}/participants/count")
-    public ResponseEntity<Long> countParticipants(@PathVariable String eventId) {
-        return ResponseEntity.ok(participantService.countParticipantsByEventId(eventId));
-    }
-
-    // @GetMapping("/{eventId}/participants/status/{status}")
-    // public ResponseEntity<List<EventParticipant>> getParticipantsByStatus(
-    // @PathVariable String eventId,
-    // @PathVariable String status) {
-    // ParticipationStatus participationStatus =
-    // ParticipationStatus.valueOf(status.toUpperCase());
-    // return ResponseEntity.ok(participantService.getParticipantsByStatus(eventId,
-    // participationStatus));
-    // }
-
     @GetMapping("/{eventId}/organizers")
     public ResponseEntity<List<EventOrganizer>> getOrganizers(@PathVariable String eventId) {
         return ResponseEntity.ok(organizerService.getOrganizers(eventId));
@@ -646,7 +587,7 @@ public class EventController {
     @PostMapping("/{eventId}/invite")
     public ResponseEntity<Map<String, String>> inviteParticipants(
             @PathVariable String eventId,
-            @RequestBody com.eventservice.dto.InvitationBatchRequest request,
+            @RequestBody com.eventservice.dto.registration.request.EventInvitationRequest request,
             @AuthenticationPrincipal Jwt jwt) {
         String organizerId = jwt.getSubject();
         Map<String, String> response = eventService.inviteParticipants(eventId, organizerId, request);

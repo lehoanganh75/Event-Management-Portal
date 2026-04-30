@@ -1,22 +1,21 @@
 package com.eventservice.service.impl;
 
 import com.eventservice.client.IdentityServiceClient;
-import com.eventservice.dto.UserDto;
-import com.eventservice.repository.EventParticipantRepository;
+import com.eventservice.dto.user.UserResponse;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.ExpiredJwtException;
-import com.eventservice.entity.EventOrganizer;
+import com.eventservice.entity.people.EventOrganizer;
 import com.eventservice.repository.EventOrganizerRepository;
 import org.springframework.transaction.annotation.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
-import com.eventservice.dto.CheckInRequest;
-import com.eventservice.dto.CheckInResponse;
-import com.eventservice.dto.RegistrationResponseDto;
-import com.eventservice.entity.Event;
-import com.eventservice.entity.EventRegistration;
+import com.eventservice.dto.registration.request.EventCheckInRequest;
+import com.eventservice.dto.registration.response.EventCheckInResponse;
+import com.eventservice.dto.registration.response.EventRegistrationResponse;
+import com.eventservice.entity.core.Event;
+import com.eventservice.entity.registration.EventRegistration;
 import com.eventservice.entity.enums.EventStatus;
 import com.eventservice.entity.enums.RegistrationStatus;
 import com.eventservice.repository.EventRegistrationRepository;
@@ -39,16 +38,18 @@ public class EventRegistrationServiceImpl implements EventRegistrationService {
 
     private final EventRegistrationRepository registrationRepository;
     private final EventRepository eventRepository;
-    private final EventParticipantRepository participantRepository;
     private final EventOrganizerRepository organizerRepository;
     private final QRTokenUtil qrTokenUtil;
     private final IdentityServiceClient identityServiceClient;
+    private final com.eventservice.client.LuckyDrawClient luckyDrawClient;
 
     private String resolveEventId(String idOrSlug) {
-        if (idOrSlug == null) return null;
+        if (idOrSlug == null)
+            return null;
         // If it's a UUID (36 chars), return as is
-        if (idOrSlug.length() == 36 && idOrSlug.contains("-")) return idOrSlug;
-        
+        if (idOrSlug.length() == 36 && idOrSlug.contains("-"))
+            return idOrSlug;
+
         return eventRepository.findBySlug(idOrSlug)
                 .map(Event::getId)
                 .orElse(idOrSlug);
@@ -84,16 +85,17 @@ public class EventRegistrationServiceImpl implements EventRegistrationService {
         List<EventRegistration> regConflicts = registrationRepository.findConflictingRegistrations(
                 userId, event.getStartTime(), event.getEndTime(), eventId, RegistrationStatus.REGISTERED);
         if (!regConflicts.isEmpty()) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT, 
-                "Bạn đã đăng ký sự kiện '" + regConflicts.get(0).getEvent().getTitle() + "' trùng thời gian.");
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "Bạn đã đăng ký sự kiện '" + regConflicts.get(0).getEvent().getTitle() + "' trùng thời gian.");
         }
 
         // 4.2 Kiểm tra trùng lịch (với các sự kiện đang tham gia ban tổ chức)
         List<EventOrganizer> orgConflicts = organizerRepository.findConflictingOrganizers(
                 userId, event.getStartTime(), event.getEndTime(), eventId);
         if (!orgConflicts.isEmpty()) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT, 
-                "Bạn đang trong ban tổ chức sự kiện '" + orgConflicts.get(0).getEvent().getTitle() + "' trùng thời gian.");
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "Bạn đang trong ban tổ chức sự kiện '" + orgConflicts.get(0).getEvent().getTitle()
+                            + "' trùng thời gian.");
         }
 
         // 5. Tạo mã vé (VD: TITLE-001)
@@ -195,7 +197,7 @@ public class EventRegistrationServiceImpl implements EventRegistrationService {
     }
 
     @Override
-    public RegistrationResponseDto getRegistrationWithQR(String registrationId) {
+    public EventRegistrationResponse getRegistrationWithQR(String registrationId) {
         EventRegistration registration = registrationRepository.findById(registrationId)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy đăng ký"));
 
@@ -204,18 +206,18 @@ public class EventRegistrationServiceImpl implements EventRegistrationService {
 
     @Transactional
     @Override
-    public CheckInResponse checkIn(CheckInRequest request) {
+    public EventCheckInResponse checkIn(EventCheckInRequest request) {
         Claims claims;
 
         try {
             claims = qrTokenUtil.verifyQRToken(request.getQrToken());
         } catch (ExpiredJwtException e) {
-            return CheckInResponse.builder()
+            return EventCheckInResponse.builder()
                     .success(false)
                     .message("QR code đã hết hạn")
                     .build();
         } catch (Exception e) {
-            return CheckInResponse.builder()
+            return EventCheckInResponse.builder()
                     .success(false)
                     .message("QR code không hợp lệ")
                     .build();
@@ -231,21 +233,21 @@ public class EventRegistrationServiceImpl implements EventRegistrationService {
                 .orElse(null);
 
         if (registration == null) {
-            return CheckInResponse.builder()
+            return EventCheckInResponse.builder()
                     .success(false)
                     .message("User chưa đăng ký sự kiện này")
                     .build();
         }
 
         if (!request.getQrToken().equals(registration.getQrToken())) {
-            return CheckInResponse.builder()
+            return EventCheckInResponse.builder()
                     .success(false)
                     .message("QR code không khớp")
                     .build();
         }
 
         if (registration.isCheckedIn()) {
-            return CheckInResponse.builder()
+            return EventCheckInResponse.builder()
                     .success(false)
                     .message("User đã check-in trước đó lúc " + registration.getCheckInTime())
                     .build();
@@ -257,14 +259,14 @@ public class EventRegistrationServiceImpl implements EventRegistrationService {
         LocalDateTime checkInClose = event.getEndTime();
 
         if (now.isBefore(checkInOpen)) {
-            return CheckInResponse.builder()
+            return EventCheckInResponse.builder()
                     .success(false)
                     .message("Chưa đến giờ check-in. Mở check-in lúc " + checkInOpen)
                     .build();
         }
 
         if (now.isAfter(checkInClose)) {
-            return CheckInResponse.builder()
+            return EventCheckInResponse.builder()
                     .success(false)
                     .message("Sự kiện đã kết thúc, không thể check-in")
                     .build();
@@ -276,26 +278,20 @@ public class EventRegistrationServiceImpl implements EventRegistrationService {
 
         registrationRepository.save(registration);
 
-        String fullName = registration.getFullName();
-        String avatarUrl = registration.getAvatarUrl();
-
-        // Try to get from participant if not in registration
-        if (fullName == null || avatarUrl == null) {
-            participantRepository.findByEventIdAndParticipantAccountId(eventId, userId)
-                .ifPresent(p -> {
-                    registration.setFullName(p.getFullName());
-                    registration.setAvatarUrl(p.getAvatarUrl());
-                });
-            fullName = registration.getFullName();
-            avatarUrl = registration.getAvatarUrl();
+        try {
+            luckyDrawClient.notifyCheckIn(eventId, userId);
+        } catch (Exception e) {
+            log.error("Failed to notify lucky-draw-service about check-in: {}", e.getMessage());
         }
 
-        return CheckInResponse.builder()
+        // Profile info will be handled by the caller or batch fetch if needed
+        String fullName = null;
+        String avatarUrl = null;
+
+        return EventCheckInResponse.builder()
                 .success(true)
                 .message("Check-in thành công!")
                 .userProfileId(userId)
-                .fullName(fullName)
-                .avatarUrl(avatarUrl)
                 .eventId(eventId)
                 .eventTitle(event.getTitle())
                 .checkInTime(now.toString())
@@ -304,13 +300,13 @@ public class EventRegistrationServiceImpl implements EventRegistrationService {
 
     @Transactional
     @Override
-    public CheckInResponse manualCheckIn(String registrationId, String adminAccountId) {
+    public EventCheckInResponse manualCheckIn(String registrationId, String adminAccountId) {
         // Use lock for consistency
         EventRegistration registration = registrationRepository.findWithLockById(registrationId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy đăng ký"));
 
         if (registration.isCheckedIn()) {
-            return CheckInResponse.builder()
+            return EventCheckInResponse.builder()
                     .success(false)
                     .message("User đã check-in trước đó")
                     .build();
@@ -322,25 +318,20 @@ public class EventRegistrationServiceImpl implements EventRegistrationService {
 
         registrationRepository.save(registration);
 
-        String fullName = registration.getFullName();
-        String avatarUrl = registration.getAvatarUrl();
-
-        if (fullName == null || avatarUrl == null) {
-            participantRepository.findByEventIdAndParticipantAccountId(registration.getEvent().getId(), registration.getParticipantAccountId())
-                .ifPresent(p -> {
-                    registration.setFullName(p.getFullName());
-                    registration.setAvatarUrl(p.getAvatarUrl());
-                });
-            fullName = registration.getFullName();
-            avatarUrl = registration.getAvatarUrl();
+        try {
+            luckyDrawClient.notifyCheckIn(registration.getEvent().getId(), registration.getParticipantAccountId());
+        } catch (Exception e) {
+            log.error("Failed to notify lucky-draw-service about manual check-in: {}", e.getMessage());
         }
 
-        return CheckInResponse.builder()
+        // Profile info will be handled by the caller
+        String fullName = null;
+        String avatarUrl = null;
+
+        return EventCheckInResponse.builder()
                 .success(true)
                 .message("Check-in thủ công thành công!")
                 .userProfileId(registration.getParticipantAccountId())
-                .fullName(fullName)
-                .avatarUrl(avatarUrl)
                 .eventId(registration.getEvent().getId())
                 .eventTitle(registration.getEvent().getTitle())
                 .checkInTime(registration.getCheckInTime().toString())
@@ -348,27 +339,28 @@ public class EventRegistrationServiceImpl implements EventRegistrationService {
     }
 
     @Override
-    public List<RegistrationResponseDto> getRegistrationsByEvent(String idOrSlug) {
+    public List<EventRegistrationResponse> getRegistrationsByEvent(String idOrSlug) {
         log.info("getRegistrationsByEvent called with: {}", idOrSlug);
-        
+
         // Find the event first to get its canonical UUID
         Event event = eventRepository.findById(idOrSlug)
                 .or(() -> eventRepository.findBySlug(idOrSlug))
                 .orElse(null);
-        
+
         if (event == null) {
             log.warn("Could not find event by ID or Slug: {}", idOrSlug);
             return Collections.emptyList();
         }
-        
+
         String eventId = event.getId();
         log.info("Resolved event to UUID: {} (Title: {})", eventId, event.getTitle());
 
         List<EventRegistration> registrations = registrationRepository.findByEvent(event);
         log.info("Found {} registrations for event: {}", registrations.size(), event.getTitle());
         log.info("Found {} registrations for eventId: {}", registrations.size(), eventId);
-        
-        if (registrations.isEmpty()) return Collections.emptyList();
+
+        if (registrations.isEmpty())
+            return Collections.emptyList();
 
         // Batch fetch user info from Identity Service
         List<String> userIds = registrations.stream()
@@ -377,25 +369,24 @@ public class EventRegistrationServiceImpl implements EventRegistrationService {
                 .collect(Collectors.toList());
         log.info("Batch fetching profiles for {} unique users", userIds.size());
 
-        Map<String, UserDto> userMap = new HashMap<>();
+        Map<String, UserResponse> userMap = new HashMap<>();
         try {
-            List<UserDto> users = identityServiceClient.getUsersByIds(userIds);
+            List<UserResponse> users = identityServiceClient.getUsersByIds(userIds);
             if (users != null) {
                 log.info("Successfully fetched {} profiles from Identity Service", users.size());
-                userMap = users.stream().collect(Collectors.toMap(UserDto::getId, u -> u));
+                userMap = users.stream().collect(Collectors.toMap(UserResponse::getId, u -> u));
             }
         } catch (Exception e) {
             log.error("Failed to fetch user profiles for registrations: {}", e.getMessage());
         }
 
-        Map<String, UserDto> finalUserMap = userMap;
+        Map<String, UserResponse> finalUserMap = userMap;
         return registrations.stream()
                 .map(r -> {
-                    RegistrationResponseDto dto = toDto(r);
-                    UserDto user = finalUserMap.get(r.getParticipantAccountId());
+                    EventRegistrationResponse dto = toDto(r);
+                    UserResponse user = finalUserMap.get(r.getParticipantAccountId());
                     if (user != null) {
-                        dto.setFullName(user.getFullName());
-                        dto.setAvatarUrl(user.getAvatarUrl());
+                        dto.setProfile(user);
                     }
                     return dto;
                 })
@@ -403,50 +394,33 @@ public class EventRegistrationServiceImpl implements EventRegistrationService {
     }
 
     @Override
-    public List<RegistrationResponseDto> getRegistrationsByUser(String userProfileId) {
+    public List<EventRegistrationResponse> getRegistrationsByUser(String userProfileId) {
         List<EventRegistration> registrations = registrationRepository.findByParticipantAccountId(userProfileId);
-        if (registrations.isEmpty()) return Collections.emptyList();
+        if (registrations.isEmpty())
+            return Collections.emptyList();
 
         // Since it's for a single user, we can fetch once
-        UserDto user = null;
+        UserResponse user = null;
         try {
             user = identityServiceClient.getUsersById(userProfileId);
         } catch (Exception e) {
             log.error("Failed to fetch user profile for registrations: {}", e.getMessage());
         }
 
-        UserDto finalUser = user;
+        UserResponse finalUser = user;
         return registrations.stream()
                 .map(r -> {
-                    RegistrationResponseDto dto = toDto(r);
+                    EventRegistrationResponse dto = toDto(r);
                     if (finalUser != null) {
-                        dto.setFullName(finalUser.getFullName());
-                        dto.setAvatarUrl(finalUser.getAvatarUrl());
+                        dto.setProfile(finalUser);
                     }
                     return dto;
                 })
                 .collect(Collectors.toList());
     }
 
-    private RegistrationResponseDto toDto(EventRegistration r) {
-        return RegistrationResponseDto.builder()
-                .id(r.getId())
-                .eventId(r.getEvent().getId())
-                .eventTitle(r.getEvent().getTitle())
-                .userProfileId(r.getParticipantAccountId())
-                .eventStartTime(r.getEvent().getStartTime() != null ? r.getEvent().getStartTime().toString() : null)
-                .eventEndTime(r.getEvent().getEndTime() != null ? r.getEvent().getEndTime().toString() : null)
-                .eventLocation(r.getEvent().getLocation())
-                .status(r.getStatus() != null ? r.getStatus().name() : null)
-                .registeredAt(r.getRegisteredAt() != null ? r.getRegisteredAt().toString() : null)
-                .qrToken(r.getQrToken())
-                .qrTokenExpiry(r.getQrTokenExpiry() != null ? r.getQrTokenExpiry().toString() : null)
-                .checkedIn(r.isCheckedIn())
-                .checkInTime(r.getCheckInTime() != null ? r.getCheckInTime().toString() : null)
-                .ticketCode(r.getTicketCode())
-                .fullName(r.getFullName()) // Might be transient, will be overriden by batch fetch if needed
-                .avatarUrl(r.getAvatarUrl())
-                .build();
+    private EventRegistrationResponse toDto(EventRegistration r) {
+        return EventRegistrationResponse.from(r, null, null);
     }
 
     @Transactional
@@ -454,7 +428,8 @@ public class EventRegistrationServiceImpl implements EventRegistrationService {
     public EventRegistration cancelRegistration(String eventId, String userProfileId) {
         EventRegistration registration = registrationRepository
                 .findByEventIdAndParticipantAccountId(eventId, userProfileId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy thông tin đăng ký"));
+                .orElseThrow(
+                        () -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy thông tin đăng ký"));
 
         if (registration.isCheckedIn()) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Không thể hủy vì bạn đã thực hiện check-in rồi");
@@ -463,19 +438,12 @@ public class EventRegistrationServiceImpl implements EventRegistrationService {
         registration.setStatus(RegistrationStatus.CANCELLED);
         EventRegistration saved = registrationRepository.save(registration);
 
-        // Đồng bộ xóa mềm bên bảng EventParticipant (nếu có)
-        participantRepository.findByEventIdAndParticipantAccountId(eventId, userProfileId)
-                .ifPresent(p -> {
-                    p.setDeleted(true);
-                    participantRepository.save(p);
-                });
-
         return saved;
     }
 
     @Transactional
     @Override
-    public RegistrationResponseDto getTicketForUser(String idOrSlug, String currentUserId) {
+    public EventRegistrationResponse getTicketForUser(String idOrSlug, String currentUserId) {
         String eventId = idOrSlug;
         if (idOrSlug.length() < 36) {
             eventId = eventRepository.findBySlug(idOrSlug)
@@ -487,31 +455,30 @@ public class EventRegistrationServiceImpl implements EventRegistrationService {
                 .findByEventIdAndParticipantAccountIdAndIsDeletedFalse(eventId, currentUserId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
                         "Không tìm thấy vé hoặc bạn không có quyền truy cập vé này"));
-        
-        RegistrationResponseDto dto = toDto(registration);
-        
+
+        EventRegistrationResponse dto = toDto(registration);
+
         // Populate user info for ticket
         try {
-            UserDto user = identityServiceClient.getUsersById(currentUserId);
+            UserResponse user = identityServiceClient.getUsersById(currentUserId);
             if (user != null) {
-                dto.setFullName(user.getFullName());
-                dto.setAvatarUrl(user.getAvatarUrl());
+                dto.setProfile(user);
             }
         } catch (Exception e) {
             log.error("Failed to fetch user profile for ticket: {}", e.getMessage());
         }
-        
+
         return dto;
     }
 
     @Transactional
     @Override
-    public CheckInResponse undoCheckIn(String registrationId) {
+    public EventCheckInResponse undoCheckIn(String registrationId) {
         EventRegistration registration = registrationRepository.findById(registrationId)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy thông tin đăng ký"));
 
         if (!registration.isCheckedIn()) {
-            return CheckInResponse.builder()
+            return EventCheckInResponse.builder()
                     .success(false)
                     .message("Người này chưa thực hiện check-in")
                     .build();
@@ -522,7 +489,14 @@ public class EventRegistrationServiceImpl implements EventRegistrationService {
         registration.setCheckedInByAccountId(null);
         registrationRepository.save(registration);
 
-        return CheckInResponse.builder()
+        try {
+            luckyDrawClient.notifyCancelCheckIn(registration.getEvent().getId(),
+                    registration.getParticipantAccountId());
+        } catch (Exception e) {
+            log.error("Failed to notify lucky-draw-service about undo check-in: {}", e.getMessage());
+        }
+
+        return EventCheckInResponse.builder()
                 .success(true)
                 .message("Đã hủy trạng thái check-in thành công")
                 .build();
@@ -530,7 +504,8 @@ public class EventRegistrationServiceImpl implements EventRegistrationService {
 
     @Transactional
     @Override
-    public CheckInResponse updateCheckInTime(String registrationId, java.time.LocalDateTime newTime, String adminAccountId) {
+    public EventCheckInResponse updateCheckInTime(String registrationId, java.time.LocalDateTime newTime,
+            String adminAccountId) {
         EventRegistration registration = registrationRepository.findWithLockById(registrationId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy đăng ký"));
 
@@ -541,36 +516,26 @@ public class EventRegistrationServiceImpl implements EventRegistrationService {
         registration.setCheckInTime(newTime);
         registrationRepository.save(registration);
 
-        String fullName = registration.getFullName();
-        String avatarUrl = registration.getAvatarUrl();
-        if (fullName == null || avatarUrl == null) {
-            participantRepository.findByEventIdAndParticipantAccountId(registration.getEvent().getId(), registration.getParticipantAccountId())
-                .ifPresent(p -> {
-                    registration.setFullName(p.getFullName());
-                    registration.setAvatarUrl(p.getAvatarUrl());
-                });
-            fullName = registration.getFullName();
-            avatarUrl = registration.getAvatarUrl();
-        }
+        // Profile info will be handled by the caller
+        String fullName = null;
+        String avatarUrl = null;
 
-        return CheckInResponse.builder()
+        return EventCheckInResponse.builder()
                 .success(true)
                 .message("Cập nhật thời gian điểm danh thành công")
                 .userProfileId(registration.getParticipantAccountId())
-                .fullName(fullName)
-                .avatarUrl(avatarUrl)
                 .checkInTime(newTime.toString())
                 .build();
     }
 
     @Override
-    public CheckInResponse getEventQRToken(String idOrSlug) {
+    public EventCheckInResponse getEventQRToken(String idOrSlug) {
         String eventId = resolveEventId(idOrSlug);
         Event event = eventRepository.findById(eventId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy sự kiện"));
 
         String token = qrTokenUtil.generateEventQRToken(event.getId(), event.getEndTime(), event.getQrType());
-        return CheckInResponse.builder().success(true).token(token).build();
+        return EventCheckInResponse.builder().success(true).token(token).build();
     }
 
     @Transactional
@@ -585,17 +550,18 @@ public class EventRegistrationServiceImpl implements EventRegistrationService {
 
     @Transactional
     @Override
-    public CheckInResponse checkInByEventToken(String eventToken, String userId) {
+    public EventCheckInResponse checkInByEventToken(String eventToken, String userId) {
         Claims claims;
         try {
             claims = qrTokenUtil.verifyQRToken(eventToken);
         } catch (Exception e) {
-            return CheckInResponse.builder().success(false).message("Mã QR sự kiện không hợp lệ hoặc đã hết hạn").build();
+            return EventCheckInResponse.builder().success(false).message("Mã QR sự kiện không hợp lệ hoặc đã hết hạn")
+                    .build();
         }
 
         Boolean isEventToken = claims.get("isEventToken", Boolean.class);
         if (isEventToken == null || !isEventToken) {
-            return CheckInResponse.builder().success(false).message("Đây không phải là mã QR của sự kiện").build();
+            return EventCheckInResponse.builder().success(false).message("Đây không phải là mã QR của sự kiện").build();
         }
 
         String eventId = claims.get("eventId", String.class);
@@ -604,7 +570,8 @@ public class EventRegistrationServiceImpl implements EventRegistrationService {
 
         // 1. Kiểm tra xem điểm danh có đang được bật không
         if (!event.isCheckInEnabled()) {
-            return CheckInResponse.builder().success(false).message("Điểm danh hiện đang bị đóng bởi Ban tổ chức").build();
+            return EventCheckInResponse.builder().success(false).message("Điểm danh hiện đang bị đóng bởi Ban tổ chức")
+                    .build();
         }
 
         // 2. Kiểm tra thời gian (Cho phép trước 30p và trong khi diễn ra)
@@ -613,14 +580,14 @@ public class EventRegistrationServiceImpl implements EventRegistrationService {
         LocalDateTime checkInClose = event.getEndTime();
 
         if (now.isBefore(checkInOpen)) {
-            return CheckInResponse.builder()
+            return EventCheckInResponse.builder()
                     .success(false)
                     .message("Chưa đến giờ điểm danh. Hệ thống mở lúc " + checkInOpen.toLocalTime())
                     .build();
         }
 
         if (now.isAfter(checkInClose)) {
-            return CheckInResponse.builder()
+            return EventCheckInResponse.builder()
                     .success(false)
                     .message("Sự kiện đã kết thúc, không thể điểm danh")
                     .build();
@@ -631,11 +598,11 @@ public class EventRegistrationServiceImpl implements EventRegistrationService {
                 .orElse(null);
 
         if (registration == null) {
-            return CheckInResponse.builder().success(false).message("Bạn chưa đăng ký sự kiện này").build();
+            return EventCheckInResponse.builder().success(false).message("Bạn chưa đăng ký sự kiện này").build();
         }
 
         if (registration.isCheckedIn()) {
-            return CheckInResponse.builder().success(false).message("Bạn đã điểm danh rồi").build();
+            return EventCheckInResponse.builder().success(false).message("Bạn đã điểm danh rồi").build();
         }
 
         registration.setCheckedIn(true);
@@ -643,10 +610,15 @@ public class EventRegistrationServiceImpl implements EventRegistrationService {
         registration.setStatus(RegistrationStatus.ATTENDED);
         registrationRepository.save(registration);
 
-        return CheckInResponse.builder()
+        try {
+            luckyDrawClient.notifyCheckIn(eventId, userId);
+        } catch (Exception e) {
+            log.error("Failed to notify lucky-draw-service about event token check-in: {}", e.getMessage());
+        }
+
+        return EventCheckInResponse.builder()
                 .success(true)
                 .message("Điểm danh thành công!")
-                .fullName(registration.getFullName())
                 .checkInTime(now.toString())
                 .build();
     }
@@ -657,7 +629,7 @@ public class EventRegistrationServiceImpl implements EventRegistrationService {
         String eventId = resolveEventId(idOrSlug);
         Event event = eventRepository.findById(eventId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy sự kiện"));
-        
+
         event.setCheckInEnabled(enabled);
         eventRepository.save(event);
     }

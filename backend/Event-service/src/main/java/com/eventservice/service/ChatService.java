@@ -1,7 +1,16 @@
 package com.eventservice.service;
 
-import com.eventservice.dto.*;
-import com.eventservice.entity.ChatSession;
+import com.eventservice.dto.core.request.*;
+import com.eventservice.dto.core.response.*;
+import com.eventservice.dto.registration.request.*;
+import com.eventservice.dto.registration.response.*;
+import com.eventservice.dto.social.request.*;
+import com.eventservice.dto.social.response.*;
+import com.eventservice.dto.plan.request.*;
+import com.eventservice.dto.plan.response.*;
+import com.eventservice.dto.user.*;
+import com.eventservice.dto.engagement.*;
+import com.eventservice.entity.social.ChatSession;
 
 import java.util.List;
 
@@ -40,7 +49,7 @@ public interface ChatService {
     /**
      * Generate event plan from chat
      */
-    EventPlanSuggestion generateEventPlanFromChat(String sessionId, String userId);
+    EventPlanSuggestionResponse generateEventPlanFromChat(String sessionId, String userId);
     
     /**
      * Get quick reply suggestions
@@ -50,5 +59,6 @@ public interface ChatService {
     /**
      * Extract event details from raw text using AI
      */
-    EventPlanSuggestion extractFromText(String text);
+    EventPlanSuggestionResponse extractFromText(String text);
 }
+

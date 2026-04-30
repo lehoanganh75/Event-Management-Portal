@@ -5,8 +5,8 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import com.eventservice.entity.Event;
-import com.eventservice.entity.EventPresenter;
+import com.eventservice.entity.core.Event;
+import com.eventservice.entity.people.EventPresenter;
 import com.eventservice.repository.EventPresenterRepository;
 import com.eventservice.repository.EventRepository;
 
@@ -67,7 +67,7 @@ public class EventPresenterServiceImpl implements EventPresenterService {
     }
 
     @Override
-    public boolean existsByEventIdAndEmail(String eventId, String email) {
-        return presenterRepository.existsByEventIdAndEmail(eventId, email);
+    public boolean existsByEventIdAndPresenterAccountId(String eventId, String accountId) {
+        return presenterRepository.existsByEventIdAndPresenterAccountId(eventId, accountId);
     }
 }

@@ -5,7 +5,7 @@ import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
-import com.eventservice.entity.EventRegistration;
+import com.eventservice.entity.registration.EventRegistration;
 import com.eventservice.entity.enums.RegistrationStatus;
 import jakarta.persistence.LockModeType;
 
@@ -25,7 +25,7 @@ public interface EventRegistrationRepository extends JpaRepository<EventRegistra
     Optional<EventRegistration> findWithLockByEventIdAndUserId(@Param("eventId") String eventId, @Param("userId") String userId);
 
     List<EventRegistration> findByEventId(String eventId);
-    List<EventRegistration> findByEvent(com.eventservice.entity.Event event);
+    List<EventRegistration> findByEvent(com.eventservice.entity.core.Event event);
 
     // SỬA: Đổi từ userRegistrationId thành participantAccountId cho khớp Entity
     List<EventRegistration> findByParticipantAccountId(String participantAccountId);

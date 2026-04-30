@@ -1,6 +1,6 @@
 package com.eventservice.controller;
 
-import com.eventservice.entity.Organization;
+import com.eventservice.entity.core.Organization;
 import com.eventservice.service.OrganizationService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;

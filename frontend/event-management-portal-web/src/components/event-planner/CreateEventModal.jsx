@@ -10,7 +10,7 @@ const mapTemplateToPrefill = (template) => {
   // Build AI-suggested sessions from configData if available
   const sessions = template.configData?.sessions || [];
   const presenters = template.configData?.presenters || [];
-  const targetObjects = template.configData?.targetObjects || 
+  const targetObjects = template.configData?.targetObjects ||
     (template.faculty ? [{ type: 'FACULTY', name: template.faculty }] : []);
 
   return {
@@ -85,8 +85,8 @@ const CreateEventModal = ({ isOpen, onClose, onSelectPlan, onCreateNew }) => {
       // getAllTemplatesGlobal returns paged result with isStarred per user
       const data = await eventService.getAllTemplates(null, '', { page: 0, size: 100, sortBy: 'usageCount', direction: 'desc' });
       const list = Array.isArray(data?.content) ? data.content
-                  : Array.isArray(data) ? data
-                  : [];
+        : Array.isArray(data) ? data
+          : [];
       setTemplates(list);
     } catch (error) {
       console.error("Lỗi lấy danh sách mẫu:", error);
@@ -215,18 +215,16 @@ const CreateEventModal = ({ isOpen, onClose, onSelectPlan, onCreateNew }) => {
                     <button
                       key={template.id}
                       onClick={() => setSelected(template)}
-                      className={`relative w-full text-left p-5 rounded-2xl border-2 transition-all ${
-                        isSelected
+                      className={`relative w-full text-left p-5 rounded-2xl border-2 transition-all ${isSelected
                           ? "border-blue-500 bg-blue-50 shadow-md shadow-blue-100"
                           : "border-slate-200 bg-white hover:border-blue-300 hover:shadow-sm"
-                      }`}
+                        }`}
                     >
                       {/* Star Toggle */}
-                      <div 
+                      <div
                         onClick={(e) => handleToggleStar(e, template)}
-                        className={`absolute top-4 right-4 p-1.5 rounded-full transition-all cursor-pointer z-10 ${
-                          template.isStarred ? "text-amber-400 bg-amber-50 hover:bg-amber-100" : "text-gray-300 hover:bg-gray-100 hover:text-amber-400"
-                        }`}
+                        className={`absolute top-4 right-4 p-1.5 rounded-full transition-all cursor-pointer z-10 ${template.isStarred ? "text-amber-400 bg-amber-50 hover:bg-amber-100" : "text-gray-300 hover:bg-gray-100 hover:text-amber-400"
+                          }`}
                       >
                         <Star size={18} fill={template.isStarred ? "currentColor" : "none"} />
                       </div>

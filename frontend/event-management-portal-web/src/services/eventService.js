@@ -180,6 +180,13 @@ const eventService = {
     nextQuizQuestion: (quizId, index) => privateApi.post(`/quizzes/${quizId}/next`, null, { params: { index } }),
     submitQuizAnswer: (submission) => privateApi.post('/quizzes/submit', submission),
     getQuizLeaderboard: (quizId) => privateApi.get(`/quizzes/${quizId}/leaderboard`),
+    importQuizFromWord: (eventId, file) => {
+        const formData = new FormData();
+        formData.append('file', file);
+        return privateApi.post(`/quizzes/import/${eventId}`, formData, {
+            headers: { 'Content-Type': 'multipart/form-data' }
+        });
+    },
 
     // --- SURVEY API ---
     getSurveyByEvent: (eventId) => privateApi.get(`/surveys/event/${eventId}`),
@@ -187,6 +194,13 @@ const eventService = {
     publishSurvey: (surveyId) => privateApi.post(`/surveys/${surveyId}/publish`),
     submitSurveyResponse: (surveyId, answers) => privateApi.post(`/surveys/${surveyId}/submit`, { answers }),
     checkSurveySubmission: (surveyId) => privateApi.get(`/surveys/${surveyId}/has-submitted`),
+    importSurveyFromWord: (eventId, file) => {
+        const formData = new FormData();
+        formData.append('file', file);
+        return privateApi.post(`/surveys/import/${eventId}`, formData, {
+            headers: { 'Content-Type': 'multipart/form-data' }
+        });
+    },
 
     // --- GROUP 7: ADMIN APPROVAL ---
     getPlansPendingApproval: () => privateApi.get('/events/admin/plans/pending'),

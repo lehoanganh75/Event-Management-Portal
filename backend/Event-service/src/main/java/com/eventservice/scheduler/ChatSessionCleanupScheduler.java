@@ -1,6 +1,6 @@
 package com.eventservice.scheduler;
 
-import com.eventservice.entity.ChatSession;
+import com.eventservice.entity.social.ChatSession;
 import com.eventservice.entity.enums.ChatSessionStatus;
 import com.eventservice.repository.ChatSessionRepository;
 import lombok.RequiredArgsConstructor;

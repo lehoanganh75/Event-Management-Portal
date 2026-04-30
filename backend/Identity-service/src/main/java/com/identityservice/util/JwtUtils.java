@@ -8,8 +8,7 @@ import io.jsonwebtoken.security.Keys;
 import jakarta.annotation.PostConstruct;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
-import com.identityservice.dto.UserPrincipal;
-import com.identityservice.entity.Account;
+import com.identityservice.dto.auth.UserPrincipal;
 
 import javax.crypto.SecretKey;
 import java.util.Date;
@@ -61,7 +60,7 @@ public class JwtUtils {
         Date expiryDate = new Date(now.getTime() + accessExpiration * 1000);
 
         return Jwts.builder()
-                .setSubject(userPrincipal.getAccountId())
+                .setSubject(userPrincipal.getUserId())
                 .claim("role", userPrincipal.getRole())
                 .setIssuedAt(now)
                 .setExpiration(expiryDate)

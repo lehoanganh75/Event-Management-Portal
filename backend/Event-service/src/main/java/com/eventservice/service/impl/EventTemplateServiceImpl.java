@@ -6,17 +6,17 @@ import org.springframework.data.domain.*;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import java.util.Optional;
-import com.eventservice.entity.Event;
-import com.eventservice.entity.EventOrganizer;
-import com.eventservice.entity.EventTemplate;
+import com.eventservice.entity.core.Event;
+import com.eventservice.entity.people.EventOrganizer;
+import com.eventservice.entity.template.EventTemplate;
 import com.eventservice.entity.enums.EventStatus;
 import com.eventservice.repository.EventRepository;
 import com.eventservice.repository.EventTemplateRepository;
 import com.eventservice.repository.OrganizationRepository;
 import com.eventservice.repository.UserStarredTemplateRepository;
-import com.eventservice.entity.UserStarredTemplate;
+import com.eventservice.entity.template.UserStarredTemplate;
 import com.eventservice.kafka.NotificationProducer;
-import com.eventservice.dto.NotificationEvent;
+import com.eventservice.dto.engagement.NotificationEventDto;
 import com.eventservice.service.EventTemplateService;
 
 import java.time.LocalDateTime;
@@ -58,7 +58,7 @@ public class EventTemplateServiceImpl implements EventTemplateService {
 
         // Send real-time notification about usage
         if (accountId != null && !accountId.equals("anonymous")) {
-            NotificationEvent usageNotification = NotificationEvent.builder()
+            NotificationEventDto usageNotification = NotificationEventDto.builder()
                     .recipientId(accountId)
                     .title("Đã áp dụng bản mẫu")
                     .message("Bản mẫu \"" + template.getTemplateName() + "\" đã được ghi nhận thêm 1 lượt sử dụng!")
@@ -120,7 +120,7 @@ public class EventTemplateServiceImpl implements EventTemplateService {
 
         // Gửi thông báo real-time qua Kafka
         if (accountId != null && !accountId.equals("anonymous")) {
-            NotificationEvent event = NotificationEvent.builder()
+            NotificationEventDto event = NotificationEventDto.builder()
                     .recipientId(accountId)
                     .title("Đã lưu bản mẫu mới")
                     .message("Bạn đã tạo bản mẫu \"" + saved.getTemplateName() + "\" thành công!")
@@ -153,9 +153,6 @@ public class EventTemplateServiceImpl implements EventTemplateService {
         template.setDefaultLocation(details.getDefaultLocation());
         template.setDefaultEventMode(details.getDefaultEventMode());
         template.setDefaultMaxParticipants(details.getDefaultMaxParticipants());
-
-        template.setFaculty(details.getFaculty());
-        template.setMajor(details.getMajor());
 
         template.getThemes().clear();
         if (details.getThemes() != null) {

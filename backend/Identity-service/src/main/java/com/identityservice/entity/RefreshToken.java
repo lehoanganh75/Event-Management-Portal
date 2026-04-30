@@ -2,13 +2,11 @@ package com.identityservice.entity;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
-import lombok.AllArgsConstructor;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.Setter;
+import lombok.*;
 
 import java.time.LocalDateTime;
 
+@Builder
 @Entity
 @Getter
 @Setter
@@ -22,11 +20,15 @@ public class RefreshToken {
 
     private String token;
     private LocalDateTime expiryDate;
-    private boolean revoked;
-    private boolean used;
+
+    @Builder.Default
+    private boolean revoked = false;
+
+    @Builder.Default
+    private boolean used = false;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "account_id")
+    @JoinColumn(name = "user_id")
     @JsonIgnore
-    private Account account;
+    private User user;
 }

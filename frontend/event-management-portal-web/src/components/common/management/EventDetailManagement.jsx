@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useEffect } from "react";
+import React, { useMemo, useState, useEffect, useRef } from "react";
 import { useAuth } from "../../../context/AuthContext";
 import {
   Calendar, Clock, MapPin, Users, Award, TrendingUp, Settings, ArrowLeft,
@@ -22,6 +22,7 @@ import {
   Camera,
   Phone,
   FileText,
+  FileUp,
   Send,
   Trash,
   LogOut,
@@ -30,7 +31,9 @@ import {
   QrCode,
   Download,
   Maximize2,
-  ClipboardCheck
+  ClipboardCheck,
+  ShieldCheck,
+  Waves
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import authService from "../../../services/authService";
@@ -42,9 +45,11 @@ import SurveyModal from "../../survey/SurveyModal";
 import SurveyCreatorModal from "../../survey/SurveyCreatorModal";
 import EventStatistics from "./EventStatistics";
 import QRCode from "react-qr-code";
-import eventService from "../../../services/eventService";
+import DuckRaceLuckyDraw from "../../engagement/DuckRaceLuckyDraw";
 import { useQuiz } from "../../../hooks/useQuiz";
 import { toast } from "react-toastify";
+import luckyDrawService from "../../../services/luckyDrawService";
+import eventService from "../../../services/eventService";
 
 // Helper components that were inside the page
 const Field = ({ label, children, required, style }) => (
@@ -168,8 +173,8 @@ const getOrganizerRole = (role) => {
     case "LEADER": return { label: "Ban tổ chức", color: "bg-purple-100 text-purple-700" };
     case "COORDINATOR": return { label: "Điều phối viên", color: "bg-indigo-100 text-indigo-700" };
     case "MEMBER": return { label: "Thành viên", color: "bg-blue-100 text-blue-700" };
-    case "ADVISOR": return { label: "Cố vấn", color: "bg-teal-100 text-teal-700" };
-
+    case "ADVISOR": return { label: "Cố vấn", color: "bg-emerald-100 text-emerald-700" };
+    case "PARTICIPANT": return { label: "Người tham gia", color: "bg-slate-100 text-slate-600" };
     default: return { label: role, color: "bg-gray-100 text-gray-600" };
   }
 };
@@ -242,15 +247,76 @@ const EventDetailManagement = ({
   const [enrichedNames, setEnrichedNames] = useState({});
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [confirmConfig, setConfirmConfig] = useState({ title: "", message: "", onConfirm: () => { }, icon: Trash2, color: "rose" });
-  
+
   // Editing state
   const [editingTimeId, setEditingTimeId] = useState(null);
   const [newCheckInTime, setNewCheckInTime] = useState("");
   const [isUpdatingTime, setIsUpdatingTime] = useState(false);
 
+  // Import Word logic
+  const fileInputRef = useRef(null);
+
+  const handleWordImport = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    if (!file.name.endsWith('.docx')) {
+      toast.error("Vui lòng chọn file Word (.docx)");
+      return;
+    }
+
+    try {
+      const toastId = toast.loading("Đang nhập dữ liệu từ Word...");
+      await eventService.importQuizFromWord(event.id, file);
+      toast.update(toastId, {
+        render: "Nhập thử thách thành công!",
+        type: "success",
+        isLoading: false,
+        autoClose: 3000
+      });
+      fetchQuizzes();
+    } catch (error) {
+      console.error("Import error:", error);
+      toast.error("Lỗi khi nhập file: " + (error.response?.data?.message || error.message));
+    } finally {
+      e.target.value = null;
+    }
+  };
+
+  const surveyFileInputRef = useRef(null);
+  const handleSurveyWordImport = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    if (!file.name.endsWith('.docx')) {
+      toast.error("Vui lòng chọn file Word (.docx)");
+      return;
+    }
+
+    try {
+      const toastId = toast.loading("Đang nhập khảo sát từ Word...");
+      await eventService.importSurveyFromWord(event.id, file);
+      toast.update(toastId, {
+        render: "Nhập khảo sát thành công!",
+        type: "success",
+        isLoading: false,
+        autoClose: 3000
+      });
+      // Optionally fetch survey or refresh event
+      onRefresh();
+    } catch (error) {
+      console.error("Survey import error:", error);
+      toast.error("Lỗi khi nhập file: " + (error.response?.data?.message || error.message));
+    } finally {
+      e.target.value = null;
+    }
+  };
+
   // Event QR Token states
   const [showEventQRModal, setShowEventQRModal] = useState(false);
   const [eventQRToken, setEventQRToken] = useState("");
+
+  const [showAllSurveyQuestions, setShowAllSurveyQuestions] = useState(false);
   const [loadingQR, setLoadingQR] = useState(false);
   const [showQRZoom, setShowQRZoom] = useState(false);
 
@@ -262,6 +328,29 @@ const EventDetailManagement = ({
   const [activeQuizId, setActiveQuizId] = useState(null);
   const [quizzes, setQuizzes] = useState([]);
   const [loadingQuizzes, setLoadingQuizzes] = useState(false);
+
+  // Duck Race states
+  const [showDuckRace, setShowDuckRace] = useState(false);
+  const [raceParticipants, setRaceParticipants] = useState([]);
+  const [isSpinning, setIsSpinning] = useState(false);
+
+  const handleOpenDuckRace = async () => {
+    if (!luckyDraw?.luckyDraw?.id) {
+      toast.error("Chiến dịch Lucky Draw chưa được thiết lập!");
+      return;
+    }
+    try {
+      const res = await luckyDrawService.getParticipants(luckyDraw.luckyDraw.id);
+      setRaceParticipants(res.data || []);
+      setShowDuckRace(true);
+    } catch (err) {
+      toast.error("Không thể tải danh sách người tham gia đua vịt");
+    }
+  };
+
+  const handleDuckSpin = async (prizeId) => {
+    return (await luckyDrawService.adminSpin(luckyDraw.luckyDraw.id, prizeId)).data;
+  };
 
   // Always-on WebSocket for quiz - connected at component level to never miss events
   const { quizState, leaderboard, activeQuizId: wsActiveQuizId } = useQuiz(event?.id);
@@ -303,7 +392,7 @@ const EventDetailManagement = ({
     const canvas = document.createElement("canvas");
     const ctx = canvas.getContext("2d");
     const img = new Image();
-    
+
     img.onload = () => {
       canvas.width = img.width + 40;
       canvas.height = img.height + 40;
@@ -471,54 +560,67 @@ const EventDetailManagement = ({
   const dynamicTabs = useMemo(() => {
     if (!event) return [];
 
-    // Mọi vai trò đều thấy 2 tab này
-    const baseTabs = [
-      { key: "Tổng quan", label: "Tổng quan", icon: Info },
-      { key: "Chương trình", label: "Chương trình", icon: List },
-    ];
+    const tabs = [];
 
-    // Nếu là Diễn giả (và không phải Core Team), CHỈ hiện thêm 2 tab nhân sự, KHÔNG hiện gì khác
+    // 1. Tổng quan (Giai đoạn chuẩn bị - Thông tin)
+    tabs.push({ key: "Tổng quan", label: "Tổng quan", icon: Info });
+
+    // 2. Chương trình (Giai đoạn chuẩn bị - Nội dung)
+    tabs.push({ key: "Chương trình", label: "Chương trình", icon: List });
+
+    // 3. Diễn giả (Giai đoạn chuẩn bị - Nhân sự then chốt)
+    tabs.push({ key: "Diễn giả", label: "Diễn giả", icon: Star });
+
+    // 4. Ban tổ chức (Giai đoạn chuẩn bị - Đội ngũ vận hành)
+    tabs.push({ key: "Ban tổ chức", label: "Ban tổ chức", icon: Users });
+
+    // Nếu là Diễn giả (và không phải Core Team), CHỈ hiện 4 tab trên
     if (isPresenter && !isCoreTeam) {
-      baseTabs.push({ key: "Ban tổ chức", label: "Ban tổ chức", icon: Users });
-      baseTabs.push({ key: "Diễn giả", label: "Diễn giả", icon: Star });
-      return baseTabs;
+      return tabs;
     }
 
-    // --- Logic cho các vai trò khác ---
+    // --- Logic cho các vai trò quản lý/BTC ---
 
-    // Đăng ký & Điểm danh (Core Team, Admin, hoặc Member trong BTC)
+    // 5. Đăng ký (Giai đoạn vận hành - Trước sự kiện)
     if (canSeeAll || isMember) {
-      if (canSeeAll || up.canManageRegistrations) baseTabs.push({ key: "Đăng ký", label: "Đăng ký", icon: UserCheck });
-      // Cho phép cả Member thấy tab Điểm danh để hỗ trợ quét mã
-      if (canSeeAll || isMember || up.canCheckIn) baseTabs.push({ key: "Điểm danh", label: "Điểm danh", icon: CheckCircle });
+      if (canSeeAll || up.canManageRegistrations) {
+        tabs.push({ key: "Đăng ký", label: "Đăng ký", icon: UserCheck });
+      }
     }
 
-    // Nhân sự (Mọi người đều thấy nhưng nội dung bên trong có thể khác)
-    baseTabs.push({ key: "Ban tổ chức", label: "Ban tổ chức", icon: Users });
-    baseTabs.push({ key: "Diễn giả", label: "Diễn giả", icon: Star });
-
-    // Vòng quay may mắn (Chỉ khi sự kiện có và là Core/Admin)
-    if (canSeeAll && event?.hasLuckyDraw) {
-      baseTabs.push({ key: "Vòng quay", label: "Vòng quay may mắn", icon: Gift });
+    // 6. Điểm danh (Giai đoạn vận hành - Trong sự kiện)
+    if (canSeeAll || isMember) {
+      if (canSeeAll || isMember || up.canCheckIn) {
+        tabs.push({ key: "Điểm danh", label: "Điểm danh", icon: CheckCircle });
+      }
     }
 
-    // Thống kê (Core Team, Admin, hoặc Advisor)
-    if (canSeeAll || isAdvisor || up.canViewAnalytics) {
-      baseTabs.push({ key: "Thống kê", label: "Thống kê", icon: TrendingUp });
-    }
-
-    // Thử thách & Khảo sát (BTC & Admin)
+    // 7. Thử thách (Giai đoạn tương tác)
     if (canSeeAll) {
-      baseTabs.push({ key: "Thử thách", label: "Thử thách", icon: Trophy });
-      baseTabs.push({ key: "Khảo sát", label: "Khảo sát", icon: ClipboardCheck });
+      tabs.push({ key: "Thử thách", label: "Thử thách", icon: Trophy });
     }
 
-    // Cài đặt (Mọi thành viên Ban tổ chức đều thấy để có thể rời ban, nhưng nội dung bên trong sẽ khác nhau)
+    // 8. Khảo sát (Giai đoạn tương tác/Phản hồi)
+    if (canSeeAll) {
+      tabs.push({ key: "Khảo sát", label: "Khảo sát", icon: ClipboardCheck });
+    }
+
+    // Vòng quay may mắn (Giai đoạn tương tác - Nếu có)
+    if (canSeeAll && event?.hasLuckyDraw) {
+      tabs.push({ key: "Vòng quay", label: "Vòng quay may mắn", icon: Gift });
+    }
+
+    // 9. Thống kê (Giai đoạn kết thúc - Báo cáo)
+    if (canSeeAll || isAdvisor || up.canViewAnalytics) {
+      tabs.push({ key: "Thống kê", label: "Thống kê", icon: TrendingUp });
+    }
+
+    // 10. Cài đặt (Hệ thống)
     if (canSeeAll || up.canEditEvent || event.currentUserRole?.organizer) {
-      baseTabs.push({ key: "Cài đặt", label: "Cài đặt", icon: Settings });
+      tabs.push({ key: "Cài đặt", label: "Cài đặt", icon: Settings });
     }
 
-    return baseTabs;
+    return tabs;
   }, [event, up, isCoreTeam, isPresenter, isMember, isAdvisor, canSeeAll, isAdmin]);
 
   console.log("Event: ", event);
@@ -592,63 +694,49 @@ const EventDetailManagement = ({
         <div className="absolute inset-0 bg-gradient-to-b from-black/40 to-black/70" />
         <button onClick={onBack} className="absolute top-6 left-6 flex items-center gap-2 bg-white/90 hover:bg-white px-5 py-2.5 rounded-2xl text-sm font-medium shadow transition-all"><ArrowLeft size={18} /> Quay lại</button>
         <div className="absolute top-6 right-6 flex items-center gap-3">
-          <div className="flex gap-2">
-            {userRoles.map((r, i) => (
-              <span key={i} className={`px-3 py-1.5 rounded-2xl text-[10px] font-bold uppercase shadow-sm ${r.color}`}>
-                {r.label}
-              </span>
-            ))}
-          </div>
           <span className={`px-5 py-2 rounded-2xl text-sm font-medium ${currentStatus.color}`}>{currentStatus.label}</span>
         </div>
       </div>
 
-      <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 relative z-10 -mt-12 pb-12">
+      <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 relative -mt-12 pb-12">
         {/* Header Info */}
         <div className="bg-white rounded-3xl shadow-lg p-6 mb-6">
           <div className="flex justify-between items-start">
             <div className="flex flex-col gap-1">
               <h1 className="text-3xl font-bold text-slate-900">{event.title}</h1>
-              {userRoles.length > 0 && (
-                <div className="flex items-center gap-2 mt-1">
-                  <div className="flex gap-1.5">
-                    {userRoles.map((r, i) => (
-                      <span key={i} className={`px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider ${r.color}`}>
-                        {r.label}
-                      </span>
-                    ))}
-                  </div>
-                  <span className="text-[10px] text-slate-400 font-bold uppercase">• Tư cách của bạn</span>
-                </div>
-              )}
             </div>
-            {canSeeAll && canEdit && (
-              <button
-                onClick={onEditInfo}
-                className="flex items-center gap-2 px-4 py-2 bg-indigo-50 text-indigo-600 rounded-xl text-sm font-bold hover:bg-indigo-100 transition-all shadow-sm"
-              >
-                <Edit3 size={16} /> Chỉnh sửa
-              </button>
-            )}
+            {/* Nút chỉnh sửa đã được di chuyển vào tab Cài đặt */}
           </div>
           <p className="text-base text-gray-600 leading-relaxed">{event.description}</p>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-5 mt-3">
             <div className="flex gap-3"><div className="w-10 h-10 bg-blue-100 rounded-xl flex items-center justify-center"><Calendar className="text-blue-600" size={22} /></div><div><p className="text-gray-500 text-xs">Ngày tổ chức</p><p className="font-semibold text-sm">{formatDate(event.startTime)}</p></div></div>
-            <div className="flex gap-3"><div className="w-10 h-10 bg-blue-100 rounded-xl flex items-center justify-center"><Clock className="text-blue-600" size={22} /></div><div><p className="text-gray-500 text-xs">Thời gian</p><p className="font-semibold text-sm">{new Date(event.startTime).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })} - {new Date(event.endTime).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}</p></div></div>
             <div className="flex gap-3"><div className="w-10 h-10 bg-blue-100 rounded-xl flex items-center justify-center"><MapPin className="text-blue-600" size={22} /></div><div><p className="text-gray-500 text-xs">Địa điểm</p><p className="font-semibold text-sm">{event.location}</p><p className="text-xs text-gray-500">{event.eventMode === "OFFLINE" ? "Trực tiếp" : "Trực tuyến"}</p></div></div>
           </div>
         </div>
 
         {/* Tabs */}
         <div className="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden">
-          <div className="flex border-b border-gray-400 overflow-x-auto bg-gray-50 no-scrollbar">
+          <div className="flex border-b border-slate-200 overflow-x-auto bg-slate-50/50 no-scrollbar">
             {dynamicTabs.map(tab => {
               const Icon = tab.icon;
+              const isActive = activeTab === tab.key;
               return (
                 <button
                   key={tab.key}
                   onClick={() => setActiveTab(tab.key)}
-                  className={`flex items-center gap-2 px-4 py-3 text-sm font-medium transition-all relative min-w-max ${activeTab === tab.key ? "border-blue-600 text-blue-600 bg-white" : "border-transparent text-gray-600 hover:text-slate-800"}`}><Icon size={16} />{tab.label}</button>
+                  className={`flex items-center justify-center gap-1.5 px-3 py-3.5 text-[12px] font-bold transition-all relative flex-1 min-w-fit ${isActive ? "text-blue-600 bg-white" : "text-slate-500 hover:text-slate-700 hover:bg-slate-50"}`}
+                >
+                  <Icon size={16} className={isActive ? "text-blue-600" : "text-slate-400"} />
+                  {tab.label}
+                  {isActive && (
+                    <motion.div
+                      layoutId="activeTabUnderline"
+                      className="absolute bottom-0 left-0 right-0 h-[3px] bg-blue-600 rounded-t-full"
+                      initial={false}
+                      transition={{ type: "spring", stiffness: 500, damping: 30 }}
+                    />
+                  )}
+                </button>
               );
             })}
           </div>
@@ -656,18 +744,104 @@ const EventDetailManagement = ({
           <div className="p-6">
             {/* TỔNG QUAN */}
             {activeTab === "Tổng quan" && (
-              <div className="space-y-6">
-                <div>
-                  <h3 className="font-semibold text-base mb-4 flex items-center gap-2"><Flag className="text-amber-600" size={20} /> Các mốc thời gian quan trọng</h3>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-                    <div className="bg-white border border-gray-200 rounded-xl p-5"><div className="flex items-center gap-2 mb-3"><div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center"><Calendar className="text-blue-600" size={18} /></div><div><p className="text-[11px] text-gray-500 font-medium">BẮT ĐẦU</p></div></div><p className="text-sm font-medium text-slate-700">{formatFullDateTime(event.startTime)}</p></div>
-                    <div className="bg-white border border-gray-200 rounded-xl p-5"><div className="flex items-center gap-2 mb-3"><div className="w-8 h-8 bg-red-100 rounded-lg flex items-center justify-center"><Clock className="text-red-600" size={18} /></div><div><p className="text-[11px] text-gray-500 font-medium">HẠN ĐĂNG KÝ</p></div></div><p className="text-sm font-medium text-slate-700">{formatFullDateTime(event.registrationDeadline)}</p></div>
-                    <div className="bg-white border border-gray-200 rounded-xl p-5"><div className="flex items-center gap-2 mb-3"><div className="w-8 h-8 bg-emerald-100 rounded-lg flex items-center justify-center"><Calendar className="text-emerald-600" size={18} /></div><div><p className="text-[11px] text-gray-500 font-medium">KẾT THÚC</p></div></div><p className="text-sm font-medium text-slate-700">{formatFullDateTime(event.endTime)}</p></div>
+              <div className="space-y-8">
+                {/* TIMELINE SECTION (Simplified) */}
+                <div className="pb-16">
+                  <h3 className="font-bold text-sm mb-16 flex items-center gap-2 text-slate-800 uppercase tracking-tight">
+                    <Flag className="text-amber-500" size={18} /> Lộ trình thời gian
+                  </h3>
+
+                  <div className="relative px-4">
+                    <div className="mx-20 relative">
+                      {/* Background Line */}
+                      <div className="absolute top-1/2 left-0 w-full h-1 bg-slate-100 -translate-y-1/2 rounded-full" />
+
+                      {/* Calculation of positions */}
+                      {(() => {
+                        const now = new Date();
+                        const deadline = new Date(event.registrationDeadline);
+                        const start = new Date(event.startTime);
+                        const end = new Date(event.endTime);
+
+                        const allDates = [deadline, start, end, now].filter(d => !isNaN(d.getTime())).sort((a, b) => a - b);
+                        if (allDates.length < 2) return null;
+
+                        const minDate = allDates[0];
+                        const maxDate = allDates[allDates.length - 1];
+                        const totalSpan = maxDate - minDate || 1;
+
+                        const getPos = (date) => Math.min(Math.max(((date - minDate) / totalSpan) * 100, 0), 100);
+
+                        const deadlinePos = getPos(deadline);
+                        const startPos = getPos(start);
+                        const endPos = getPos(end);
+                        const nowPos = getPos(now);
+                        const isPast = (date) => now > date;
+
+                        return (
+                          <>
+                            {/* Progress Line */}
+                            <div
+                              className="absolute top-1/2 left-0 h-1 bg-indigo-500 -translate-y-1/2 rounded-full transition-all duration-1000"
+                              style={{ width: `${nowPos}%` }}
+                            />
+
+                            {/* MILESTONE: DEADLINE */}
+                            <div className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2" style={{ left: `${deadlinePos}%` }}>
+                              <div className={`w-3 h-3 rounded-full border-2 ${isPast(deadline) ? 'bg-indigo-500 border-indigo-100' : 'bg-white border-slate-300'} z-10`} />
+                              <div className="absolute top-1/2 left-1/2 w-px h-8 bg-slate-200 -translate-x-1/2" />
+                              <div className="absolute top-10 left-1/2 -translate-x-1/2 text-center w-32">
+                                <p className="text-[9px] font-black text-rose-500 uppercase tracking-tighter">Hạn đăng ký</p>
+                                <p className="text-[10px] font-bold text-slate-700 leading-tight">{formatFullDateTime(event.registrationDeadline)}</p>
+                              </div>
+                            </div>
+
+                            {/* MILESTONE: START */}
+                            <div className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2" style={{ left: `${startPos}%` }}>
+                              <div className={`w-3 h-3 rounded-full border-2 ${isPast(start) ? 'bg-indigo-500 border-indigo-100' : 'bg-white border-slate-300'} z-10`} />
+                              <div className="absolute bottom-1/2 left-1/2 w-px h-8 bg-slate-200 -translate-x-1/2" />
+                              <div className="absolute bottom-10 left-1/2 -translate-x-1/2 text-center w-32">
+                                <p className="text-[9px] font-black text-blue-500 uppercase tracking-tighter">Bắt đầu</p>
+                                <p className="text-[10px] font-bold text-slate-700 leading-tight">{formatFullDateTime(event.startTime)}</p>
+                              </div>
+                            </div>
+
+                            {/* MILESTONE: END */}
+                            <div className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2" style={{ left: `${endPos}%` }}>
+                              <div className={`w-3 h-3 rounded-full border-2 ${isPast(end) ? 'bg-indigo-500 border-indigo-100' : 'bg-white border-slate-300'} z-10`} />
+                              <div className="absolute top-1/2 left-1/2 w-px h-8 bg-slate-200 -translate-x-1/2" />
+                              <div className="absolute top-10 left-1/2 -translate-x-1/2 text-center w-32">
+                                <p className="text-[9px] font-black text-emerald-500 uppercase tracking-tighter">Kết thúc</p>
+                                <p className="text-[10px] font-bold text-slate-700 leading-tight">{formatFullDateTime(event.endTime)}</p>
+                              </div>
+                            </div>
+
+                            {/* CURRENT TIME INDICATOR */}
+                            <div
+                              className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 z-20"
+                              style={{ left: `${nowPos}%` }}
+                            >
+                              <div className="w-6 h-6 bg-indigo-600 rounded-full flex items-center justify-center shadow-lg shadow-indigo-200 animate-pulse border-2 border-white">
+                                <div className="w-2 h-2 bg-white rounded-full" />
+                              </div>
+                              <div className="absolute -top-10 left-1/2 -translate-x-1/2 bg-indigo-600 text-white text-[9px] font-black px-2 py-1 rounded-lg shadow-lg whitespace-nowrap">
+                                HÔM NAY
+                              </div>
+                              <div className="absolute top-8 left-1/2 -translate-x-1/2 text-center w-32">
+                                <p className="text-[10px] font-black text-indigo-600 uppercase tracking-tighter">Hiện tại</p>
+                                <p className="text-[11px] font-black text-slate-900">{formatFullDateTime(now)}</p>
+                              </div>
+                            </div>
+                          </>
+                        );
+                      })()}
+                    </div>
                   </div>
                 </div>
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                  {/* CỘT 1: THÔNG TIN CỦA BẠN (MỚI) */}
-                  <div className="bg-slate-50 border border-slate-200 rounded-2xl p-5 relative overflow-hidden group">
+
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+                  {/* CỘT 1: QUYỀN HẠN CỦA BẠN */}
+                  <div className="bg-slate-50 border border-slate-200 rounded-2xl p-5 relative overflow-hidden group h-full">
                     <div className="absolute top-0 right-0 p-3 opacity-10 group-hover:opacity-20 transition-opacity">
                       <UserCheck size={80} />
                     </div>
@@ -693,9 +867,6 @@ const EventDetailManagement = ({
                             {(isAdmin || userPerms.canManageTeam) && <div className="flex items-center gap-2 text-[11px] font-bold text-emerald-600 bg-emerald-50 px-2 py-1 rounded-md"><CheckCircle size={12} /> Quản lý nhân sự</div>}
                             {(isAdmin || userPerms.canCheckIn || isMember || isCoreTeam) && <div className="flex items-center gap-2 text-[11px] font-bold text-blue-600 bg-blue-50 px-2 py-1 rounded-md"><CheckCircle size={12} /> Thực hiện điểm danh</div>}
                             {(isAdmin || userPerms.canViewAnalytics) && <div className="flex items-center gap-2 text-[11px] font-bold text-indigo-600 bg-indigo-50 px-2 py-1 rounded-md"><CheckCircle size={12} /> Xem báo cáo thống kê</div>}
-                            {!(isAdmin || userPerms.canEditEvent || userPerms.canManageTeam || userPerms.canCheckIn) && (
-                              <div className="flex items-center gap-2 text-[11px] font-medium text-slate-500 bg-slate-100 px-2 py-1 rounded-md"><Info size={12} /> Chỉ xem thông tin</div>
-                            )}
                           </div>
                         </div>
                       </div>
@@ -706,7 +877,8 @@ const EventDetailManagement = ({
                     )}
                   </div>
 
-                  <div>
+                  {/* CỘT 2: THÔNG TIN CHUNG */}
+                  <div className="h-full">
                     <h3 className="font-semibold text-base mb-3 flex items-center gap-2"><Info size={18} className="text-blue-600" /> Thông tin chung</h3>
                     <div className="space-y-2.5 text-sm">
                       <div className="flex flex-col"><span className="text-gray-500 text-[11px] uppercase font-bold tracking-wider">Chủ đề</span><span className="text-slate-700 font-medium">{event.eventTopic}</span></div>
@@ -714,7 +886,9 @@ const EventDetailManagement = ({
                       <div className="flex flex-col"><span className="text-gray-500 text-[11px] uppercase font-bold tracking-wider">Số lượng tối đa</span><span className="text-slate-700 font-medium">{event.maxParticipants} người</span></div>
                     </div>
                   </div>
-                  <div>
+
+                  {/* CỘT 3: ĐỐI TƯỢNG */}
+                  <div className="h-full">
                     <h3 className="font-semibold text-base mb-3 flex items-center gap-2"><Users size={18} className="text-emerald-600" /> Đối tượng & Đơn vị</h3>
                     <div className="space-y-4 text-sm">
                       <div><span className="text-gray-500 text-[11px] uppercase font-bold tracking-wider mb-1 block">Đối tượng mục tiêu</span>
@@ -722,25 +896,140 @@ const EventDetailManagement = ({
                       </div>
                     </div>
                   </div>
+
+                  {/* CỘT 4: NHÂN SỰ PHỤ TRÁCH */}
+                  <div className="h-full">
+                    <h3 className="font-semibold text-base mb-3 flex items-center gap-2"><UserCheck size={18} className="text-blue-600" /> Nhân sự phụ trách</h3>
+                    <div className="space-y-3">
+                      {event.creator && (
+                        <div className="flex items-center gap-3 bg-white p-2.5 rounded-xl border border-gray-100 shadow-sm">
+                          <img src={event.creator.avatarUrl || "https://cdn-icons-png.flaticon.com/512/3135/3135715.png"} className="w-9 h-9 rounded-full" alt="" />
+                          <div>
+                            <p className="text-xs font-bold text-slate-800">{event.creator.fullName}</p>
+                            <p className="text-[10px] text-gray-400 uppercase font-black">Người tạo sự kiện</p>
+                          </div>
+                        </div>
+                      )}
+                      {event.approver && (
+                        <div className="flex items-center gap-3 bg-white p-2.5 rounded-xl border border-gray-100 shadow-sm">
+                          <img src={event.approver.avatarUrl || "https://cdn-icons-png.flaticon.com/512/3135/3135715.png"} className="w-9 h-9 rounded-full" alt="" />
+                          <div>
+                            <p className="text-xs font-bold text-slate-800">{event.approver.fullName}</p>
+                            <p className="text-[10px] text-gray-400 uppercase font-black">Người duyệt sự kiện</p>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
                 </div>
               </div>
             )}
 
-            {/* CHƯƠNG TRÌNH */}
+            {/* CHƯƠNG TRÌNH SỰ KIỆN */}
             {activeTab === "Chương trình" && (
-              <div className="space-y-6">
-                <h3 className="font-semibold text-lg flex items-center gap-2"><List size={20} className="text-blue-600" /> Nội dung chương trình ({event.sessions?.length || 0} phiên)</h3>
-                <div className="space-y-6">
+              <div className="max-w-4xl mx-auto py-4">
+                <div className="flex items-center justify-between mb-8 pb-4 border-b border-slate-50">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center text-white shadow-lg shadow-indigo-100">
+                      <Clock size={20} />
+                    </div>
+                    <div>
+                      <h3 className="text-xl font-black text-slate-900 tracking-tight">Lịch trình chi tiết</h3>
+                      <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-0.5">
+                        {event.sessions?.length || 0} phiên thảo luận
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="relative space-y-8 before:absolute before:inset-y-0 before:left-[90px] md:before:left-[110px] before:w-[2px] before:bg-slate-50">
                   {event.sessions?.length > 0 ? [...event.sessions].sort((a, b) => new Date(a.startTime) - new Date(b.startTime)).map((session, idx) => (
-                    <div key={idx} className="bg-white border border-gray-100 rounded-2xl p-5 shadow-sm hover:shadow-md transition-all">
-                      <div className="flex flex-col md:flex-row md:items-center gap-4 justify-between">
-                        <div className="space-y-1">
-                          <div className="flex items-center gap-3"><span className="px-2.5 py-0.5 bg-blue-50 text-blue-700 rounded-lg text-[10px] font-bold uppercase tracking-wider">{session.type || "SESSION"}</span><h4 className="font-bold text-slate-800 text-lg">{session.title}</h4></div>
-                          <p className="text-sm text-gray-500 flex items-center gap-2"><Clock size={14} />{new Date(session.startTime).toLocaleTimeString('vi-VN')} - {new Date(session.endTime).toLocaleTimeString('vi-VN')}<span className="mx-2 text-gray-300">|</span><MapPin size={14} />{session.room || "Chưa rõ"}</p>
+                    <div key={idx} className="relative flex items-start gap-6 md:gap-10 group">
+                      {/* Time Column */}
+                      <div className="w-[80px] md:w-[90px] flex-shrink-0 pt-2 text-right">
+                        <div className="space-y-0.5">
+                          <p className="text-sm font-black text-slate-900 tabular-nums">
+                            {new Date(session.startTime).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}
+                          </p>
+                          <p className="text-[10px] font-bold text-slate-400 tabular-nums">
+                            đến {new Date(session.endTime).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* Timeline Node */}
+                      <div className="absolute left-[90px] md:left-[110px] top-[14px] -ml-[7px] w-3.5 h-3.5 rounded-full bg-white border-[3px] border-indigo-600 z-10 shadow-sm transition-all duration-300 ring-4 ring-white" />
+
+                      {/* Card Content */}
+                      <div className="flex-1 pb-4">
+                        <div className="bg-white border border-slate-100 rounded-2xl p-5 shadow-sm hover:shadow-lg hover:shadow-indigo-100/20 transition-all duration-300 relative overflow-hidden">
+                          {/* Room Tag */}
+                          {session.room && (
+                            <div className="absolute top-0 right-0 px-3 py-1 bg-slate-50 border-bl border-slate-50 rounded-bl-xl flex items-center gap-1.5">
+                              <MapPin size={10} className="text-rose-500" />
+                              <span className="text-[9px] font-black text-slate-500 uppercase tracking-wider">{session.room}</span>
+                            </div>
+                          )}
+
+                          <div className="space-y-4">
+                            <div className="space-y-1.5">
+                              <div className="flex items-center gap-2">
+                                <span className="text-[9px] font-black text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded uppercase tracking-wider">
+                                  PHIÊN {idx + 1}
+                                </span>
+                                <span className="text-[9px] font-bold text-slate-300 uppercase tracking-widest">/ {session.type || "SESSION"}</span>
+                              </div>
+                              <h4 className="text-base font-black text-slate-800 leading-tight group-hover:text-indigo-600 transition-colors">
+                                {session.title}
+                              </h4>
+                              {session.description && (
+                                <p className="text-xs text-slate-500 leading-relaxed font-medium line-clamp-2">
+                                  {session.description}
+                                </p>
+                              )}
+                            </div>
+
+                            {session.presenter && (
+                              <div className="pt-4 border-t border-slate-50 flex flex-wrap items-center justify-between gap-4">
+                                <div className="flex items-center gap-3">
+                                  <img
+                                    src={session.presenter.avatarUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(session.presenter.fullName)}&background=random`}
+                                    className="w-10 h-10 rounded-xl object-cover ring-2 ring-slate-50"
+                                    alt={session.presenter.fullName}
+                                  />
+                                  <div>
+                                    <h5 className="font-bold text-slate-800 text-sm leading-tight">{session.presenter.fullName}</h5>
+                                    <p className="text-[10px] text-slate-400 font-medium italic">Diễn giả chính</p>
+                                  </div>
+                                </div>
+
+                                <div className="flex flex-col items-end gap-1">
+                                  <div className="flex items-center gap-1.5 text-slate-500 bg-slate-50 px-2 py-1 rounded-md border border-slate-100">
+                                    <Mail size={10} className="text-indigo-400" />
+                                    <span className="text-[10px] font-bold tabular-nums tracking-tight">{session.presenter.email}</span>
+                                  </div>
+                                  {session.presenter.phone && (
+                                    <div className="flex items-center gap-1.5 text-slate-500 bg-slate-50 px-2 py-1 rounded-md border border-slate-100">
+                                      <Phone size={10} className="text-emerald-400" />
+                                      <span className="text-[10px] font-bold tabular-nums tracking-tight">{session.presenter.phone}</span>
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            )}
+                          </div>
                         </div>
                       </div>
                     </div>
-                  )) : <div className="text-center py-20 bg-slate-50 rounded-3xl border border-dashed border-gray-200"><p className="text-gray-500">Chưa có thông tin</p></div>}
+                  )) : (
+                    <div className="text-center py-24 bg-slate-50 rounded-[3rem] border-2 border-dashed border-slate-200">
+                      <div className="w-20 h-20 bg-white rounded-3xl flex items-center justify-center mx-auto mb-6 shadow-xl shadow-slate-200/50">
+                        <Clock className="text-slate-300" size={40} />
+                      </div>
+                      <h4 className="text-xl font-bold text-slate-800">Chưa có chương trình chi tiết</h4>
+                      <p className="text-slate-400 mt-2 max-w-sm mx-auto">Chúng tôi đang cập nhật nội dung các phiên thảo luận. Vui lòng quay lại sau.</p>
+                    </div>
+                  )}
                 </div>
               </div>
             )}
@@ -763,16 +1052,16 @@ const EventDetailManagement = ({
                             <td className="p-4">
                               <div className="flex items-center gap-3">
                                 <div className="w-8 h-8 rounded-full overflow-hidden bg-slate-100 flex-shrink-0 border border-gray-100">
-                                  {reg.avatarUrl ? (
-                                    <img src={reg.avatarUrl} alt="" className="w-full h-full object-cover" />
+                                  {reg.profile?.avatarUrl ? (
+                                    <img src={reg.profile.avatarUrl} alt="" className="w-full h-full object-cover" />
                                   ) : (
                                     <div className="w-full h-full flex items-center justify-center text-slate-400 text-[10px] font-black uppercase">
-                                      {reg.fullName?.charAt(0) || reg.participantAccountId?.charAt(0)}
+                                      {(reg.profile?.fullName || reg.participantAccountId)?.charAt(0)}
                                     </div>
                                   )}
                                 </div>
                                 <div>
-                                  <p className="font-bold text-slate-800 leading-tight text-xs">{reg.fullName || "—"}</p>
+                                  <p className="font-bold text-slate-800 leading-tight text-xs">{reg.profile?.fullName || "—"}</p>
                                   <p className="text-[10px] text-gray-400 font-mono">{reg.participantAccountId}</p>
                                 </div>
                               </div>
@@ -795,15 +1084,15 @@ const EventDetailManagement = ({
                     <h3 className="font-bold text-lg text-indigo-900">Điểm danh ({checkedInCount} / {event.registeredCount})</h3>
                     <p className="text-xs text-indigo-600 mt-1 font-medium">Ban tổ chức kiểm soát việc mở/đóng và hiển thị mã quét</p>
                   </div>
-                  
+
                   <div className="flex items-center gap-4">
                     {/* Toggle Switch */}
                     <div className="flex items-center gap-3 bg-white px-4 py-2 rounded-2xl border border-indigo-200 shadow-sm">
                       <span className="text-[11px] font-black uppercase text-slate-500 tracking-wider">Trạng thái</span>
                       <label className="relative inline-flex items-center cursor-pointer">
-                        <input 
-                          type="checkbox" 
-                          className="sr-only peer" 
+                        <input
+                          type="checkbox"
+                          className="sr-only peer"
                           checked={event.checkInEnabled}
                           onChange={(e) => handleToggleCheckIn(e.target.checked)}
                         />
@@ -815,21 +1104,19 @@ const EventDetailManagement = ({
                     <div className="flex items-center gap-2 bg-white px-1 py-1 rounded-2xl border border-indigo-100 shadow-sm">
                       <button
                         onClick={() => handleUpdateQRType("DYNAMIC")}
-                        className={`px-3 py-1.5 rounded-xl text-[10px] font-black transition-all ${
-                          event.qrType === "DYNAMIC" 
-                            ? "bg-indigo-600 text-white shadow-md" 
-                            : "text-slate-400 hover:text-slate-600"
-                        }`}
+                        className={`px-3 py-1.5 rounded-xl text-[10px] font-black transition-all ${event.qrType === "DYNAMIC"
+                          ? "bg-indigo-600 text-white shadow-md"
+                          : "text-slate-400 hover:text-slate-600"
+                          }`}
                       >
                         QR ĐỘNG
                       </button>
                       <button
                         onClick={() => handleUpdateQRType("STATIC")}
-                        className={`px-3 py-1.5 rounded-xl text-[10px] font-black transition-all ${
-                          event.qrType === "STATIC" 
-                            ? "bg-indigo-600 text-white shadow-md" 
-                            : "text-slate-400 hover:text-slate-600"
-                        }`}
+                        className={`px-3 py-1.5 rounded-xl text-[10px] font-black transition-all ${event.qrType === "STATIC"
+                          ? "bg-indigo-600 text-white shadow-md"
+                          : "text-slate-400 hover:text-slate-600"
+                          }`}
                       >
                         QR TĨNH
                       </button>
@@ -857,33 +1144,41 @@ const EventDetailManagement = ({
                           <td className="p-4">
                             <div className="flex items-center gap-3">
                               <div className="w-8 h-8 rounded-full overflow-hidden bg-slate-100 flex-shrink-0 border border-gray-100">
-                                {reg.avatarUrl ? (
-                                  <img src={reg.avatarUrl} alt="" className="w-full h-full object-cover" />
+                                {reg.profile?.avatarUrl ? (
+                                  <img src={reg.profile.avatarUrl} alt="" className="w-full h-full object-cover" />
                                 ) : (
                                   <div className="w-full h-full flex items-center justify-center text-slate-400 text-[10px] font-black uppercase">
-                                    {reg.fullName?.charAt(0) || reg.participantAccountId?.charAt(0)}
+                                    {(reg.profile?.fullName || reg.participantAccountId)?.charAt(0)}
                                   </div>
                                 )}
                               </div>
                               <div>
-                                <p className="font-bold text-slate-800 leading-tight text-xs">{reg.fullName || "—"}</p>
+                                <p className="font-bold text-slate-800 leading-tight text-xs">{reg.profile?.fullName || "—"}</p>
                                 <p className="text-[10px] text-gray-400 font-mono">{reg.participantAccountId}</p>
                               </div>
                             </div>
                           </td>
                           <td className="p-4">
                             {reg.checkedIn ? (
-                              <div className="flex items-center gap-2">
-                                <span className="text-emerald-600 flex items-center gap-1 font-bold text-xs uppercase">
-                                  <CheckCircle size={14} /> Đã điểm danh
-                                </span>
-                                {(isAdmin || userPerms.canCheckIn || isLeader || isCoreTeam) && (
-                                  <button
-                                    onClick={() => onUndoCheckIn(reg.id)}
-                                    className="ml-auto text-[10px] text-gray-400 hover:text-red-500 font-bold uppercase transition-colors underline decoration-dotted"
-                                  >
-                                    Hủy
-                                  </button>
+                              <div className="flex flex-col gap-1">
+                                <div className="flex items-center gap-2">
+                                  <span className="text-emerald-600 flex items-center gap-1 font-bold text-xs uppercase">
+                                    <CheckCircle size={14} /> Đã điểm danh
+                                  </span>
+                                  {(isAdmin || userPerms.canCheckIn || isLeader || isCoreTeam) && (
+                                    <button
+                                      onClick={() => onUndoCheckIn(reg.id)}
+                                      className="ml-auto text-[10px] text-gray-400 hover:text-red-500 font-bold uppercase transition-colors underline decoration-dotted"
+                                    >
+                                      Hủy
+                                    </button>
+                                  )}
+                                </div>
+                                {reg.checkedInBy && (
+                                  <div className="flex items-center gap-1.5 opacity-60">
+                                    <img src={reg.checkedInBy.avatarUrl || "https://cdn-icons-png.flaticon.com/512/3135/3135715.png"} className="w-3.5 h-3.5 rounded-full" alt="" />
+                                    <span className="text-[9px] font-bold text-slate-500">Bởi: {reg.checkedInBy.fullName}</span>
+                                  </div>
                                 )}
                               </div>
                             ) : (
@@ -963,53 +1258,57 @@ const EventDetailManagement = ({
             {activeTab === "Ban tổ chức" && (
               <div className="space-y-8">
                 <div className="flex justify-between items-center mb-6">
-                  {!isAddingMember ? (
-                    <h3 className="font-semibold text-lg">Ban tổ chức ({event.organizers?.length || 0} người)</h3>
-                  ) : (
-                    <h3 className="font-bold flex items-center gap-2"><UserPlus size={20} className="text-emerald-500" /> Mời thành viên mới</h3>
-                  )}
-
                   <div className="flex items-center gap-3">
-                    {userPerms.canManageTeam && !isAddingMember && (
-                      <button 
-                        onClick={() => { setIsAddingMember(true); addInvite(); }} 
-                        className="bg-slate-100 hover:bg-slate-200 text-slate-700 px-4 py-2.5 rounded-xl text-sm font-bold flex items-center gap-2 transition-all"
-                      >
-                        <UserPlus size={18} /> Thêm
-                      </button>
-                    )}
-
                     {isAddingMember && (
                       <div className="flex gap-3">
-                        <button onClick={() => { onFetchUsers(); setShowUserSuggestions(!showUserSuggestions); }} className="bg-slate-100 px-4 py-2 rounded-xl text-sm font-bold">AI gợi ý</button>
-                        <button onClick={() => addInvite()} className="bg-slate-100 px-4 py-2 rounded-xl text-sm font-bold">Thêm thủ công</button>
-                        <button onClick={() => setIsAddingMember(false)} className="bg-white border border-gray-200 px-4 py-2 rounded-xl text-sm font-bold">Hủy</button>
+                        <button onClick={() => { onFetchUsers(); setShowUserSuggestions(!showUserSuggestions); }} className="bg-slate-100 hover:bg-slate-200 px-4 py-2 rounded-xl text-sm font-bold transition-colors">AI gợi ý</button>
+                        <button onClick={() => addInvite()} className="bg-slate-100 hover:bg-slate-200 px-4 py-2 rounded-xl text-sm font-bold transition-colors">Thêm thủ công</button>
+                        <button onClick={() => setIsAddingMember(false)} className="bg-white border border-slate-200 hover:bg-slate-50 px-4 py-2 rounded-xl text-sm font-bold transition-colors">Hủy</button>
                       </div>
                     )}
                   </div>
                 </div>
 
                 {isAddingMember && (
-                  <div className="bg-slate-50/50 p-6 rounded-3xl border border-dashed border-slate-200 space-y-4">
+                  <div className="bg-slate-50/50 p-8 rounded-[2.5rem] border-2 border-dashed border-slate-200 space-y-6">
                     {showUserSuggestions && (
-                      <div className="bg-white p-4 rounded-xl border border-slate-100 shadow-sm max-h-[300px] overflow-y-auto space-y-2">
-                        <Input placeholder="Tìm kiếm..." value={searchKey} onChange={e => setSearchKey(e.target.value)} />
-                        {loadingUsers ? <p className="text-center text-gray-400">Đang tải...</p> : filteredUsers.map(u => (
-                          <div key={u.id} onClick={() => { addInvite(u); setShowUserSuggestions(false); }} className="p-3 hover:bg-slate-50 cursor-pointer rounded-lg border border-transparent hover:border-slate-100 flex items-center gap-3">
-                            <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center"><UserCheck size={16} /></div>
-                            <div><p className="text-sm font-bold">{u.fullName || u.profile?.fullName || u.username}</p><p className="text-xs text-gray-400">{u.email}</p></div>
+                      <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-xl max-h-[350px] overflow-y-auto space-y-3">
+                        <div className="relative">
+                          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                          <Input className="pl-10 h-11 rounded-xl border-slate-100 focus:ring-indigo-500" placeholder="Tìm kiếm theo tên hoặc email..." value={searchKey} onChange={e => setSearchKey(e.target.value)} />
+                        </div>
+                        {loadingUsers ? (
+                          <div className="py-10 text-center space-y-3">
+                            <div className="w-8 h-8 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin mx-auto" />
+                            <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Đang tìm kiếm nhân sự...</p>
+                          </div>
+                        ) : filteredUsers.map(u => (
+                          <div key={u.id} onClick={() => { addInvite(u); setShowUserSuggestions(false); }} className="p-4 hover:bg-indigo-50/50 cursor-pointer rounded-2xl border border-transparent hover:border-indigo-100 flex items-center justify-between group transition-all">
+                            <div className="flex items-center gap-4">
+                              <div className="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center border border-slate-200 group-hover:bg-white transition-colors">
+                                <UserCheck size={20} className="text-slate-400 group-hover:text-indigo-600" />
+                              </div>
+                              <div>
+                                <p className="text-sm font-black text-slate-800">{u.fullName || u.profile?.fullName || u.username}</p>
+                                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-tight">{u.email}</p>
+                              </div>
+                            </div>
+                            <Plus size={18} className="text-slate-300 group-hover:text-indigo-600" />
                           </div>
                         ))}
                       </div>
                     )}
                     {invitations.map((invite, idx) => (
-                      <div key={idx} className="bg-white p-6 rounded-2xl border border-slate-100 relative shadow-sm">
-                        <button onClick={() => removeInvite(idx)} className="absolute top-4 right-4 p-2 text-red-500 bg-red-50 rounded-lg"><X size={16} /></button>
-                        <div className="grid grid-cols-2 gap-4">
-                          <Field label="Email *"><Input value={invite.inviteeEmail} onChange={e => updateInvite(idx, 'inviteeEmail', e.target.value)} /></Field>
-                          <Field label="Vai trò">
-                            <Select 
-                              value={invite.targetRole} 
+                      <div key={idx} className="bg-white p-8 rounded-[2rem] border border-slate-100 relative shadow-sm hover:shadow-md transition-shadow">
+                        <button onClick={() => removeInvite(idx)} className="absolute top-6 right-6 p-2 text-rose-500 bg-rose-50 hover:bg-rose-100 rounded-xl transition-colors"><X size={18} /></button>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                          <Field label="Địa chỉ Email nhân sự *">
+                            <Input className="h-12 rounded-xl bg-slate-50 border-none focus:ring-2 focus:ring-indigo-500" placeholder="example@domain.com" value={invite.inviteeEmail} onChange={e => updateInvite(idx, 'inviteeEmail', e.target.value)} />
+                          </Field>
+                          <Field label="Phân quyền vai trò">
+                            <Select
+                              className="h-12 rounded-xl bg-slate-50 border-none focus:ring-2 focus:ring-indigo-500 font-bold"
+                              value={invite.targetRole}
                               onChange={e => updateInvite(idx, 'targetRole', e.target.value)}
                             >
                               {availableInviteRoles.map(r => (
@@ -1018,211 +1317,360 @@ const EventDetailManagement = ({
                             </Select>
                           </Field>
                         </div>
-                        <Field label="Lời nhắn" style={{ marginTop: 16 }}><Input value={invite.message} onChange={e => updateInvite(idx, 'message', e.target.value)} /></Field>
+                        <div className="mt-6">
+                          <Field label="Lời nhắn mời tham gia">
+                            <textarea
+                              className="w-full p-4 rounded-xl bg-slate-50 border-none focus:ring-2 focus:ring-indigo-500 text-sm font-medium min-h-[100px]"
+                              placeholder="Chào bạn, mời bạn tham gia vào ban tổ chức sự kiện..."
+                              value={invite.message}
+                              onChange={e => updateInvite(idx, 'message', e.target.value)}
+                            />
+                          </Field>
+                        </div>
                       </div>
                     ))}
-                    {invitations.length > 0 && <div className="flex justify-end"><button onClick={handleSendInvites} disabled={isInviting} className="px-8 py-3 bg-indigo-600 text-white rounded-xl font-bold shadow-lg shadow-indigo-100 disabled:opacity-50">{isInviting ? "Đang gửi..." : "Gửi lời mời ngay"}</button></div>}
+                    {invitations.length > 0 && (
+                      <div className="flex justify-end pt-4">
+                        <button
+                          onClick={handleSendInvites}
+                          disabled={isInviting}
+                          className="px-10 py-4 bg-indigo-600 text-white rounded-2xl font-black shadow-xl shadow-indigo-100 hover:-translate-y-0.5 active:translate-y-0 transition-all disabled:opacity-50 flex items-center gap-3"
+                        >
+                          {isInviting ? <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" /> : <Send size={20} />}
+                          {isInviting ? "ĐANG GỬI LỜI MỜI..." : "XÁC NHẬN GỬI LỜI MỜI"}
+                        </button>
+                      </div>
+                    )}
                   </div>
                 )}
 
-                <div className="flex border-b border-gray-100 mb-6 gap-6 overflow-x-auto no-scrollbar">
-                  {[
-                    { key: "ALL", label: "Tất cả", count: (event.organizers?.length || 0) + (event.invitations?.filter(i => i.status === 'PENDING').length || 0) },
-                    { key: "LEADER", label: "Ban tổ chức", count: event.organizers?.filter(o => o.role === 'LEADER').length || 0 },
-                    { key: "COORDINATOR", label: "Điều phối viên", count: event.organizers?.filter(o => o.role === 'COORDINATOR').length || 0 },
-                    { key: "MEMBER", label: "Thành viên", count: event.organizers?.filter(o => o.role === 'MEMBER').length || 0 },
-                    { key: "PENDING", label: "Chờ xác nhận", count: event.invitations?.filter(i => i.status === 'PENDING').length || 0 },
-                    { key: "LEAVING", label: "Yêu cầu rời", count: event.organizers?.filter(o => o.status === 'LEAVING_PENDING').length || 0 },
-                  ].map(tab => (
-                    <button
-                      key={tab.key}
-                      onClick={() => setSubTabOrganizer(tab.key)}
-                      className={`pb-3 text-xs font-bold uppercase tracking-wider transition-all relative ${subTabOrganizer === tab.key ? "text-blue-600" : "text-slate-400 hover:text-slate-600"}`}
-                    >
-                      {tab.label}
-                      {tab.count > 0 && <span className={`ml-1.5 px-1.5 py-0.5 rounded-md text-[9px] ${subTabOrganizer === tab.key ? "bg-blue-100 text-blue-600" : "bg-slate-100 text-slate-500"}`}>{tab.count}</span>}
-                      {subTabOrganizer === tab.key && <motion.div layoutId="subTabOrganizer" className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-600" />}
-                    </button>
-                  ))}
-                </div>
+                {/* BAN TỔ CHỨC */}
+                {activeTab === "Ban tổ chức" && (
+                  <div className="space-y-8">
+                    {/* Organization Header */}
+                    {event.organization && (
+                      <div className="bg-gradient-to-br from-purple-600 to-blue-600 rounded-[2.5rem] p-8 text-white shadow-xl shadow-indigo-200/50 relative overflow-hidden group">
+                        <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full -mr-32 -mt-32 blur-3xl group-hover:scale-110 transition-transform duration-700" />
+                        <div className="absolute bottom-0 left-0 w-48 h-48 bg-indigo-400/20 rounded-full -ml-24 -mb-24 blur-2xl" />
 
-                <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden shadow-sm">
-                  <table className="w-full text-sm">
-                    <thead className="bg-slate-50 border-b border-gray-200">
-                      <tr>
-                        <th className="p-4 text-left text-gray-600">Họ tên</th>
-                        <th className="p-4 text-left text-gray-600">Vai trò</th>
-                        <th className="p-4 text-left text-gray-600 text-center">Ngày phân công</th>
-                        <th className="p-4 text-center text-gray-600">Thao tác</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-100">
-                      {(() => {
-                        const organizers = event.organizers || [];
-                        const pendingInvites = (event.invitations || [])
-                          .filter(inv => inv.status === 'PENDING' && inv.type !== 'PRESENTER')
-                          .map(inv => ({
-                            ...inv,
-                            isPending: true,
-                            fullName: inv.inviteeName,
-                            email: inv.inviteeEmail,
-                            role: inv.targetRole,
-                            createdAt: inv.sentAt
-                          }));
-                        const combined = [...organizers, ...pendingInvites];
+                        <div className="relative flex flex-col md:flex-row items-center gap-8">
+                          <div className="w-24 h-24 bg-white rounded-3xl p-3 shadow-2xl flex items-center justify-center shrink-0 group-hover:rotate-3 transition-transform">
+                            <img
+                              src={event.organization.logoUrl || "https://cdn-icons-png.flaticon.com/512/3135/3135715.png"}
+                              alt={event.organization.name}
+                              className="w-full h-full object-contain"
+                            />
+                          </div>
+                          <div className="text-center md:text-left space-y-2">
+                            <div className="flex flex-wrap items-center justify-center md:justify-start gap-3">
+                              <span className="px-3 py-1 bg-white/20 backdrop-blur-md rounded-full text-[10px] font-black uppercase tracking-widest border border-white/30">
+                                {event.organization.type || "ORGANIZATION"}
+                              </span>
+                              <span className="text-indigo-100 text-xs font-bold flex items-center gap-1.5">
+                                <ShieldCheck size={14} className="text-emerald-400" />
+                                Đơn vị tổ chức xác thực
+                              </span>
+                            </div>
+                            <h2 className="text-3xl font-black tracking-tight">{event.organization.name}</h2>
+                            <p className="text-indigo-100/80 text-sm font-medium max-w-xl">
+                              Chịu trách nhiệm điều phối và quản lý toàn diện các hoạt động trong khuôn khổ sự kiện.
+                            </p>
+                          </div>
 
-                        // --- BẮT ĐẦU: LỌC HIỂN THỊ THEO VAI TRÒ (PHÂN QUYỀN DỮ LIỆU) ---
-                        const visibleByRole = combined.filter(org => {
-                          const requesterRole = userPerms.organizerRole;
-                          const requesterId = authUser?.id;
-                          
-                          // 1. Leader/Creator/Admin/Advisor: Thấy hết
-                          if (userPerms.isCreator || isAdmin || requesterRole === 'LEADER' || requesterRole === 'ADVISOR') return true;
-                          
-                          // 2. Các vai trò quản lý cấp cao (Leader/Coordinator) luôn công khai cho mọi người trong BTC thấy
-                          if (org.role === 'LEADER' || org.role === 'COORDINATOR') return true;
+                          <div className="md:ml-auto flex items-center gap-6 border-l border-white/10 pl-8 hidden lg:flex">
+                            <div className="text-center">
+                              <div className="text-2xl font-black">{(event.organizers?.length || 0)}</div>
+                              <div className="text-[10px] font-bold uppercase tracking-widest text-indigo-200">Nhân sự</div>
+                            </div>
+                            <div className="text-center">
+                              <div className="text-2xl font-black">{event.organizers?.filter(o => o.role === 'LEADER').length || 0}</div>
+                              <div className="text-[10px] font-bold uppercase tracking-widest text-indigo-200">Lãnh đạo</div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    )}
 
-                          // 3. Coordinator (Điều phối viên)
-                          if (requesterRole === 'COORDINATOR') {
-                            // Thấy member mà mình đã mời (check qua addedByAccountId cho member đã vào hoặc inviterAccountId cho member pending)
-                            if (org.role === 'MEMBER' && (org.addedByAccountId === requesterId || org.inviterAccountId === requesterId)) return true;
-                            return false;
-                          }
-                          
-                          // 4. Member (Thành viên)
-                          if (requesterRole === 'MEMBER') {
-                            // Thấy các member khác
-                            return org.role === 'MEMBER';
-                          }
-                          
-                          return true;
-                        });
+                    <div className="flex justify-between items-center mb-6">
+                      <div className="flex items-center gap-3">
+                        <div className="w-2 h-8 bg-indigo-600 rounded-full" />
+                        <h3 className="font-black text-xl text-slate-800">Đội ngũ vận hành</h3>
+                      </div>
 
-                        const filtered = visibleByRole.filter(org => {
-                          if (subTabOrganizer === "ALL") return true;
-                          if (subTabOrganizer === "PENDING") return org.isPending;
-                          if (subTabOrganizer === "LEAVING") return org.status === 'LEAVING_PENDING';
-                          return org.role === subTabOrganizer;
-                        });
-                        // --- KẾT THÚC: LỌC HIỂN THỊ ---
+                      <div className="flex items-center gap-3">
+                        {userPerms.canManageTeam && (
+                          <button
+                            onClick={() => setActiveTab("Lời mời")}
+                            className="bg-slate-900 hover:bg-slate-800 text-white px-6 py-2.5 rounded-2xl text-sm font-bold flex items-center gap-2 shadow-lg shadow-slate-200 transition-all active:scale-95"
+                          >
+                            <UserPlus size={18} /> Mời thành viên
+                          </button>
+                        )}
+                      </div>
+                    </div>
 
-                        if (filtered.length === 0) {
-                          return <tr><td colSpan={5} className="p-20 text-center text-slate-400 italic">Không có dữ liệu phù hợp</td></tr>;
-                        }
+                    <div className="flex border-b border-gray-100 mb-8 gap-8 overflow-x-auto no-scrollbar">
+                      {[
+                        { key: "ALL", label: "Tất cả", count: (event.organizers?.length || 0) + (event.invitations?.filter(i => i.status === 'PENDING' && i.type === 'ORGANIZER').length || 0) },
+                        { key: "LEADER", label: "Ban tổ chức", count: (event.organizers?.filter(o => o.role === 'LEADER').length || 0) + (event.invitations?.filter(i => i.status === 'PENDING' && i.type === 'ORGANIZER' && i.targetRole === 'LEADER').length || 0) },
+                        { key: "COORDINATOR", label: "Điều phối viên", count: (event.organizers?.filter(o => o.role === 'COORDINATOR').length || 0) + (event.invitations?.filter(i => i.status === 'PENDING' && i.type === 'ORGANIZER' && i.targetRole === 'COORDINATOR').length || 0) },
+                        { key: "MEMBER", label: "Thành viên", count: (event.organizers?.filter(o => o.role === 'MEMBER').length || 0) + (event.invitations?.filter(i => i.status === 'PENDING' && i.type === 'ORGANIZER' && i.targetRole === 'MEMBER').length || 0) },
+                        { key: "ADVISOR", label: "Cố vấn", count: (event.organizers?.filter(o => o.role === 'ADVISOR').length || 0) + (event.invitations?.filter(i => i.status === 'PENDING' && i.type === 'ORGANIZER' && i.targetRole === 'ADVISOR').length || 0) },
+                        { key: "INVITATION", label: "Lời mời", count: event.invitations?.filter(i => i.status === 'PENDING' && i.type === 'ORGANIZER').length || 0 },
+                        { key: "LEAVING", label: "Yêu cầu rời", count: event.organizers?.filter(o => o.status === 'LEAVING_PENDING').length || 0 },
+                      ].map(tab => (
+                        <button
+                          key={tab.key}
+                          onClick={() => setSubTabOrganizer(tab.key)}
+                          className={`pb-4 text-[11px] font-black uppercase tracking-[0.1em] transition-all relative ${subTabOrganizer === tab.key ? "text-indigo-600" : "text-slate-500 hover:text-slate-700"}`}
+                        >
+                          {tab.label}
+                          {tab.count > 0 && <span className={`ml-2 px-2 py-0.5 rounded-full text-[9px] ${subTabOrganizer === tab.key ? "bg-indigo-600 text-white" : "bg-slate-200 text-slate-600"}`}>{tab.count}</span>}
+                          {subTabOrganizer === tab.key && <motion.div layoutId="subTabOrganizer" className="absolute bottom-0 left-0 right-0 h-[3px] bg-indigo-600 rounded-full" />}
+                        </button>
+                      ))}
+                    </div>
 
-                        return filtered.map((org, idx) => {
-                          const isMe = org.accountId === authUser?.id || org.id === authUser?.id || org.email === authUser?.email;
-                          return (
-                            <tr key={idx} className={`hover:bg-slate-50 transition-colors ${org.isPending ? "opacity-75" : ""}`}>
-                              <td className="p-4">
-                                <div className="flex items-center gap-3">
-                                  <div className="relative">
-                                    <img
-                                      src={org.avatarUrl || "https://cdn-icons-png.flaticon.com/512/3135/3135715.png"}
-                                      alt="Avatar"
-                                      className={`w-8 h-8 rounded-full object-cover border ${org.isPending ? "border-amber-200 grayscale-[0.5]" : "border-slate-200"}`}
-                                    />
-                                    {org.isPending && (
-                                      <div className="absolute -top-1 -right-1 w-3 h-3 bg-amber-500 border-2 border-white rounded-full animate-pulse" title="Đang chờ xác nhận" />
-                                    )}
-                                  </div>
-                                  <div className="flex flex-col">
-                                    <div className="flex items-center gap-2">
-                                      <span className={`font-bold ${isMe ? "text-blue-700" : "text-slate-800"}`}>
-                                        {enrichedNames[org.accountId] || enrichedNames[org.email] || org.fullName || org.inviteeEmail}
-                                      </span>
-                                      {isMe && <span className="px-1.5 py-0.5 bg-blue-600 text-white text-[9px] font-black rounded uppercase tracking-tighter">Bạn</span>}
-                                      {org.status === 'LEAVING_PENDING' && <span className="px-1.5 py-0.5 bg-rose-100 text-rose-700 text-[9px] font-black rounded uppercase tracking-tighter animate-pulse">Đang xin rời</span>}
+                    <div className="bg-white border border-slate-100 rounded-[2.5rem] overflow-hidden shadow-sm">
+                      <table className="w-full text-sm">
+                        <thead>
+                          <tr className="bg-slate-50 border-b border-slate-100">
+                            <th className="p-6 text-left text-[10px] font-black uppercase tracking-widest text-slate-500">Thông tin thành viên</th>
+                            <th className="p-6 text-left text-[10px] font-black uppercase tracking-widest text-slate-500">Vai trò</th>
+                            <th className="p-6 text-left text-[10px] font-black uppercase tracking-widest text-slate-500">Liên hệ</th>
+                            <th className="p-6 text-center text-[10px] font-black uppercase tracking-widest text-slate-500">Trạng thái</th>
+                            <th className="p-6 text-center text-[10px] font-black uppercase tracking-widest text-slate-500">Thao tác</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-50">
+                          {(() => {
+                            const accepted = (event.organizers || []).map(o => ({
+                              ...o,
+                              fullName: o.profile?.fullName || o.fullName,
+                              avatarUrl: o.profile?.avatarUrl || o.avatarUrl,
+                              email: o.profile?.email || o.email,
+                              bio: o.profile?.bio || o.bio,
+                              phone: o.profile?.phone || o.phone,
+                              isPending: false
+                            }));
+
+                            const pending = (event.invitations || [])
+                              .filter(inv => inv.status === 'PENDING' && inv.type === 'ORGANIZER')
+                              .map(inv => ({
+                                ...inv,
+                                fullName: inv.invitee?.fullName || inv.inviteeEmail,
+                                avatarUrl: inv.invitee?.avatarUrl,
+                                email: inv.invitee?.email || inv.inviteeEmail,
+                                bio: inv.message || "Lời mời ban tổ chức đang chờ xác nhận",
+                                role: inv.targetRole,
+                                isPending: true,
+                                createdAt: inv.sentAt
+                              }));
+
+                            const combined = [...accepted, ...pending];
+
+                            const visibleByRole = combined.filter(org => {
+                              const requesterRole = userPerms.organizerRole;
+                              const requesterId = authUser?.id;
+                              if (userPerms.isCreator || isAdmin || requesterRole === 'LEADER' || requesterRole === 'ADVISOR') return true;
+                              if (org.role === 'LEADER' || org.role === 'COORDINATOR') return true;
+                              if (requesterRole === 'COORDINATOR') {
+                                if (org.role === 'MEMBER' && (org.addedByAccountId === requesterId || org.inviterAccountId === requesterId)) return true;
+                                return false;
+                              }
+                              if (requesterRole === 'MEMBER') return org.role === 'MEMBER';
+                              return true;
+                            });
+
+                            const filtered = visibleByRole.filter(org => {
+                              if (subTabOrganizer === "ALL") return true;
+                              if (subTabOrganizer === "INVITATION") return org.isPending;
+                              if (subTabOrganizer === "LEAVING") return org.status === 'LEAVING_PENDING';
+                              return org.role === subTabOrganizer;
+                            });
+
+                            if (filtered.length === 0) {
+                              return <tr><td colSpan={5} className="p-24 text-center">
+                                <div className="flex flex-col items-center gap-3">
+                                  <Users size={40} className="text-slate-200" />
+                                  <p className="text-sm font-bold text-slate-400 italic">Không tìm thấy nhân sự phù hợp</p>
+                                </div>
+                              </td></tr>;
+                            }
+
+                            return filtered.map((org, idx) => {
+                              const isMe = org.accountId === authUser?.id || org.id === authUser?.id || org.email === authUser?.email;
+                              const roleData = getOrganizerRole(org.role);
+                              return (
+                                <tr key={idx} className={`hover:bg-slate-50 transition-all group ${org.isPending ? "bg-amber-50/10" : ""}`}>
+                                  <td className="p-6">
+                                    <div className="flex items-center gap-4">
+                                      <div className="relative">
+                                        <img
+                                          src={org.avatarUrl || "https://cdn-icons-png.flaticon.com/512/3135/3135715.png"}
+                                          alt="Avatar"
+                                          className={`w-12 h-12 rounded-2xl object-cover border-2 shadow-sm ${org.isPending ? "border-amber-200" : "border-white"}`}
+                                        />
+                                        {isMe && (
+                                          <div className="absolute -bottom-1 -right-1 w-5 h-5 bg-blue-600 border-[3px] border-white rounded-full flex items-center justify-center shadow-md">
+                                            <div className="w-1.5 h-1.5 bg-white rounded-full animate-pulse" />
+                                          </div>
+                                        )}
+                                        {org.isPending && (
+                                          <div className="absolute -top-1 -right-1 w-5 h-5 bg-amber-500 border-2 border-white rounded-full flex items-center justify-center shadow-sm">
+                                            <Clock size={10} className="text-white animate-spin-slow" />
+                                          </div>
+                                        )}
+                                      </div>
+                                      <div className="space-y-1">
+                                        <div className="flex items-center gap-2">
+                                          <span className={`text-sm font-black tracking-tight ${isMe ? "text-indigo-600" : "text-slate-800"}`}>
+                                            {org.fullName}
+                                          </span>
+                                          {isMe && <span className="px-1.5 py-0.5 bg-indigo-600 text-white text-[8px] font-black rounded-md uppercase tracking-widest">TÔI</span>}
+                                          {org.isPending && <span className="px-2 py-0.5 bg-amber-100 text-amber-700 text-[9px] font-black rounded-lg uppercase tracking-wider border border-amber-200">Đang mời</span>}
+                                        </div>
+                                        <p className="text-[10px] text-slate-400 font-bold leading-tight line-clamp-1 max-w-[200px]" title={org.bio}>
+                                          {org.bio || "Thành viên Ban tổ chức"}
+                                        </p>
+                                        {org.isPending && (
+                                          <div className="flex items-center gap-1 text-[9px] text-amber-600 font-bold">
+                                            <Clock size={10} />
+                                            Mời lúc: {formatDateTime(org.createdAt)}
+                                          </div>
+                                        )}
+                                      </div>
                                     </div>
-                                    {org.isPending && <span className="text-[10px] text-amber-600 font-bold italic">Đang chờ xác nhận qua email...</span>}
-                                  </div>
-                                </div>
-                              </td>
-                              <td className="p-4">
-                                <div className="flex items-center gap-2">
-                                  <span className={`inline-block px-3 py-1 rounded-full text-[10px] font-black uppercase ${org.isPending ? "bg-amber-50 text-amber-600 border border-amber-100" : getOrganizerRole(org.role).color}`}>
-                                    {getOrganizerRole(org.role).label}
-                                  </span>
-                                </div>
-                              </td>
-                              <td className="p-4 text-[11px] text-gray-500 font-medium text-center">
-                                {org.isPending ? "Lời mời gửi lúc:" : "Phân công lúc:"}<br />
-                                {formatDateTime(org.assignedAt || org.createdAt)}
-                              </td>
-                              <td className="p-4 text-center">
-                                <div className="flex items-center justify-center gap-2">
-                                  {org.status === 'LEAVING_PENDING' ? (
-                                    (() => {
-                                      const userRole = event.currentUserRole?.organizerRole;
-                                      const canHandle = (org.role === 'COORDINATOR' || org.role === 'ADVISOR') ? userRole === 'LEADER' : (userRole === 'LEADER' || userRole === 'COORDINATOR');
-                                      
-                                      if (!canHandle) return <span className="text-[10px] text-gray-400 italic">Chờ duyệt...</span>;
-
-                                      return (
-                                        <>
-                                          <button 
+                                  </td>
+                                  <td className="p-6">
+                                    <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-wider ${roleData.color}`}>
+                                      <div className={`w-1.5 h-1.5 rounded-full bg-current opacity-50`} />
+                                      {roleData.label}
+                                    </span>
+                                  </td>
+                                  <td className="p-6">
+                                    <div className="space-y-1.5">
+                                      <div className="flex items-center gap-2 text-slate-500">
+                                        <Mail size={12} className="text-slate-400" />
+                                        <span className="text-[10px] font-bold">{org.email}</span>
+                                      </div>
+                                      {org.phone && (
+                                        <div className="flex items-center gap-2 text-slate-500">
+                                          <Phone size={12} className="text-slate-400" />
+                                          <span className="text-[10px] font-bold">{org.phone}</span>
+                                        </div>
+                                      )}
+                                    </div>
+                                  </td>
+                                  <td className="p-6 text-center">
+                                    {org.isPending ? (
+                                      <span className="text-[9px] font-black text-amber-600 bg-amber-50 px-2.5 py-1 rounded-lg uppercase tracking-widest border border-amber-100 animate-pulse">
+                                        ĐANG MỜI
+                                      </span>
+                                    ) : org.status === 'LEAVING_PENDING' ? (
+                                      <span className="text-[9px] font-black text-rose-600 bg-rose-50 px-2.5 py-1 rounded-lg uppercase tracking-widest border border-rose-100 animate-pulse">
+                                        XIN RỜI
+                                      </span>
+                                    ) : (
+                                      <span className="text-[9px] font-black text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded-lg uppercase tracking-widest border border-emerald-100">
+                                        {org.status === 'ACTIVE' || !org.status ? 'CHÍNH THỨC' : org.status}
+                                      </span>
+                                    )}
+                                  </td>
+                                  <td className="p-6 text-center">
+                                    <div className="flex items-center justify-center gap-2 transition-opacity">
+                                      {org.isPending ? (
+                                        (isAdmin || userPerms.canManageTeam) && (
+                                          <button
                                             onClick={() => {
                                               setConfirmConfig({
-                                                title: "Phê duyệt rời nhóm",
-                                                message: `Chấp nhận yêu cầu rời ban tổ chức của ${org.fullName}?`,
-                                                onConfirm: () => onApproveLeave(org.id),
-                                                icon: CheckCircle,
-                                                color: "emerald"
-                                              });
-                                              setShowConfirmModal(true);
-                                            }}
-                                            className="p-2 text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors" title="Duyệt"
-                                          >
-                                            <CheckCircle size={18} />
-                                          </button>
-                                          <button 
-                                            onClick={() => {
-                                              setConfirmConfig({
-                                                title: "Từ chối rời nhóm",
-                                                message: `Từ chối yêu cầu rời ban tổ chức của ${org.fullName}?`,
-                                                onConfirm: () => onRejectLeave(org.id),
-                                                icon: XCircle,
+                                                title: "Hủy lời mời",
+                                                message: `Bạn có chắc muốn hủy lời mời tới ${org.fullName}?`,
+                                                onConfirm: () => onRemoveMember(org),
+                                                icon: X,
                                                 color: "rose"
                                               });
                                               setShowConfirmModal(true);
                                             }}
-                                            className="p-2 text-rose-600 hover:bg-rose-50 rounded-lg transition-colors" title="Từ chối"
+                                            className="p-2 text-rose-500 bg-rose-50 hover:bg-rose-100 rounded-xl transition-all"
+                                            title="Hủy lời mời"
                                           >
-                                            <XCircle size={18} />
+                                            <X size={18} />
                                           </button>
-                                        </>
-                                      );
-                                    })()
-                                  ) : (
-                                    (isAdmin || userPerms.canManageTeam) && org.role !== 'LEADER' && (
-                                      <button
-                                        onClick={() => {
-                                          const isPending = org.isPending;
-                                          setConfirmConfig({
-                                            title: isPending ? "Hủy lời mời" : "Gỡ thành viên",
-                                            message: `Bạn có chắc muốn ${isPending ? "hủy lời mời tới" : "gỡ"} ${enrichedNames[org.accountId] || enrichedNames[org.email] || org.fullName || org.inviteeEmail} khỏi ban tổ chức?`,
-                                            onConfirm: () => onRemoveMember(org),
-                                            icon: isPending ? X : Trash2,
-                                            color: "rose"
-                                          });
-                                          setShowConfirmModal(true);
-                                        }}
-                                        className="p-2 text-rose-500 hover:bg-rose-50 rounded-lg transition-colors"
-                                        title={org.isPending ? "Hủy lời mời" : "Gỡ bỏ"}
-                                      >
-                                        {org.isPending ? <X size={16} /> : <Trash2 size={16} />}
-                                      </button>
-                                    )
-                                  )}
-                                </div>
-                              </td>
-                            </tr>
-                          );
-                        });
-                      })()}
-                    </tbody>
-                  </table>
-                </div>
+                                        )
+                                      ) : org.status === 'LEAVING_PENDING' ? (
+                                        (() => {
+                                          const userRole = event.currentUserRole?.organizerRole;
+                                          const canHandle = (org.role === 'COORDINATOR' || org.role === 'ADVISOR') ? userRole === 'LEADER' : (userRole === 'LEADER' || userRole === 'COORDINATOR');
+
+                                          if (!canHandle) return <span className="text-[10px] text-slate-400 italic font-bold">Đang xử lý...</span>;
+
+                                          return (
+                                            <>
+                                              <button
+                                                onClick={() => {
+                                                  setConfirmConfig({
+                                                    title: "Phê duyệt rời nhóm",
+                                                    message: `Chấp nhận yêu cầu rời ban tổ chức của ${org.fullName}?`,
+                                                    onConfirm: () => onApproveLeave(org.id),
+                                                    icon: CheckCircle,
+                                                    color: "emerald"
+                                                  });
+                                                  setShowConfirmModal(true);
+                                                }}
+                                                className="p-2 text-emerald-600 bg-emerald-50 hover:bg-emerald-100 rounded-xl transition-all" title="Chấp nhận"
+                                              >
+                                                <CheckCircle size={18} />
+                                              </button>
+                                              <button
+                                                onClick={() => {
+                                                  setConfirmConfig({
+                                                    title: "Từ chối rời nhóm",
+                                                    message: `Từ chối yêu cầu rời ban tổ chức của ${org.fullName}?`,
+                                                    onConfirm: () => onRejectLeave(org.id),
+                                                    icon: XCircle,
+                                                    color: "rose"
+                                                  });
+                                                  setShowConfirmModal(true);
+                                                }}
+                                                className="p-2 text-rose-600 bg-rose-50 hover:bg-rose-100 rounded-xl transition-all" title="Từ chối"
+                                              >
+                                                <XCircle size={18} />
+                                              </button>
+                                            </>
+                                          );
+                                        })()
+                                      ) : (
+                                        (isAdmin || userPerms.canManageTeam) && org.role !== 'LEADER' && (
+                                          <button
+                                            onClick={() => {
+                                              setConfirmConfig({
+                                                title: "Gỡ thành viên",
+                                                message: `Bạn có chắc muốn gỡ ${org.fullName} khỏi ban tổ chức?`,
+                                                onConfirm: () => onRemoveMember(org),
+                                                icon: Trash2,
+                                                color: "rose"
+                                              });
+                                              setShowConfirmModal(true);
+                                            }}
+                                            className="p-2 text-rose-500 bg-rose-50 hover:bg-rose-100 rounded-xl transition-all"
+                                            title="Gỡ bỏ"
+                                          >
+                                            <Trash2 size={18} />
+                                          </button>
+                                        )
+                                      )}
+                                    </div>
+                                  </td>
+                                </tr>
+                              );
+                            });
+                          })()}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
 
@@ -1272,85 +1720,155 @@ const EventDetailManagement = ({
                   <table className="w-full text-sm">
                     <thead className="bg-slate-50 border-b border-gray-200">
                       <tr>
-                        <th className="p-4 text-left text-gray-600">Diễn giả</th>
-                        <th className="p-4 text-left text-gray-600">Liên hệ</th>
+                        <th className="p-4 text-center text-gray-600">Thông tin diễn giả</th>
                         <th className="p-4 text-left text-gray-600">Phiên</th>
-                        {userPerms.canManageTeam && <th className="p-4 text-center text-gray-600">Gỡ</th>}
+                        {userPerms.canManageTeam && <th className="p-4 text-center text-gray-600">Thao tác</th>}
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-100">
                       {(() => {
-                        const accepted = event.presenters || [];
+                        const accepted = (event.presenters || []).map(p => ({
+                          ...p,
+                          fullName: p.profile?.fullName || "Chưa có tên",
+                          avatarUrl: p.profile?.avatarUrl,
+                          email: p.profile?.email,
+                          phone: p.profile?.phone,
+                          bio: p.profile?.bio,
+                          isPending: false,
+                          displaySessions: p.sessions || []
+                        }));
+
                         const pending = (event.invitations || [])
                           .filter(inv => inv.status === 'PENDING' && inv.type === 'PRESENTER')
                           .map(inv => ({
                             ...inv,
                             isPending: true,
-                            fullName: inv.inviteeName,
-                            email: inv.inviteeEmail,
-                            bio: inv.presenterBio,
-                            sessions: [{ title: inv.presenterSession }], // Fake session structure for display
+                            fullName: inv.invitee?.fullName || inv.inviteeEmail,
+                            avatarUrl: inv.invitee?.avatarUrl,
+                            email: inv.invitee?.email || inv.inviteeEmail,
+                            phone: inv.invitee?.phone,
+                            bio: inv.presenterBio || "Lời mời diễn giả đang chờ xác nhận",
+                            displaySessions: inv.presenterSession ? [{ title: inv.presenterSession }] : [],
                             createdAt: inv.sentAt
                           }));
+
                         const combined = [...accepted, ...pending];
 
                         if (combined.length === 0) {
-                          return <tr><td colSpan={userPerms.canManageTeam ? "4" : "3"} className="p-20 text-center text-gray-500 italic">Chưa có diễn giả</td></tr>;
+                          return <tr><td colSpan={userPerms.canManageTeam ? "3" : "2"} className="p-20 text-center text-gray-500 italic bg-slate-50/30">Chưa có diễn giả tham gia sự kiện này</td></tr>;
                         }
 
                         return combined.map((p, idx) => (
-                          <tr key={idx} className={`hover:bg-slate-50 transition-colors ${p.isPending ? "opacity-75" : ""}`}>
-                            <td className="p-4">
-                              <div className="flex items-center gap-3">
-                                <div className="relative">
-                                  <img
-                                    src={p.avatarUrl || "https://cdn-icons-png.flaticon.com/512/3135/3135715.png"}
-                                    alt="Avatar"
-                                    className={`w-10 h-10 rounded-xl object-cover border ${p.isPending ? "border-amber-200 grayscale-[0.5]" : "border-slate-200"}`}
-                                  />
+                          <tr key={idx} className={`group hover:bg-slate-50/80 transition-all ${p.isPending ? "bg-amber-50/20" : ""}`}>
+                            <td className="p-5">
+                              <div className="flex items-center gap-5">
+                                <div className="relative flex-shrink-0">
+                                  <div className={`w-14 h-14 rounded-2xl overflow-hidden border-2 shadow-sm transition-transform group-hover:scale-105 ${p.isPending ? "border-amber-200" : "border-white"}`}>
+                                    <img
+                                      src={p.avatarUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(p.fullName)}&background=random`}
+                                      alt="Avatar"
+                                      className={`w-full h-full object-cover ${p.isPending ? "grayscale-[0.3]" : ""}`}
+                                    />
+                                  </div>
                                   {p.isPending && (
-                                    <div className="absolute -top-1 -right-1 w-3 h-3 bg-amber-500 border-2 border-white rounded-full animate-pulse" />
+                                    <div className="absolute -top-1 -right-1 w-5 h-5 bg-amber-500 border-2 border-white rounded-full flex items-center justify-center shadow-sm">
+                                      <Clock size={10} className="text-white animate-spin-slow" />
+                                    </div>
                                   )}
                                 </div>
-                                <div>
-                                  <div className="flex items-center gap-2">
-                                    <p className="font-bold text-slate-800">{enrichedNames[p.accountId] || enrichedNames[p.email] || p.fullName}</p>
-                                    {p.isPending && <span className="px-1.5 py-0.5 bg-amber-100 text-amber-700 text-[9px] font-black rounded uppercase tracking-tighter">Đang mời</span>}
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-center gap-2 mb-0.5">
+                                    <p className="font-bold text-slate-900 truncate text-base">{p.fullName}</p>
+                                    {p.isPending && <span className="px-2 py-0.5 bg-amber-100 text-amber-700 text-[9px] font-black rounded-lg uppercase tracking-wider border border-amber-200">Đang mời</span>}
                                   </div>
-                                  <p className="text-[10px] text-slate-400 font-bold uppercase truncate max-w-[200px]" title={p.bio}>{p.bio || "Chưa có tiểu sử"}</p>
+                                  <p className="text-xs text-slate-400 line-clamp-1 italic font-medium mb-2" title={p.bio}>
+                                    {p.bio || "Diễn giả tham gia sự kiện"}
+                                  </p>
+                                  <div className="flex flex-wrap gap-4 items-center">
+                                    <div className="flex items-center gap-1.5 text-slate-500">
+                                      <Mail size={12} className="text-slate-400" />
+                                      <span className="text-[11px] font-semibold">{p.email || "N/A"}</span>
+                                    </div>
+                                    {p.phone && (
+                                      <div className="flex items-center gap-1.5 text-slate-500 border-l border-slate-200 pl-4">
+                                        <Phone size={12} className="text-slate-400" />
+                                        <span className="text-[11px] font-semibold">{p.phone}</span>
+                                      </div>
+                                    )}
+                                    {p.isPending && (
+                                      <div className="flex items-center gap-1.5 text-amber-600 border-l border-slate-200 pl-4">
+                                        <Clock size={12} className="text-amber-400" />
+                                        <span className="text-[10px] font-bold">Mời lúc: {formatDateTime(p.createdAt)}</span>
+                                      </div>
+                                    )}
+                                  </div>
                                 </div>
                               </div>
                             </td>
-                            <td className="p-4 text-xs text-gray-600">
-                              <div className="space-y-1">
-                                <p className="flex items-center gap-2"><Mail size={12} className="text-slate-400" /> {p.email}</p>
-                                {p.phone && <p className="flex items-center gap-2"><Phone size={12} className="text-slate-400" /> {p.phone}</p>}
-                                {p.isPending && <p className="text-[10px] text-amber-600 font-bold italic mt-1">Chờ xác nhận lúc: {formatDateTime(p.createdAt)}</p>}
+                            <td className="p-5">
+                              <div className="flex flex-col gap-3 max-w-[400px] mx-auto">
+                                {p.displaySessions?.length > 0 ? (
+                                  p.displaySessions.map((s, sIdx) => (
+                                    <div key={sIdx} className="relative pl-6 last:pb-0 pb-3 group/sess">
+                                      {/* Vertical line connector */}
+                                      {p.displaySessions.length > 1 && sIdx !== p.displaySessions.length - 1 && (
+                                        <div className="absolute left-[7px] top-[14px] bottom-0 w-[2px] bg-slate-100 group-hover/sess:bg-indigo-100 transition-colors" />
+                                      )}
+
+                                      {/* Dot indicator */}
+                                      <div className={`absolute left-0 top-[6px] w-[16px] h-[16px] rounded-full border-2 z-10 flex items-center justify-center transition-all ${p.isPending ? "bg-amber-50 border-amber-200 text-amber-500" : "bg-white border-indigo-200 text-indigo-500 group-hover/sess:border-indigo-400"}`}>
+                                        <div className="w-1.5 h-1.5 rounded-full bg-current" />
+                                      </div>
+
+                                      <div className="flex flex-col">
+                                        <p className={`text-[11px] font-black uppercase tracking-tight mb-1 ${p.isPending ? "text-amber-700" : "text-slate-800 group-hover/sess:text-indigo-700"} transition-colors`}>
+                                          {s.title}
+                                        </p>
+
+                                        {!p.isPending && s.startTime ? (
+                                          <div className="flex items-center gap-3 text-[10px] text-slate-500 font-bold opacity-80">
+                                            <div className="flex items-center gap-1">
+                                              <Clock size={10} className="text-slate-400" />
+                                              <span>{new Date(s.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} - {new Date(s.endTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                                            </div>
+                                            {s.room && (
+                                              <div className="flex items-center gap-1 border-l border-slate-200 pl-3">
+                                                <MapPin size={10} className="text-slate-400" />
+                                                <span>{s.room}</span>
+                                              </div>
+                                            )}
+                                          </div>
+                                        ) : (
+                                          p.isPending && <span className="text-[9px] text-amber-600 font-bold italic">Dự kiến tham gia phiên này</span>
+                                        )}
+                                      </div>
+                                    </div>
+                                  ))
+                                ) : (
+                                  <div className="text-center">
+                                    <span className="text-xs text-slate-400 font-medium italic">Chưa phân công phiên</span>
+                                  </div>
+                                )}
                               </div>
                             </td>
-                            <td className="p-4">
-                              <span className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase ${p.isPending ? "bg-amber-50 text-amber-600 border border-amber-100" : "bg-blue-50 text-blue-600"}`}>
-                                {p.isPending ? p.presenterSession : (p.sessions?.length > 0 ? p.sessions.map(s => `P${s.orderIndex || ''}: ${s.title}`).join(' | ') : "N/A")}
-                              </span>
-                            </td>
                             {userPerms.canManageTeam && (
-                              <td className="p-4 text-center">
+                              <td className="p-5 text-center">
                                 <button
                                   onClick={() => {
                                     const isPending = p.isPending;
                                     setConfirmConfig({
                                       title: isPending ? "Hủy lời mời" : "Gỡ diễn giả",
-                                      message: `Bạn có chắc muốn ${isPending ? "hủy lời mời tới" : "gỡ"} diễn giả ${enrichedNames[p.accountId] || enrichedNames[p.email] || p.fullName}?`,
-                                      onConfirm: () => isPending ? onRemoveMember(p) : onRemovePresenter(p.id), // onRemoveMember handles general invitations
+                                      message: `Bạn có chắc muốn ${isPending ? "hủy lời mời tới" : "gỡ"} diễn giả ${p.fullName}?`,
+                                      onConfirm: () => isPending ? onRemoveMember(p) : onRemovePresenter(p.id),
                                       icon: isPending ? X : Trash2,
                                       color: "rose"
                                     });
                                     setShowConfirmModal(true);
                                   }}
-                                  className="p-2 text-rose-500 hover:bg-rose-50 rounded-lg transition-colors"
+                                  className="p-3 text-rose-500 hover:bg-rose-50 rounded-2xl transition-all hover:scale-110 active:scale-95 shadow-sm hover:shadow-rose-100 border border-transparent hover:border-rose-100"
                                   title={p.isPending ? "Hủy lời mời" : "Gỡ bỏ"}
                                 >
-                                  {p.isPending ? <X size={16} /> : <Trash2 size={16} />}
+                                  {p.isPending ? <X size={20} /> : <Trash2 size={20} />}
                                 </button>
                               </td>
                             )}
@@ -1367,7 +1885,24 @@ const EventDetailManagement = ({
             {activeTab === "Vòng quay" && (
               <div className="space-y-6">
                 <div className="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm">
-                  <div className="flex justify-between items-start"><h2 className="text-xl font-bold text-slate-800 flex items-center gap-2"><Gift size={24} className="text-amber-500" /> {luckyDraw?.luckyDraw?.title || "Chương trình vòng quay"}</h2><span className="px-3 py-1 text-xs font-black uppercase rounded-full bg-indigo-100 text-indigo-600">{luckyDraw?.luckyDraw?.status}</span></div>
+                  <div className="flex justify-between items-start">
+                    <h2 className="text-xl font-bold text-slate-800 flex items-center gap-2">
+                      <Gift size={24} className="text-amber-500" /> {luckyDraw?.luckyDraw?.title || "Chương trình vòng quay"}
+                    </h2>
+                    <div className="flex items-center gap-3">
+                      {event?.currentUserRole?.organizerRole === 'LEADER' && (
+                        <button
+                          onClick={handleOpenDuckRace}
+                          className="flex items-center gap-2 px-4 py-2 bg-amber-500 text-slate-900 rounded-xl text-xs font-black uppercase tracking-widest hover:bg-amber-400 transition-all shadow-lg shadow-amber-200"
+                        >
+                          <Waves size={16} /> Mở Đua Vịt (LIVE)
+                        </button>
+                      )}
+                      <span className="px-3 py-1 text-xs font-black uppercase rounded-full bg-indigo-100 text-indigo-600">
+                        {luckyDraw?.luckyDraw?.status}
+                      </span>
+                    </div>
+                  </div>
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-6">
                     <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 text-center"><p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Tổng giải thưởng</p><p className="text-xl font-black text-slate-800">{luckyDraw?.luckyDraw?.prizes?.length || 0}</p></div>
                     <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 text-center"><p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Đã trúng giải</p><p className="text-xl font-black text-emerald-600">{luckyDraw?.enrichedResults?.length || 0}</p></div>
@@ -1454,35 +1989,91 @@ const EventDetailManagement = ({
 
                 {/* Thiết lập hệ thống (Chỉ Core Team hoặc người có quyền Edit) */}
                 {(canSeeAll || up.canEditEvent) && (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div className="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm">
-                      <div className="flex items-center gap-4 mb-6"><div className="w-12 h-12 bg-emerald-50 text-emerald-600 rounded-2xl flex items-center justify-center"><Gift size={24} /></div><div><h4 className="font-bold text-slate-800 uppercase tracking-tight">Lucky Draw</h4><p className="text-xs text-gray-500">Thiết lập giải thưởng cho sự kiện</p></div></div>
-                      <button 
-                        onClick={() => {
-                          const routePrefix = isAdmin ? '/admin' : '/lecturer';
-                          navigate(`${routePrefix}/events/${event.id}/lucky-draw/setup`);
-                        }} 
-                        className="w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold transition-all shadow-lg shadow-emerald-100"
-                      >
-                        {luckyDraw ? "Cập nhật cấu hình" : "Thiết lập ngay"}
-                      </button>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
+                    {/* Cột 1: Thông tin & Tính năng tương tác */}
+                    <div className="flex flex-col gap-6">
+                      {/* Chỉnh sửa thông tin sự kiện (Trên cùng) */}
+                      {(canSeeAll && canEdit) && (
+                        <div className="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm flex items-center justify-between gap-4">
+                          <div className="flex items-center gap-4">
+                            <div className="w-12 h-12 bg-indigo-50 text-indigo-600 rounded-2xl flex items-center justify-center shrink-0">
+                              <Edit3 size={24} />
+                            </div>
+                            <div>
+                              <h4 className="font-bold text-slate-800 text-xs uppercase tracking-tight">Chỉnh sửa thông tin</h4>
+                              <p className="text-[10px] text-gray-500">Cập nhật tên, thời gian, địa điểm và mô tả sự kiện</p>
+                            </div>
+                          </div>
+                          <button
+                            onClick={onEditInfo}
+                            className="whitespace-nowrap px-6 py-2.5 bg-indigo-600 text-white rounded-xl text-xs font-bold hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-100 flex items-center justify-center gap-2"
+                          >
+                            <Edit3 size={14} /> Chỉnh sửa ngay
+                          </button>
+                        </div>
+                      )}
+
+                      {/* Lucky Draw (Ở dưới Chỉnh sửa thông tin) */}
+                      <div className="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm flex items-center justify-between gap-4">
+                        <div className="flex items-center gap-4">
+                          <div className="w-12 h-12 bg-emerald-50 text-emerald-600 rounded-2xl flex items-center justify-center shrink-0">
+                            <Gift size={24} />
+                          </div>
+                          <div>
+                            <h4 className="font-bold text-slate-800 text-xs uppercase tracking-tight">Lucky Draw</h4>
+                            <p className="text-[10px] text-gray-500">Thiết lập giải thưởng cho sự kiện</p>
+                          </div>
+                        </div>
+                        <button
+                          onClick={() => {
+                            const routePrefix = isAdmin ? '/admin' : '/lecturer';
+                            navigate(`${routePrefix}/events/${event.id}/lucky-draw/setup`);
+                          }}
+                          className="whitespace-nowrap px-6 py-2.5 bg-emerald-600 text-white rounded-xl text-xs font-bold transition-all shadow-lg shadow-emerald-100"
+                        >
+                          Thiết lập ngay
+                        </button>
+                      </div>
                     </div>
 
+                    {/* Cột 2: Khu vực nguy hiểm */}
                     <div className="bg-rose-50 border border-rose-100 rounded-2xl p-6 shadow-sm space-y-6">
-                      <div><h3 className="text-rose-600 font-bold text-sm mb-4 flex items-center gap-2"><XCircle size={18} /> Khu vực nguy hiểm</h3>
+                      <div>
+                        <h3 className="text-rose-600 font-bold text-sm mb-4 flex items-center gap-2">
+                          <XCircle size={18} /> Khu vực nguy hiểm
+                        </h3>
                         <div className="flex items-center justify-between gap-4">
-                          <div className="flex-1"><h4 className="text-sm font-bold text-rose-900">Hủy sự kiện</h4><p className="text-[10px] text-rose-700 mt-0.5">Dừng sự kiện và thông báo cho người tham gia.</p></div>
-                          <button onClick={() => setShowCancelInput(!showCancelInput)} className={`px-4 py-2 rounded-lg text-xs font-bold transition-all ${showCancelInput ? 'bg-rose-100 text-rose-700' : 'bg-white border border-rose-200 text-rose-600 hover:bg-rose-50'}`}>{showCancelInput ? 'Đóng' : 'Hủy'}</button>
+                          <div className="flex-1">
+                            <h4 className="text-sm font-bold text-rose-900">Hủy sự kiện</h4>
+                            <p className="text-[10px] text-rose-700 mt-0.5">Dừng sự kiện và thông báo cho người tham gia.</p>
+                          </div>
+                          <button
+                            onClick={() => setShowCancelInput(!showCancelInput)}
+                            className={`px-4 py-2 rounded-lg text-xs font-bold transition-all ${showCancelInput ? 'bg-rose-100 text-rose-700' : 'bg-white border border-rose-200 text-rose-600 hover:bg-rose-50'}`}
+                          >
+                            {showCancelInput ? 'Đóng' : 'Hủy'}
+                          </button>
                         </div>
                         {showCancelInput && (
                           <div className="mt-4 space-y-3 bg-white p-4 rounded-xl border border-rose-100 shadow-inner animate-in slide-in-from-top-2 duration-300">
                             <Textarea value={cancelReason} onChange={e => setCancelReason(e.target.value)} placeholder="Nhập lý do hủy..." rows={3} />
-                            <div className="flex justify-end"><button onClick={onCancelEvent} disabled={isCancelling} className="px-4 py-2 bg-rose-600 text-white rounded-lg text-xs font-bold hover:bg-rose-700 disabled:opacity-50 transition-all">{isCancelling ? 'Đang xử lý...' : 'Xác nhận hủy vĩnh viễn'}</button></div>
+                            <div className="flex justify-end">
+                              <button
+                                onClick={onCancelEvent}
+                                disabled={isCancelling}
+                                className="px-4 py-2 bg-rose-600 text-white rounded-lg text-xs font-bold hover:bg-rose-700 disabled:opacity-50 transition-all"
+                              >
+                                {isCancelling ? 'Đang xử lý...' : 'Xác nhận hủy vĩnh viễn'}
+                              </button>
+                            </div>
                           </div>
                         )}
                       </div>
                       <div className="pt-6 border-t border-rose-100 flex items-center justify-between gap-4">
-                        <div className="flex-1"><h4 className="text-sm font-bold text-rose-900">Xóa sự kiện</h4><p className="text-[10px] text-rose-700 mt-0.5">Xóa vĩnh viễn sự kiện này khỏi hệ thống.</p></div>
+                        <div className="flex-1">
+                          <h4 className="text-sm font-bold text-rose-900">Xóa sự kiện</h4>
+                          <p className="text-[10px] text-rose-700 mt-0.5">Xóa vĩnh viễn sự kiện này khỏi hệ thống.</p>
+                        </div>
                         <button onClick={() => setShowDeleteConfirm(true)} className="px-4 py-2 bg-white border border-rose-200 text-rose-600 hover:bg-rose-600 hover:text-white rounded-lg text-xs font-bold transition-all">Xóa ngay</button>
                       </div>
                     </div>
@@ -1498,12 +2089,27 @@ const EventDetailManagement = ({
                     <h3 className="font-bold text-lg text-slate-800">Thử thách trực tiếp</h3>
                     <p className="text-xs text-slate-500">Kích hoạt các bộ câu hỏi để tăng tương tác trong sự kiện</p>
                   </div>
-                  <button 
-                    onClick={() => setShowQuizCreatorModal(true)}
-                    className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-xl text-sm font-bold shadow-lg shadow-indigo-100 hover:bg-indigo-700 transition-all active:scale-95"
-                  >
-                    <Plus size={16} /> Tạo bộ câu hỏi
-                  </button>
+                  <div className="flex gap-3">
+                    <input
+                      type="file"
+                      ref={fileInputRef}
+                      onChange={handleWordImport}
+                      accept=".docx"
+                      className="hidden"
+                    />
+                    <button
+                      onClick={() => fileInputRef.current.click()}
+                      className="flex items-center gap-2 px-5 py-2.5 bg-[#f0f3ff] text-[#5c59f2] rounded-xl text-sm font-bold hover:bg-[#e8ebff] transition-all active:scale-95 border border-[#dce2ff]"
+                    >
+                      <FileUp size={18} /> Import Word
+                    </button>
+                    <button
+                      onClick={() => setShowQuizCreatorModal(true)}
+                      className="flex items-center gap-2 px-5 py-2.5 bg-[#1a61ff] text-white rounded-xl text-sm font-bold shadow-lg shadow-blue-100 hover:bg-[#0051ff] transition-all active:scale-95"
+                    >
+                      <Plus size={18} /> Tạo bộ câu hỏi
+                    </button>
+                  </div>
                 </div>
 
                 {loadingQuizzes ? (
@@ -1516,11 +2122,11 @@ const EventDetailManagement = ({
                           <h4 className="font-bold text-slate-800">{quiz.title}</h4>
                           <p className="text-xs text-slate-500">{quiz.description || "Không có mô tả"}</p>
                           <div className="flex gap-2 mt-3">
-                             <span className="px-2 py-0.5 bg-indigo-50 text-indigo-600 rounded-md text-[10px] font-black">{quiz.questionsCount || 0} CÂU HỎI</span>
-                             {quiz.isActive && <span className="px-2 py-0.5 bg-emerald-100 text-emerald-600 rounded-md text-[10px] font-black animate-pulse">ĐANG BẬT</span>}
+                            <span className="px-2 py-0.5 bg-indigo-50 text-indigo-600 rounded-md text-[10px] font-black">{quiz.questions?.length || 0} CÂU HỎI</span>
+                            {quiz.isActive && <span className="px-2 py-0.5 bg-emerald-100 text-emerald-600 rounded-md text-[10px] font-black animate-pulse">ĐANG BẬT</span>}
                           </div>
                         </div>
-                        <button 
+                        <button
                           onClick={() => handleStartQuiz(quiz.id)}
                           className="w-12 h-12 bg-slate-900 text-white rounded-2xl flex items-center justify-center hover:bg-slate-800 transition-all shadow-lg active:scale-90"
                         >
@@ -1540,33 +2146,100 @@ const EventDetailManagement = ({
             {/* KHẢO SÁT */}
             {activeTab === "Khảo sát" && (
               <div className="space-y-6">
-                <div className="bg-indigo-50 border border-indigo-100 p-8 rounded-[3rem] text-center">
-                  <div className="w-16 h-16 bg-white text-indigo-600 rounded-3xl flex items-center justify-center mx-auto mb-4 shadow-xl shadow-indigo-100/50">
-                     <ClipboardCheck size={32} />
+                <input
+                  type="file"
+                  ref={surveyFileInputRef}
+                  className="hidden"
+                  accept=".docx"
+                  onChange={handleSurveyWordImport}
+                />
+                {event.survey ? (
+                  <div className="bg-white border border-slate-200 rounded-[3rem] p-8 shadow-sm">
+                    <div className="flex items-start justify-between mb-8">
+                      <div className="flex items-center gap-4">
+                        <div className="w-16 h-16 bg-indigo-50 text-indigo-600 rounded-3xl flex items-center justify-center shadow-lg shadow-indigo-100/50">
+                          <ClipboardCheck size={32} />
+                        </div>
+                        <div>
+                          <h3 className="text-xl font-black text-slate-800 uppercase tracking-tight">{event.survey.title}</h3>
+                          <p className="text-sm text-slate-500 mt-1">{event.survey.description || "Không có mô tả"}</p>
+                          <div className="flex gap-2 mt-3">
+                            <span className="px-2 py-0.5 bg-indigo-50 text-indigo-600 rounded-md text-[10px] font-black uppercase">
+                              {event.survey.questions?.length || 0} CÂU HỎI
+                            </span>
+                            <span className={`px-2 py-0.5 rounded-md text-[10px] font-black uppercase ${event.survey.isPublished ? 'bg-emerald-100 text-emerald-600' : 'bg-amber-100 text-amber-600'}`}>
+                              {event.survey.isPublished ? 'ĐÃ CÔNG BỐ' : 'BẢN NHÁP'}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => surveyFileInputRef.current.click()}
+                          className="flex items-center gap-2 px-5 py-2.5 bg-[#f0f3ff] text-[#5c59f2] rounded-xl text-sm font-bold hover:bg-[#e8ebff] transition-all"
+                        >
+                          <FileUp size={18} /> Ghi đè từ Word
+                        </button>
+                        {!event.survey.isPublished && (
+                          <button
+                            onClick={() => setShowSurveyModal(true)}
+                            className="flex items-center gap-2 px-5 py-2.5 bg-[#1a61ff] text-white rounded-xl text-sm font-bold shadow-lg shadow-blue-100 hover:bg-[#0051ff] transition-all"
+                          >
+                            <Plus size={18} /> Chỉnh sửa & Công bố
+                          </button>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 gap-4">
+                      {(showAllSurveyQuestions ? event.survey.questions : event.survey.questions?.slice(0, 3)).map((q, idx) => (
+                        <div key={q.id || idx} className="p-4 bg-slate-50 rounded-2xl border border-slate-100">
+                          <p className="text-sm font-bold text-slate-700 flex items-start gap-2">
+                            <span className="text-indigo-600">Q{idx + 1}.</span> {q.questionText}
+                          </p>
+                          <p className="text-[10px] text-slate-400 mt-1 uppercase font-bold tracking-wider">{q.type === 'MULTIPLE_CHOICE' ? 'Trắc nghiệm' : 'Tự luận'}</p>
+                        </div>
+                      ))}
+                      {event.survey.questions?.length > 3 && (
+                        <button
+                          onClick={() => setShowAllSurveyQuestions(!showAllSurveyQuestions)}
+                          className="w-full py-2 text-center text-xs text-indigo-600 font-bold hover:text-indigo-700 transition-all"
+                        >
+                          {showAllSurveyQuestions ? 'Thu gọn' : `...và ${event.survey.questions.length - 3} câu hỏi khác (Bấm để xem tất cả)`}
+                        </button>
+                      )}
+                    </div>
                   </div>
-                  <h3 className="text-xl font-black text-slate-800 uppercase tracking-tight">Khảo sát & Phản hồi</h3>
-                  <p className="text-sm text-slate-500 mt-2 max-w-md mx-auto">Tạo form khảo sát để lắng nghe ý kiến từ người tham gia sự kiện của bạn.</p>
-                  
-                  <div className="flex justify-center gap-4 mt-8">
-                     <button 
-                       onClick={() => setShowSurveyCreatorModal(true)}
-                       className="px-8 py-3 bg-indigo-600 text-white rounded-2xl font-bold shadow-xl shadow-indigo-200 hover:bg-indigo-700 transition-all active:scale-95"
-                     >
-                       Tạo khảo sát
-                     </button>
-                     <button 
-                       onClick={() => setShowSurveyModal(true)}
-                       className="px-8 py-3 bg-white border-2 border-indigo-100 text-indigo-600 rounded-2xl font-bold hover:bg-indigo-50 transition-all"
-                     >
-                       Xem bản nháp
-                     </button>
+                ) : (
+                  <div className="bg-indigo-50 border border-indigo-100 p-12 rounded-[3.5rem] text-center">
+                    <div className="w-20 h-20 bg-white text-indigo-600 rounded-[2rem] flex items-center justify-center mx-auto mb-6 shadow-2xl shadow-indigo-100/50">
+                      <ClipboardCheck size={40} />
+                    </div>
+                    <h3 className="text-2xl font-black text-slate-800 uppercase tracking-tight mb-3">Chưa có khảo sát</h3>
+                    <p className="text-slate-500 max-w-md mx-auto mb-10 leading-relaxed">Bạn có thể tạo form khảo sát để lắng nghe ý kiến đóng góp từ những người đã tham gia sự kiện.</p>
+
+                    <div className="flex justify-center gap-4">
+                      <button
+                        onClick={() => surveyFileInputRef.current.click()}
+                        className="flex items-center gap-2 px-8 py-3.5 bg-white border-2 border-indigo-100 text-indigo-600 rounded-2xl font-bold hover:bg-indigo-50 transition-all active:scale-95"
+                      >
+                        <FileUp size={20} /> Import từ Word
+                      </button>
+                      <button
+                        onClick={() => setShowSurveyCreatorModal(true)}
+                        className="flex items-center gap-2 px-8 py-3.5 bg-indigo-600 text-white rounded-2xl font-bold shadow-xl shadow-indigo-200 hover:bg-indigo-700 transition-all active:scale-95"
+                      >
+                        <Plus size={20} /> Tạo mới khảo sát
+                      </button>
+                    </div>
                   </div>
-                </div>
+                )}
               </div>
             )}
           </div>
         </div>
       </div>
+
 
       {/* Delete Confirmation Modal */}
       {showDeleteConfirm && (
@@ -1747,7 +2420,7 @@ const EventDetailManagement = ({
         )}
       </AnimatePresence>
       {/* QUIZ MODAL */}
-      <QuizModal 
+      <QuizModal
         isOpen={showQuizModal}
         onClose={() => setShowQuizModal(false)}
         eventId={event.id}
@@ -1758,11 +2431,25 @@ const EventDetailManagement = ({
       />
 
       {/* QUIZ CREATOR MODAL */}
-      <QuizCreatorModal 
+      <QuizCreatorModal
         isOpen={showQuizCreatorModal}
         onClose={() => setShowQuizCreatorModal(false)}
         eventId={event.id}
         onCreated={fetchQuizzes}
+      />
+
+      {/* DUCK RACE MODAL */}
+      <DuckRaceLuckyDraw
+        isOpen={showDuckRace}
+        onClose={() => {
+          setShowDuckRace(false);
+          onRefresh(); // Refresh to see new winners
+        }}
+        participants={raceParticipants}
+        onSpin={handleDuckSpin}
+        campaignTitle={luckyDraw?.luckyDraw?.title}
+        prizes={luckyDraw?.luckyDraw?.prizes || []}
+        luckyDrawId={luckyDraw?.luckyDraw?.id}
       />
 
       {/* SURVEY CREATOR MODAL */}
@@ -1770,11 +2457,11 @@ const EventDetailManagement = ({
         isOpen={showSurveyCreatorModal}
         onClose={() => setShowSurveyCreatorModal(false)}
         eventId={event.id}
-        onSaved={() => {}}
+        onSaved={() => { }}
       />
 
       {/* SURVEY MODAL (student view) */}
-      <SurveyModal 
+      <SurveyModal
         isOpen={showSurveyModal}
         onClose={() => setShowSurveyModal(false)}
         eventId={event.id}

@@ -1,12 +1,12 @@
 package com.eventservice.service.impl;
 
-import com.eventservice.dto.NotificationEvent;
-import com.eventservice.dto.survey.SurveyDto;
-import com.eventservice.entity.Event;
-import com.eventservice.entity.EventRegistration;
-import com.eventservice.entity.survey.Survey;
-import com.eventservice.entity.survey.SurveyQuestion;
-import com.eventservice.entity.survey.SurveyResponse;
+import com.eventservice.dto.engagement.NotificationEventDto;
+import com.eventservice.dto.engagement.survey.SurveyDto;
+import com.eventservice.entity.core.Event;
+import com.eventservice.entity.registration.EventRegistration;
+import com.eventservice.entity.engagement.survey.Survey;
+import com.eventservice.entity.engagement.survey.SurveyQuestion;
+import com.eventservice.entity.engagement.survey.SurveyResponse;
 import com.eventservice.kafka.NotificationProducer;
 import com.eventservice.repository.EventRepository;
 import com.eventservice.repository.survey.SurveyRepository;
@@ -17,8 +17,15 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
+import org.apache.poi.xwpf.usermodel.XWPFDocument;
+import org.apache.poi.xwpf.usermodel.XWPFParagraph;
+import java.io.InputStream;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+import org.springframework.web.multipart.MultipartFile;
 
 @Service
 @RequiredArgsConstructor
@@ -80,7 +87,7 @@ public class SurveyServiceImpl implements SurveyService {
                 .collect(Collectors.toList());
 
         participantIds.forEach(userId -> {
-            NotificationEvent notification = NotificationEvent.builder()
+            NotificationEventDto notification = NotificationEventDto.builder()
                     .recipientId(userId)
                     .title("Khảo sát sự kiện: " + event.getTitle())
                     .message("Vui lòng dành chút thời gian để thực hiện khảo sát cho sự kiện bạn vừa tham gia.")
@@ -115,6 +122,96 @@ public class SurveyServiceImpl implements SurveyService {
         return responseRepository.findBySurveyIdAndParticipantAccountId(surveyId, userId).isPresent();
     }
 
+    @Override
+    @Transactional
+    public SurveyDto importSurveyFromWord(String eventId, MultipartFile file) {
+        try (InputStream is = file.getInputStream(); XWPFDocument document = new XWPFDocument(is)) {
+            String title = "Khảo sát nhập từ Word " + LocalDateTime.now().format(DateTimeFormatter.ofPattern("HH:mm dd/MM"));
+            String description = "Tự động nhập từ file: " + file.getOriginalFilename();
+
+            Survey survey = surveyRepository.findByEventId(eventId)
+                    .orElseGet(() -> {
+                        Event event = eventRepository.findById(eventId).orElseThrow();
+                        return Survey.builder().event(event).build();
+                    });
+
+            survey.setTitle(title);
+            survey.setDescription(description);
+            survey.setPublished(false);
+
+            List<SurveyQuestion> questions = new ArrayList<>();
+            SurveyQuestion currentQuestion = null;
+            List<String> currentOptions = new ArrayList<>();
+            int questionOrder = 0;
+
+            for (XWPFParagraph paragraph : document.getParagraphs()) {
+                String text = paragraph.getText().trim();
+                if (text.isEmpty()) continue;
+
+                // Detect Question (Starts with "Câu", "Question", or "1.")
+                if (text.toLowerCase().startsWith("câu") || 
+                    text.toLowerCase().startsWith("question") || 
+                    text.matches("^\\d+[.:\\s].*")) {
+                    
+                    // Save previous question
+                    if (currentQuestion != null) {
+                        if (!currentOptions.isEmpty()) {
+                            currentQuestion.setType("MULTIPLE_CHOICE");
+                            currentQuestion.setOptions(String.join("|", currentOptions));
+                        } else {
+                            currentQuestion.setType("TEXT");
+                        }
+                        questions.add(currentQuestion);
+                    }
+
+                    // Start new question
+                    String cleanContent = text.replaceFirst("^(?i)(câu|question|\\d+)\\s*\\d*[.:\\s]*", "").trim();
+                    currentQuestion = SurveyQuestion.builder()
+                            .survey(survey)
+                            .questionText(cleanContent)
+                            .orderIndex(questionOrder++)
+                            .isRequired(true)
+                            .build();
+                    currentOptions = new ArrayList<>();
+                } 
+                // Detect Options (Starts with A., B., C., D. or A), B)...)
+                else if (text.matches("^[A-Da-d][.).\\s].*")) {
+                    if (currentQuestion != null) {
+                        String optionText = text.replaceFirst("^[A-Da-d][.).\\s]+", "").trim();
+                        if (!optionText.isEmpty()) {
+                            currentOptions.add(optionText);
+                        }
+                    }
+                }
+            }
+
+            // Save last question
+            if (currentQuestion != null) {
+                if (!currentOptions.isEmpty()) {
+                    currentQuestion.setType("MULTIPLE_CHOICE");
+                    currentQuestion.setOptions(String.join("|", currentOptions));
+                } else {
+                    currentQuestion.setType("TEXT");
+                }
+                questions.add(currentQuestion);
+            }
+
+            if (survey.getQuestions() == null) {
+                survey.setQuestions(new ArrayList<>());
+            } else {
+                survey.getQuestions().clear();
+            }
+            survey.getQuestions().addAll(questions);
+
+            Survey saved = surveyRepository.save(survey);
+            return mapToDto(saved);
+
+        } catch (Exception e) {
+            log.error("Lỗi khi nhập file Word cho Survey: {}", e.getMessage(), e);
+            throw new RuntimeException("Lỗi xử lý file Word: " + e.getMessage());
+        }
+    }
+
     private SurveyDto mapToDto(Survey survey) {
         return SurveyDto.builder()
                 .id(survey.getId())
@@ -122,6 +219,16 @@ public class SurveyServiceImpl implements SurveyService {
                 .title(survey.getTitle())
                 .description(survey.getDescription())
                 .isPublished(survey.isPublished())
+                .questions(survey.getQuestions() != null ? survey.getQuestions().stream()
+                        .map(q -> com.eventservice.dto.engagement.survey.SurveyQuestionDto.builder()
+                                .id(q.getId())
+                                .questionText(q.getQuestionText())
+                                .type(q.getType())
+                                .options(q.getOptions())
+                                .orderIndex(q.getOrderIndex())
+                                .isRequired(q.isRequired())
+                                .build())
+                        .collect(Collectors.toList()) : null)
                 .build();
     }
 }

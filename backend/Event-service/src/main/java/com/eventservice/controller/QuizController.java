@@ -1,7 +1,7 @@
 package com.eventservice.controller;
 
-import com.eventservice.dto.quiz.QuizDto;
-import com.eventservice.dto.quiz.QuizSubmissionDto;
+import com.eventservice.dto.engagement.quiz.QuizDto;
+import com.eventservice.dto.engagement.quiz.QuizSubmissionDto;
 import com.eventservice.service.QuizService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -53,5 +53,10 @@ public class QuizController {
     @GetMapping("/{quizId}/leaderboard")
     public ResponseEntity<List<?>> getLeaderboard(@PathVariable String quizId) {
         return ResponseEntity.ok(quizService.getLeaderboard(quizId));
+    }
+
+    @PostMapping("/import/{eventId}")
+    public ResponseEntity<QuizDto> importQuiz(@PathVariable String eventId, @RequestParam("file") org.springframework.web.multipart.MultipartFile file) {
+        return ResponseEntity.ok(quizService.importQuizFromWord(eventId, file));
     }
 }

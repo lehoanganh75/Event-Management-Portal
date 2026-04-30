@@ -1,6 +1,6 @@
 package com.eventservice.service;
 
-import com.eventservice.entity.Organization;
+import com.eventservice.entity.core.Organization;
 import java.util.List;
 
 public interface OrganizationService {

@@ -33,13 +33,7 @@ const STEPS = [
   { id: 2, label: "Mô tả & Cài đặt", icon: Info },
   { id: 3, label: "Vòng quay may mắn", icon: Gift },
   { id: 4, label: "Tương tác & Q&A", icon: MessageSquare },
-  { id: 5, label: "Xem trước & Xuất bản", icon: CheckCircle },
-];
-
-const PLAN_STEPS = [
-  { id: 1, label: "Thông tin cơ bản", icon: FileText },
-  { id: 2, label: "Nội dung & Cài đặt", icon: Info },
-  { id: 3, label: "Xem trước & Gửi duyệt", icon: CheckCircle },
+  { id: 5, label: "Xem trước & Hoàn tất", icon: CheckCircle },
 ];
 
 const StepIcon = ({ id, active, completed, icon: Icon }) => {
@@ -68,17 +62,24 @@ export const EventCreator = ({
   fromPlan = false,
   planId = null,
   isEdit = false,
-  startAtStep = 1
+  startAtStep = 1,
+  forceEventMode = false
 }) => {
-  // If it's an edit of an existing event, it's NOT plan mode.
-  const isPlanMode = !fromPlan && !planId && !isEdit;
+  // Unified to 5 steps
+  const { user } = useAuth();
+  const isPlanMode = !forceEventMode && !fromPlan && !planId && !isEdit;
   
-  const activeSteps = isPlanMode ? PLAN_STEPS : STEPS;
+  const activeSteps = STEPS.map(s => {
+    if (s.id === 5) {
+      const isAuthority = user?.role === 'SUPER_ADMIN' || user?.role === 'ADMIN';
+      return { ...s, label: (isAuthority && !isPlanMode) ? "Xem trước & Xuất bản" : "Xem trước & Gửi duyệt" };
+    }
+    return s;
+  });
   const [step, setStep] = useState(startAtStep);
   const [formData, setFormData] = useState(initialFormData);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
-  const { user } = useAuth();
 
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: "smooth" });
@@ -160,7 +161,7 @@ export const EventCreator = ({
     try {
       toast.info("⏳ Đang phân tích nội dung kế hoạch bằng AI...");
       const extracted = await extractDataFromDocx(file);
-      
+
       if (extracted) {
         // Map AI result to our form structure
         const mappedData = {
@@ -173,10 +174,10 @@ export const EventCreator = ({
 
         // Handle datetimes if present
         if (extracted.suggestedStartTime) {
-            mappedData.startTime = new Date(extracted.suggestedStartTime).toISOString().slice(0, 16);
+          mappedData.startTime = new Date(extracted.suggestedStartTime).toISOString().slice(0, 16);
         }
         if (extracted.suggestedEndTime) {
-            mappedData.endTime = new Date(extracted.suggestedEndTime).toISOString().slice(0, 16);
+          mappedData.endTime = new Date(extracted.suggestedEndTime).toISOString().slice(0, 16);
         }
 
         updateFormData(mappedData);
@@ -454,7 +455,7 @@ export const EventCreator = ({
                 <div className="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center text-white shadow-lg shadow-indigo-200">
                   <Sparkles size={22} fill="currentColor" />
                 </div>
-                {isEdit ? "Chỉnh sửa Sự kiện" : (isPlanMode ? "Tạo Kế Hoạch Mới" : "Tạo Sự Kiện Mới")}
+                {isEdit ? "Cập nhật sự kiện" : (isPlanMode ? "Tạo Kế Hoạch Mới" : "Tạo Sự Kiện Mới")}
               </h1>
               {isPlanMode && formData._templateName && (
                 <span className="ml-3 px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-bold">
@@ -560,22 +561,7 @@ export const EventCreator = ({
             />
           )}
 
-          {step === 3 && isPlanMode && (
-            <EventReviewStep
-              formData={formData}
-              onBack={() => setStep(2)}
-              onSubmit={handleSubmit}
-              isSubmitting={isSubmitting}
-              isPlanMode={true}
-              isEdit={isEdit}
-              onSaveDraft={handleSaveDraft}
-              onSaveTemplate={handleSaveTemplate}
-              onExportWord={handleExportWord}
-              onReset={handleReset}
-            />
-          )}
-
-          {step === 3 && !isPlanMode && (
+          {step === 3 && (
             <LuckyDrawStep
               formData={formData}
               setFormData={updateFormData}
@@ -606,6 +592,11 @@ export const EventCreator = ({
               onSubmit={handleSubmit}
               isSubmitting={isSubmitting}
               isEdit={isEdit}
+              isPlanMode={isPlanMode}
+              onSaveDraft={handleSaveDraft}
+              onSaveTemplate={handleSaveTemplate}
+              onExportWord={handleExportWord}
+              onReset={handleReset}
             />
           )}
         </div>

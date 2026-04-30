@@ -2,7 +2,6 @@ package src.main.luckydrawservice.entity;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
-import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 @Entity
@@ -18,9 +17,6 @@ public class Prize {
     private int remainingQuantity;
     private String description;
 
-    @Column(precision = 5, scale = 2, nullable = false)
-    private BigDecimal winProbabilityPercent;
-
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
     private boolean isDeleted = false;
@@ -30,15 +26,16 @@ public class Prize {
     @JsonIgnore
     private LuckyDraw luckyDraw;
 
-    public Prize() {}
+    public Prize() {
+    }
 
-    public Prize(String id, String name, int quantity, int remainingQuantity, String description, BigDecimal winProbabilityPercent, LocalDateTime createdAt, LocalDateTime updatedAt, boolean isDeleted, LuckyDraw luckyDraw) {
+    public Prize(String id, String name, int quantity, int remainingQuantity, String description,
+            LocalDateTime createdAt, LocalDateTime updatedAt, boolean isDeleted, LuckyDraw luckyDraw) {
         this.id = id;
         this.name = name;
         this.quantity = quantity;
         this.remainingQuantity = remainingQuantity;
         this.description = description;
-        this.winProbabilityPercent = winProbabilityPercent;
         this.createdAt = createdAt;
         this.updatedAt = updatedAt;
         this.isDeleted = isDeleted;
@@ -96,14 +93,6 @@ public class Prize {
         this.description = description;
     }
 
-    public BigDecimal getWinProbabilityPercent() {
-        return winProbabilityPercent;
-    }
-
-    public void setWinProbabilityPercent(BigDecimal winProbabilityPercent) {
-        this.winProbabilityPercent = winProbabilityPercent;
-    }
-
     public LocalDateTime getCreatedAt() {
         return createdAt;
     }
@@ -146,13 +135,13 @@ public class Prize {
         private int quantity;
         private int remainingQuantity;
         private String description;
-        private BigDecimal winProbabilityPercent;
         private LocalDateTime createdAt;
         private LocalDateTime updatedAt;
         private boolean isDeleted = false;
         private LuckyDraw luckyDraw;
 
-        PrizeBuilder() {}
+        PrizeBuilder() {
+        }
 
         public PrizeBuilder id(String id) {
             this.id = id;
@@ -179,11 +168,6 @@ public class Prize {
             return this;
         }
 
-        public PrizeBuilder winProbabilityPercent(BigDecimal winProbabilityPercent) {
-            this.winProbabilityPercent = winProbabilityPercent;
-            return this;
-        }
-
         public PrizeBuilder createdAt(LocalDateTime createdAt) {
             this.createdAt = createdAt;
             return this;
@@ -205,7 +189,8 @@ public class Prize {
         }
 
         public Prize build() {
-            return new Prize(id, name, quantity, remainingQuantity, description, winProbabilityPercent, createdAt, updatedAt, isDeleted, luckyDraw);
+            return new Prize(id, name, quantity, remainingQuantity, description, createdAt, updatedAt, isDeleted,
+                    luckyDraw);
         }
     }
 }

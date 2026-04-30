@@ -1,6 +1,6 @@
 package com.eventservice.repository;
 
-import com.eventservice.entity.ChatSession;
+import com.eventservice.entity.social.ChatSession;
 import com.eventservice.entity.enums.ChatSessionStatus;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;

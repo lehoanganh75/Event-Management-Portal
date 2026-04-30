@@ -1,17 +1,19 @@
-import React from "react";
-import Header from "./Header";
-import Footer from "./Footer";
+import React from 'react';
+import Header from './Header';
+import Footer from './Footer';
 
-const Layout = ({ children, user, onLogin, onLogout, headerProps = {} }) => {
+const Layout = ({ children, onLogin }) => {
   return (
-    <div className="min-h-screen bg-white w-full text-slate-900">
-      <Header
-        user={user}
-        onLogin={onLogin}
-        onLogout={onLogout}
-        {...headerProps}
-      />
-      <main className="w-full px-0">{children}</main>
+    <div className="flex flex-col min-h-screen bg-white">
+      {/* Public Header */}
+      <Header onLogin={onLogin} />
+      
+      {/* Main Content */}
+      <main className="flex-grow">
+        {children}
+      </main>
+      
+      {/* Public Footer */}
       <Footer />
     </div>
   );

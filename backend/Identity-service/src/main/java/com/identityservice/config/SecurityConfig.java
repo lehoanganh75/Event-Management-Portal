@@ -40,6 +40,7 @@ public class SecurityConfig {
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                         .authorizeHttpRequests(auth -> auth
                                 .requestMatchers("/auth/**").permitAll()
+                                .requestMatchers("/files/**").permitAll()
                                 .requestMatchers("/error").permitAll()
                                 .requestMatchers(HttpMethod.GET, "/profiles/batch").permitAll() // Cho phép lấy info cơ bản phục vụ hiển thị sự kiện cho khách
                                 .requestMatchers("/admin/**").authenticated()

@@ -58,12 +58,26 @@ public class LuckyDrawController {
         return ResponseEntity.ok(luckyDrawService.updateLuckyDraw(id, request, accountId));
     }
 
+    @GetMapping("/{luckyDrawId}/participants")
+    public ResponseEntity<List<src.main.luckydrawservice.dto.UserResponse>> getParticipants(@PathVariable String luckyDrawId) {
+        return ResponseEntity.ok(luckyDrawService.getParticipants(luckyDrawId));
+    }
+
     @PostMapping("/{luckyDrawId}/spin")
     public ResponseEntity<DrawResultResponse> performLuckyDraw(
             @PathVariable String luckyDrawId,
+            @RequestParam(required = false) String prizeId,
             @AuthenticationPrincipal Jwt jwt) {
         String userProfileId = jwt.getSubject();
-        return ResponseEntity.ok(luckyDrawService.performLuckyDraw(luckyDrawId, userProfileId));
+        return ResponseEntity.ok(luckyDrawService.performLuckyDraw(luckyDrawId, null, userProfileId, prizeId));
+    }
+
+    @PostMapping("/{luckyDrawId}/admin-spin")
+    public ResponseEntity<DrawResultResponse> performAdminLuckyDraw(
+            @PathVariable String luckyDrawId,
+            @RequestParam(required = false) String prizeId,
+            @RequestHeader("Authorization") String token) {
+        return ResponseEntity.ok(luckyDrawService.performLuckyDraw(luckyDrawId, token, null, prizeId));
     }
 
     @GetMapping("/draw-entry/{luckyDrawId}")
@@ -104,6 +118,22 @@ public class LuckyDrawController {
         String accountId = jwt.getSubject();
         luckyDrawService.activateLuckyDraw(luckyDrawId, accountId);
 
+        return ResponseEntity.ok().build();
+    }
+
+    @PostMapping("/internal/events/{eventId}/check-in")
+    public ResponseEntity<Void> handleCheckIn(
+            @PathVariable String eventId,
+            @RequestParam String userProfileId) {
+        luckyDrawService.handleCheckIn(eventId, userProfileId);
+        return ResponseEntity.ok().build();
+    }
+
+    @PostMapping("/internal/events/{eventId}/cancel-check-in")
+    public ResponseEntity<Void> handleCancelCheckIn(
+            @PathVariable String eventId,
+            @RequestParam String userProfileId) {
+        luckyDrawService.handleCancelCheckIn(eventId, userProfileId);
         return ResponseEntity.ok().build();
     }
 }

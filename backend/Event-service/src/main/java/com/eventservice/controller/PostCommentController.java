@@ -1,6 +1,6 @@
 package com.eventservice.controller;
 
-import com.eventservice.entity.PostComment;
+import com.eventservice.entity.social.PostComment;
 import com.eventservice.service.PostCommentService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;

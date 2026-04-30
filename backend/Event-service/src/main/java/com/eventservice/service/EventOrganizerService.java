@@ -1,7 +1,7 @@
 package com.eventservice.service;
 
 import org.springframework.transaction.annotation.Transactional;
-import com.eventservice.entity.EventOrganizer;
+import com.eventservice.entity.people.EventOrganizer;
 import com.eventservice.entity.enums.OrganizerRole;
 
 import java.util.List;

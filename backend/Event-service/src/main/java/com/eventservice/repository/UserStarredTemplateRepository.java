@@ -1,6 +1,6 @@
 package com.eventservice.repository;
 
-import com.eventservice.entity.UserStarredTemplate;
+import com.eventservice.entity.template.UserStarredTemplate;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 

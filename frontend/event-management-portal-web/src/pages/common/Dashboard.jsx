@@ -82,7 +82,7 @@ const Dashboard = () => {
     if (!dateStr) return false;
     const date = new Date(dateStr);
     const now = new Date();
-    
+
     if (filterType === 'Week') {
       if (typeof filterValue === 'string' && filterValue.includes('|')) {
         const [startStr, endStr] = filterValue.split('|');
@@ -96,11 +96,11 @@ const Dashboard = () => {
       const diff = now - date;
       return diff >= 0 && diff < 7 * oneDay;
     }
-    
+
     if (filterType === 'Month') {
       return date.getMonth() + 1 === parseInt(filterValue) && date.getFullYear() === now.getFullYear();
     }
-    
+
     return true;
   };
 
@@ -108,23 +108,23 @@ const Dashboard = () => {
     const weeks = [];
     const now = new Date();
     const currentYear = now.getFullYear();
-    
+
     // Start from the beginning of the year
     let d = new Date(currentYear, 0, 1);
     // Find first Monday
     while (d.getDay() !== 1) d.setDate(d.getDate() + 1);
-    
+
     while (d <= now || d.getFullYear() === currentYear) {
       const start = new Date(d);
       const end = new Date(d);
       end.setDate(end.getDate() + 6);
-      
+
       const label = `Tuần ${weeks.length + 1} (${start.getDate()}/${start.getMonth() + 1} - ${end.getDate()}/${end.getMonth() + 1})`;
       const value = `${start.toISOString()}|${end.toISOString()}`;
-      
+
       weeks.push({ label, value, isCurrent: now >= start && now <= end });
       d.setDate(d.getDate() + 7);
-      
+
       if (d.getFullYear() > currentYear) break;
     }
     return weeks.reverse().slice(0, 12); // Show last 12 weeks, newest first
@@ -185,7 +185,7 @@ const Dashboard = () => {
         }
       });
       const topU = Object.entries(userEventCount)
-        .map(([id, count]) => ({ name: userMap[id] || `User ${id.substring(0,4)}`, events: count }))
+        .map(([id, count]) => ({ name: userMap[id] || `User ${id.substring(0, 4)}`, events: count }))
         .sort((a, b) => b.events - a.events)
         .slice(0, 4);
       setTopUsers(topU.length > 0 ? topU : [{ name: "Nguyễn Văn An", events: 12 }]);

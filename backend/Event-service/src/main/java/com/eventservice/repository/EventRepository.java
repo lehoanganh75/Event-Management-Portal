@@ -5,7 +5,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
-import com.eventservice.entity.Event;
+import com.eventservice.entity.core.Event;
 import com.eventservice.entity.enums.EventStatus;
 
 import java.time.LocalDateTime;
@@ -48,7 +48,7 @@ public interface EventRepository extends JpaRepository<Event, String> {
     @Query("SELECT e FROM Event e JOIN e.presenters p WHERE p.presenterAccountId = :accId AND e.isDeleted = false AND p.isDeleted = false")
     List<Event> findEventsByPresenterAccountId(@Param("accId") String accId);
 
-    // Truy vấn qua bảng EventParticipant/Registration
+    // Truy vấn qua bảng Registration
     @Query("SELECT e FROM Event e JOIN e.registrations r WHERE r.participantAccountId = :accId AND e.isDeleted = false AND r.isDeleted = false AND r.status != 'CANCELLED'")
     List<Event> findEventsByParticipantAccountId(@Param("accId") String accId);
 

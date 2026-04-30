@@ -76,9 +76,14 @@ const luckyDrawService = {
 
     // ==================== ACTIONS ====================
     spin: (luckyDrawId) => privateApi.post(`/lucky-draws/${luckyDrawId}/spin`),
+    adminSpin: (luckyDrawId, prizeId) => {
+        const url = prizeId ? `/lucky-draws/${luckyDrawId}/admin-spin?prizeId=${prizeId}` : `/lucky-draws/${luckyDrawId}/admin-spin`;
+        return privateApi.post(url);
+    },
 
     // ==================== ENTRIES ====================
     getEntry: (luckyDrawId) => privateApi.get(`/entries/${luckyDrawId}`),
+    getParticipants: (luckyDrawId) => privateApi.get(`/lucky-draws/${luckyDrawId}/participants`),
 
     joinDraw: (luckyDrawId) => privateApi.post(`/entries/${luckyDrawId}`),
 

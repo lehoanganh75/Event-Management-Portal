@@ -1,6 +1,6 @@
 package com.eventservice.repository.survey;
 
-import com.eventservice.entity.survey.SurveyResponse;
+import com.eventservice.entity.engagement.survey.SurveyResponse;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 import java.util.List;

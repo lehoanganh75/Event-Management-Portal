@@ -1,8 +1,8 @@
 package com.eventservice.service.impl;
 
-import com.eventservice.dto.EventPlanSuggestion;
-import com.eventservice.dto.ProgramItemSuggestion;
-import com.eventservice.entity.ChatMessage;
+import com.eventservice.dto.plan.response.EventPlanSuggestionResponse;
+import com.eventservice.dto.plan.response.EventProgramItemSuggestionResponse;
+import com.eventservice.entity.social.ChatMessage;
 import com.eventservice.entity.enums.ChatMessageRole;
 import com.eventservice.service.GeminiChatService;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -64,7 +64,7 @@ public class GeminiChatServiceImpl implements GeminiChatService {
     }
     
     @Override
-    public EventPlanSuggestion generateEventPlanSuggestion(String userInput, List<ChatMessage> conversationHistory) {
+    public EventPlanSuggestionResponse generateEventPlanSuggestion(String userInput, List<ChatMessage> conversationHistory) {
         try {
             String conversationContext = buildConversationContext(conversationHistory);
             
@@ -182,7 +182,7 @@ public class GeminiChatServiceImpl implements GeminiChatService {
     }
     
     @Override
-    public EventPlanSuggestion extractEventDetails(String naturalLanguageInput) {
+    public EventPlanSuggestionResponse extractEventDetails(String naturalLanguageInput) {
         log.info("Starting AI extraction for text (length: {})", naturalLanguageInput.length());
         try {
             String prompt = String.format("""
@@ -209,10 +209,10 @@ public class GeminiChatServiceImpl implements GeminiChatService {
             
             String jsonResponse = callGeminiAPI(prompt);
             log.info("AI extraction completed. Parsing response...");
-            EventPlanSuggestion suggestion = parseEventPlanSuggestion(jsonResponse);
+            EventPlanSuggestionResponse suggestion = parseEventPlanSuggestion(jsonResponse);
             
             if (suggestion == null) {
-                log.error("Failed to parse AI response as EventPlanSuggestion. Raw response: {}", jsonResponse);
+                log.error("Failed to parse AI response as EventPlanSuggestionResponse. Raw response: {}", jsonResponse);
             } else {
                 log.info("Successfully extracted details for event: {}", suggestion.getTitle());
             }
@@ -360,14 +360,14 @@ public class GeminiChatServiceImpl implements GeminiChatService {
         }
     }
     
-    private EventPlanSuggestion parseEventPlanSuggestion(String jsonResponse) {
+    private EventPlanSuggestionResponse parseEventPlanSuggestion(String jsonResponse) {
         try {
             // Remove markdown code blocks if present
             String cleanJson = jsonResponse.replaceAll("```json\\n?", "").replaceAll("```", "").trim();
             
             JsonNode root = objectMapper.readTree(cleanJson);
             
-            EventPlanSuggestion suggestion = EventPlanSuggestion.builder()
+            EventPlanSuggestionResponse suggestion = EventPlanSuggestionResponse.builder()
                     .title(root.path("title").asText(null))
                     .subject(root.path("subject").asText(null))
                     .purpose(root.path("purpose").asText(null))
@@ -388,9 +388,9 @@ public class GeminiChatServiceImpl implements GeminiChatService {
             
             // Parse program items
             if (root.has("programItems")) {
-                List<ProgramItemSuggestion> items = new ArrayList<>();
+                List<EventProgramItemSuggestionResponse> items = new ArrayList<>();
                 root.path("programItems").forEach(item -> {
-                    ProgramItemSuggestion programItem = ProgramItemSuggestion.builder()
+                    EventProgramItemSuggestionResponse programItem = EventProgramItemSuggestionResponse.builder()
                             .title(item.path("title").asText())
                             .description(item.path("description").asText())
                             .durationMinutes(item.path("durationMinutes").asInt())

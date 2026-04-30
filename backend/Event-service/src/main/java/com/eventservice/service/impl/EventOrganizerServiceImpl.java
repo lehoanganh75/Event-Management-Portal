@@ -4,14 +4,14 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import com.eventservice.entity.Event;
-import com.eventservice.entity.EventOrganizer;
+import com.eventservice.entity.core.Event;
+import com.eventservice.entity.people.EventOrganizer;
 import com.eventservice.entity.enums.OrganizerRole;
 import com.eventservice.repository.EventOrganizerRepository;
 import com.eventservice.repository.EventRepository;
 import com.eventservice.service.EventOrganizerService;
 
-import com.eventservice.dto.NotificationEvent;
+import com.eventservice.dto.engagement.NotificationEventDto;
 import com.eventservice.kafka.NotificationProducer;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -86,11 +86,11 @@ public class EventOrganizerServiceImpl implements EventOrganizerService {
             }
 
             if (recipientId != null) {
-                notificationProducer.sendNotification(NotificationEvent.builder()
+                notificationProducer.sendNotification(NotificationEventDto.builder()
                         .recipientId(recipientId)
                         .senderId(accountId)
                         .title("Yêu cầu rời ban tổ chức")
-                        .message("Thành viên " + (organizer.getFullName() != null ? organizer.getFullName() : accountId) + 
+                        .message("Thành viên " + accountId + 
                                 " đã gửi yêu cầu rời khỏi sự kiện " + organizer.getEvent().getTitle())
                         .type("LEAVE_REQUEST")
                         .relatedEntityId(organizer.getId())

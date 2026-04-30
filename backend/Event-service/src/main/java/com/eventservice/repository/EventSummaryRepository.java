@@ -1,6 +1,6 @@
 package com.eventservice.repository;
 
-import com.eventservice.entity.EventSummary;
+import com.eventservice.entity.report.EventSummary;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 

@@ -4,7 +4,7 @@ import com.eventservice.config.FeignClientConfig;
 import org.springframework.cloud.openfeign.FeignClient;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestParam;
-import com.eventservice.dto.UserDto;
+import com.eventservice.dto.user.UserResponse;
 import java.util.List;
 
 @FeignClient(
@@ -14,10 +14,10 @@ import java.util.List;
 )
 public interface IdentityServiceClient {
     @GetMapping("/profiles/batch")
-    List<UserDto> getUsersByIds(@RequestParam("ids") List<String> ids);
+    List<UserResponse> getUsersByIds(@RequestParam("ids") List<String> ids);
 
     @GetMapping("/profiles/invite")
-    UserDto getUsersById(@RequestParam("id") String id);
+    UserResponse getUsersById(@RequestParam("id") String id);
 
     @GetMapping("/accounts/admin-ids")
     List<String> getAdminAccountIds();
@@ -26,5 +26,5 @@ public interface IdentityServiceClient {
     List<String> getSuperAdminAccountIds();
 
     @GetMapping("/profiles/by-emails")
-    List<UserDto> getUsersByEmails(@RequestParam("emails") List<String> emails);
+    List<UserResponse> getUsersByEmails(@RequestParam("emails") List<String> emails);
 }

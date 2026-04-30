@@ -1,11 +1,11 @@
 package com.eventservice.security;
 
-import com.eventservice.entity.Event;
-import com.eventservice.entity.EventUser;
+import com.eventservice.entity.core.Event;
+import com.eventservice.entity.people.EventOrganizer;
 import com.eventservice.entity.enums.OrganizerRole;
 import com.eventservice.entity.enums.EventStatus;
 import com.eventservice.repository.EventRepository;
-import com.eventservice.repository.EventUserRepository;
+import com.eventservice.repository.EventOrganizerRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -15,7 +15,7 @@ import org.springframework.stereotype.Service;
 @Slf4j
 public class EventSecurityService {
 
-    private final EventUserRepository eventUserRepository;
+    private final EventOrganizerRepository eventOrganizerRepository;
     private final EventRepository eventRepository;
 
     /**
@@ -32,10 +32,10 @@ public class EventSecurityService {
         }
 
         // 2. Fetch User Role
-        EventUser eventUser = eventUserRepository.findByEventIdAndAccountId(eventId, accountId)
+        EventOrganizer organizer = eventOrganizerRepository.findFirstByEventIdAndAccountId(eventId, accountId)
                 .orElseThrow(() -> new RuntimeException("Forbidden: No role assigned for this event"));
 
-        OrganizerRole userRole = eventUser.getRole();
+        OrganizerRole userRole = organizer.getRole();
 
         // 3. Role Power Comparison (Lower ordinal = More power)
         // ORGANIZER(0), LEADER(1), COORDINATOR(2), MEMBER(3), ADVISOR(4), PARTICIPANT(5)
@@ -45,3 +45,4 @@ public class EventSecurityService {
         }
     }
 }
+

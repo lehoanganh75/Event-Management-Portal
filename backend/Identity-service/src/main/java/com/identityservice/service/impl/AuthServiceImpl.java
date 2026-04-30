@@ -1,7 +1,17 @@
 package com.identityservice.service.impl;
 
+import com.identityservice.dto.auth.request.LoginRequest;
+import com.identityservice.dto.auth.request.RegisterRequest;
+import com.identityservice.dto.auth.response.AuthResponse;
+import com.identityservice.dto.auth.UserPrincipal;
 import com.identityservice.entity.*;
-import com.identityservice.exception.*;
+import com.identityservice.repository.UserRepository;
+import com.identityservice.repository.PasswordResetTokenRepository;
+import com.identityservice.repository.RefreshTokenRepository;
+import com.identityservice.repository.VerificationTokenRepository;
+import com.identityservice.service.AuthService;
+import com.identityservice.service.EmailService;
+import com.identityservice.util.JwtUtils;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
@@ -9,24 +19,14 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
-import com.identityservice.dto.response.AuthResponse;
-import com.identityservice.dto.request.LoginRequest;
-import com.identityservice.dto.request.RegisterRequest;
-import com.identityservice.dto.UserPrincipal;
-import com.identityservice.repository.AccountRepository;
-import com.identityservice.repository.PasswordResetTokenRepository;
-import com.identityservice.repository.RefreshTokenRepository;
-import com.identityservice.repository.VerificationTokenRepository;
-import com.identityservice.service.AuthService;
-import com.identityservice.service.EmailService;
-import com.identityservice.util.JwtUtils;
 
 import java.time.LocalDateTime;
 import java.util.*;
 
 @Service
+@RequiredArgsConstructor
 public class AuthServiceImpl implements AuthService {
-    private final AccountRepository accountRepository;
+    private final UserRepository userRepository;
     private final RefreshTokenRepository refreshTokenRepository;
     private final PasswordResetTokenRepository passwordResetTokenRepository;
     private final VerificationTokenRepository verificationTokenRepository;
@@ -34,57 +34,27 @@ public class AuthServiceImpl implements AuthService {
     private final PasswordEncoder passwordEncoder;
     private final EmailService emailService;
 
-    public AuthServiceImpl(AccountRepository accountRepository,
-                           RefreshTokenRepository refreshTokenRepository,
-                           PasswordResetTokenRepository passwordResetTokenRepository,
-                           VerificationTokenRepository verificationTokenRepository,
-                           JwtUtils jwtUtils,
-                           PasswordEncoder passwordEncoder,
-                           EmailService emailService) {
-        this.accountRepository = accountRepository;
-        this.refreshTokenRepository = refreshTokenRepository;
-        this.passwordResetTokenRepository = passwordResetTokenRepository;
-        this.verificationTokenRepository = verificationTokenRepository;
-        this.jwtUtils = jwtUtils;
-        this.passwordEncoder = passwordEncoder;
-        this.emailService = emailService;
-    }
-
-    @Value("${server.port}")
-    private String PORT;
-
     @Override
     @Transactional
     public Map<String, String> register(RegisterRequest request) {
-        if (accountRepository.findByUsername(request.getUsername()).isPresent()) {
+        if (userRepository.findByUsername(request.getUsername()).isPresent()) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Tên đăng nhập đã tồn tại.");
         }
-        if (accountRepository.findByEmail(request.getEmail()).isPresent()) {
+        if (userRepository.findByEmail(request.getEmail()).isPresent()) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Email đã được sử dụng.");
         }
-
         if (!isRealEmail(request.getEmail())) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Email không tồn tại hoặc không hợp lệ.");
         }
 
-        Account account = createPendingAccount(request);
-
-        User userRegister = createUserRegister(request);
-
-        userRegister.setAccount(account);
-
-        account.setUser(userRegister);
-
-        Account savedAccount = accountRepository.save(account);
+        User user = createUser(request);
+        User savedUser = userRepository.save(user);
 
         String otp = String.valueOf(new Random().nextInt(899999) + 100000);
-
-        VerificationToken vToken = createVerificationToken(savedAccount, otp);
-        // Lưu ý: Đảm bảo setExpiryDate ngắn thôi (ví dụ: 5 phút) vì OTP cần nhanh
+        VerificationToken vToken = createVerificationToken(savedUser, otp);
         vToken.setExpiryDate(LocalDateTime.now().plusMinutes(5));
         verificationTokenRepository.save(vToken);
 
-        // 5. Gửi Email chứa mã OTP
         emailService.sendOtpEmail(request.getEmail(), otp, request.getFullName());
 
         Map<String, String> response = new HashMap<>();
@@ -93,28 +63,23 @@ public class AuthServiceImpl implements AuthService {
         return response;
     }
 
-    private Account createPendingAccount(RegisterRequest request) {
-        Account account = new Account();
-        account.setUsername(request.getUsername());
-        account.setPasswordHash(passwordEncoder.encode(request.getPassword()));
-        account.setEmail(request.getEmail());
-        assignRolesByEmail(account, request.getEmail());
-        account.setCreatedAt(LocalDateTime.now());
-        return account;
+    private User createUser(RegisterRequest request) {
+        User user = new User();
+        user.setUsername(request.getUsername());
+        user.setPasswordHash(passwordEncoder.encode(request.getPassword()));
+        user.setEmail(request.getEmail());
+        user.setFullName(request.getFullName());
+        user.setGender(request.getGender());
+        user.setDateOfBirth(request.getDateOfBirth());
+        assignRolesByEmail(user, request.getEmail());
+        user.setCreatedAt(LocalDateTime.now());
+        return user;
     }
 
-    private User createUserRegister(RegisterRequest request) {
-        User userRegister = new User();
-        userRegister.setFullName(request.getFullName());
-        userRegister.setGender(request.getGender());
-        userRegister.setDateOfBirth(request.getDateOfBirth());
-        return userRegister;
-    }
-
-    private VerificationToken createVerificationToken(Account account, String token) {
+    private VerificationToken createVerificationToken(User user, String token) {
         VerificationToken vToken = new VerificationToken();
         vToken.setToken(token);
-        vToken.setAccount(account);
+        vToken.setUser(user);
         vToken.setExpiryDate(LocalDateTime.now().plusMinutes(15));
         vToken.setUsed(false);
         return vToken;
@@ -125,7 +90,7 @@ public class AuthServiceImpl implements AuthService {
         return email != null && email.matches(regex);
     }
 
-    public void assignRolesByEmail(Account account, String email) {
+    public void assignRolesByEmail(User user, String email) {
         Role role;
         String domain = email.substring(email.indexOf("@")).toLowerCase();
         switch (domain) {
@@ -139,7 +104,7 @@ public class AuthServiceImpl implements AuthService {
                 role = Role.GUEST;
                 break;
         }
-        account.setRole(role);
+        user.setRole(role);
     }
 
     @Override
@@ -150,15 +115,13 @@ public class AuthServiceImpl implements AuthService {
         if (verificationToken.isUsed()) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Token đã được sử dụng");
         }
-
         if (verificationToken.getExpiryDate().isBefore(LocalDateTime.now())) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Token đã hết hạn");
         }
 
-        Account account = verificationToken.getAccount();
-        account.setStatus(AccountStatus.ACTIVE);
-        accountRepository.save(account);
-
+        User user = verificationToken.getUser();
+        user.setStatus(AccountStatus.ACTIVE);
+        userRepository.save(user);
         verificationTokenRepository.delete(verificationToken);
 
         Map<String, String> response = new HashMap<>();
@@ -170,22 +133,17 @@ public class AuthServiceImpl implements AuthService {
     @Override
     @Transactional
     public Map<String, String> verifyMobileOTP(String otp, String username) {
-        // 1. Tìm token dựa trên mã OTP và username (để đảm bảo chính chủ)
-        VerificationToken verificationToken = verificationTokenRepository.findByTokenAndAccount_Username(otp, username)
+        VerificationToken verificationToken = verificationTokenRepository.findByTokenAndUser_Username(otp, username)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "Mã OTP không chính xác hoặc đã hết hạn"));
 
-        // 2. Kiểm tra hết hạn
         if (verificationToken.getExpiryDate().isBefore(LocalDateTime.now())) {
             verificationTokenRepository.delete(verificationToken);
             throw new ResponseStatusException(HttpStatus.GONE, "Mã OTP đã hết hạn");
         }
 
-        // 3. Kích hoạt tài khoản
-        Account account = verificationToken.getAccount();
-        account.setStatus(AccountStatus.ACTIVE);
-        accountRepository.save(account);
-
-        // 4. Xóa token sau khi dùng
+        User user = verificationToken.getUser();
+        user.setStatus(AccountStatus.ACTIVE);
+        userRepository.save(user);
         verificationTokenRepository.delete(verificationToken);
 
         Map<String, String> response = new HashMap<>();
@@ -197,44 +155,41 @@ public class AuthServiceImpl implements AuthService {
     @Override
     @Transactional
     public AuthResponse login(LoginRequest request) {
-        Account account = accountRepository.findByUsername(request.getUsername())
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.CONFLICT, "Username không tồn tại"));
+        User user = userRepository.findByUsernameAndIsDeletedFalse(request.getUsername())
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.CONFLICT, "Username không tồn tại hoặc đã bị xóa"));
 
-        if (!passwordEncoder.matches(request.getPassword(), account.getPasswordHash())) {
+        if (!passwordEncoder.matches(request.getPassword(), user.getPasswordHash())) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Password không đúng");
         }
-
-        if (account.getStatus() == AccountStatus.PENDING) {
+        if (user.getStatus() == AccountStatus.PENDING) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Tài khoản chưa được kích hoạt. Vui lòng kiểm tra email để xác nhận.");
         }
-
-        if (account.getStatus() != AccountStatus.ACTIVE) {
+        if (user.getStatus() != AccountStatus.ACTIVE) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Tài khoản của bạn đã bị khóa hoặc vô hiệu hóa.");
         }
 
-        account.setLastLoginAt(LocalDateTime.now());
-        accountRepository.save(account);
 
-        String profileId = (account.getUser() != null) ? account.getUser().getId() : null;
-        System.out.println(profileId);
+        user.setLastLoginAt(LocalDateTime.now());
+        userRepository.save(user);
 
         UserPrincipal principal = new UserPrincipal();
-        principal.setAccountId(account.getId());
-        principal.setRole(account.getRole());
-
+        principal.setUserId(user.getId());
+        principal.setRole(user.getRole());
         String accessToken = jwtUtils.generateAccessToken(principal);
 
         String refreshTokenStr = UUID.randomUUID().toString();
         RefreshToken refreshToken = new RefreshToken();
         refreshToken.setToken(refreshTokenStr);
-        refreshToken.setAccount(account);
-        refreshToken.setExpiryDate(LocalDateTime.now().plusDays(7)); // Hết hạn sau 7 ngày
+        refreshToken.setUser(user);
+        refreshToken.setExpiryDate(LocalDateTime.now().plusDays(7));
         refreshToken.setRevoked(false);
         refreshToken.setUsed(false);
-
         refreshTokenRepository.save(refreshToken);
 
-        return new AuthResponse(accessToken, refreshTokenStr);
+        return AuthResponse.builder()
+                .accessToken(accessToken)
+                .refreshToken(refreshTokenStr)
+                .build();
     }
 
     @Override
@@ -244,10 +199,8 @@ public class AuthServiceImpl implements AuthService {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.CONFLICT, "Refresh Token không tồn tại hoặc không hợp lệ."));
 
         if (refreshToken.isRevoked() || refreshToken.isUsed()) {
-            System.out.println("Cố gắng đăng xuất bằng token đã vô hiệu hóa: {}");
             return;
         }
-
         refreshToken.setRevoked(true);
         refreshToken.setUsed(true);
         refreshTokenRepository.save(refreshToken);
@@ -256,30 +209,25 @@ public class AuthServiceImpl implements AuthService {
     @Transactional
     @Override
     public void forgotPassword(String email) {
-        Account account = accountRepository.findByEmail(email)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.CONFLICT, "Email không tồn tại trong hệ thống."));
+        User user = userRepository.findByEmailAndIsDeletedFalse(email)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.CONFLICT, "Email không tồn tại hoặc tài khoản đã bị xóa."));
 
-        passwordResetTokenRepository.deleteByAccount(account);
-
-        // 3. Tạo token mới (UUID)
+        passwordResetTokenRepository.deleteByUser(user);
         String token = UUID.randomUUID().toString();
         PasswordResetToken resetToken = new PasswordResetToken();
         resetToken.setToken(token);
-        resetToken.setAccount(account);
-        resetToken.setExpiryDate(new Date(System.currentTimeMillis() + 15 * 60 * 1000).toInstant().atZone(TimeZone.getDefault().toZoneId()).toLocalDateTime());
+        resetToken.setUser(user);
+        resetToken.setExpiryDate(LocalDateTime.now().plusMinutes(15));
         resetToken.setUsed(false);
-
         passwordResetTokenRepository.save(resetToken);
 
-        // 4. Gửi email (Async)
-        String resetUrl = "http://localhost:5173/reset-password?token=" + token; // Link trỏ về Frontend
-        emailService.sendResetPasswordEmailAsync(email, resetUrl, account.getUser().getFullName());
+        String resetUrl = "http://localhost:5173/reset-password?token=" + token;
+        emailService.sendResetPasswordEmailAsync(email, resetUrl, user.getFullName());
     }
 
     @Override
     @Transactional
     public void resetPassword(String token, String newPassword) {
-        // 1. Tìm và kiểm tra token
         PasswordResetToken resetToken = passwordResetTokenRepository.findByToken(token)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.CONFLICT, "Mã khôi phục không hợp lệ."));
 
@@ -287,39 +235,30 @@ public class AuthServiceImpl implements AuthService {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Mã khôi phục đã hết hạn hoặc đã được sử dụng.");
         }
 
-        // 2. Cập nhật mật khẩu mới cho Account
-        Account account = resetToken.getAccount();
-        account.setPasswordHash(passwordEncoder.encode(newPassword));
-        accountRepository.save(account);
-
-        // 3. Đánh dấu token đã dùng
+        User user = resetToken.getUser();
+        user.setPasswordHash(passwordEncoder.encode(newPassword));
+        userRepository.save(user);
         resetToken.setUsed(true);
         passwordResetTokenRepository.save(resetToken);
-
-        System.out.println("Mật khẩu của tài khoản " + account.getUsername() + " đã được thay đổi thành công.");
     }
 
     @Override
     @Transactional
     public void resendOtp(String username) {
-        Account account = accountRepository.findByUsername(username)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.CONFLICT, "Tên đăng nhập không tồn tại."));
+        User user = userRepository.findByUsernameAndIsDeletedFalse(username)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.CONFLICT, "Tên đăng nhập không tồn tại hoặc tài khoản đã bị xóa."));
 
-        if (account.getStatus() == AccountStatus.ACTIVE) {
+        if (user.getStatus() == AccountStatus.ACTIVE) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Tài khoản đã được kích hoạt.");
         }
 
-        // Xóa mã cũ
-        verificationTokenRepository.deleteByAccount(account);
-
-        // Tạo mã mới
+        verificationTokenRepository.deleteByUser(user);
         String otp = String.valueOf(new Random().nextInt(899999) + 100000);
-        VerificationToken vToken = createVerificationToken(account, otp);
+        VerificationToken vToken = createVerificationToken(user, otp);
         vToken.setExpiryDate(LocalDateTime.now().plusMinutes(5));
         verificationTokenRepository.save(vToken);
 
-        // Gửi email mới
-        emailService.sendOtpEmail(account.getEmail(), otp, account.getUser().getFullName());
+        emailService.sendOtpEmail(user.getEmail(), otp, user.getFullName());
     }
 
     @Override
@@ -331,42 +270,56 @@ public class AuthServiceImpl implements AuthService {
         if (refreshToken.isRevoked() || refreshToken.isUsed()) {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Refresh Token đã bị vô hiệu hóa hoặc đã được sử dụng");
         }
-
         if (refreshToken.getExpiryDate().isBefore(LocalDateTime.now())) {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Refresh Token đã hết hạn");
         }
 
-        Account account = refreshToken.getAccount();
-        if (account.getStatus() != AccountStatus.ACTIVE) {
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Tài khoản đã bị khóa hoặc vô hiệu hóa");
+        User user = refreshToken.getUser();
+        if (user == null || user.isDeleted() || user.getStatus() != AccountStatus.ACTIVE) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Tài khoản đã bị khóa, vô hiệu hóa hoặc bị xóa");
         }
-        UserPrincipal principal = new UserPrincipal(account.getId(), account.getRole());
+        UserPrincipal principal = new UserPrincipal(user.getId(), user.getRole());
         String newAccessToken = jwtUtils.generateAccessToken(principal);
 
-        // Đánh dấu token cũ đã sử dụng
         refreshToken.setUsed(true);
         refreshTokenRepository.save(refreshToken);
 
-        // Tạo refresh token mới (Rotation)
         String newRefreshTokenStr = UUID.randomUUID().toString();
         RefreshToken newRefreshToken = new RefreshToken();
         newRefreshToken.setToken(newRefreshTokenStr);
-        newRefreshToken.setAccount(account);
+        newRefreshToken.setUser(user);
         newRefreshToken.setExpiryDate(LocalDateTime.now().plusDays(7));
         newRefreshToken.setRevoked(false);
         newRefreshToken.setUsed(false);
         refreshTokenRepository.save(newRefreshToken);
 
-        return new AuthResponse(newAccessToken, newRefreshTokenStr);
+        return AuthResponse.builder()
+                .accessToken(newAccessToken)
+                .refreshToken(newRefreshTokenStr)
+                .build();
     }
 
     @Override
     public boolean existsByEmail(String email) {
-        return accountRepository.findByEmail(email).isPresent();
+        return userRepository.existsByEmail(email);
     }
 
     @Override
     public boolean existsByUsername(String username) {
-        return accountRepository.findByUsername(username).isPresent();
+        return userRepository.existsByUsername(username);
+    }
+
+    @Override
+    @Transactional
+    public void changePassword(String userId, String oldPassword, String newPassword) {
+        User user = userRepository.findByIdAndIsDeletedFalse(userId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Người dùng không tồn tại."));
+
+        if (!passwordEncoder.matches(oldPassword, user.getPasswordHash())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Mật khẩu hiện tại không chính xác.");
+        }
+
+        user.setPasswordHash(passwordEncoder.encode(newPassword));
+        userRepository.save(user);
     }
 }

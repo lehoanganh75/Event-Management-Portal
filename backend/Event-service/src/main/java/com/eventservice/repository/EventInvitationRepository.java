@@ -1,6 +1,6 @@
 package com.eventservice.repository;
 
-import com.eventservice.entity.EventInvitation;
+import com.eventservice.entity.registration.EventInvitation;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -18,4 +18,9 @@ public interface EventInvitationRepository extends JpaRepository<EventInvitation
     java.util.List<EventInvitation> findByEventId(String eventId);
 
     Optional<EventInvitation> findByEventIdAndInviteeEmail(String eventId, String inviteeEmail);
+
+    @org.springframework.data.jpa.repository.Modifying(clearAutomatically = true)
+    @org.springframework.transaction.annotation.Transactional
+    @Query(value = "UPDATE event_invitations SET is_deleted = 1, status = 'EXPIRED' WHERE event_id = :eventId", nativeQuery = true)
+    void softDeleteByEventId(@Param("eventId") String eventId);
 }

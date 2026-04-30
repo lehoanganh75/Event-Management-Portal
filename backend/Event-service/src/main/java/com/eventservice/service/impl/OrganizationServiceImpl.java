@@ -1,6 +1,6 @@
 package com.eventservice.service.impl;
 
-import com.eventservice.entity.Organization;
+import com.eventservice.entity.core.Organization;
 import com.eventservice.repository.OrganizationRepository;
 import com.eventservice.service.OrganizationService;
 import lombok.RequiredArgsConstructor;

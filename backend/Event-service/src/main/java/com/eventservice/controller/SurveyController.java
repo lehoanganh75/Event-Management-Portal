@@ -1,6 +1,6 @@
 package com.eventservice.controller;
 
-import com.eventservice.dto.survey.SurveyDto;
+import com.eventservice.dto.engagement.survey.SurveyDto;
 import com.eventservice.service.SurveyService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -49,5 +49,10 @@ public class SurveyController {
             @AuthenticationPrincipal Jwt jwt) {
         String userId = jwt.getSubject();
         return ResponseEntity.ok(Map.of("submitted", surveyService.hasUserSubmitted(userId, surveyId)));
+    }
+
+    @PostMapping("/import/{eventId}")
+    public ResponseEntity<SurveyDto> importSurvey(@PathVariable String eventId, @RequestParam("file") org.springframework.web.multipart.MultipartFile file) {
+        return ResponseEntity.ok(surveyService.importSurveyFromWord(eventId, file));
     }
 }

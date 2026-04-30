@@ -1,6 +1,6 @@
 package com.eventservice.repository.quiz;
 
-import com.eventservice.entity.quiz.QuizQuestion;
+import com.eventservice.entity.engagement.quiz.QuizQuestion;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
