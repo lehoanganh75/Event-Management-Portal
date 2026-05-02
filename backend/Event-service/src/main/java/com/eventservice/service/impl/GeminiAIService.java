@@ -1,6 +1,6 @@
 package com.eventservice.service.impl;
 
-import com.eventservice.entity.Event;
+import com.eventservice.entity.core.Event;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;

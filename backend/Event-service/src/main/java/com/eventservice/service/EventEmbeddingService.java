@@ -1,6 +1,6 @@
 package com.eventservice.service;
 
-import com.eventservice.entity.Event;
+import com.eventservice.entity.core.Event;
 
 public interface EventEmbeddingService {
     /**

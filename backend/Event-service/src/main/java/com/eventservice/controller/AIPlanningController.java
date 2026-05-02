@@ -3,7 +3,7 @@ package com.eventservice.controller;
 import com.eventservice.dto.AIPlanningRequest;
 import com.eventservice.dto.ApiResponse;
 import com.eventservice.dto.EventPlanSuggestion;
-import com.eventservice.entity.EventTemplate;
+import com.eventservice.entity.template.EventTemplate;
 import com.eventservice.repository.EventTemplateRepository;
 import com.eventservice.service.GeminiChatService;
 import lombok.RequiredArgsConstructor;
@@ -28,7 +28,7 @@ public class AIPlanningController {
             @RequestBody AIPlanningRequest request
     ) {
         log.info("Generating AI plan from template ID: {}", request.getTemplateId());
-        
+
         EventTemplate template = templateRepository.findById(request.getTemplateId())
                 .orElseThrow(() -> new RuntimeException("Template not found"));
 
@@ -52,9 +52,9 @@ public class AIPlanningController {
     public ResponseEntity<ApiResponse<EventPlanSuggestion>> generateFromRawText(
             @RequestBody AIPlanningRequest request
     ) {
-        log.info("Generating AI plan from raw text. Length: {}", 
+        log.info("Generating AI plan from raw text. Length: {}",
                 request.getRawText() != null ? request.getRawText().length() : 0);
-        
+
         EventPlanSuggestion suggestion = geminiChatService.extractEventDetails(request.getRawText());
 
         return ResponseEntity.ok(ApiResponse.<EventPlanSuggestion>builder()

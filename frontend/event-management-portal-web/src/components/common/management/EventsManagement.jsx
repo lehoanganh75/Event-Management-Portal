@@ -264,118 +264,118 @@ const EventsManagement = ({ type = "lecturer", mode = "all" }) => {
       showToast(`Cập nhật trạng thái thành công: ${STATUS_LABELS[newStatus]}`, "success");
       fetchData();
     } catch (err) {
-        setEvents(oldEvents); // Rollback
-        showToast("Không thể cập nhật trạng thái", "error");
+      setEvents(oldEvents); // Rollback
+      showToast("Không thể cập nhật trạng thái", "error");
+    }
+  };
+
+  const [isImporting, setIsImporting] = useState(false);
+
+  const handleImportDocx = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    if (!file.name.endsWith(".docx")) {
+      showToast("Vui lòng chọn file định dạng .docx", "error");
+      return;
+    }
+
+    setIsImporting(true);
+    try {
+      showToast("⏳ Đang phân tích nội dung kế hoạch bằng AI...", "info");
+      const data = await extractDataFromDocx(file);
+
+      if (!data || (!data.extracted && !data.rawText)) {
+        throw new Error("Không thể trích xuất thông tin từ file này.");
       }
-    };
 
-    const [isImporting, setIsImporting] = useState(false);
+      const extracted = data.extracted;
 
-    const handleImportDocx = async (e) => {
-      const file = e.target.files[0];
-      if (!file) return;
+      // Map AI result to our form structure
+      const mappedData = extracted ? {
+        eventTitle: extracted.title || "",
+        eventTopic: extracted.subject || "",
+        eventPurpose: extracted.purpose || extracted.description || "",
+        location: extracted.suggestedLocation || "",
+        maxParticipants: extracted.estimatedParticipants || 50,
+        eventType: "WORKSHOP", // Default
+        eventMode: "OFFLINE",
+        orgSelectionMode: "existing",
+        sessions: extracted.programItems?.map((item, idx) => ({
+          title: item.title || "Không tên",
+          description: item.description || "",
+          durationMinutes: item.durationMinutes || 0,
+          startTime: item.startTime || "",
+          endTime: item.endTime || "",
+          speaker: item.speaker || "",
+          room: item.location || "",
+          orderIndex: idx + 1
+        })) || [],
+        // Extract unique presenters from sessions
+        presenters: extracted.programItems?.reduce((acc, item) => {
+          if (item.speaker && !acc.find(p => p.fullName === item.speaker)) {
+            acc.push({
+              fullName: item.speaker,
+              email: "",
+              position: "Diễn giả",
+              department: "",
+              bio: `Diễn giả tại phiên: ${item.title}`,
+              targetSessionName: item.title
+            });
+          }
+          return acc;
+        }, []) || [],
+        interactionSettings: extracted.additionalData?.interactionSettings || {
+          enableQA: true,
+          enablePolls: true,
+          allowUserQuestions: true
+        },
+        hasLuckyDraw: extracted.additionalData?.hasLuckyDraw || false,
+        aiReasoning: extracted.reasoning || ""
+      } : {
+        eventTitle: data.rawText?.split('\n')[0]?.substring(0, 50) || "Sự kiện mới từ Docx",
+        eventPurpose: data.rawText || "",
+        eventType: "WORKSHOP",
+        eventMode: "OFFLINE",
+        orgSelectionMode: "existing",
+        sessions: [],
+        presenters: []
+      };
 
-      if (!file.name.endsWith(".docx")) {
-        showToast("Vui lòng chọn file định dạng .docx", "error");
-        return;
+      // Handle datetimes
+      if (extracted?.suggestedStartTime) {
+        mappedData.startTime = new Date(extracted.suggestedStartTime).toISOString().slice(0, 16);
+      }
+      if (extracted?.suggestedEndTime) {
+        mappedData.endTime = new Date(extracted.suggestedEndTime).toISOString().slice(0, 16);
       }
 
-      setIsImporting(true);
-      try {
-        showToast("⏳ Đang phân tích nội dung kế hoạch bằng AI...", "info");
-          const data = await extractDataFromDocx(file);
-          
-          if (!data || (!data.extracted && !data.rawText)) {
-            throw new Error("Không thể trích xuất thông tin từ file này.");
-          }
+      setImportedRawText(data.rawText || "");
 
-          const extracted = data.extracted;
-          
-          // Map AI result to our form structure
-          const mappedData = extracted ? {
-            eventTitle: extracted.title || "",
-            eventTopic: extracted.subject || "",
-            eventPurpose: extracted.purpose || extracted.description || "",
-            location: extracted.suggestedLocation || "",
-            maxParticipants: extracted.estimatedParticipants || 50,
-            eventType: "WORKSHOP", // Default
-            eventMode: "OFFLINE",
-            orgSelectionMode: "existing",
-            sessions: extracted.programItems?.map((item, idx) => ({
-              title: item.title || "Không tên",
-              description: item.description || "",
-              durationMinutes: item.durationMinutes || 0,
-              startTime: item.startTime || "",
-              endTime: item.endTime || "",
-              speaker: item.speaker || "",
-              room: item.location || "",
-              orderIndex: idx + 1
-            })) || [],
-            // Extract unique presenters from sessions
-            presenters: extracted.programItems?.reduce((acc, item) => {
-              if (item.speaker && !acc.find(p => p.fullName === item.speaker)) {
-                acc.push({
-                  fullName: item.speaker,
-                  email: "",
-                  position: "Diễn giả",
-                  department: "",
-                  bio: `Diễn giả tại phiên: ${item.title}`,
-                  targetSessionName: item.title
-                });
-              }
-              return acc;
-            }, []) || [],
-            interactionSettings: extracted.additionalData?.interactionSettings || {
-              enableQA: true,
-              enablePolls: true,
-              allowUserQuestions: true
-            },
-            hasLuckyDraw: extracted.additionalData?.hasLuckyDraw || false,
-            aiReasoning: extracted.reasoning || ""
-          } : {
-            eventTitle: data.rawText?.split('\n')[0]?.substring(0, 50) || "Sự kiện mới từ Docx",
-            eventPurpose: data.rawText || "",
-            eventType: "WORKSHOP",
-            eventMode: "OFFLINE",
-            orgSelectionMode: "existing",
-            sessions: [],
-            presenters: []
-          };
-
-          // Handle datetimes
-          if (extracted?.suggestedStartTime) {
-            mappedData.startTime = new Date(extracted.suggestedStartTime).toISOString().slice(0, 16);
-          }
-          if (extracted?.suggestedEndTime) {
-            mappedData.endTime = new Date(extracted.suggestedEndTime).toISOString().slice(0, 16);
-          }
-
-          setImportedRawText(data.rawText || "");
-          
-          setCreatorConfig({ 
-            initialFormData: mappedData, 
-            fromPlan: false,
-            forceEventMode: mode === "event",
-            startAtStep: mode === "plan" ? 3 : 5 
-          });
-          setShowEventCreator(true);
-          
-          showToast("✨ Đã xử lý file thành công!", "success");
-        } catch (err) {
-
-        console.error("Docx import error:", err);
-        const errorMsg = err.response?.data?.message || err.message || "Lỗi không xác định khi nhập dữ liệu";
-        showToast("❌ " + errorMsg, "error");
-      } finally {
-        setIsImporting(false);
-        e.target.value = "";
-      }
-    };
-
-    /* ===== MODAL HANDLERS ===== */
-    const handleSelectPlan = (data) => {
       setCreatorConfig({
-        initialFormData: data.initialFormData || {},
+        initialFormData: mappedData,
+        fromPlan: false,
+        forceEventMode: mode === "event",
+        startAtStep: mode === "plan" ? 3 : 5
+      });
+      setShowEventCreator(true);
+
+      showToast("✨ Đã xử lý file thành công!", "success");
+    } catch (err) {
+
+      console.error("Docx import error:", err);
+      const errorMsg = err.response?.data?.message || err.message || "Lỗi không xác định khi nhập dữ liệu";
+      showToast("❌ " + errorMsg, "error");
+    } finally {
+      setIsImporting(false);
+      e.target.value = "";
+    }
+  };
+
+  /* ===== MODAL HANDLERS ===== */
+  const handleSelectPlan = (data) => {
+    setCreatorConfig({
+      initialFormData: data.initialFormData || {},
       fromPlan: data.fromPlan || false,
       startAtStep: data.startAtStep || 1
     });

@@ -222,12 +222,26 @@ public class ChatServiceImpl implements ChatService {
             enhancedUserMessage = userInfo + request.getContent();
         }
 
+        // Convert history to match expected parameter type
+        List<com.eventservice.entity.ChatMessage> convertedHistory = history.stream()
+                .map(msg -> com.eventservice.entity.ChatMessage.builder()
+                        .id(msg.getId())
+                        .content(msg.getContent())
+                        .role(msg.getRole())
+                        .type(msg.getType())
+                        .createdAt(msg.getCreatedAt())
+                        .isRead(msg.getIsRead())
+                        .tokensUsed(msg.getTokensUsed())
+                        .build())
+                .collect(Collectors.toList());
+
         // Generate AI response
         String aiResponse = geminiChatService.generateChatResponse(
                 enhancedUserMessage,
-                history,
+                convertedHistory,
                 session.getContextType()
         );
+
         
         // Ghi lại log để theo dõi
         if (enhancedUserMessage.length() > 250) {

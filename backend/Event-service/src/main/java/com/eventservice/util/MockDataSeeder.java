@@ -1,8 +1,8 @@
 package com.eventservice.util;
 
-import com.eventservice.entity.Event;
-import com.eventservice.entity.EventRegistration;
+import com.eventservice.entity.core.Event;
 import com.eventservice.entity.enums.RegistrationStatus;
+import com.eventservice.entity.registration.EventRegistration;
 import com.eventservice.repository.EventRegistrationRepository;
 import com.eventservice.repository.EventRepository;
 import lombok.RequiredArgsConstructor;

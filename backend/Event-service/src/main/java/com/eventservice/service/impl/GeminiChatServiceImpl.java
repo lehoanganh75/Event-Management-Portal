@@ -1,8 +1,8 @@
 package com.eventservice.service.impl;
 
-import com.eventservice.dto.plan.response.EventPlanSuggestionResponse;
-import com.eventservice.dto.plan.response.EventProgramItemSuggestionResponse;
-import com.eventservice.entity.social.ChatMessage;
+import com.eventservice.dto.EventPlanSuggestion;
+import com.eventservice.dto.ProgramItemSuggestion;
+import com.eventservice.entity.ChatMessage;
 import com.eventservice.entity.enums.ChatMessageRole;
 import com.eventservice.service.GeminiChatService;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -67,7 +67,7 @@ public class GeminiChatServiceImpl implements GeminiChatService {
     }
 
     @Override
-    public EventPlanSuggestionResponse generateEventPlanSuggestion(String userInput, List<ChatMessage> conversationHistory) {
+    public EventPlanSuggestion generateEventPlanSuggestion(String userInput, List<ChatMessage> conversationHistory) {
         try {
             String conversationContext = buildConversationContext(conversationHistory);
 
@@ -198,7 +198,7 @@ public class GeminiChatServiceImpl implements GeminiChatService {
     }
 
     @Override
-    public EventPlanSuggestionResponse extractEventDetails(String naturalLanguageInput) {
+    public EventPlanSuggestion extractEventDetails(String naturalLanguageInput) {
         log.info("Starting AI extraction for text (length: {})", naturalLanguageInput.length());
         try {
             String promptTemplate = """
@@ -250,15 +250,10 @@ public class GeminiChatServiceImpl implements GeminiChatService {
 
             String jsonResponse = callGeminiAPI(prompt);
             log.info("AI extraction completed. Parsing response...");
-<<<<<<< HEAD
-            EventPlanSuggestionResponse suggestion = parseEventPlanSuggestion(jsonResponse);
-            
-=======
             EventPlanSuggestion suggestion = parseEventPlanSuggestion(jsonResponse);
 
->>>>>>> anh22706331
             if (suggestion == null) {
-                log.error("Failed to parse AI response as EventPlanSuggestionResponse. Raw response: {}", jsonResponse);
+                log.error("Failed to parse AI response as EventPlanSuggestion. Raw response: {}", jsonResponse);
             } else {
                 log.info("Successfully extracted details for event: {}", suggestion.getTitle());
             }
@@ -293,17 +288,17 @@ public class GeminiChatServiceImpl implements GeminiChatService {
 
         String contextSpecific = switch (contextType) {
             case "EVENT_PLANNING" ->
-                """
-
-                        [CONTEXT: LẬP KẾ HOẠCH]
-                        Bạn đang hỗ trợ Admin xây dựng sự kiện. Hãy tư vấn về ý tưởng, nội dung và các bước tổ chức một cách sáng tạo.
-                        """;
+                    """
+    
+                            [CONTEXT: LẬP KẾ HOẠCH]
+                            Bạn đang hỗ trợ Admin xây dựng sự kiện. Hãy tư vấn về ý tưởng, nội dung và các bước tổ chức một cách sáng tạo.
+                            """;
             case "EVENT_INQUIRY" ->
-                """
-
-                        [CONTEXT: TÌM HIỂU SỰ KIỆN]
-                        Bạn đang hỗ trợ người dùng tìm kiếm niềm vui. Hãy giới thiệu sự kiện một cách lôi cuốn, nhấn mạnh vào giá trị mà họ nhận được.
-                        """;
+                    """
+    
+                            [CONTEXT: TÌM HIỂU SỰ KIỆN]
+                            Bạn đang hỗ trợ người dùng tìm kiếm niềm vui. Hãy giới thiệu sự kiện một cách lôi cuốn, nhấn mạnh vào giá trị mà họ nhận được.
+                            """;
             default -> "";
         };
 
@@ -437,7 +432,8 @@ public class GeminiChatServiceImpl implements GeminiChatService {
         // Nếu tất cả các model và các lượt thử đều thất bại
         return "ERROR_AI_OVERLOADED";
     }
-    private EventPlanSuggestionResponse parseEventPlanSuggestion(String jsonResponse) {
+
+    private EventPlanSuggestion parseEventPlanSuggestion(String jsonResponse) {
         try {
             if (jsonResponse == null || jsonResponse.equals("ERROR_AI_OVERLOADED"))
                 return null;
@@ -477,7 +473,7 @@ public class GeminiChatServiceImpl implements GeminiChatService {
                 }
             }
 
-            EventPlanSuggestionResponse suggestion = EventPlanSuggestionResponse.builder()
+            EventPlanSuggestion suggestion = EventPlanSuggestion.builder()
                     .title(root.path("title").asText(null))
                     .subject(root.path("subject").asText(root.path("eventTopic").asText(null)))
                     .purpose(root.path("purpose").asText(root.path("eventPurpose").asText(null)))
@@ -500,9 +496,9 @@ public class GeminiChatServiceImpl implements GeminiChatService {
 
             // Parse program items
             if (root.has("programItems")) {
-                List<EventProgramItemSuggestionResponse> items = new ArrayList<>();
+                List<ProgramItemSuggestion> items = new ArrayList<>();
                 root.path("programItems").forEach(item -> {
-                    EventProgramItemSuggestionResponse programItem = EventProgramItemSuggestionResponse.builder()
+                    ProgramItemSuggestion programItem = ProgramItemSuggestion.builder()
                             .title(item.path("title").asText())
                             .description(item.path("description").asText())
                             .durationMinutes(item.path("durationMinutes").asInt())
@@ -576,8 +572,9 @@ public class GeminiChatServiceImpl implements GeminiChatService {
     }
 
     // ==================== END ====================
-    public EventPlanSuggestionResponse generatePlanFromTemplate(String templateName, String templateDescription,
-            String userContext) {
+    @Override
+    public EventPlanSuggestion generatePlanFromTemplate(String templateName, String templateDescription,
+                                                        String userContext) {
         String prompt = String.format("""
                 Bạn là chuyên gia lập kế hoạch sự kiện chuyên nghiệp.
                 Hãy tạo một bản kế hoạch chi tiết dựa trên mẫu sau:
@@ -680,7 +677,7 @@ public class GeminiChatServiceImpl implements GeminiChatService {
                 
                 Lưu ý: Chỉ trả về JSON, dùng ngôn ngữ Tiếng Việt chuyên nghiệp, lịch sự.
                 """, eventDataJson);
-                
+
             return callGeminiAPI(prompt);
         } catch (Exception e) {
             log.error("Error analyzing event statistics: {}", e.getMessage());

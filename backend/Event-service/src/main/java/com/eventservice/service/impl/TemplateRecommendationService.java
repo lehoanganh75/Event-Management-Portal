@@ -1,6 +1,6 @@
 package com.eventservice.service.impl;
 
-import com.eventservice.entity.EventTemplate;
+import com.eventservice.entity.template.EventTemplate;
 import com.eventservice.repository.EventTemplateRepository;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;

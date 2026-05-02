@@ -1,6 +1,8 @@
 <component name="ProjectRunConfigurationManager">
   <configuration default="false" name="[RUN ALL SERVICES]" type="CompoundRunConfigurationType">
+    <toRun name="Analyticsservice" type="SpringBootApplicationConfigurationType" />
     <toRun name="EventService" type="SpringBootApplicationConfigurationType" />
+    <toRun name="Identityservice" type="SpringBootApplicationConfigurationType" />
     <toRun name="LuckyDrawService" type="SpringBootApplicationConfigurationType" />
     <toRun name="NotificationService" type="SpringBootApplicationConfigurationType" />
     <method v="2" />
