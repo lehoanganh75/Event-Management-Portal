@@ -38,8 +38,37 @@ import java.util.stream.Collectors;
 
 @Service
 @Slf4j
-@RequiredArgsConstructor
 public class ChatServiceImpl implements ChatService {
+
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    public ChatServiceImpl(
+            ChatSessionRepository chatSessionRepository,
+            ChatMessageRepository chatMessageRepository,
+            EventRepository eventRepository,
+            EventVectorRepository eventVectorRepository,
+            GeminiChatService geminiChatService,
+            EventEmbeddingService eventEmbeddingService,
+            EventRegistrationRepository eventRegistrationRepository,
+            GeminiAIService geminiAIService,
+            TemplateRecommendationService templateRecommendationService,
+            @org.springframework.beans.factory.annotation.Autowired(required = false) EmbeddingModel embeddingModel,
+            SimpMessagingTemplate messagingTemplate,
+            ObjectMapper objectMapper
+    ) {
+        this.chatSessionRepository = chatSessionRepository;
+        this.chatMessageRepository = chatMessageRepository;
+        this.eventRepository = eventRepository;
+        this.eventVectorRepository = eventVectorRepository;
+        this.geminiChatService = geminiChatService;
+        this.eventEmbeddingService = eventEmbeddingService;
+        this.eventRegistrationRepository = eventRegistrationRepository;
+        this.geminiAIService = geminiAIService;
+        this.templateRecommendationService = templateRecommendationService;
+        this.embeddingModel = embeddingModel;
+        this.messagingTemplate = messagingTemplate;
+        this.objectMapper = objectMapper;
+    }
+
 
     private final ChatSessionRepository chatSessionRepository;
     private final ChatMessageRepository chatMessageRepository;
