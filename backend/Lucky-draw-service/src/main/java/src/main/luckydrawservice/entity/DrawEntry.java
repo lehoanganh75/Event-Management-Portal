@@ -2,11 +2,16 @@ package src.main.luckydrawservice.entity;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.NoArgsConstructor;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "draw_entries",
-        uniqueConstraints = @UniqueConstraint(columnNames = {"lucky_draw_id", "userProfileId"}))
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+@Table(name = "draw_entries", uniqueConstraints = @UniqueConstraint(columnNames = { "lucky_draw_id", "userProfileId" }))
 public class DrawEntry {
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
@@ -21,12 +26,15 @@ public class DrawEntry {
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 
+    @Transient
+    private src.main.luckydrawservice.dto.UserResponse profile;
+    @Transient
+    private src.main.luckydrawservice.dto.UserResponse winner;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "lucky_draw_id", nullable = false)
     @JsonIgnore
     private LuckyDraw luckyDraw;
-
-    public DrawEntry() {}
 
     @PrePersist
     protected void onCreate() {
@@ -37,53 +45,5 @@ public class DrawEntry {
     @PreUpdate
     protected void onUpdate() {
         updatedAt = LocalDateTime.now();
-    }
-
-    public String getId() {
-        return id;
-    }
-
-    public void setId(String id) {
-        this.id = id;
-    }
-
-    public String getUserProfileId() {
-        return userProfileId;
-    }
-
-    public void setUserProfileId(String userProfileId) {
-        this.userProfileId = userProfileId;
-    }
-
-    public EntryStatus getStatus() {
-        return status;
-    }
-
-    public void setStatus(EntryStatus status) {
-        this.status = status;
-    }
-
-    public LocalDateTime getCreatedAt() {
-        return createdAt;
-    }
-
-    public void setCreatedAt(LocalDateTime createdAt) {
-        this.createdAt = createdAt;
-    }
-
-    public LocalDateTime getUpdatedAt() {
-        return updatedAt;
-    }
-
-    public void setUpdatedAt(LocalDateTime updatedAt) {
-        this.updatedAt = updatedAt;
-    }
-
-    public LuckyDraw getLuckyDraw() {
-        return luckyDraw;
-    }
-
-    public void setLuckyDraw(LuckyDraw luckyDraw) {
-        this.luckyDraw = luckyDraw;
     }
 }

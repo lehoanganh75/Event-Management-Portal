@@ -69,7 +69,7 @@ export default function MyEventsPage() {
     if (role.creator)
       return { label: "Chủ trì", icon: <ShieldCheck size={14} /> };
     
-    if (role.organizer) {
+    if (role.organizerRole) {
       const orgRoleLabel = role.organizerRole === 'LEADER' ? "Trưởng Ban" : 
                            role.organizerRole === 'COORDINATOR' ? "Điều phối" : "Thành viên";
       return { label: orgRoleLabel, icon: <ShieldCheck size={14} /> };

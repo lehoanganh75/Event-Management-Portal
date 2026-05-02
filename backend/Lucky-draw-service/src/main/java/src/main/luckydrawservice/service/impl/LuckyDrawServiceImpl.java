@@ -10,7 +10,16 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 import src.main.luckydrawservice.client.EventClient;
 import src.main.luckydrawservice.client.IdentityClient;
-import src.main.luckydrawservice.dto.*;
+import src.main.luckydrawservice.dto.LuckyDrawCreateRequest;
+import src.main.luckydrawservice.dto.LuckyDrawResponse;
+import src.main.luckydrawservice.dto.PrizeCreateRequest;
+import src.main.luckydrawservice.dto.PrizeResponse;
+import src.main.luckydrawservice.dto.DrawResultResponse;
+import src.main.luckydrawservice.dto.DrawEntryResponse;
+import src.main.luckydrawservice.dto.UserResponse;
+import src.main.luckydrawservice.dto.EventResponse;
+import src.main.luckydrawservice.dto.EventRegistrationResponse;
+import src.main.luckydrawservice.dto.EventUserRoleResponse;
 import src.main.luckydrawservice.entity.*;
 import src.main.luckydrawservice.repository.DrawEntryRepository;
 import src.main.luckydrawservice.repository.DrawResultRepository;
@@ -41,10 +50,17 @@ public class LuckyDrawServiceImpl implements LuckyDrawService {
     public LuckyDraw createLuckyDraw(LuckyDrawCreateRequest request, String createdByAccountId) {
         try {
             eventClient.updateLuckyDrawId(request.getEventId(), true);
-        } catch (FeignException.Conflict e) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "Sự kiện này đã có vòng quay, không thể tạo thêm.");
+        } catch (feign.FeignException.Conflict e) {
+            log.warn("Sự kiện này đã có vòng quay ở Event-Service, tiếp tục tạo mới ở Lucky-Draw-Service: {}",
+                    e.getMessage());
         } catch (Exception e) {
-            throw new RuntimeException("Không thể kết nối tới Event-Service để xác thực: " + e.getMessage());
+            log.warn("Không thể kết nối tới Event-Service: {}", e.getMessage());
+        }
+
+        Optional<LuckyDraw> existingOpt = luckyDrawRepository.findByEventId(request.getEventId());
+        if (existingOpt.isPresent()) {
+            luckyDrawRepository.delete(existingOpt.get());
+            luckyDrawRepository.flush();
         }
 
         LuckyDraw luckyDraw = new LuckyDraw();
@@ -115,8 +131,104 @@ public class LuckyDrawServiceImpl implements LuckyDrawService {
     }
 
     @Override
-    public LuckyDraw findById(String luckyDrawId) {
-        return luckyDrawRepository.findById(luckyDrawId).orElse(null);
+    @Transactional
+    public LuckyDrawResponse findById(String luckyDrawId) {
+        LuckyDraw draw = luckyDrawRepository.findById(luckyDrawId).orElse(null);
+        if (draw == null) {
+            return null;
+        }
+
+        java.util.Set<String> userIds = new java.util.HashSet<>();
+        if (draw.getCreatedByAccountId() != null) {
+            userIds.add(draw.getCreatedByAccountId());
+        }
+        if (draw.getEntries() != null) {
+            for (src.main.luckydrawservice.entity.DrawEntry e : draw.getEntries()) {
+                if (e.getUserProfileId() != null) {
+                    userIds.add(e.getUserProfileId());
+                }
+            }
+        }
+        if (draw.getResults() != null) {
+            for (src.main.luckydrawservice.entity.DrawResult r : draw.getResults()) {
+                if (r.getWinnerProfileId() != null) {
+                    userIds.add(r.getWinnerProfileId());
+                }
+            }
+        }
+
+        Map<String, UserResponse> profileMap = new java.util.HashMap<>();
+        if (!userIds.isEmpty()) {
+            try {
+                List<UserResponse> profiles = identityClient
+                        .getUsersByIds(new ArrayList<>(userIds));
+                profileMap = profiles.stream()
+                        .collect(Collectors.toMap(src.main.luckydrawservice.dto.UserResponse::getId,
+                                u -> u, (u1, u2) -> u1));
+            } catch (Exception e) {
+                log.error("Lỗi khi fetch profiles: ", e);
+            }
+        }
+
+        final Map<String, UserResponse> finalUserMap = profileMap;
+        List<PrizeResponse> prizeResponses = draw.getPrizes() != null ? draw.getPrizes().stream()
+                .map(p -> PrizeResponse.builder()
+                        .id(p.getId())
+                        .name(p.getName())
+                        .prizeName(p.getName())
+                        .quantity(p.getQuantity())
+                        .remainingQuantity(p.getRemainingQuantity())
+                        .description(p.getDescription())
+                        .build())
+                .collect(Collectors.toList()) : Collections.emptyList();
+
+        List<DrawEntryResponse> entryResponses = draw.getEntries() != null ? draw.getEntries().stream()
+                .map(e -> {
+                    UserResponse profile = finalUserMap.get(e.getUserProfileId());
+                    return new DrawEntryResponse(e.getId(), e.getStatus().name(), e.getCreatedAt(), e.getUpdatedAt(),
+                            profile);
+                })
+                .collect(Collectors.toList()) : Collections.emptyList();
+
+        List<DrawResultResponse> mappedResults = draw.getResults() != null ? draw.getResults().stream()
+                .map(res -> {
+                    PrizeResponse pDto = null;
+                    if (res.getPrize() != null) {
+                        pDto = PrizeResponse.builder()
+                                .id(res.getPrize().getId())
+                                .name(res.getPrize().getName())
+                                .prizeName(res.getPrize().getName())
+                                .quantity(res.getPrize().getQuantity())
+                                .remainingQuantity(res.getPrize().getRemainingQuantity())
+                                .description(res.getPrize().getDescription())
+                                .build();
+                    }
+                    return DrawResultResponse.builder()
+                            .id(res.getId())
+                            .drawTime(res.getDrawTime())
+                            .claimed(res.isClaimed())
+                            .quantity(res.getQuantity())
+                            .winner(finalUserMap.get(res.getWinnerProfileId()))
+                            .winTime(res.getDrawTime())
+                            .wonPrize(pDto)
+                            .build();
+                })
+                .collect(Collectors.toList()) : Collections.emptyList();
+
+        return LuckyDrawResponse.builder()
+                .id(draw.getId())
+                .eventId(draw.getEventId())
+                .creator(finalUserMap.get(draw.getCreatedByAccountId()))
+                .title(draw.getTitle())
+                .description(draw.getDescription())
+                .status(draw.getStatus().name())
+                .allowMultipleWins(draw.isAllowMultipleWins())
+                .startTime(draw.getStartTime())
+                .endTime(draw.getEndTime())
+                .prizes(prizeResponses)
+                .entries(entryResponses)
+                .results(mappedResults)
+                .build();
     }
 
     @Override
@@ -178,7 +290,7 @@ public class LuckyDrawServiceImpl implements LuckyDrawService {
         // TRƯỜNG HỢP 1: ADMIN QUAY CHO CẢ HỘI TRƯỜNG (userProfileId là null)
         if (userProfileId == null) {
             validateAdminAccess(luckyDraw.getEventId(), token);
-            
+
             if (luckyDraw.getStatus() == DrawStatus.PENDING) {
                 luckyDraw.setStatus(DrawStatus.ACTIVE);
                 luckyDrawRepository.save(luckyDraw);
@@ -186,22 +298,25 @@ public class LuckyDrawServiceImpl implements LuckyDrawService {
 
             List<DrawEntry> eligibleEntries = getEligibleParticipants(luckyDraw);
             if (eligibleEntries.isEmpty()) {
-                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Không có người tham gia hợp lệ nào tại thời điểm này.");
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                        "Không có người tham gia hợp lệ nào tại thời điểm này.");
             }
 
             DrawEntry winnerEntry = eligibleEntries.get(random.nextInt(eligibleEntries.size()));
             return executeDraw(luckyDraw, winnerEntry, prizeId);
-        } 
-        
+        }
+
         // TRƯỜNG HỢP 2: USER TỰ QUAY CHO CHÍNH MÌNH (userProfileId có giá trị)
         else {
             if (luckyDraw.getStatus() != DrawStatus.ACTIVE) {
-                throw new ResponseStatusException(HttpStatus.CONFLICT, "Chương trình hiện không ở trạng thái cho phép cá nhân tự quay");
+                throw new ResponseStatusException(HttpStatus.CONFLICT,
+                        "Chương trình hiện không ở trạng thái cho phép cá nhân tự quay");
             }
 
             DrawEntry entry = drawEntryRepository
                     .findFirstByLuckyDrawIdAndUserProfileIdAndStatus(luckyDrawId, userProfileId, EntryStatus.VALID)
-                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "Bạn chưa check-in hoặc không có lượt quay hợp lệ"));
+                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                            "Bạn chưa check-in hoặc không có lượt quay hợp lệ"));
 
             return executeDraw(luckyDraw, entry, prizeId);
         }
@@ -210,11 +325,12 @@ public class LuckyDrawServiceImpl implements LuckyDrawService {
     private DrawResultResponse executeDraw(LuckyDraw luckyDraw, DrawEntry winnerEntry, String prizeId) {
         // 1. Xác định giải thưởng
         Prize winningPrize;
-        
+
         if (prizeId != null && !prizeId.isEmpty()) {
             winningPrize = prizeRepository.findById(prizeId)
-                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy giải thưởng đã chọn"));
-            
+                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
+                            "Không tìm thấy giải thưởng đã chọn"));
+
             if (winningPrize.getRemainingQuantity() <= 0) {
                 throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Giải thưởng này đã hết số lượng");
             }
@@ -223,9 +339,12 @@ public class LuckyDrawServiceImpl implements LuckyDrawService {
             }
         } else {
             // Chọn ngẫu nhiên nếu không chỉ định
-            List<Prize> availablePrizes = prizeRepository.findByLuckyDrawIdAndRemainingQuantityGreaterThan(luckyDraw.getId(), 0);
+            List<Prize> availablePrizes = prizeRepository
+                    .findByLuckyDrawIdAndRemainingQuantityGreaterThan(luckyDraw.getId(), 0);
             if (availablePrizes.isEmpty()) {
-                return new DrawResultResponse("Hết giải thưởng! Cảm ơn bạn đã tham gia.", null);
+                return DrawResultResponse.builder()
+                        .id("Hết giải thưởng! Cảm ơn bạn đã tham gia.")
+                        .build();
             }
             winningPrize = availablePrizes.get(random.nextInt(availablePrizes.size()));
         }
@@ -243,19 +362,29 @@ public class LuckyDrawServiceImpl implements LuckyDrawService {
         result.setPrize(winningPrize);
         result.setWinnerProfileId(winnerEntry.getUserProfileId());
         result.setDrawTime(LocalDateTime.now());
-        result.setClaimed(false);
+        result.setClaimed(true);
+        result.setQuantity(1);
         drawResultRepository.save(result);
 
         // 5. Lấy profile hiển thị
         UserResponse winnerProfile = fetchWinnerProfile(winnerEntry.getUserProfileId());
 
-        return new DrawResultResponse("Chúc mừng chiến thắng!", toPrizeResponse(winningPrize), winnerProfile);
+        return DrawResultResponse.builder()
+                .id(result.getId())
+                .drawTime(result.getDrawTime())
+                .claimed(result.isClaimed())
+                .quantity(result.getQuantity())
+                .wonPrize(toPrizeResponse(winningPrize))
+                .winner(winnerProfile)
+                .build();
     }
 
     private List<DrawEntry> getEligibleParticipants(LuckyDraw luckyDraw) {
-        List<DrawEntry> validEntries = drawEntryRepository.findByLuckyDrawIdAndStatus(luckyDraw.getId(), EntryStatus.VALID);
-        
-        if (luckyDraw.isAllowMultipleWins()) return validEntries;
+        List<DrawEntry> validEntries = drawEntryRepository.findByLuckyDrawIdAndStatus(luckyDraw.getId(),
+                EntryStatus.VALID);
+
+        if (luckyDraw.isAllowMultipleWins())
+            return validEntries;
 
         Set<String> alreadyWonIds = luckyDraw.getResults().stream()
                 .map(DrawResult::getWinnerProfileId)
@@ -269,7 +398,8 @@ public class LuckyDrawServiceImpl implements LuckyDrawService {
     private void validateAdminAccess(String eventId, String token) {
         try {
             EventResponse eventInfo = eventClient.getEventById(eventId, token);
-            if (eventInfo.getCurrentUserRole() == null || !"LEADER".equalsIgnoreCase(eventInfo.getCurrentUserRole().getOrganizerRole())) {
+            if (eventInfo.getCurrentUserRole() == null
+                    || !"LEADER".equalsIgnoreCase(eventInfo.getCurrentUserRole().getOrganizerRole())) {
                 throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Chỉ LEADER mới có quyền thực hiện");
             }
         } catch (Exception e) {
@@ -293,13 +423,14 @@ public class LuckyDrawServiceImpl implements LuckyDrawService {
         return fallback;
     }
 
-
-
     private PrizeResponse toPrizeResponse(Prize prize) {
         PrizeResponse prizeResponse = new PrizeResponse();
+        prizeResponse.setId(prize.getId());
         prizeResponse.setName(prize.getName());
+        prizeResponse.setPrizeName(prize.getName());
         prizeResponse.setDescription(prize.getDescription());
         prizeResponse.setQuantity(prize.getQuantity());
+        prizeResponse.setRemainingQuantity(prize.getRemainingQuantity());
         return prizeResponse;
     }
 
@@ -349,9 +480,11 @@ public class LuckyDrawServiceImpl implements LuckyDrawService {
 
     @Override
     public Optional<LuckyDrawResponse> findByEventId(String eventId) {
-        LuckyDraw luckyDraw = luckyDrawRepository.findByEventIdAndIsDeletedFalse(eventId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
-                        "Không tìm thấy vòng quay cho sự kiện: " + eventId));
+        Optional<LuckyDraw> luckyDrawOpt = luckyDrawRepository.findByEventIdAndIsDeletedFalse(eventId);
+        if (luckyDrawOpt.isEmpty()) {
+            return Optional.empty();
+        }
+        LuckyDraw luckyDraw = luckyDrawOpt.get();
 
         Set<String> allAccountIds = new HashSet<>();
         if (luckyDraw.getCreatedByAccountId() != null) {
@@ -360,8 +493,16 @@ public class LuckyDrawServiceImpl implements LuckyDrawService {
 
         if (luckyDraw.getResults() != null) {
             luckyDraw.getResults().forEach(res -> {
-                if (!res.isClaimed() && res.getWinnerProfileId() != null) {
+                if (res.getWinnerProfileId() != null) {
                     allAccountIds.add(res.getWinnerProfileId());
+                }
+            });
+        }
+
+        if (luckyDraw.getEntries() != null) {
+            luckyDraw.getEntries().forEach(e -> {
+                if (e.getUserProfileId() != null) {
+                    allAccountIds.add(e.getUserProfileId());
                 }
             });
         }
@@ -377,34 +518,63 @@ public class LuckyDrawServiceImpl implements LuckyDrawService {
         }
 
         final Map<String, UserResponse> finalUserMap = userMap;
-        List<LuckyDrawResponse.DrawResultEnriched> enrichedResults = luckyDraw.getResults().stream()
-                .filter(res -> !res.isClaimed())
+        List<PrizeResponse> prizeResponses = luckyDraw.getPrizes() != null ? luckyDraw.getPrizes().stream()
+                .map(p -> PrizeResponse.builder()
+                        .id(p.getId())
+                        .name(p.getName())
+                        .prizeName(p.getName())
+                        .quantity(p.getQuantity())
+                        .remainingQuantity(p.getRemainingQuantity())
+                        .description(p.getDescription())
+                        .build())
+                .collect(Collectors.toList()) : Collections.emptyList();
+
+        List<DrawEntryResponse> entryResponses = luckyDraw.getEntries() != null ? luckyDraw.getEntries().stream()
+                .map(e -> {
+                    UserResponse profile = finalUserMap.get(e.getUserProfileId());
+                    return new DrawEntryResponse(e.getId(), e.getStatus().name(), e.getCreatedAt(), e.getUpdatedAt(),
+                            profile);
+                })
+                .collect(Collectors.toList()) : Collections.emptyList();
+
+        List<DrawResultResponse> mappedResults = luckyDraw.getResults() != null ? luckyDraw.getResults().stream()
                 .map(res -> {
-                    PrizeDto pDto = null;
+                    PrizeResponse pDto = null;
                     if (res.getPrize() != null) {
-                        pDto = PrizeDto.builder()
+                        pDto = PrizeResponse.builder()
                                 .id(res.getPrize().getId())
+                                .name(res.getPrize().getName())
                                 .prizeName(res.getPrize().getName())
                                 .quantity(res.getPrize().getQuantity())
+                                .remainingQuantity(res.getPrize().getRemainingQuantity())
                                 .description(res.getPrize().getDescription())
                                 .build();
                     }
-
-                    DrawResultDto resDto = DrawResultDto.builder()
+                    return DrawResultResponse.builder()
                             .id(res.getId())
+                            .drawTime(res.getDrawTime())
+                            .claimed(res.isClaimed())
+                            .quantity(res.getQuantity())
                             .winner(finalUserMap.get(res.getWinnerProfileId()))
                             .winTime(res.getDrawTime())
-                            .prize(pDto)
+                            .wonPrize(pDto)
                             .build();
-
-                    return new LuckyDrawResponse.DrawResultEnriched(resDto);
                 })
-                .collect(Collectors.toList());
+                .collect(Collectors.toList()) : Collections.emptyList();
 
         return Optional.of(LuckyDrawResponse.builder()
-                .luckyDraw(convertToDto(luckyDraw))
+                .id(luckyDraw.getId())
+                .eventId(luckyDraw.getEventId())
                 .creator(finalUserMap.get(luckyDraw.getCreatedByAccountId()))
-                .enrichedResults(enrichedResults)
+                .title(luckyDraw.getTitle())
+                .description(luckyDraw.getDescription())
+                .status(luckyDraw.getStatus().name())
+                .allowMultipleWins(luckyDraw.isAllowMultipleWins())
+                .startTime(luckyDraw.getStartTime())
+                .endTime(luckyDraw.getEndTime())
+                .prizes(prizeResponses)
+                .entries(entryResponses)
+                .results(mappedResults)
                 .build());
     }
 
@@ -430,27 +600,6 @@ public class LuckyDrawServiceImpl implements LuckyDrawService {
                 return u;
             }).collect(Collectors.toList());
         }
-    }
-
-    private LuckyDrawDto convertToDto(LuckyDraw entity) {
-        if (entity == null)
-            return null;
-
-        List<PrizeDto> prizeDtos = entity.getPrizes().stream()
-                .map(p -> new PrizeDto(p.getId(), p.getName(), p.getQuantity(), p.getDescription()))
-                .collect(Collectors.toList());
-
-        return LuckyDrawDto.builder()
-                .id(entity.getId())
-                .eventId(entity.getEventId())
-                .title(entity.getTitle())
-                .description(entity.getDescription())
-                .status(entity.getStatus().name())
-                .allowMultipleWins(entity.isAllowMultipleWins())
-                .startTime(entity.getStartTime())
-                .endTime(entity.getEndTime())
-                .prizes(prizeDtos)
-                .build();
     }
 
     @Override
@@ -488,5 +637,28 @@ public class LuckyDrawServiceImpl implements LuckyDrawService {
                         }
                     });
         });
+    }
+
+    @Override
+    @Transactional
+    public void updateClaimed(String resultId, boolean claimed) {
+        src.main.luckydrawservice.entity.DrawResult result = drawResultRepository.findById(resultId)
+                .orElseThrow(() -> new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.NOT_FOUND,
+                        "Không tìm thấy kết quả trúng giải"));
+        
+        if (result.isClaimed() != claimed) {
+            result.setClaimed(claimed);
+            drawResultRepository.save(result);
+
+            src.main.luckydrawservice.entity.Prize prize = result.getPrize();
+            if (prize != null) {
+                if (claimed) {
+                    prize.setRemainingQuantity(Math.max(0, prize.getRemainingQuantity() - 1));
+                } else {
+                    prize.setRemainingQuantity(prize.getRemainingQuantity() + 1);
+                }
+                prizeRepository.save(prize);
+            }
+        }
     }
 }

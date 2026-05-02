@@ -98,7 +98,7 @@ export default function EventDetail() {
     const role = event.currentUserRole || {};
     const hasAdminAccess = isSystemAdmin();
 
-    if (role.creator || role.approver || role.organizer || hasAdminAccess) {
+    if (role.creator || role.approver || role.organizerRole || hasAdminAccess) {
       const orgRole = (role.organizerRole || "").toLowerCase();
 
       // Super Admin/Admin mặc định vào view Leader để quản lý cao nhất
@@ -385,10 +385,10 @@ export default function EventDetail() {
                 onClick={handleMainAction}
                 disabled={
                   isRegistering ||
-                  (!role.registered && !role.creator && !role.approver && !role.organizer &&
+                  (!role.registered && !role.creator && !role.approver && !role.organizerRole &&
                     isDeadlinePassed(event.registrationDeadline))
                 }
-                className={`w-full h-14 rounded-2xl font-bold text-base flex items-center justify-center gap-3 transition-all shadow-lg active:scale-95 ${role.creator || role.approver || role.organizer || isSystemAdmin()
+                className={`w-full h-14 rounded-2xl font-bold text-base flex items-center justify-center gap-3 transition-all shadow-lg active:scale-95 ${role.creator || role.approver || role.organizerRole || isSystemAdmin()
                   ? "bg-zinc-900 text-white"
                   : role.registered
                     ? showTicket
@@ -401,7 +401,7 @@ export default function EventDetail() {
               >
                 {isRegistering ? (
                   <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                ) : role.creator || role.approver || role.organizer || isSystemAdmin() ? (
+                ) : role.creator || role.approver || role.organizerRole || isSystemAdmin() ? (
                   "QUẢN LÝ SỰ KIỆN"
                 ) : role.registered && role.registration?.status !== "CANCELLED" ? (
                   <>

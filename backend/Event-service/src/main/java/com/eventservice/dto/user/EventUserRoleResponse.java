@@ -25,7 +25,6 @@ import lombok.Setter;
 public class EventUserRoleResponse {
     private boolean isCreator;
     private boolean isApprover;
-    private boolean isOrganizer;
     private boolean isPresented;
     private boolean isRegistered;
     private String organizerRole; // LEADER, MEMBER, etc.

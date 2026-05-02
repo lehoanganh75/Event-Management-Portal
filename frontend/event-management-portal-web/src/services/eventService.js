@@ -90,7 +90,11 @@ const eventService = {
     getUpcomingEvents: () => publicApi.get('/events/upcoming-week').then(transformListResponse),
     getFeaturedEvents: () => publicApi.get('/events/featured').then(transformListResponse),
     getCompletedEvents: () => publicApi.get('/events/news').then(transformListResponse),
-    getEventById: (id) => publicApi.get(`/events/${id}`).then(res => ({ ...res, data: transformBaseData(res.data) })),
+    getEventById: (id) => {
+        const token = localStorage.getItem('accessToken');
+        const api = token ? privateApi : publicApi;
+        return api.get(`/events/${id}`).then(res => ({ ...res, data: transformBaseData(res.data) }));
+    },
     getByStatus: (status) => privateApi.get('/events/by-statuses', { params: { statuses: status.toUpperCase() } }).then(res => ({ ...res, data: (res.data || []).map(transformBaseData) })),
     getAllPlans: (params = {}) => publicApi.get('/events/plans', { params }).then(transformListResponse),
 
@@ -145,8 +149,8 @@ const eventService = {
     deleteTemplate: (id) => privateApi.delete(`/templates/${id}`),
     toggleTemplateStar: (id) => privateApi.patch(`/templates/${id}/star`),
     incrementTemplateUsage: (id) => privateApi.post(`/templates/${id}/increment-usage`),
-    recommendTemplates: (description, limit = 5) => 
-        privateApi.post('/templates/recommend', description, { 
+    recommendTemplates: (description, limit = 5) =>
+        privateApi.post('/templates/recommend', description, {
             headers: { 'Content-Type': 'text/plain' },
             params: { limit }
         }).then(res => res.data),
@@ -181,12 +185,13 @@ const eventService = {
     // --- QUIZ API ---
     // AI Planning
     aiPlanning: {
-        generateFromTemplate: (templateId, userContext) => 
+        generateFromTemplate: (templateId, userContext) =>
             privateApi.post('/api/v1/ai-planning/from-template', { templateId, userContext }),
-        generateFromRawText: (rawText) => 
+        generateFromRawText: (rawText) =>
             privateApi.post('/api/v1/ai-planning/from-raw-text', { rawText }),
     },
     createQuiz: (quizData) => privateApi.post('/quizzes', quizData),
+    getQuizzesByEvent: (eventId) => privateApi.get(`/quizzes/event/${eventId}`),
     startQuiz: (quizId) => privateApi.post(`/quizzes/${quizId}/start`),
     nextQuizQuestion: (quizId, index) => privateApi.post(`/quizzes/${quizId}/next`, null, { params: { index } }),
     submitQuizAnswer: (submission) => privateApi.post('/quizzes/submit', submission),

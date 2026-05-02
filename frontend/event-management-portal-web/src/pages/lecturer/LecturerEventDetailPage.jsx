@@ -47,7 +47,7 @@ const LecturerEventDetailPage = () => {
       const roles = user?.roles || (user?.role ? [user.role] : []);
       const isSystemAdmin = roles.some(r => ["SUPER_ADMIN", "ADMIN"].includes(r?.toUpperCase()));
 
-      if (!resEvent.data?.currentUserRole?.organizer && !isSystemAdmin) {
+      if (!resEvent.data?.currentUserRole?.organizerRole && !isSystemAdmin) {
         toast.info("Bạn không còn thuộc ban tổ chức sự kiện này.");
         navigate('/');
         return;

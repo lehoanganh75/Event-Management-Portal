@@ -19,7 +19,7 @@ public interface LuckyDrawService {
     DrawResultResponse performLuckyDraw(String luckyDrawId, String token, String userProfileId, String prizeId);
     LuckyDraw updateLuckyDraw(String id, LuckyDrawCreateRequest request, String createdByAccountId);
 
-    LuckyDraw findById(String luckyDrawId);
+    LuckyDrawResponse findById(String luckyDrawId);
 
     void activateLuckyDraw(String luckyDrawId, String accountId);
 
@@ -33,4 +33,5 @@ public interface LuckyDrawService {
 
     void handleCheckIn(String eventId, String userProfileId);
     void handleCancelCheckIn(String eventId, String userProfileId);
+    void updateClaimed(String resultId, boolean claimed);
 }

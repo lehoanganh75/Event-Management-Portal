@@ -82,10 +82,12 @@ const luckyDrawService = {
     },
 
     // ==================== ENTRIES ====================
-    getEntry: (luckyDrawId) => privateApi.get(`/entries/${luckyDrawId}`),
+    getEntry: (luckyDrawId) => privateApi.get(`/lucky-draws/draw-entry/${luckyDrawId}`),
     getParticipants: (luckyDrawId) => privateApi.get(`/lucky-draws/${luckyDrawId}/participants`),
 
-    joinDraw: (luckyDrawId) => privateApi.post(`/entries/${luckyDrawId}`),
+    joinDraw: (luckyDrawId) => privateApi.post(`/lucky-draws/${luckyDrawId}`),
+
+    updateClaimed: (resultId, claimed) => privateApi.put(`/lucky-draws/results/${resultId}/claimed?claimed=${claimed}`),
 
     findLuckyDrawByEventId: (eventId) => privateApi.get(`/lucky-draws/events/${eventId}`)
 };

@@ -1,44 +1,23 @@
 package src.main.luckydrawservice.dto;
 
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+import java.time.LocalDateTime;
+
+@Data
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
 public class DrawResultResponse {
-    private String message;
-    private PrizeResponse wonPrize;
+    private String id;
+    private LocalDateTime drawTime;
+    private boolean claimed;
+    private int quantity;
     private UserResponse winner;
 
-    public DrawResultResponse() {}
-
-    public DrawResultResponse(String message, PrizeResponse wonPrize) {
-        this.message = message;
-        this.wonPrize = wonPrize;
-    }
-
-    public DrawResultResponse(String message, PrizeResponse wonPrize, UserResponse winner) {
-        this.message = message;
-        this.wonPrize = wonPrize;
-        this.winner = winner;
-    }
-
-    public String getMessage() {
-        return message;
-    }
-
-    public void setMessage(String message) {
-        this.message = message;
-    }
-
-    public PrizeResponse getWonPrize() {
-        return wonPrize;
-    }
-
-    public void setWonPrize(PrizeResponse wonPrize) {
-        this.wonPrize = wonPrize;
-    }
-
-    public UserResponse getWinner() {
-        return winner;
-    }
-
-    public void setWinner(UserResponse winner) {
-        this.winner = winner;
-    }
+    // Fallback / compatibility fields
+    private PrizeResponse wonPrize;
+    private LocalDateTime winTime;
 }

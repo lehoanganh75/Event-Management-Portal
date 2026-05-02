@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { 
-  Gift, ArrowLeft, Plus, Trash2, Save, Loader2, 
+import {
+  Gift, ArrowLeft, Plus, Trash2, Save, Loader2,
   Info, Trophy, Users, Sparkles, CheckCircle2, AlertCircle, Settings2, Wand2
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -56,7 +56,7 @@ const LuckyDrawConfigPage = ({ userType = 'admin' }) => {
 
         const eventData = eventRes.data;
         setEvent(eventData);
-        
+
         const checkinCount = eventData.registrations?.filter(r => r.checkedIn === true).length || 0;
         setCheckedInCount(checkinCount);
 
@@ -99,7 +99,7 @@ const LuckyDrawConfigPage = ({ userType = 'admin' }) => {
 
   const handleAiFill = () => {
     setIsAiGenerating(true);
-    
+
     // Simulate AI thinking
     setTimeout(() => {
       const eventTitle = (event?.title || "").toLowerCase();
@@ -168,7 +168,7 @@ const LuckyDrawConfigPage = ({ userType = 'admin' }) => {
   const handleSave = async () => {
     if (!formData.title) return toast.error("Vui lòng nhập tiêu đề");
     if (formData.prizes.length === 0) return toast.error("Vui lòng thêm ít nhất một giải thưởng");
-    
+
     setSaving(true);
     try {
       const payload = {
@@ -207,13 +207,13 @@ const LuckyDrawConfigPage = ({ userType = 'admin' }) => {
   return (
     <div className="min-h-screen bg-[#F1F5F9] pb-10 font-sans text-left">
       {/* Compact Header */}
-      <div className="bg-white border-b border-slate-200 sticky top-0 z-50 shadow-sm">
+      <div className="bg-white border-b border-slate-200 sticky top-0 z-10 shadow-sm">
         <div className="max-w-[1440px] mx-auto px-6 py-3 flex justify-between items-center">
           <div className="flex items-center gap-4">
-            <motion.button 
+            <motion.button
               whileHover={{ x: -3 }}
               whileTap={{ scale: 0.95 }}
-              onClick={() => navigate(-1)} 
+              onClick={() => navigate(-1)}
               className="flex items-center gap-2 text-slate-500 hover:text-indigo-600 transition-all font-black text-[10px] uppercase tracking-widest px-3 py-1.5 bg-slate-50 rounded-lg border border-slate-200"
             >
               <ArrowLeft size={14} /> Quay lại
@@ -224,13 +224,13 @@ const LuckyDrawConfigPage = ({ userType = 'admin' }) => {
               <p className="text-[9px] text-slate-400 font-bold uppercase tracking-widest mt-1">Sự kiện: {event?.title}</p>
             </div>
           </div>
-          
+
           <div className="flex items-center gap-4">
             <div className="hidden md:flex items-center gap-3 px-4 py-2 bg-slate-50 rounded-xl border border-slate-200">
               <Users size={14} className="text-indigo-500" />
               <span className="text-[10px] font-black text-slate-600 uppercase tracking-widest">{checkedInCount} Đã Check-in</span>
             </div>
-            <motion.button 
+            <motion.button
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
               disabled={saving}
@@ -252,7 +252,7 @@ const LuckyDrawConfigPage = ({ userType = 'admin' }) => {
               <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em] flex items-center gap-2">
                 <Settings2 size={14} className="text-indigo-600" /> Cấu hình chung
               </h3>
-              
+
               <motion.button
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
@@ -264,24 +264,24 @@ const LuckyDrawConfigPage = ({ userType = 'admin' }) => {
                 AI Magic Fill
               </motion.button>
             </div>
-            
+
             <div className="space-y-5">
               <div className="space-y-1.5">
                 <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest ml-1">Tiêu đề vòng quay</label>
-                <input 
+                <input
                   className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none font-bold text-slate-800 focus:bg-white focus:border-indigo-500 transition-all text-xs"
                   placeholder="Nhập tiêu đề..."
                   value={formData.title}
-                  onChange={e => setFormData({...formData, title: e.target.value})}
+                  onChange={e => setFormData({ ...formData, title: e.target.value })}
                 />
               </div>
 
               <div className="space-y-1.5">
                 <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest ml-1">Mô tả ngắn</label>
-                <textarea 
+                <textarea
                   className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none font-medium text-slate-700 focus:bg-white focus:border-indigo-500 transition-all min-h-[80px] text-[11px]"
                   value={formData.description}
-                  onChange={e => setFormData({...formData, description: e.target.value})}
+                  onChange={e => setFormData({ ...formData, description: e.target.value })}
                   placeholder="Mô tả về vòng quay..."
                 />
               </div>
@@ -294,27 +294,27 @@ const LuckyDrawConfigPage = ({ userType = 'admin' }) => {
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1">
                     <span className="text-[8px] font-bold text-slate-400 uppercase ml-1">Bắt đầu</span>
-                    <input 
+                    <input
                       type="datetime-local"
                       className="w-full bg-white border border-slate-200 px-2 py-2 rounded-lg font-bold text-slate-700 outline-none text-[10px]"
                       value={formData.startTime}
-                      onChange={e => setFormData({...formData, startTime: e.target.value})}
+                      onChange={e => setFormData({ ...formData, startTime: e.target.value })}
                     />
                   </div>
                   <div className="space-y-1">
                     <span className="text-[8px] font-bold text-slate-400 uppercase ml-1">Kết thúc</span>
-                    <input 
+                    <input
                       type="datetime-local"
                       className="w-full bg-white border border-slate-200 px-2 py-2 rounded-lg font-bold text-slate-700 outline-none text-[10px]"
                       value={formData.endTime}
-                      onChange={e => setFormData({...formData, endTime: e.target.value})}
+                      onChange={e => setFormData({ ...formData, endTime: e.target.value })}
                     />
                   </div>
                 </div>
               </div>
 
-              <div 
-                onClick={() => setFormData({...formData, allowMultipleWins: !formData.allowMultipleWins})}
+              <div
+                onClick={() => setFormData({ ...formData, allowMultipleWins: !formData.allowMultipleWins })}
                 className="flex items-center justify-between p-4 bg-white hover:bg-slate-50 rounded-2xl cursor-pointer transition-all border border-slate-200"
               >
                 <div className="flex items-center gap-3">
@@ -361,7 +361,7 @@ const LuckyDrawConfigPage = ({ userType = 'admin' }) => {
                 </div>
                 <h3 className="text-base font-black text-slate-900 uppercase tracking-tight">Cơ cấu giải thưởng</h3>
               </div>
-              <motion.button 
+              <motion.button
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
                 onClick={handleAddPrize}
@@ -374,26 +374,26 @@ const LuckyDrawConfigPage = ({ userType = 'admin' }) => {
             <div className="space-y-3">
               <AnimatePresence mode='popLayout'>
                 {formData.prizes.map((prize, index) => (
-                  <motion.div 
+                  <motion.div
                     layout
                     initial={{ opacity: 0, y: 5 }}
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, scale: 0.98 }}
-                    key={prize.id} 
+                    key={prize.id}
                     className="group bg-[#F8FAFC] rounded-xl p-4 border border-slate-200 hover:border-indigo-300 hover:bg-white transition-all relative"
                   >
                     <div className="grid grid-cols-1 md:grid-cols-12 gap-6 items-center">
                       <div className="md:col-span-7 space-y-3">
                         <div className="space-y-1">
                           <label className="text-[8px] font-black text-slate-400 uppercase tracking-widest ml-1">Tiêu đề giải</label>
-                          <input 
+                          <input
                             className="w-full bg-transparent border-b border-slate-200 py-1 font-black text-slate-800 text-base outline-none focus:border-indigo-500"
                             value={prize.name}
                             placeholder="Giải đặc biệt..."
                             onChange={e => handlePrizeChange(prize.id, 'name', e.target.value)}
                           />
                         </div>
-                        <input 
+                        <input
                           className="w-full bg-transparent border-b border-slate-100 py-1 text-[11px] font-medium text-slate-500 outline-none"
                           value={prize.description}
                           placeholder="Mô tả quà tặng..."
@@ -405,14 +405,14 @@ const LuckyDrawConfigPage = ({ userType = 'admin' }) => {
                         <div className="bg-white rounded-xl p-2 border border-slate-200 text-center">
                           <label className="text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1 block">Số lượng</label>
                           <div className="flex items-center justify-center gap-3">
-                            <button 
+                            <button
                               onClick={() => handlePrizeChange(prize.id, 'quantity', Math.max(1, (prize.quantity || 0) - 1))}
                               className="w-6 h-6 rounded bg-slate-50 text-slate-400 hover:text-rose-500 transition-all flex items-center justify-center font-bold border border-slate-200 text-xs"
                             >
                               -
                             </button>
                             <span className="w-6 text-center font-black text-sm text-indigo-600">{prize.quantity}</span>
-                            <button 
+                            <button
                               onClick={() => handlePrizeChange(prize.id, 'quantity', (prize.quantity || 0) + 1)}
                               className="w-6 h-6 rounded bg-slate-50 text-slate-400 hover:text-emerald-50 transition-all flex items-center justify-center font-bold border border-slate-200 text-xs"
                             >
@@ -423,7 +423,7 @@ const LuckyDrawConfigPage = ({ userType = 'admin' }) => {
                       </div>
 
                       <div className="md:col-span-2 flex justify-center">
-                        <motion.button 
+                        <motion.button
                           whileHover={{ scale: 1.1 }}
                           whileTap={{ scale: 0.9 }}
                           onClick={() => handleRemovePrize(prize.id)}

@@ -32,7 +32,7 @@ public class LuckyDrawController {
     }
 
     @GetMapping("/{luckyDrawId}")
-    public ResponseEntity<LuckyDraw> getLuckyDrawByLuckyDrawId(@PathVariable String luckyDrawId) {
+    public ResponseEntity<LuckyDrawResponse> getLuckyDrawByLuckyDrawId(@PathVariable String luckyDrawId) {
         return ResponseEntity.ok(luckyDrawService.findById(luckyDrawId));
     }
 
@@ -134,6 +134,14 @@ public class LuckyDrawController {
             @PathVariable String eventId,
             @RequestParam String userProfileId) {
         luckyDrawService.handleCancelCheckIn(eventId, userProfileId);
+        return ResponseEntity.ok().build();
+    }
+
+    @PutMapping("/results/{resultId}/claimed")
+    public ResponseEntity<Void> updateClaimed(
+            @PathVariable String resultId,
+            @RequestParam boolean claimed) {
+        luckyDrawService.updateClaimed(resultId, claimed);
         return ResponseEntity.ok().build();
     }
 }

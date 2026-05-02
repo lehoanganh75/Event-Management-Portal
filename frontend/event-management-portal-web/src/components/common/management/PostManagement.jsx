@@ -103,7 +103,7 @@ const PostManagement = ({
     const role = selectedEvent.currentUserRole;
     const isInOrganization = user?.organizationId === selectedEvent?.organization?.id || 
                              user?.orgId === selectedEvent?.organization?.id;
-    return role?.organizer || role?.presented || isInOrganization;
+    return role?.organizerRole || role?.presented || isInOrganization;
   }, [postFormData.eventId, eligibleEvents, isSystemAdmin, user]);
 
   const needsApproval = useMemo(() => {
@@ -152,7 +152,7 @@ const PostManagement = ({
       // Determine final status based on user roles
       // logic: organizations -> PUBLISHED, EventPresenter/EventOrganizer -> PENDING
       const selectedEvent = eligibleEvents.find(e => e.id === postFormData.eventId);
-      const isOrganizerOrPresenter = selectedEvent?.currentUserRole?.organizer || selectedEvent?.currentUserRole?.presented;
+      const isOrganizerOrPresenter = selectedEvent?.currentUserRole?.organizerRole || selectedEvent?.currentUserRole?.presented;
       const isInOrganization = user?.organizationId === selectedEvent?.organization?.id || 
                                user?.orgId === selectedEvent?.organization?.id || 
                                isSystemAdmin;
@@ -235,7 +235,7 @@ const PostManagement = ({
         const eventId = post.eventId || post.event?.id;
         const eventInfo = eligibleEvents.find(e => e.id === eventId);
         
-        const hasEventRole = eventInfo?.currentUserRole?.organizer || eventInfo?.currentUserRole?.presented;
+        const hasEventRole = eventInfo?.currentUserRole?.organizerRole || eventInfo?.currentUserRole?.presented;
         const isInEventOrg = user?.organizationId === eventInfo?.organization?.id || 
                              user?.orgId === eventInfo?.organization?.id;
         
@@ -436,7 +436,7 @@ const PostManagement = ({
                             if (isSystemAdmin) return true;
                             const role = ev.currentUserRole;
                             const isInOrg = user?.organizationId === ev.organization?.id || user?.orgId === ev.organization?.id;
-                            return role?.organizer || role?.presented || isInOrg;
+                            return role?.organizerRole || role?.presented || isInOrg;
                           })
                           .map(ev => (
                             <option key={ev.id} value={ev.id}>{ev.title}</option>

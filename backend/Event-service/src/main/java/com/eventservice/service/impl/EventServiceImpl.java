@@ -280,10 +280,9 @@ public class EventServiceImpl implements EventService {
         // 1. Organizer (Cần lấy role trước để dùng cho các quyền khác)
         if (event.getOrganizers() != null) {
             event.getOrganizers().stream()
-                    .filter(o -> !o.isDeleted() && accountId.equals(o.getAccountId()))
+                    .filter(o -> !o.isDeleted() && o.getAccountId() != null && accountId.trim().equalsIgnoreCase(o.getAccountId().trim()))
                     .findFirst()
                     .ifPresent(o -> {
-                        role.setOrganizer(true);
                         role.setOrganizerRole(o.getRole().name());
                     });
         }
