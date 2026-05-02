@@ -222,23 +222,10 @@ public class ChatServiceImpl implements ChatService {
             enhancedUserMessage = userInfo + request.getContent();
         }
 
-        // Convert history to match expected parameter type
-        List<com.eventservice.entity.ChatMessage> convertedHistory = history.stream()
-                .map(msg -> com.eventservice.entity.ChatMessage.builder()
-                        .id(msg.getId())
-                        .content(msg.getContent())
-                        .role(msg.getRole())
-                        .type(msg.getType())
-                        .createdAt(msg.getCreatedAt())
-                        .isRead(msg.getIsRead())
-                        .tokensUsed(msg.getTokensUsed())
-                        .build())
-                .collect(Collectors.toList());
-
         // Generate AI response
         String aiResponse = geminiChatService.generateChatResponse(
                 enhancedUserMessage,
-                convertedHistory,
+                history,
                 session.getContextType()
         );
 
@@ -370,23 +357,10 @@ public class ChatServiceImpl implements ChatService {
         // Get all messages
         List<ChatMessage> messages = session.getMessages();
 
-        // Convert messages to match expected parameter type
-        List<com.eventservice.entity.ChatMessage> convertedMessages = messages.stream()
-                .map(msg -> com.eventservice.entity.ChatMessage.builder()
-                        .id(msg.getId())
-                        .content(msg.getContent())
-                        .role(msg.getRole())
-                        .type(msg.getType())
-                        .createdAt(msg.getCreatedAt())
-                        .isRead(msg.getIsRead())
-                        .tokensUsed(msg.getTokensUsed())
-                        .build())
-                .collect(Collectors.toList());
-
         // Generate suggestion
         com.eventservice.dto.EventPlanSuggestion suggestion = geminiChatService.generateEventPlanSuggestion(
                 "Tạo kế hoạch sự kiện từ cuộc hội thoại",
-                convertedMessages);
+                messages);
 
         EventPlanSuggestionResponse responseDto = mapToResponse(suggestion);
 

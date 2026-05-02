@@ -2,8 +2,9 @@ package com.eventservice.service.impl;
 
 import com.eventservice.dto.EventPlanSuggestion;
 import com.eventservice.dto.ProgramItemSuggestion;
-import com.eventservice.entity.ChatMessage;
+import com.eventservice.entity.social.ChatMessage;
 import com.eventservice.entity.enums.ChatMessageRole;
+
 import com.eventservice.service.GeminiChatService;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;

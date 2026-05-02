@@ -1,7 +1,8 @@
 package com.eventservice.service;
 
 import com.eventservice.dto.EventPlanSuggestion;
-import com.eventservice.entity.ChatMessage;
+import com.eventservice.entity.social.ChatMessage;
+
 
 import java.util.List;
 
