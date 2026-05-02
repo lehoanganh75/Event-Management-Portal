@@ -32,7 +32,7 @@ public class JwtUtils {
 
     @PostConstruct
     protected void init() {
-        byte[] keyBytes = Decoders.BASE64.decode(secretKey);
+        byte[] keyBytes = java.util.Base64.getDecoder().decode(secretKey);
         this.key = Keys.hmacShaKeyFor(keyBytes);
     }
 
@@ -62,7 +62,7 @@ public class JwtUtils {
 
         return Jwts.builder()
                 .setSubject(userPrincipal.getAccountId())
-                .claim("role", userPrincipal.getRole())
+                .claim("role", String.valueOf(userPrincipal.getRole()))
                 .setIssuedAt(now)
                 .setExpiration(expiryDate)
                 .signWith(key, SignatureAlgorithm.HS512)

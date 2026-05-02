@@ -19,9 +19,12 @@ import java.util.List;
 import java.util.UUID;
 
 @Service
-@RequiredArgsConstructor
 public class S3ServiceImpl implements S3Service {
     private final S3Client s3Client;
+
+    public S3ServiceImpl(@org.springframework.beans.factory.annotation.Autowired(required = false) S3Client s3Client) {
+        this.s3Client = s3Client;
+    }
 
     @Value("${aws.s3.bucket-name}")
     private String bucketName;
@@ -30,6 +33,9 @@ public class S3ServiceImpl implements S3Service {
 
     @Override
     public String uploadFile(MultipartFile file) {
+        if (s3Client == null) {
+            throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, "S3 storage is not configured");
+        }
         // 1. Kiểm tra định dạng
         if (file.getContentType() == null || !ALLOWED_TYPES.contains(file.getContentType())) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, file.getOriginalFilename() + " is invalid!");

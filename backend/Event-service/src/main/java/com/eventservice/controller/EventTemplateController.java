@@ -18,12 +18,23 @@ import org.springframework.security.oauth2.jwt.Jwt;
 import java.net.URI;
 import java.util.List;
 
+import com.eventservice.service.impl.TemplateRecommendationService;
+
 @RestController
 @RequestMapping("/templates")
 @RequiredArgsConstructor
 @Slf4j
 public class EventTemplateController {
     private final EventTemplateService templateService;
+    private final TemplateRecommendationService recommendationService;
+
+    @PostMapping("/recommend")
+    public ResponseEntity<List<EventTemplate>> recommendTemplates(
+            @RequestBody String description,
+            @RequestParam(defaultValue = "5") int limit) {
+        log.info("[RECOMMEND] Request to recommend templates for description length: {}", description.length());
+        return ResponseEntity.ok(recommendationService.recommendTemplates(description, limit));
+    }
 
     @GetMapping
     public ResponseEntity<List<EventTemplate>> getTemplates() {

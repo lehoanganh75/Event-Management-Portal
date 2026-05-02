@@ -36,4 +36,14 @@ public interface GeminiChatService {
      * Extract event details from natural language
      */
     EventPlanSuggestion extractEventDetails(String naturalLanguageInput);
+
+    /**
+     * Generate plan from template and user context
+     */
+    EventPlanSuggestion generatePlanFromTemplate(String templateName, String templateDescription, String userContext);
+
+    /**
+     * Analyze event statistics and provide insights
+     */
+    String analyzeEventStatistics(String eventDataJson);
 }

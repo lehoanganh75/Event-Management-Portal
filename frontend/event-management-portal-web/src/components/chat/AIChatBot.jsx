@@ -5,6 +5,7 @@ import { X, Send, Loader2, Sparkles, ChevronDown, RotateCcw, Star, ThumbsUp,
 import { motion, AnimatePresence } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import eventService from "../../services/eventService";
+import EventCardMini from "./EventCardMini";
 
 // ✨ Icon: IUH logo + Gemini badge
 const ChatIcon = ({ size = 48 }) => (
@@ -69,12 +70,59 @@ function parseGeminiError(err) {
 }
 
 function MessageContent({ text }) {
+  const cardMatch = text.match(/\[EVENT_CARDS_START\]([\s\S]*?)\[EVENT_CARDS_END\]/);
+  const cleanText = text.replace(/\[EVENT_CARDS_START\][\s\S]*?\[EVENT_CARDS_END\]/, "").trim();
+  
+  let eventCards = [];
+  if (cardMatch) {
+    try {
+      eventCards = JSON.parse(cardMatch[1]);
+    } catch (e) {
+      console.error("Failed to parse event cards JSON", e);
+    }
+  }
+
+  // ✨ Hàm render văn bản có hỗ trợ **bold** và bullet points
+  const renderText = (rawText) => {
+    return rawText.split("\n").map((line, i) => {
+      if (!line.trim()) return <div key={i} className="h-2" />;
+      
+      // Xử lý Bold: **text** -> <strong>text</strong>
+      const parts = line.split(/(\*\*.*?\*\*)/g);
+      const formattedLine = parts.map((part, idx) => {
+        if (part.startsWith("**") && part.endsWith("**")) {
+          return <strong key={idx} className="font-bold text-blue-700">{part.slice(2, -2)}</strong>;
+        }
+        return part;
+      });
+
+      // Xử lý Bullet point: * text -> bullet
+      if (line.trim().startsWith("* ")) {
+        return (
+          <div key={i} className="flex gap-2 ml-1 my-0.5">
+            <span className="text-blue-500">•</span>
+            <span className="flex-1 leading-relaxed">{formattedLine.slice(1)}</span>
+          </div>
+        );
+      }
+
+      return <p key={i} className="leading-relaxed mb-1">{formattedLine}</p>;
+    });
+  };
+
   return (
-    <div className="space-y-0.5">
-      {text.split("\n").map((line, i) => {
-        if (!line.trim()) return <div key={i} className="h-1" />;
-        return <p key={i} className="leading-relaxed">{line}</p>;
-      })}
+    <div className="space-y-3">
+      <div className="text-[13px] md:text-sm">
+        {renderText(cleanText)}
+      </div>
+      
+      {eventCards.length > 0 && (
+        <div className="flex gap-3 overflow-x-auto pb-2 pt-1 scrollbar-thin scrollbar-thumb-slate-200">
+          {eventCards.map((event, idx) => (
+            <EventCardMini key={idx} event={event} />
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -151,7 +199,13 @@ export default function AIChatBot() {
     "Hướng dẫn tôi đăng ký sự kiện",
   ];
 
-  useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages, loading]);
+  useEffect(() => { 
+    if (isOpen) {
+      setTimeout(() => {
+        bottomRef.current?.scrollIntoView({ behavior: "smooth" }); 
+      }, 100);
+    }
+  }, [messages, loading, isOpen]);
 
   const initChat = useCallback(async () => {
     try {
@@ -365,7 +419,7 @@ export default function AIChatBot() {
                 </button>
               </div>
               <p className="text-[10px] text-gray-400 mt-2 text-center flex items-center justify-center gap-1">
-                <Sparkles size={10} /> Powered by Gemini 2.0 Flash
+                <Sparkles size={10} /> Powered by Gemini 2.5 Flash
               </p>
             </div>
           </motion.div>

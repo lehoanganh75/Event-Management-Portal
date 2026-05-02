@@ -7,14 +7,14 @@ const IDENTITY_BASE_URL = 'http://localhost:8083';
 const publicApi = axios.create({
     baseURL: BASE_URL,
     headers: { 'Content-Type': 'application/json' },
-    timeout: 15000,
+    timeout: 60000,
 });
 
 // 2. PRIVATE API
 const privateApi = axios.create({
     baseURL: BASE_URL,
     headers: { 'Content-Type': 'application/json' },
-    timeout: 15000,
+    timeout: 60000,
 });
 
 // Request Interceptor
@@ -90,7 +90,7 @@ const eventService = {
     getUpcomingEvents: () => publicApi.get('/events/upcoming-week').then(transformListResponse),
     getFeaturedEvents: () => publicApi.get('/events/featured').then(transformListResponse),
     getCompletedEvents: () => publicApi.get('/events/news').then(transformListResponse),
-    getEventById: (id) => privateApi.get(`/events/${id}`).then(res => ({ ...res, data: transformBaseData(res.data) })),
+    getEventById: (id) => publicApi.get(`/events/${id}`).then(res => ({ ...res, data: transformBaseData(res.data) })),
     getByStatus: (status) => privateApi.get('/events/by-statuses', { params: { statuses: status.toUpperCase() } }).then(res => ({ ...res, data: (res.data || []).map(transformBaseData) })),
     getAllPlans: (params = {}) => publicApi.get('/events/plans', { params }).then(transformListResponse),
 
@@ -145,6 +145,11 @@ const eventService = {
     deleteTemplate: (id) => privateApi.delete(`/templates/${id}`),
     toggleTemplateStar: (id) => privateApi.patch(`/templates/${id}/star`),
     incrementTemplateUsage: (id) => privateApi.post(`/templates/${id}/increment-usage`),
+    recommendTemplates: (description, limit = 5) => 
+        privateApi.post('/templates/recommend', description, { 
+            headers: { 'Content-Type': 'text/plain' },
+            params: { limit }
+        }).then(res => res.data),
 
     // --- GROUP 5: PLANS ---
     getMyPlans: () => privateApi.get('/events/plans/my').then(transformListResponse),
@@ -174,7 +179,13 @@ const eventService = {
     updateQRType: (eventId, qrType) => privateApi.patch(`/registrations/event/${eventId}/qr-type`, null, { params: { qrType } }),
 
     // --- QUIZ API ---
-    getQuizzesByEvent: (eventId) => privateApi.get(`/quizzes/event/${eventId}`),
+    // AI Planning
+    aiPlanning: {
+        generateFromTemplate: (templateId, userContext) => 
+            privateApi.post('/api/v1/ai-planning/from-template', { templateId, userContext }),
+        generateFromRawText: (rawText) => 
+            privateApi.post('/api/v1/ai-planning/from-raw-text', { rawText }),
+    },
     createQuiz: (quizData) => privateApi.post('/quizzes', quizData),
     startQuiz: (quizId) => privateApi.post(`/quizzes/${quizId}/start`),
     nextQuizQuestion: (quizId, index) => privateApi.post(`/quizzes/${quizId}/next`, null, { params: { index } }),
@@ -182,7 +193,7 @@ const eventService = {
     getQuizLeaderboard: (quizId) => privateApi.get(`/quizzes/${quizId}/leaderboard`),
 
     // --- SURVEY API ---
-    getSurveyByEvent: (eventId) => privateApi.get(`/surveys/event/${eventId}`),
+    getSurveyByEvent: (eventId) => publicApi.get(`/surveys/event/${eventId}`),
     createOrUpdateSurvey: (surveyData) => privateApi.post('/surveys', surveyData),
     publishSurvey: (surveyId) => privateApi.post(`/surveys/${surveyId}/publish`),
     submitSurveyResponse: (surveyId, answers) => privateApi.post(`/surveys/${surveyId}/submit`, { answers }),
@@ -218,7 +229,7 @@ const eventService = {
     removeOrganizer: (organizerId) => privateApi.delete(`/events/organizers/${organizerId}`),
     removePresenter: (presenterId) => privateApi.delete(`/events/presenters/${presenterId}`),
 
-    getEventSummary: (id) => privateApi.get(`/events/${id}/summary`),
+    getEventSummary: (id) => publicApi.get(`/events/${id}/summary`),
     getOrganizerRoles: () => privateApi.get('/events/organizer-roles').then(res => res.data),
 
     leaveTeam: (eventId) => privateApi.post(`/events/${eventId}/organizers/leave`),

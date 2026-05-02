@@ -23,9 +23,17 @@ export const extractDataFromDocx = async (file) => {
     });
 
     if (response.data.code === 1000) {
-      return response.data.result;
+      return {
+        rawText: text,
+        extracted: response.data.result
+      };
     } else {
-      throw new Error(response.data.message || "Không thể trích xuất dữ liệu.");
+      // If AI extraction fails, still return raw text
+      return {
+        rawText: text,
+        extracted: null,
+        error: response.data.message
+      };
     }
   } catch (error) {
     console.error("Error importing docx:", error);

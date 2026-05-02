@@ -184,6 +184,23 @@ public class ChatController {
                 .result(suggestion)
                 .build());
     }
+
+    /**
+     * Analyze event statistics and provide insights (AI-powered)
+     */
+    @PostMapping("/analyze-stats")
+    public ResponseEntity<ApiResponse<String>> analyzeStats(
+            @RequestBody String statsJson
+    ) {
+        log.info("Incoming AI statistics analysis request");
+        String analysis = chatService.analyzeStatistics(statsJson);
+        
+        return ResponseEntity.ok(ApiResponse.<String>builder()
+                .code(1000)
+                .message("Statistics analyzed successfully")
+                .result(analysis)
+                .build());
+    }
     
     // ==================== HELPER METHODS ====================
     

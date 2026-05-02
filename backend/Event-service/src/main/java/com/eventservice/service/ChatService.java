@@ -48,7 +48,16 @@ public interface ChatService {
     List<String> getQuickReplies(String sessionId);
 
     /**
+     * Đồng bộ toàn bộ sự kiện hiện có vào Vector Store
+     */
+    void syncAllEventVectors();
+
+    /**
      * Extract event details from raw text using AI
      */
     EventPlanSuggestion extractFromText(String text);
+    /**
+     * Analyze event statistics and provide insights
+     */
+    String analyzeStatistics(String statsJson);
 }

@@ -3,38 +3,74 @@ package com.eventservice.service.impl;
 import com.eventservice.dto.*;
 import com.eventservice.entity.ChatMessage;
 import com.eventservice.entity.ChatSession;
+import com.eventservice.entity.Event;
 import com.eventservice.entity.enums.ChatMessageRole;
 import com.eventservice.entity.enums.ChatMessageType;
 import com.eventservice.entity.enums.ChatSessionStatus;
 import com.eventservice.repository.ChatMessageRepository;
 import com.eventservice.repository.ChatSessionRepository;
+import com.eventservice.entity.mongodb.EventVector;
+import com.eventservice.repository.EventRegistrationRepository;
 import com.eventservice.repository.EventRepository;
+import com.eventservice.repository.mongodb.EventVectorRepository;
 import com.eventservice.service.ChatService;
+import com.eventservice.service.EventEmbeddingService;
 import com.eventservice.service.GeminiChatService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.ai.embedding.EmbeddingModel;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.UUID;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Service
-@RequiredArgsConstructor
 @Slf4j
 public class ChatServiceImpl implements ChatService {
     
     private final ChatSessionRepository chatSessionRepository;
     private final ChatMessageRepository chatMessageRepository;
     private final EventRepository eventRepository;
+    private final EventVectorRepository eventVectorRepository;
     private final GeminiChatService geminiChatService;
+    private final EventEmbeddingService eventEmbeddingService;
+    private final EventRegistrationRepository eventRegistrationRepository;
+    private final GeminiAIService geminiAIService;
+    private final TemplateRecommendationService templateRecommendationService;
+    private final EmbeddingModel embeddingModel;
     private final SimpMessagingTemplate messagingTemplate;
     private final ObjectMapper objectMapper;
+
+    public ChatServiceImpl(
+            ChatSessionRepository chatSessionRepository,
+            ChatMessageRepository chatMessageRepository,
+            EventRepository eventRepository,
+            EventVectorRepository eventVectorRepository,
+            GeminiChatService geminiChatService,
+            EventEmbeddingService eventEmbeddingService,
+            EventRegistrationRepository eventRegistrationRepository,
+            GeminiAIService geminiAIService,
+            TemplateRecommendationService templateRecommendationService,
+            @org.springframework.beans.factory.annotation.Autowired(required = false) EmbeddingModel embeddingModel,
+            SimpMessagingTemplate messagingTemplate,
+            ObjectMapper objectMapper) {
+        this.chatSessionRepository = chatSessionRepository;
+        this.chatMessageRepository = chatMessageRepository;
+        this.eventRepository = eventRepository;
+        this.eventVectorRepository = eventVectorRepository;
+        this.geminiChatService = geminiChatService;
+        this.eventEmbeddingService = eventEmbeddingService;
+        this.eventRegistrationRepository = eventRegistrationRepository;
+        this.geminiAIService = geminiAIService;
+        this.templateRecommendationService = templateRecommendationService;
+        this.embeddingModel = embeddingModel;
+        this.messagingTemplate = messagingTemplate;
+        this.objectMapper = objectMapper;
+    }
     
     @Override
     @Transactional
@@ -124,59 +160,82 @@ public class ChatServiceImpl implements ChatService {
             chatSessionRepository.save(session);
         }
         
-        // Get conversation history
-        List<ChatMessage> history = chatMessageRepository.findBySessionIdOrderByCreatedAtAsc(request.getSessionId());
+        // Get conversation history (Limit to last 20 for context efficiency)
+        List<ChatMessage> fullHistory = chatMessageRepository.findBySessionIdOrderByCreatedAtAsc(request.getSessionId());
+        List<ChatMessage> history = fullHistory.size() > 20 
+                ? fullHistory.subList(fullHistory.size() - 20, fullHistory.size()) 
+                : fullHistory;
         
-        // --- SMART RAG INTEGRATION ---
-        List<com.eventservice.entity.Event> contextEvents;
+        // --- SMART RAG INTEGRATION (VECTOR SEARCH) ---
+        Set<com.eventservice.entity.Event> contextEventsSet = new LinkedHashSet<>();
         String userQuery = request.getContent();
         
-        // Extract potential keywords (simple heuristic: words > 3 chars or uppercase)
-        String keyword = extractSearchKeyword(userQuery);
-        log.info("Extracted keyword for event search: {}", keyword);
-        
-        if (keyword != null && !keyword.isBlank()) {
-            // Search for specific events matching the keyword
-            contextEvents = eventRepository.searchByKeyword(keyword);
-            log.info("Found {} events matching keyword: {}", contextEvents.size(), keyword);
+        try {
+            log.info("Performing Vector Search for query: {}", userQuery);
             
-            // If too few results, supplement with latest events
-            if (contextEvents.size() < 3) {
-                List<com.eventservice.entity.Event> latest = eventRepository.findByIsDeletedFalseOrderByStartTimeDesc();
-                for (com.eventservice.entity.Event e : latest) {
-                    if (contextEvents.size() >= 5) break;
-                    if (contextEvents.stream().noneMatch(existing -> existing.getId().equals(e.getId()))) {
-                        contextEvents.add(e);
-                    }
+            if (embeddingModel != null) {
+                // 1. Tạo embedding cho câu hỏi
+                List<Double> queryEmbedding = embeddingModel.embed(userQuery);
+
+                // 2. Lấy tất cả vector và tìm kiếm
+                List<EventVector> allVectors = eventVectorRepository.findAll();
+                List<String> topEventIds = allVectors.stream()
+                        .map(v -> new AbstractMap.SimpleEntry<>(v.getId(), calculateCosineSimilarity(queryEmbedding, v.getEmbedding())))
+                        .sorted((e1, e2) -> Double.compare(e2.getValue(), e1.getValue()))
+                        .filter(e -> e.getValue() > 0.6)
+                        .limit(5)
+                        .map(AbstractMap.SimpleEntry::getKey)
+                        .collect(Collectors.toList());
+
+                if (!topEventIds.isEmpty()) {
+                    contextEventsSet.addAll(eventRepository.findAllById(topEventIds));
                 }
             }
-        } else {
-            // Fallback to latest events
-            contextEvents = eventRepository.findByIsDeletedFalseOrderByStartTimeDesc();
+        } catch (Exception e) {
+            log.error("Vector Search failed: {}", e.getMessage());
         }
+
+        // Luôn bổ sung tìm kiếm theo từ khóa
+        String keyword = extractSearchKeyword(userQuery);
+        if (keyword != null && !keyword.isBlank()) {
+            contextEventsSet.addAll(eventRepository.searchByKeyword(keyword));
+        }
+
+        // QUAN TRỌNG: Luôn lấy thêm 5 sự kiện mới nhất/nổi bật nhất để AI có dữ liệu so sánh
+        List<com.eventservice.entity.Event> latestEvents = eventRepository.findByIsDeletedFalseOrderByStartTimeDesc()
+                .stream().limit(5).collect(Collectors.toList());
+        contextEventsSet.addAll(latestEvents);
         
-        // Limit to 10 most relevant events to save tokens and avoid 400 errors
-        List<com.eventservice.entity.Event> finalContextEvents = contextEvents.size() > 10 
-                ? new ArrayList<>(contextEvents.subList(0, 10)) 
-                : new ArrayList<>(contextEvents);
-        
+        List<com.eventservice.entity.Event> finalContextEvents = new ArrayList<>(contextEventsSet);
         String eventContext = buildEventContext(finalContextEvents);
 
         String enhancedUserMessage = request.getContent();
+        
+        // 1. INJECT MEMORY + CONTEXT (Theo chuẩn Production bạn cung cấp)
+        String userInfo = String.format("""
+            [THÔNG TIN NGƯỜI DÙNG HIỆN TẠI]
+            - Tên: %s
+            - Vai trò: %s
+            - Ngữ cảnh: %s
+            
+            """, "Người dùng", session.getContextType(), session.getContextType());
+        
         if (!eventContext.isEmpty()) {
-            enhancedUserMessage = String.format("""
-                === DỮ LIỆU SỰ KIỆN TỪ DATABASE HỆ THỐNG IUH ===
+            enhancedUserMessage = userInfo + String.format("""
+                [DỮ LIỆU SỰ KIỆN HỆ THỐNG - RAG]
                 %s
-                === HẾT DỮ LIỆU ===
+                [KẾT THÚC DỮ LIỆU]
                 
-                HƯỚNG DẪN:
-                - Dựa HOÀN TOÀN vào dữ liệu sự kiện ở trên để trả lời.
-                - TUYỆT ĐỐI KHÔNG bịa đặt thông tin không có trong dữ liệu.
-                - Khi user hỏi về sự kiện cụ thể, hãy tìm sự kiện khớp tên nhất trong dữ liệu và phân tích.
-                - Nếu không tìm thấy sự kiện user hỏi trong dữ liệu trên, hãy nói rõ là "Tôi không tìm thấy sự kiện này trong hệ thống" và gợi ý các sự kiện có sẵn khác.
-                - Trả lời bằng tiếng Việt, thân thiện, súc tích.
+                Dựa trên dữ liệu trên, hãy trả lời câu hỏi của người dùng: "%s"
                 
-                CÂU HỎI CỦA NGƯỜI DÙNG: %s""", eventContext, request.getContent());
+                YÊU CẦU:
+                1. Trả lời bằng ngôn ngữ tự nhiên, thân thiện.
+                2. Nếu có sự kiện phù hợp, hãy liệt kê thông tin bằng văn bản TRƯỚC.
+                3. Chỉ cung cấp dữ liệu kỹ thuật ở CUỐI CÙNG trong khối [EVENT_CARDS_START] ... [EVENT_CARDS_END]. 
+                4. CỰC KỲ QUAN TRỌNG: Khi tạo JSON cho thẻ sự kiện, bạn PHẢI sử dụng đúng "Slug" và "ID" được cung cấp trong dữ liệu hệ thống ở trên. Tuyệt đối không tự bịa ra slug.
+                """, eventContext, request.getContent());
+        } else {
+            enhancedUserMessage = userInfo + request.getContent();
         }
 
         // Generate AI response
@@ -185,6 +244,25 @@ public class ChatServiceImpl implements ChatService {
                 history,
                 session.getContextType()
         );
+        
+        // Ghi lại log để theo dõi
+        if (enhancedUserMessage.length() > 250) {
+            log.info("Handled a long message via unified AI response to avoid double answers.");
+        }
+
+        // Fallback: Nếu AI trả về lỗi hoặc mã quá tải -> Dùng bộ phản hồi từ DB
+        if (aiResponse == null || aiResponse.isBlank() || aiResponse.contains("⚠️") || aiResponse.contains("gián đoạn")
+                || aiResponse.contains("quá tải") || aiResponse.contains("quota") || aiResponse.contains("503")
+                || aiResponse.contains("unavailable") || aiResponse.equals("ERROR_AI_OVERLOADED")) {
+            
+            log.warn("AI service failed (Response: {}), switching to smart database fallback", aiResponse);
+            
+            // Xóa sạch nội dung cũ, thay bằng nội dung từ DB
+            String fallbackContent = generateFallbackResponse(request.getContent(), finalContextEvents);
+            aiResponse = fallbackContent;
+            
+            log.info("Fallback response generated successfully");
+        }
         
         // Save AI message
         ChatMessage aiMessage = ChatMessage.builder()
@@ -196,8 +274,13 @@ public class ChatServiceImpl implements ChatService {
         
         aiMessage = chatMessageRepository.save(aiMessage);
         
-        // Generate quick replies
-        List<String> quickReplies = geminiChatService.generateQuickReplies(aiResponse, session.getContextType());
+        // Generate quick replies (use default if AI is down)
+        List<String> quickReplies;
+        try {
+            quickReplies = geminiChatService.generateQuickReplies(aiResponse, session.getContextType());
+        } catch (Exception e) {
+            quickReplies = List.of("Sự kiện nổi bật", "Cách đăng ký sự kiện", "Sự kiện sắp diễn ra");
+        }
 
         // Send via WebSocket if available
         try {
@@ -368,36 +451,32 @@ public class ChatServiceImpl implements ChatService {
     
     /**
      * Tách từ khóa chính từ câu hỏi của người dùng để tìm kiếm sự kiện.
-     * Cải tiến để nhận diện các từ ngắn (AI, IUH, IT) và cụm từ đặc trưng.
      */
     private String extractSearchKeyword(String message) {
         if (message == null || message.isBlank()) return null;
         
         String lowerMsg = message.toLowerCase();
         
-        // Nếu người dùng hỏi về "sự kiện nổi bật" hoặc tương tự mà không có tên cụ thể
+        // Nếu người dùng hỏi về "sự kiện nổi bật" hoặc tương tự
         if (lowerMsg.contains("nổi bật") || lowerMsg.contains("hot") || lowerMsg.contains("mới nhất")) {
-            return ""; // Trả về rỗng để kích hoạt fallback lấy sự kiện mới nhất
+            return ""; 
         }
 
-        // Loại bỏ các từ phổ biến
+        // Tách lấy phần sau dấu hai chấm nếu có (Ví dụ: "Workshop: Generative AI" -> "Generative AI")
+        if (message.contains(":")) {
+            String afterColon = message.substring(message.indexOf(":") + 1).trim();
+            if (afterColon.length() > 2) return afterColon;
+        }
+
+        // Loại bỏ các tiền tố hội thoại phổ biến nhưng GIỮ LẠI danh từ riêng
         String cleaned = message
-            .replaceAll("(?i)sự kiện|event|hội thảo|workshop|seminar|có gì|ở đâu|khi nào|bao giờ|là gì|cho tôi hỏi|giúp tôi", "")
+            .replaceAll("(?i)^(cho tôi hỏi|giúp tôi xem|xem giúp tôi|tìm giúp tôi|có gì|là gì|thông tin về)\\s+", "")
+            .replaceAll("(?i)\\s+(là gì|ở đâu|khi nào|bao giờ|thế nào)$", "")
             .trim();
             
         if (cleaned.isEmpty()) return null;
         
-        // Nếu là từ viết hoa (AI, IUH, IT, AWS) thì giữ lại dù ngắn
-        if (cleaned.equals(cleaned.toUpperCase()) && cleaned.length() >= 2) {
-            return cleaned;
-        }
-        
-        // Lấy 3 từ đầu tiên nếu quá dài để tìm kiếm hiệu quả hơn
-        String[] words = cleaned.split("\\s+");
-        if (words.length > 3) {
-            return words[0] + " " + words[1] + " " + words[2];
-        }
-        
+        // Nếu chuỗi còn lại vẫn dài, cố gắng giữ nguyên để tìm kiếm chính xác hơn
         return cleaned;
     }
     
@@ -440,9 +519,35 @@ public class ChatServiceImpl implements ChatService {
                 .build();
     }
     
+    @Override
+    @Transactional
+    public void syncAllEventVectors() {
+        log.info("Starting manual vector synchronization for all events");
+        List<com.eventservice.entity.Event> events = eventRepository.findByIsDeletedFalseOrderByStartTimeDesc();
+        log.info("Found {} events to sync", events.size());
+        
+        for (com.eventservice.entity.Event event : events) {
+            eventEmbeddingService.upsertEventVector(event);
+        }
+        log.info("Dispatched {} events for embedding generation", events.size());
+    }
+
     /**
-     * Build comprehensive but concise event context for AI RAG.
+     * Tính toán độ tương đồng Cosine giữa hai Vector.
      */
+    private double calculateCosineSimilarity(List<Double> v1, List<Double> v2) {
+        if (v1.size() != v2.size()) return 0;
+        double dotProduct = 0.0;
+        double normA = 0.0;
+        double normB = 0.0;
+        for (int i = 0; i < v1.size(); i++) {
+            dotProduct += v1.get(i) * v2.get(i);
+            normA += Math.pow(v1.get(i), 2);
+            normB += Math.pow(v2.get(i), 2);
+        }
+        return dotProduct / (Math.sqrt(normA) * Math.sqrt(normB));
+    }
+
     private String buildEventContext(List<com.eventservice.entity.Event> events) {
         if (events == null || events.isEmpty()) {
             return "Hiện tại không tìm thấy sự kiện phù hợp trong hệ thống.";
@@ -452,29 +557,97 @@ public class ChatServiceImpl implements ChatService {
         StringBuilder sb = new StringBuilder();
         
         for (com.eventservice.entity.Event e : events) {
+            // Lấy số lượng người đăng ký thực tế
+            long regCount = eventRegistrationRepository.countByEventIdAndIsDeletedFalse(e.getId());
+            
             sb.append(String.format("- [%s] %s\n", e.getStatus(), e.getTitle()));
+            sb.append(String.format("  ID: %s\n", e.getId()));
+            if (e.getSlug() != null) sb.append(String.format("  Slug: %s\n", e.getSlug()));
+            if (e.getCoverImage() != null) sb.append(String.format("  Image: %s\n", e.getCoverImage()));
             if (e.getEventTopic() != null) sb.append(String.format("  Chủ đề: %s\n", e.getEventTopic()));
             if (e.getLocation() != null) sb.append(String.format("  Tại: %s\n", e.getLocation()));
             if (e.getStartTime() != null) sb.append(String.format("  Thời gian: %s\n", e.getStartTime().format(fmt)));
             
-            // Chỉ thêm mô tả ngắn (150 ký tự)
+            // Thông tin về độ "Hot"
+            sb.append(String.format("  Số người đăng ký hiện tại: %d\n", regCount));
+            if (e.getMaxParticipants() > 0) sb.append(String.format("  Giới hạn tối đa: %d\n", e.getMaxParticipants()));
+            
             if (e.getDescription() != null && !e.getDescription().isBlank()) {
                 String desc = e.getDescription();
                 if (desc.length() > 150) desc = desc.substring(0, 147) + "...";
                 sb.append(String.format("  Mô tả: %s\n", desc));
             }
             
-            // Chỉ liệt kê tên diễn giả
             if (e.getPresenters() != null && !e.getPresenters().isEmpty()) {
                 String names = e.getPresenters().stream()
                     .map(p -> p.getFullName())
                     .collect(Collectors.joining(", "));
                 sb.append(String.format("  Diễn giả: %s\n", names));
             }
-            
             sb.append("\n");
         }
         
         return sb.toString();
+    }
+
+    private String generateFallbackResponse(String userQuery, List<Event> contextEvents) {
+        StringBuilder sb = new StringBuilder();
+        String lowerMsg = userQuery.toLowerCase();
+        
+        boolean askingRegistration = lowerMsg.contains("đăng ký") || lowerMsg.contains("tham gia") 
+                || lowerMsg.contains("hướng dẫn") || lowerMsg.contains("làm sao") 
+                || lowerMsg.contains("register");
+
+        // --- BỘ PHẢN HỒI THÔNG MINH (CHATGPT-STYLE FALLBACK) ---
+        sb.append("Chào bạn! 👋 Hiện tại hệ thống phản hồi thông minh đang xử lý hơi chậm một chút, nhưng tôi đã tìm thấy dữ liệu liên quan đến yêu cầu của bạn từ hệ thống IUH:\n\n");
+
+        if (askingRegistration) {
+            sb.append("📋 **Hướng dẫn đăng ký sự kiện:**\n\n");
+            sb.append("1. Chọn sự kiện bạn muốn tham gia từ trang chủ\n");
+            sb.append("2. Nhấn nút **\"Đăng ký\"** trên trang chi tiết sự kiện\n");
+            sb.append("3. Điền thông tin và xác nhận\n");
+            sb.append("4. Bạn sẽ nhận được mã QR để check-in\n\n");
+            sb.append("💡 Lưu ý: Cần đăng nhập trước khi đăng ký!\n\n");
+            sb.append("🤔 Bạn còn thắc mắc nào về quy trình đăng ký không?");
+        } else if (contextEvents != null && !contextEvents.isEmpty()) {
+            sb.append("🌟 **Dựa trên tìm kiếm của bạn, đây là các sự kiện nổi bật:**\n\n");
+
+            int count = 0;
+            for (Event e : contextEvents) {
+                if (count >= 3) break;
+                count++;
+                
+                long regCount = eventRegistrationRepository.countByEventIdAndIsDeletedFalse(e.getId());
+                String hotTag = (regCount > 50) ? " 🔥 *Rất hot!*" : "";
+
+                sb.append(String.format("🔹 **%s**%s\n", e.getTitle(), hotTag));
+                if (e.getStartTime() != null) sb.append(String.format("   ⏰ Thời gian: %s\n", e.getStartTime().format(java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm"))));
+                if (e.getLocation() != null) sb.append(String.format("   📍 Địa điểm: %s\n", e.getLocation()));
+                sb.append(String.format("   👥 Số người đã đăng ký: %d\n", regCount));
+                sb.append("\n");
+            }
+
+            sb.append("🤔 Bạn có muốn tôi giúp bạn tìm hiểu chi tiết hơn về lịch trình hoặc diễn giả của các sự kiện này không?");
+        } else {
+            List<Event> latest = eventRepository.findByIsDeletedFalseOrderByStartTimeDesc().stream().limit(3).collect(Collectors.toList());
+            
+            if (!latest.isEmpty()) {
+                sb.append("Rất tiếc tôi chưa tìm thấy sự kiện chính xác như bạn yêu cầu, nhưng tại IUH đang có những sự kiện mới nhất sau đây:\n\n");
+                for (Event e : latest) {
+                    sb.append(String.format("• **%s** (%s)\n", e.getTitle(), e.getLocation() != null ? e.getLocation() : "IUH"));
+                }
+                sb.append("\nBạn có quan tâm đến sự kiện nào ở trên không, hay bạn muốn tôi tìm kiếm theo một chủ đề khác? 😊");
+            } else {
+                sb.append("Hiện tại hệ thống chưa cập nhật các sự kiện mới. Bạn có thể quay lại sau hoặc cho tôi biết bạn đang quan tâm đến chủ đề gì để tôi ghi nhận nhé! 😊");
+            }
+        }
+
+        return sb.toString();
+    }
+    @Override
+    public String analyzeStatistics(String statsJson) {
+        if (statsJson == null || statsJson.isBlank()) return null;
+        log.info("Requesting AI to analyze event statistics");
+        return geminiChatService.analyzeEventStatistics(statsJson);
     }
 }

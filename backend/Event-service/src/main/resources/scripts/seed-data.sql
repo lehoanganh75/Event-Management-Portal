@@ -1,4 +1,4 @@
-INSERT IGNORE INTO organizations (
+INSERT INTO organizations (
     id, name, type, email, phone,
     owner_account_id,
     logo_url,
@@ -89,7 +89,7 @@ VALUES
  'Phát triển kỹ năng mềm và kỹ năng sống.',
  false, NOW());
 
-INSERT IGNORE INTO event_templates (
+INSERT INTO event_templates (
     id, template_name, description, template_type, custom_template_type,
     default_title, default_cover_image, default_location, default_event_mode, default_max_participants,
     faculty, major, usage_count, config_data, is_public, created_at, updated_at, is_deleted, organization_id
@@ -206,37 +206,37 @@ VALUES
  '{"outdoor": true}',
  TRUE, NOW(), NOW(), FALSE, 'org-2');
 
-INSERT IGNORE INTO event_template_themes (template_id, theme)
+INSERT INTO event_template_themes (template_id, theme)
 SELECT id, 'TECH' FROM event_templates WHERE template_name = 'Workshop Java Spring Boot';
 
-INSERT IGNORE INTO event_template_themes (template_id, theme)
+INSERT INTO event_template_themes (template_id, theme)
 SELECT id, 'AI' FROM event_templates WHERE template_name = 'Seminar AI';
 
-INSERT IGNORE INTO event_template_themes (template_id, theme)
+INSERT INTO event_template_themes (template_id, theme)
 SELECT id, 'CLOUD' FROM event_templates WHERE template_name = 'Webinar Cloud';
 
-INSERT IGNORE INTO event_template_themes (template_id, theme)
+INSERT INTO event_template_themes (template_id, theme)
 SELECT id, 'COMPETITION' FROM event_templates WHERE template_name = 'Hackathon Template';
 
-INSERT IGNORE INTO event_template_themes (template_id, theme)
+INSERT INTO event_template_themes (template_id, theme)
 SELECT id, 'CAREER' FROM event_templates WHERE template_name = 'Talkshow Career';
 
-INSERT IGNORE INTO event_template_themes (template_id, theme)
+INSERT INTO event_template_themes (template_id, theme)
 SELECT id, 'STUDENT' FROM event_templates WHERE template_name = 'Orientation Sinh viên';
 
-INSERT IGNORE INTO event_template_themes (template_id, theme)
+INSERT INTO event_template_themes (template_id, theme)
 SELECT id, 'LINUX' FROM event_templates WHERE template_name = 'Training Linux';
 
-INSERT IGNORE INTO event_template_themes (template_id, theme)
+INSERT INTO event_template_themes (template_id, theme)
 SELECT id, 'ONLINE' FROM event_templates WHERE template_name = 'Online Course Template';
 
-INSERT IGNORE INTO event_template_themes (template_id, theme)
+INSERT INTO event_template_themes (template_id, theme)
 SELECT id, 'STARTUP' FROM event_templates WHERE template_name = 'Startup Pitch';
 
-INSERT IGNORE INTO event_template_themes (template_id, theme)
+INSERT INTO event_template_themes (template_id, theme)
 SELECT id, 'VOLUNTEER' FROM event_templates WHERE template_name = 'Volunteer Event';
 
-INSERT IGNORE INTO events (
+INSERT INTO events (
     id, approved_by_account_id, slug, title, description,
     event_topic, cover_image,
     location, event_mode,
@@ -333,7 +333,7 @@ VALUES
  'Sân nhà A', 'OFFLINE',
  '2026-09-15 15:00:00', '2026-09-15 18:00:00', '2026-09-10 23:59:59',
  400,
- 'FESTIVAL', 'PUBLISHED',
+ 'FESTIVAL', 'DRAFT',
  '[{"type":"STUDENT","faculty":"CNTT"}]',
  'org-2',
  'Sự kiện chào đón tân sinh viên IT năm 2026',
@@ -433,7 +433,7 @@ VALUES
  NOW());
 
 -- Lịch trình cho IUH Tech Day (evt-1)
-INSERT IGNORE INTO event_sessions (id, event_id, title, description, room, type, start_time, end_time, order_index, status, created_at, is_deleted)
+INSERT INTO event_sessions (id, event_id, title, description, room, type, start_time, end_time, order_index, status, created_at, is_deleted)
 VALUES
     (UUID(), 'evt-1', 'Khai mạc & Keynote AI 2026', 'Giới thiệu xu hướng AI mới nhất', 'Hội trường A7', 'KEYNOTE', '2026-05-15 08:30:00', '2026-05-15 09:30:00', 1, 'KEYNOTE', NOW(),false),
     (UUID(), 'evt-1', 'Tiệc trà giữa giờ', 'Giao lưu và dùng teabreak', 'Sảnh A7', 'BREAK', '2026-05-15 09:30:00', '2026-05-15 10:00:00', 2, 'BREAK', NOW(),false),
@@ -441,13 +441,13 @@ VALUES
     (UUID(), 'evt-1', 'Thảo luận: Cơ hội việc làm IT', 'Hỏi đáp cùng các chuyên gia doanh nghiệp', 'Hội trường A7', 'WORKSHOP', '2026-05-15 13:30:00', '2026-05-15 15:30:00', 4, 'WORKSHOP', NOW(), false);
 
 -- Lịch trình cho HIT Code War (evt-4)
-INSERT IGNORE INTO event_sessions (id, event_id, title, description, room, type, start_time, end_time, order_index, status, created_at, is_deleted)
+INSERT INTO event_sessions (id, event_id, title, description, room, type, start_time, end_time, order_index, status, created_at, is_deleted)
 VALUES
     (UUID(), 'evt-4', 'Check-in & Phát số báo danh', 'Nhận tài khoản thi đấu', 'E4.1', 'BREAK', '2026-06-10 07:00:00', '2026-06-10 08:00:00', 1, 'BREAK', NOW(),false),
     (UUID(), 'evt-4', 'Vòng thi đấu chính thức', 'Giải quyết 10 bài toán thuật toán', 'Phòng máy E4', 'KEYNOTE', '2026-06-10 08:00:00', '2026-06-10 11:30:00', 2, 'KEYNOTE', NOW(),false),
     (UUID(), 'evt-4', 'Trao giải & Bế mạc', 'Công bố bảng xếp hạng', 'Hội trường E4', 'KEYNOTE', '2026-06-10 11:30:00', '2026-06-10 12:00:00', 3, 'KEYNOTE', NOW(), false);
 
-INSERT IGNORE INTO event_presenters (
+INSERT INTO event_presenters (
     id, event_id, presenter_account_id,
     assigned_at, full_name, email,
     bio, avatar_url, is_deleted
@@ -508,7 +508,7 @@ VALUES
  'https://api.dicebear.com/7.x/avataaars/svg?seed=Thuy', false);
 
 -- 1. Tạo lời mời mẫu (Invitations) cho IUH Tech Day (evt-1)
-INSERT IGNORE INTO event_invitations (
+INSERT INTO event_invitations (
     id,
     event_id,
     invitee_account_id,
@@ -593,7 +593,7 @@ VALUES
  NULL, NOW(),
  NOW(), DATE_ADD(NOW(), INTERVAL 7 DAY));
 
-INSERT IGNORE INTO event_organizers (id, event_id, account_id, full_name, email, role, assigned_at, organization_id, is_deleted)
+INSERT INTO event_organizers (id, event_id, account_id, full_name, email, role, assigned_at, organization_id, is_deleted)
 VALUES
 -- BTC Khoa CNTT (Sự kiện evt-1: IUH Tech Day)
 (UUID(), 'evt-1', 'USE001', 'ThS. Nguyễn Văn Quản Lý', 'quanly.fit@iuh.edu.vn', 'LEADER', NOW(), 'org-1', false),
@@ -606,7 +606,7 @@ VALUES
 (UUID(), 'evt-4', 'USE006', 'Vũ Minh Quân', 'quan.hit@student.iuh.edu.vn', 'MEMBER', NOW(), 'org-2', false),
 (UUID(), 'evt-4', 'USE007', 'Hoàng Anh Đức', 'duc.hit@student.iuh.edu.vn', 'MEMBER', NOW(), 'org-2', false);
 
-INSERT IGNORE INTO event_registrations (
+INSERT INTO event_registrations (
     id,
     event_id,
     participant_account_id,
@@ -733,7 +733,7 @@ VALUES
  DATE_ADD(NOW(), INTERVAL 1 DAY),
  NOW(), FALSE);
 
-INSERT IGNORE INTO event_participants (
+INSERT INTO event_participants (
     id,
     event_id,
     participant_account_id,
@@ -768,7 +768,7 @@ VALUES
 -- Workshop evt-3
 (UUID(), 'evt-3', 'acc-sv-009', 'Nguyễn Thị Thắm', 'tham.sv@student.iuh.edu.vn', '21000555', 'WS-001', 'ATTENDED', FALSE, NULL, 'Sinh viên', 'Khoa CNTT', FALSE);
 
-INSERT IGNORE INTO event_posts (
+INSERT INTO event_posts (
     id, event_id, slug, author_account_id, title, content, view_count,
     post_type, status, is_pinned, image_urls, published_at, allow_comments, is_deleted
 )
@@ -845,20 +845,20 @@ VALUES
 
 -- 1. Các bình luận gốc (Level 0)
 -- Level 0
-INSERT IGNORE INTO post_comments (id, post_id, parent_id, commenter_account_id, content, is_edited, is_deleted)
+INSERT INTO post_comments (id, post_id, parent_id, commenter_account_id, content, is_edited, is_deleted)
 VALUES
     ('cmt-1', (SELECT id FROM event_posts WHERE slug='huong-dan-gui-xe-techday'), NULL, 'acc-sv-001', 'Sự kiện này có được cộng điểm rèn luyện không ạ?', FALSE, FALSE),
     ('cmt-2', (SELECT id FROM event_posts WHERE slug='huong-dan-gui-xe-techday'), NULL, 'acc-sv-002', 'Cho mình hỏi Workshop Docker có cần cài trước gì không?', FALSE, FALSE),
     ('cmt-3', (SELECT id FROM event_posts WHERE slug='quy-che-thi-dau-hit-codewar'), NULL, 'acc-sv-005', 'Năm nay đề thi có phần Web không Ban tổ chức?', FALSE, FALSE);
 -- 2. Các phản hồi (Level 1 - Trả lời cho cmt-1 và cmt-2)
-INSERT IGNORE INTO post_comments (id, post_id, parent_id, commenter_account_id, content, is_edited, is_deleted)
+INSERT INTO post_comments (id, post_id, parent_id, commenter_account_id, content, is_edited, is_deleted)
 VALUES
     (UUID(), (SELECT id FROM event_posts WHERE slug='huong-dan-gui-xe-techday'), 'cmt-1', 'acc-admin-fit', 'Có bạn nhé, tham gia đầy đủ được cộng 5 điểm rèn luyện.', FALSE, FALSE),
     (UUID(), (SELECT id FROM event_posts WHERE slug='huong-dan-gui-xe-techday'), 'cmt-1', 'acc-sv-001', 'Dạ em cảm ơn thầy ạ!', FALSE, FALSE),
     (UUID(), (SELECT id FROM event_posts WHERE slug='huong-dan-gui-xe-techday'), 'cmt-2', 'acc-staff-01', 'Bạn nên cài sẵn Docker Desktop...', FALSE, FALSE),
     (UUID(), (SELECT id FROM event_posts WHERE slug='quy-che-thi-dau-hit-codewar'), 'cmt-3', 'acc-student-hit', 'Đề năm nay tập trung vào thuật toán...', FALSE, FALSE);
 
-INSERT IGNORE INTO recaps (
+INSERT INTO recaps (
     id, event_id, author_account_id, title, content,
     image_urls, video_highlight_url, status, published_at,
     like_count, view_count, is_deleted
@@ -880,7 +880,7 @@ VALUES
      'PUBLISHED', '2026-04-01 08:00:00',
      0, 0, FALSE);
 
-INSERT IGNORE INTO events (
+INSERT INTO events (
     id, approved_by_account_id, slug, title, description,
     event_topic, cover_image,
     location, event_mode,
@@ -945,7 +945,7 @@ VALUES
  DATE_ADD(NOW(), INTERVAL 5 HOUR), DATE_ADD(NOW(), INTERVAL 7 HOUR), NOW(),
  30, 'WORKSHOP', 'PUBLISHED', '[]', 'org-4', 'Trải nghiệm thư giãn tuyệt đối', 'USE004', NULL, false, false, NOW());
 
-INSERT IGNORE INTO events (
+INSERT INTO events (
     id, approved_by_account_id, slug, title, description,
     event_topic, cover_image,
     location, event_mode,
@@ -998,86 +998,14 @@ VALUES
 -- 28. Diễn ra từ 19h tối đến 21h tối
 ('evt-028', 'USE001', 'startup-green-2026', 'Khởi nghiệp Xanh 2026', 'Kinh doanh bền vững', 'Kinh tế', 'https://picsum.photos/seed/green/800/400', 'Zoom Meeting', 'ONLINE',
  DATE_ADD(CURDATE(), INTERVAL 19 HOUR), DATE_ADD(CURDATE(), INTERVAL 21 HOUR), CURDATE(),
- 500, 'SEMINAR', 'ONGOING', '[]', 'org-2', 'Dành cho SV yêu môi trường', 'USE004', NULL, true, false, NOW()),
+ 500, 'SEMINAR', 'ONGOING', '[]', 'org-2', 'Dành cho SV yêu môi trường', 'USE004', NULL, true, false, false, false, NOW()),
 
 -- 29. Diễn ra từ 10h sáng đến 10h tối
 ('evt-029', 'USE001', 'esport-championship-2026', 'IUH Esport Championship', 'Giải đấu Liên Quân Mobile', 'Thể thao', 'https://picsum.photos/seed/game/800/400', 'Nhà thi đấu', 'OFFLINE',
  DATE_ADD(CURDATE(), INTERVAL 10 HOUR), DATE_ADD(CURDATE(), INTERVAL 22 HOUR), CURDATE(),
- 256, 'COMPETITION', 'ONGOING', '[]', 'org-1', 'Vòng tứ kết', 'USE004', NULL, true, false, NOW()),
+ 256, 'COMPETITION', 'ONGOING', '[]', 'org-1', 'Vòng tứ kết', 'USE004', NULL, true, false, false, false, NOW()),
 
 -- 30. Diễn ra từ 17h chiều đến 19h tối
 ('evt-030', 'USE001', 'yoga-sunset-2026', 'Yoga Sunset IUH', 'Tập luyện trong ánh hoàng hôn', 'Sức khỏe', 'https://picsum.photos/seed/meditation/800/400', 'Sân thượng nhà H', 'OFFLINE',
  DATE_ADD(CURDATE(), INTERVAL 17 HOUR), DATE_ADD(CURDATE(), INTERVAL 19 HOUR), CURDATE(),
- 30, 'WORKSHOP', 'ONGOING', '[]', 'org-4', 'Trải nghiệm thư giãn tuyệt đối', 'USE004', NULL, false, false, NOW());
-
--- Add manual test data for user 22706332
-INSERT IGNORE INTO events (
-    id, approved_by_account_id, slug, title, description,
-    event_topic, cover_image,
-    location, event_mode,
-    start_time, end_time, registration_deadline,
-    max_participants,
-    type, status,
-    recipients,
-    organization_id,
-    notes,
-    created_by_account_id,
-    template_id, has_lucky_draw,
-    is_deleted, created_at
-)
-VALUES (
-    '3ab2796f-5031-4a6a-816a-59a0c7ed4776', 'USE001', 'su-kien-le-hoang-anh',
-    'Sự kiện Hội thảo Công nghệ 2026',
-    'Sự kiện đặc biệt do Lê Hoàng Anh chủ trì.',
-    'Công nghệ',
-    'https://picsum.photos/1200/400?tech',
-    'Hội trường IUH', 'OFFLINE',
-    NOW(), '2026-05-20 17:00:00', '2026-05-15 23:59:59',
-    200,
-    'WORKSHOP', 'PUBLISHED',
-    '[]',
-    'org-1',
-    'Dữ liệu test thủ công',
-    '8cb5437c-7350-4a65-87c3-06ea36d18b8a',
-    'a2311a05-2f22-11f1-a793-726639b4c8d6', false,
-    false,
-    NOW()
-);
-
--- Dọn dẹp dữ liệu trùng lặp trước khi chèn mới
-DELETE FROM event_organizers WHERE event_id = '3ab2796f-5031-4a6a-816a-59a0c7ed4776';
-DELETE FROM event_presenters WHERE event_id = '3ab2796f-5031-4a6a-816a-59a0c7ed4776';
-
-INSERT IGNORE INTO event_organizers (id, event_id, account_id, full_name, email, role, assigned_at, organization_id, is_deleted)
-VALUES 
-    ('manual-org-1', '3ab2796f-5031-4a6a-816a-59a0c7ed4776', '8cb5437c-7350-4a65-87c3-06ea36d18b8a', 'Lê Hoàng Anh', '22706332@student.iuh.edu.vn', 'LEADER', NOW(), 'org-1', false),
-    ('manual-org-2', '3ab2796f-5031-4a6a-816a-59a0c7ed4776', 'USE001', 'Admin Hệ Thống', 'user01@gmail.com', 'COORDINATOR', NOW(), 'org-1', false),
-    ('manual-org-3', '3ab2796f-5031-4a6a-816a-59a0c7ed4776', 'USE009', 'Sinh Viên Mẫu', 'user09@gmail.com', 'MEMBER', NOW(), 'org-1', false);
-
-INSERT IGNORE INTO event_presenters (id, event_id, presenter_account_id, assigned_at, full_name, email, bio, avatar_url, is_deleted)
-VALUES 
-    ('manual-pres-1', '3ab2796f-5031-4a6a-816a-59a0c7ed4776', '8cb5437c-7350-4a65-87c3-06ea36d18b8a', NOW(), 'Lê Hoàng Anh', '22706332@student.iuh.edu.vn', 'Diễn giả chính.', 'https://api.dicebear.com/7.x/avataaars/svg?seed=Anh', false),
-    ('manual-pres-2', '3ab2796f-5031-4a6a-816a-59a0c7ed4776', 'USE001', NOW(), 'Admin Hệ Thống', 'user01@gmail.com', 'Diễn giả dự phòng.', 'https://api.dicebear.com/7.x/avataaars/svg?seed=Admin', false);
-    
--- Đảm bảo sự kiện được PUBLISHED và đúng tiêu đề
--- Đảm bảo sự kiện được COMPLETED và đúng tiêu đề
-UPDATE events SET status = 'COMPLETED', title = 'Hội thảo Công nghệ AI và Tương lai 2026' WHERE id = '3ab2796f-5031-4a6a-816a-59a0c7ed4776';
-
--- Xóa dữ liệu cũ để ghi đè dữ liệu mẫu mới
-DELETE FROM event_summaries WHERE event_id = '3ab2796f-5031-4a6a-816a-59a0c7ed4776';
-
--- Dữ liệu thống kê phân tích cuối sự kiện cho Hội thảo AI
-INSERT INTO event_summaries (
-    id, event_id, total_registered, total_checked_in, attendance_rate, 
-    lucky_draw_winners, feedback_stats, detailed_analysis, created_at
-)
-VALUES (
-    UUID(), 
-    '3ab2796f-5031-4a6a-816a-59a0c7ed4776',
-    184, 156, 84.78,
-    '{"winners": [{"name": "Nguyễn Hoàng Nam", "rank": "Giải Nhất", "prize": "Bàn phím cơ Akko"}, {"name": "Trần Thị Thu Hà", "rank": "Giải Nhì", "prize": "Chuột Logitech G304"}]}',
-    '{"averageRating": 4.8, "totalFeedbacks": 112, "sentiment": "Tích cực", "ratingDistribution": {"5": 85, "4": 20, "3": 5, "2": 2, "1": 0}}',
-    '{"registrationTimeline": {"2026-04-10": 15, "2026-04-11": 32, "2026-04-12": 58, "2026-04-13": 45, "2026-04-14": 34}, "checkInTimeline": {"7": 42, "8": 102, "9": 12}, "demographics": {"Sinh viên": 140, "Giảng viên": 12, "Doanh nghiệp": 4}}',
-    NOW()
-);
-
+ 30, 'WORKSHOP', 'ONGOING', '[]', 'org-4', 'Trải nghiệm thư giãn tuyệt đối', 'USE004', NULL, false, false, false, false, NOW());

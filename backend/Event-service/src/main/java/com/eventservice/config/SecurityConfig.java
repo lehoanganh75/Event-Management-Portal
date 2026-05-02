@@ -25,11 +25,13 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 import javax.crypto.spec.SecretKeySpec;
 import java.util.Arrays;
 import java.util.Base64;
+import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
 
 @Configuration
 @EnableWebSecurity
 @EnableMethodSecurity
 public class SecurityConfig {
+        // Default secret key for development if JWT_SECRET is missing
         @Value("${jwt.secret}")
         private String secretKey;
 
@@ -42,8 +44,22 @@ public class SecurityConfig {
                                                 .sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                                 .authorizeHttpRequests(auth -> auth
                                                 .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
+
+                                                // 1. Admin restricted routes
+                                                .requestMatchers("/api/v1/events/admin/**")
+                                                .hasAnyRole("ADMIN", "SUPER_ADMIN")
+                                                .requestMatchers("/events/admin/**").hasAnyRole("ADMIN", "SUPER_ADMIN")
+
+                                                // 2. Specific Authenticated routes (Highest priority for these paths)
+                                                .requestMatchers("/events/my-events").authenticated()
+                                                .requestMatchers("/events/organizer-roles").authenticated()
+                                                .requestMatchers("/events/plans/my").authenticated()
+                                                .requestMatchers("/events/plans/status/**").authenticated()
+
+                                                // 3. Public routes
                                                 .requestMatchers(
                                                                 "/api/v1/chat/**",
+                                                                "/api/v1/ai-planning/**",
                                                                 "/",
                                                                 "/posts/detail/**",
                                                                 "/v3/api-docs/**",
@@ -52,37 +68,41 @@ public class SecurityConfig {
                                                                 "/uploads/**",
                                                                 "/error")
                                                 .permitAll()
-                                                .requestMatchers(HttpMethod.GET,
-                                                                "/events",
-                                                                "/events/ongoing",
-                                                                "/events/upcoming-week",
-                                                                "/events/featured",
-                                                                "/events/news",
-                                                                "/events/plans",
-                                                                "/events/*/presenters",
-                                                                "/events/*/participants",
-                                                                "/events/*/organizers",
-                                                                "/events/*/invitations",
-                                                                "/events/*/invitations/**",
-                                                                "/posts",
-                                                                "/posts/{id}",
-                                                                "/posts/detail/{id}"
-                                                ).permitAll()
-                                                .requestMatchers(HttpMethod.GET,
-                                                                "/events/{id}"
-                                                ).authenticated()
-                                                .requestMatchers(HttpMethod.POST,
-                                                                "/events/*/participants/register",
-                                                                "/events/*/accept-invite",
-                                                                "/events/*/reject-invite")
+
+                                                // 4. Public GET routes for events (Narrowed to avoid matching private
+                                                // routes)
+                                                .requestMatchers(new AntPathRequestMatcher("/events", "GET"))
                                                 .permitAll()
+                                                .requestMatchers(new AntPathRequestMatcher("/events/ongoing", "GET"))
+                                                .permitAll()
+                                                .requestMatchers(new AntPathRequestMatcher("/events/upcoming-week",
+                                                                "GET"))
+                                                .permitAll()
+                                                .requestMatchers(new AntPathRequestMatcher("/events/featured", "GET"))
+                                                .permitAll()
+                                                .requestMatchers(new AntPathRequestMatcher("/events/news", "GET"))
+                                                .permitAll()
+                                                .requestMatchers(new AntPathRequestMatcher("/events/plans", "GET"))
+                                                .permitAll()
+                                                .requestMatchers(new AntPathRequestMatcher("/events/{id}", "GET"))
+                                                .permitAll()
+
+                                                .requestMatchers(new AntPathRequestMatcher("/quizzes/**", "GET"))
+                                                .permitAll()
+                                                .requestMatchers(new AntPathRequestMatcher("/surveys/**", "GET"))
+                                                .permitAll()
+                                                .requestMatchers(new AntPathRequestMatcher("/posts/**", "GET"))
+                                                .permitAll()
+
+                                                // 5. Everything else
                                                 .anyRequest().authenticated())
                                 .oauth2ResourceServer(oauth2 -> oauth2
                                                 .jwt(jwt -> jwt.jwtAuthenticationConverter(
                                                                 jwtAuthenticationConverter()))
                                                 .authenticationEntryPoint(authenticationEntryPoint()))
                                 .exceptionHandling(ex -> ex
-                                                .authenticationEntryPoint(authenticationEntryPoint()));
+                                                .authenticationEntryPoint(authenticationEntryPoint())
+                                                .accessDeniedHandler(accessDeniedHandler()));
 
                 return http.build();
         }
@@ -99,13 +119,27 @@ public class SecurityConfig {
         public AuthenticationEntryPoint authenticationEntryPoint() {
                 return (request, response, authException) -> {
                         Logger logger = LoggerFactory.getLogger("SecurityConfig");
-                        logger.warn("Security Rejection: Unauthorized access to {} - Error: {}",
+                        logger.error("Authentication Rejection (401): Unauthorized access to {} - Error: {}",
                                         request.getRequestURI(), authException.getMessage());
 
                         response.setStatus(401);
                         response.setContentType("application/json");
-                        response.getWriter().write("{\"code\": 401, \"message\": \"Unauthorized: "
-                                        + authException.getMessage() + "\"}");
+                        response.getWriter().write(
+                                        "{\"code\": 401, \"message\": \"Phiên làm việc hết hạn hoặc không hợp lệ. Vui lòng đăng nhập lại.\"}");
+                };
+        }
+
+        @Bean
+        public org.springframework.security.web.access.AccessDeniedHandler accessDeniedHandler() {
+                return (request, response, accessDeniedException) -> {
+                        Logger logger = LoggerFactory.getLogger("SecurityConfig");
+                        logger.warn("Authorization Rejection (403): Forbidden access to {} - Error: {}",
+                                        request.getRequestURI(), accessDeniedException.getMessage());
+
+                        response.setStatus(403);
+                        response.setContentType("application/json");
+                        response.getWriter().write(
+                                        "{\"code\": 403, \"message\": \"Bạn không có quyền truy cập tính năng này.\"}");
                 };
         }
 
