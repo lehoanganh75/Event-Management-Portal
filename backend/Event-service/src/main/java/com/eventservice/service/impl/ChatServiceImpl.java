@@ -370,15 +370,30 @@ public class ChatServiceImpl implements ChatService {
         // Get all messages
         List<ChatMessage> messages = session.getMessages();
 
-        // Generate suggestion
-        EventPlanSuggestionResponse suggestion = geminiChatService.generateEventPlanSuggestion(
-                "Tạo kế hoạch sự kiện từ cuộc hội thoại",
-                messages);
+        // Convert messages to match expected parameter type
+        List<com.eventservice.entity.ChatMessage> convertedMessages = messages.stream()
+                .map(msg -> com.eventservice.entity.ChatMessage.builder()
+                        .id(msg.getId())
+                        .content(msg.getContent())
+                        .role(msg.getRole())
+                        .type(msg.getType())
+                        .createdAt(msg.getCreatedAt())
+                        .isRead(msg.getIsRead())
+                        .tokensUsed(msg.getTokensUsed())
+                        .build())
+                .collect(Collectors.toList());
 
-        if (suggestion != null) {
+        // Generate suggestion
+        com.eventservice.dto.EventPlanSuggestion suggestion = geminiChatService.generateEventPlanSuggestion(
+                "Tạo kế hoạch sự kiện từ cuộc hội thoại",
+                convertedMessages);
+
+        EventPlanSuggestionResponse responseDto = mapToResponse(suggestion);
+
+        if (responseDto != null) {
             // Save as system message
             try {
-                String suggestionJson = objectMapper.writeValueAsString(suggestion);
+                String suggestionJson = objectMapper.writeValueAsString(responseDto);
                 ChatMessage systemMessage = ChatMessage.builder()
                         .chatSession(session)
                         .role(ChatMessageRole.SYSTEM)
@@ -393,7 +408,7 @@ public class ChatServiceImpl implements ChatService {
             }
         }
 
-        return suggestion;
+        return responseDto;
     }
 
     @Override
@@ -418,7 +433,39 @@ public class ChatServiceImpl implements ChatService {
         if (text == null || text.isBlank())
             return null;
         log.info("Requesting AI to extract event details from provided text");
-        return geminiChatService.extractEventDetails(text);
+        return mapToResponse(geminiChatService.extractEventDetails(text));
+    }
+
+    private EventPlanSuggestionResponse mapToResponse(com.eventservice.dto.EventPlanSuggestion suggestion) {
+        if (suggestion == null) return null;
+        List<EventProgramItemSuggestionResponse> items = suggestion.getProgramItems() != null ?
+                suggestion.getProgramItems().stream().map(i -> EventProgramItemSuggestionResponse.builder()
+                        .title(i.getTitle())
+                        .description(i.getDescription())
+                        .startTime(i.getStartTime())
+                        .endTime(i.getEndTime())
+                        .durationMinutes(i.getDurationMinutes())
+                        .speaker(i.getSpeaker())
+                        .location(i.getLocation())
+                        .notes(i.getNotes())
+                        .build()).collect(Collectors.toList()) : new ArrayList<>();
+
+        return EventPlanSuggestionResponse.builder()
+                .title(suggestion.getTitle())
+                .subject(suggestion.getSubject())
+                .purpose(suggestion.getPurpose())
+                .description(suggestion.getDescription())
+                .suggestedStartTime(suggestion.getSuggestedStartTime())
+                .suggestedEndTime(suggestion.getSuggestedEndTime())
+                .suggestedLocation(suggestion.getSuggestedLocation())
+                .estimatedParticipants(suggestion.getEstimatedParticipants())
+                .programItems(items)
+                .requiredResources(suggestion.getRequiredResources())
+                .teamRoles(suggestion.getTeamRoles())
+                .confidenceScore(suggestion.getConfidenceScore())
+                .reasoning(suggestion.getReasoning())
+                .additionalData(suggestion.getAdditionalData())
+                .build();
     }
 
     private void sendWelcomeMessage(ChatSession session) {
