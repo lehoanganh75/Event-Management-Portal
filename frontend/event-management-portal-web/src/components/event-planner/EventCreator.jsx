@@ -24,7 +24,9 @@ import {
   CheckCircle,
   ChevronRight,
   FileUp,
-  Loader2
+  Loader2,
+  Type,
+  X
 } from "lucide-react";
 import { extractDataFromDocx } from "../../services/docxImportService";
 
@@ -148,6 +150,71 @@ export const EventCreator = ({
     toast.info("✨ Đã tự động điền dữ liệu mẫu!");
   };
 
+  const [showRawTextInput, setShowRawTextInput] = useState(false);
+  const [rawText, setRawText] = useState("");
+  const [isAnalysingRaw, setIsAnalysingRaw] = useState(false);
+
+  const handleRawTextImport = async () => {
+    if (!rawText.trim()) return;
+    setIsAnalysingRaw(true);
+    try {
+      toast.info("⏳ AI đang phân tích văn bản của bạn...");
+      const res = await eventService.aiPlanning.generateFromRawText(rawText);
+      if (res.data?.code === 1000 && res.data.result) {
+        const extracted = res.data.result;
+        const mappedData = {
+          eventTitle: extracted.title || formData.eventTitle,
+          eventTopic: extracted.subject || formData.eventTopic,
+          eventPurpose: extracted.purpose || extracted.description || formData.eventPurpose,
+          location: extracted.suggestedLocation || formData.location,
+          maxParticipants: extracted.estimatedParticipants || formData.maxParticipants,
+          eventType: "WORKSHOP",
+          eventMode: "OFFLINE",
+          sessions: extracted.programItems?.map((item, idx) => ({
+            title: item.title || "Không tên",
+            description: item.description || "",
+            durationMinutes: item.durationMinutes || 0,
+            startTime: item.startTime || "",
+            endTime: item.endTime || "",
+            speaker: item.speaker || "",
+            room: item.location || "",
+            orderIndex: idx + 1
+          })) || [],
+          presenters: extracted.programItems?.reduce((acc, item) => {
+            if (item.speaker && !acc.find(p => p.fullName === item.speaker)) {
+              acc.push({
+                fullName: item.speaker,
+                email: "",
+                position: "Diễn giả",
+                department: "",
+                bio: `Diễn giả tại phiên: ${item.title}`,
+                targetSessionName: item.title
+              });
+            }
+            return acc;
+          }, []) || []
+        };
+
+        if (extracted.suggestedStartTime) {
+            mappedData.startTime = new Date(extracted.suggestedStartTime).toISOString().slice(0, 16);
+        }
+        if (extracted.suggestedEndTime) {
+            mappedData.endTime = new Date(extracted.suggestedEndTime).toISOString().slice(0, 16);
+        }
+
+        updateFormData(mappedData);
+        toast.success("✨ Đã phân tích và điền thông tin thành công!");
+        setShowRawTextInput(false);
+        setRawText("");
+      }
+    } catch (err) {
+      console.error("Raw text import error:", err);
+      toast.error("Lỗi khi phân tích văn bản: " + err.message);
+    } finally {
+      setIsAnalysingRaw(false);
+    }
+  };
+
   const handleDocxImport = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
@@ -160,9 +227,11 @@ export const EventCreator = ({
     setIsImporting(true);
     try {
       toast.info("⏳ Đang phân tích nội dung kế hoạch bằng AI...");
-      const extracted = await extractDataFromDocx(file);
+      const data = await extractDataFromDocx(file);
+      
+      if (data && data.extracted) {
+        const extracted = data.extracted;
 
-      if (extracted) {
         // Map AI result to our form structure
         const mappedData = {
           eventTitle: extracted.title || formData.eventTitle,
@@ -170,7 +239,41 @@ export const EventCreator = ({
           eventPurpose: extracted.purpose || extracted.description || formData.eventPurpose,
           location: extracted.suggestedLocation || formData.location,
           maxParticipants: extracted.estimatedParticipants || formData.maxParticipants,
+          eventType: "WORKSHOP",
+          eventMode: "OFFLINE",
+          sessions: extracted.programItems?.map((item, idx) => ({
+            title: item.title || "Không tên",
+            description: item.description || "",
+            durationMinutes: item.durationMinutes || 0,
+            startTime: item.startTime || "",
+            endTime: item.endTime || "",
+            speaker: item.speaker || "",
+            room: item.location || "",
+            orderIndex: idx + 1
+          })) || [],
+          // Extract unique presenters from sessions
+          presenters: extracted.programItems?.reduce((acc, item) => {
+            if (item.speaker && !acc.find(p => p.fullName === item.speaker)) {
+              acc.push({
+                fullName: item.speaker,
+                email: "",
+                position: "Diễn giả",
+                department: "",
+                bio: `Diễn giả tại phiên: ${item.title}`,
+                targetSessionName: item.title
+              });
+            }
+            return acc;
+          }, []) || []
         };
+
+        // Fallback for Title and Purpose if empty
+        if (!mappedData.eventTitle && data.rawText) {
+          mappedData.eventTitle = data.rawText.split('\n')[0].substring(0, 50) || "Sự kiện từ Docx";
+        }
+        if (!mappedData.eventPurpose && data.rawText) {
+          mappedData.eventPurpose = data.rawText;
+        }
 
         // Handle datetimes if present
         if (extracted.suggestedStartTime) {
@@ -182,6 +285,8 @@ export const EventCreator = ({
 
         updateFormData(mappedData);
         toast.success("✨ Đã trích xuất thông tin thành công!");
+      } else if (data && data.rawText) {
+        toast.warning("AI không thể trích xuất dữ liệu chi tiết, nhưng đã đọc được văn bản. Bạn có thể tự điền dựa trên nội dung.");
       }
     } catch (err) {
       console.error("Docx import error:", err);
@@ -487,6 +592,23 @@ export const EventCreator = ({
                   <><FileUp size={16} /> Nhập từ Docx (AI)</>
                 )}
               </label>
+
+              <button
+                onClick={() => setShowRawTextInput(true)}
+                className="flex items-center gap-2 px-4 py-2 bg-indigo-50 text-indigo-700 rounded-lg text-sm font-bold hover:bg-indigo-100 transition-all shadow-sm"
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M12 2L14.8 9.2L22 12L14.8 14.8L12 22L9.2 14.8L2 12L9.2 9.2L12 2Z" fill="url(#gemini_header_grad)" />
+                  <defs>
+                    <linearGradient id="gemini_header_grad" x1="2" y1="12" x2="22" y2="12" gradientUnits="userSpaceOnUse">
+                      <stop stopColor="#4E8AFF" />
+                      <stop offset="0.5" stopColor="#A06FFF" />
+                      <stop offset="1" stopColor="#FF7D9F" />
+                    </linearGradient>
+                  </defs>
+                </svg>
+                Phân tích AI
+              </button>
               <button
                 onClick={onBack}
                 className="flex items-center gap-2 px-4 py-2 text-slate-500 hover:bg-slate-100 rounded-lg text-sm font-bold transition-all"
@@ -601,6 +723,55 @@ export const EventCreator = ({
           )}
         </div>
       </div>
+      {/* Raw Text Input Modal */}
+      {showRawTextInput && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm">
+          <motion.div 
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="bg-white w-full max-w-2xl rounded-3xl shadow-2xl overflow-hidden"
+          >
+            <div className="p-6 border-b border-slate-100 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-indigo-100 text-indigo-600 rounded-lg">
+                  <Sparkles size={20} />
+                </div>
+                <h3 className="text-xl font-black text-slate-800">AI Phân tích văn bản</h3>
+              </div>
+              <button onClick={() => setShowRawTextInput(false)} className="text-slate-400 hover:text-slate-600">
+                <X size={20} />
+              </button>
+            </div>
+            <div className="p-6">
+              <p className="text-sm text-slate-500 mb-4 font-medium">
+                Dán đoạn văn bản mô tả kế hoạch sự kiện của bạn vào đây. AI sẽ tự động điền các trường thông tin trong form.
+              </p>
+              <textarea
+                className="w-full p-4 rounded-2xl border-2 border-slate-100 focus:border-indigo-500 outline-none transition-all text-sm font-medium h-60 custom-scrollbar"
+                placeholder="Ví dụ: Kế hoạch tổ chức Hội thảo Career Path IT cho sinh viên CNTT vào ngày 20/4/2026 tại hội trường A7..."
+                value={rawText}
+                onChange={(e) => setRawText(e.target.value)}
+              />
+            </div>
+            <div className="p-6 bg-slate-50 flex justify-end gap-3">
+              <button
+                onClick={() => setShowRawTextInput(false)}
+                className="px-6 py-2 text-slate-600 font-bold hover:bg-slate-200 rounded-xl transition-all"
+              >
+                Hủy bỏ
+              </button>
+              <button
+                disabled={!rawText.trim() || isAnalysingRaw}
+                onClick={handleRawTextImport}
+                className="flex items-center gap-2 px-8 py-2 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 disabled:bg-indigo-300 transition-all shadow-lg shadow-indigo-100"
+              >
+                {isAnalysingRaw ? <Loader2 size={18} className="animate-spin" /> : <Sparkles size={18} />}
+                Bắt đầu phân tích
+              </button>
+            </div>
+          </motion.div>
+        </div>
+      )}
     </div>
   );
 };

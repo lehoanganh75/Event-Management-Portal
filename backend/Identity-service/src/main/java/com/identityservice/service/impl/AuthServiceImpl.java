@@ -13,6 +13,8 @@ import com.identityservice.service.AuthService;
 import com.identityservice.service.EmailService;
 import com.identityservice.util.JwtUtils;
 import lombok.RequiredArgsConstructor;
+import com.identityservice.exception.*;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -23,6 +25,7 @@ import org.springframework.web.server.ResponseStatusException;
 import java.time.LocalDateTime;
 import java.util.*;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class AuthServiceImpl implements AuthService {
@@ -265,11 +268,12 @@ public class AuthServiceImpl implements AuthService {
     @Transactional
     public AuthResponse refreshToken(String token) {
         RefreshToken refreshToken = refreshTokenRepository.findByToken(token)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Refresh Token không tồn tại"));
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Refresh Token không tồn tại hoặc không hợp lệ."));
 
         if (refreshToken.isRevoked() || refreshToken.isUsed()) {
-            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Refresh Token đã bị vô hiệu hóa hoặc đã được sử dụng");
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Refresh Token đã bị vô hiệu hóa hoặc đã được sử dụng.");
         }
+
         if (refreshToken.getExpiryDate().isBefore(LocalDateTime.now())) {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Refresh Token đã hết hạn");
         }
@@ -278,7 +282,9 @@ public class AuthServiceImpl implements AuthService {
         if (user == null || user.isDeleted() || user.getStatus() != AccountStatus.ACTIVE) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Tài khoản đã bị khóa, vô hiệu hóa hoặc bị xóa");
         }
-        UserPrincipal principal = new UserPrincipal(user.getId(), user.getRole());
+        UserPrincipal principal = new UserPrincipal();
+        principal.setUserId(user.getId());
+        principal.setRole(user.getRole());
         String newAccessToken = jwtUtils.generateAccessToken(principal);
 
         refreshToken.setUsed(true);

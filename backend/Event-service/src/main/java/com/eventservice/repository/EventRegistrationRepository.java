@@ -25,6 +25,7 @@ public interface EventRegistrationRepository extends JpaRepository<EventRegistra
     Optional<EventRegistration> findWithLockByEventIdAndUserId(@Param("eventId") String eventId, @Param("userId") String userId);
 
     List<EventRegistration> findByEventId(String eventId);
+    List<EventRegistration> findByEventIdAndIsDeletedFalse(String eventId);
     List<EventRegistration> findByEvent(com.eventservice.entity.core.Event event);
 
     // SỬA: Đổi từ userRegistrationId thành participantAccountId cho khớp Entity
@@ -60,6 +61,8 @@ public interface EventRegistrationRepository extends JpaRepository<EventRegistra
     long countByEventIdAndStatusIn(String eventId, List<RegistrationStatus> statuses);
 
     boolean existsByEventIdAndParticipantAccountIdAndIsDeletedFalse(String eventId, String userId);
+
+    long countByEventIdAndIsDeletedFalse(String eventId);
 
     long countByEventId(String eventId);
 

@@ -14,9 +14,17 @@ public class GlobalExceptionHandler {
     public ResponseEntity<Map<String, Object>> handleResponseStatusException(ResponseStatusException ex) {
         Map<String, Object> body = new HashMap<>();
         body.put("status", "error");
-        body.put("", ex.getReason());
-        String message = ex.getReason().toLowerCase();
-        body.put("message", message);
+        body.put("message", ex.getReason());
+        body.put("code", ex.getStatusCode().value());
         return new ResponseEntity<>(body, ex.getStatusCode());
+    }
+
+    @ExceptionHandler(Exception.class)
+    public ResponseEntity<Map<String, Object>> handleGeneralException(Exception ex) {
+        Map<String, Object> body = new HashMap<>();
+        body.put("status", "error");
+        body.put("message", "Lỗi hệ thống: " + ex.getMessage());
+        body.put("code", 500);
+        return ResponseEntity.internalServerError().body(body);
     }
 }

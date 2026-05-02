@@ -48,9 +48,22 @@ public class SecurityConfig {
                                 .anyRequest().authenticated()
                         )
                  .oauth2ResourceServer(oauth2 -> oauth2
-                         .jwt(jwtConfigurer -> jwtConfigurer.decoder(jwtDecoder()))
+                         .jwt(jwtConfigurer -> jwtConfigurer
+                                 .decoder(jwtDecoder())
+                                 .jwtAuthenticationConverter(jwtAuthenticationConverter()))
                  );
         return http.build();
+    }
+
+    @Bean
+    public org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter jwtAuthenticationConverter() {
+        org.springframework.security.oauth2.server.resource.authentication.JwtGrantedAuthoritiesConverter authoritiesConverter = new org.springframework.security.oauth2.server.resource.authentication.JwtGrantedAuthoritiesConverter();
+        authoritiesConverter.setAuthoritiesClaimName("role");
+        authoritiesConverter.setAuthorityPrefix("ROLE_");
+
+        org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter converter = new org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter();
+        converter.setJwtGrantedAuthoritiesConverter(authoritiesConverter);
+        return converter;
     }
 
     @Bean

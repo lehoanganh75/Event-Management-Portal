@@ -86,7 +86,7 @@ const CustomDot = (props) => {
 const ActivityChart = ({ data = defaultData }) => {
   return (
     <div className="h-80 md:h-96 w-full bg-white rounded-2xl p-2 md:p-4">
-      <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
+      <ResponsiveContainer width="100%" height="100%" minWidth={0} debounce={100}>
         <LineChart
           data={data}
           margin={{ top: 20, right: 30, left: 10, bottom: 20 }}

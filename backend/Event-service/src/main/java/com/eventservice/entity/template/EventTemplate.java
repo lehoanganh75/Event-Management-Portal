@@ -92,6 +92,12 @@ public class EventTemplate {
     @Builder.Default
     private List<String> themes = new ArrayList<>();
 
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(columnDefinition = "JSON")
+    private List<Double> embedding;
+
+    private LocalDateTime embeddingGeneratedAt;
+
     // --- Audit & Status ---
     @CreationTimestamp
     @Column(updatable = false)

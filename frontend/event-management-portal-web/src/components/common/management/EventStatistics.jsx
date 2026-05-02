@@ -3,12 +3,60 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell, LineChart, Line, Legend, AreaChart, Area
 } from 'recharts';
-import { Users, CheckCircle, TrendingUp, Clock, UserPlus, FileBarChart, Award, Lightbulb } from 'lucide-react';
+import { Users, CheckCircle, TrendingUp, Clock, UserPlus, FileBarChart, Award, Lightbulb, Sparkles, Loader2 } from 'lucide-react';
+import eventService from '../../../services/eventService';
+import { toast } from 'react-toastify';
 
 const COLORS = ['#6366f1', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899'];
 
-const EventStatistics = ({ summary, loading }) => {
-  if (loading) return <div className="p-20 text-center text-gray-500">Đang tải phân tích...</div>;
+const EventStatistics = ({ summary, loading: initialLoading, eventTitle }) => {
+  const [aiAnalysis, setAiAnalysis] = React.useState(null);
+  const [isAnalysing, setIsAnalysing] = React.useState(false);
+
+  const fetchAiAnalysis = async () => {
+    if (!summary || aiAnalysis) return;
+    setIsAnalysing(true);
+    try {
+      const statsData = {
+        eventTitle: eventTitle || "Sự kiện",
+        totalRegistered: summary.totalRegistered,
+        totalCheckedIn: summary.totalCheckedIn,
+        attendanceRate: summary.attendanceRate,
+        registrationTimeline: summary.detailedAnalysis?.registrationTimeline,
+        checkInTimeline: summary.detailedAnalysis?.checkInTimeline
+      };
+      
+      const res = await eventService.chat.analyzeStats(JSON.stringify(statsData));
+      if (res.data?.code === 1000 && res.data.result) {
+        try {
+          // AI returns a JSON string inside the result
+          const parsed = JSON.parse(res.data.result.replace(/```json|```/g, '').trim());
+          setAiAnalysis(parsed);
+        } catch (e) {
+          console.error("Failed to parse AI JSON:", e);
+          // Fallback if AI returns plain text
+          setAiAnalysis({
+            summary: res.data.result.substring(0, 200),
+            recommendation: "Tiếp tục tối ưu",
+            highlight: "Dữ liệu thực tế",
+            lessonsLearned: res.data.result
+          });
+        }
+      }
+    } catch (err) {
+      console.error("AI Analysis error:", err);
+    } finally {
+      setIsAnalysing(false);
+    }
+  };
+
+  React.useEffect(() => {
+    if (summary && !initialLoading) {
+      fetchAiAnalysis();
+    }
+  }, [summary, initialLoading]);
+
+  if (initialLoading) return <div className="p-20 text-center text-gray-500">Đang tải phân tích...</div>;
   if (!summary) return (
     <div className="p-20 text-center">
       <FileBarChart size={64} className="mx-auto text-gray-300 mb-4 opacity-20" />
@@ -205,20 +253,32 @@ const EventStatistics = ({ summary, loading }) => {
 
         {/* Demographics or other metrics can go here */}
         <div className="bg-indigo-600 p-8 rounded-3xl shadow-lg shadow-indigo-200 lg:col-span-2 text-white relative overflow-hidden">
-          <div className="relative z-10">
-            <h3 className="text-2xl font-bold mb-2">Đánh giá tổng quát</h3>
-            <p className="text-indigo-100 mb-6">Dựa trên dữ liệu thu thập được, sự kiện của bạn đã đạt hiệu quả {attendanceRate > 70 ? 'vượt mong đợi' : attendanceRate > 40 ? 'khá tốt' : 'cần cải thiện'}.</p>
-            <div className="grid grid-cols-2 gap-6">
-              <div className="bg-white/10 p-4 rounded-2xl backdrop-blur-sm">
-                <p className="text-indigo-200 text-sm mb-1 font-medium">Khuyên dùng</p>
-                <p className="font-bold">Mở rộng quy mô</p>
-              </div>
-              <div className="bg-white/10 p-4 rounded-2xl backdrop-blur-sm">
-                <p className="text-indigo-200 text-sm mb-1 font-medium">Điểm sáng</p>
-                <p className="font-bold">Check-in nhanh</p>
+          {isAnalysing ? (
+            <div className="relative z-10 h-full flex flex-col justify-center items-center py-10">
+              <Loader2 className="animate-spin mb-4 opacity-50" size={40} />
+              <p className="text-indigo-100 font-bold animate-pulse">Gemini đang phân tích dữ liệu chuyên sâu...</p>
+            </div>
+          ) : (
+            <div className="relative z-10">
+              <h3 className="text-2xl font-bold mb-2 flex items-center gap-2">
+                <Sparkles size={24} className="text-amber-300" />
+                Đánh giá tổng quát
+              </h3>
+              <p className="text-indigo-50 mb-6 font-medium leading-relaxed">
+                {aiAnalysis?.summary || `Dựa trên dữ liệu thu thập được, sự kiện của bạn đã đạt hiệu quả ${attendanceRate > 70 ? 'vượt mong đợi' : attendanceRate > 40 ? 'khá tốt' : 'cần cải thiện'}.`}
+              </p>
+              <div className="grid grid-cols-2 gap-6">
+                <div className="bg-white/10 p-4 rounded-2xl backdrop-blur-sm border border-white/10">
+                  <p className="text-indigo-200 text-xs mb-1 font-bold uppercase tracking-wider">Khuyên dùng</p>
+                  <p className="font-black text-lg">{aiAnalysis?.recommendation || (attendanceRate > 60 ? 'Mở rộng quy mô' : 'Tối ưu nội dung')}</p>
+                </div>
+                <div className="bg-white/10 p-4 rounded-2xl backdrop-blur-sm border border-white/10">
+                  <p className="text-indigo-200 text-xs mb-1 font-bold uppercase tracking-wider">Điểm sáng</p>
+                  <p className="font-black text-lg">{aiAnalysis?.highlight || (totalRegistered > 20 ? 'Sức hút tốt' : 'Tiềm năng cao')}</p>
+                </div>
               </div>
             </div>
-          </div>
+          )}
           <TrendingUp size={150} className="absolute -bottom-10 -right-10 text-white/5 rotate-12" />
         </div>
       </div>
@@ -234,9 +294,16 @@ const EventStatistics = ({ summary, loading }) => {
             <Award size={24} className="text-amber-500" />
             Phân tích & Bài học kinh nghiệm
           </h3>
-          <p className="text-gray-600 mb-8 leading-relaxed italic text-sm border-l-4 border-amber-200 pl-4 py-1">
-            "Thông qua việc phân tích dữ liệu tham gia, phản hồi từ người dùng và hiệu quả hoạt động, nhà trường có thể rút ra những bài học kinh nghiệm, từ đó cải tiến quy trình tổ chức và nâng cao chất lượng sự kiện trong những lần tiếp theo."
-          </p>
+          <div className="text-gray-600 mb-8 leading-relaxed italic text-sm border-l-4 border-amber-200 pl-4 py-2 bg-amber-50/30 rounded-r-2xl">
+            {isAnalysing ? (
+                <div className="flex items-center gap-3 py-2">
+                    <Loader2 size={16} className="animate-spin text-amber-500" />
+                    <span>AI đang đúc kết bài học từ dữ liệu...</span>
+                </div>
+            ) : (
+                aiAnalysis?.lessonsLearned || "Thông qua việc phân tích dữ liệu tham gia, phản hồi từ người dùng và hiệu quả hoạt động, nhà trường có thể rút ra những bài học kinh nghiệm, từ đó cải tiến quy trình tổ chức và nâng cao chất lượng sự kiện trong những lần tiếp theo."
+            )}
+          </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
             <div className="space-y-4">
