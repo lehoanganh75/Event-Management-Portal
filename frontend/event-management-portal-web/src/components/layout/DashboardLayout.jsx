@@ -4,10 +4,16 @@ import Sidebar from './Sidebar';
 import DashboardHeader from './DashboardHeader';
 
 const DashboardLayout = () => {
-  const [isCollapsed, setIsCollapsed] = useState(false);
+  const [isCollapsed, setIsCollapsed] = useState(() => {
+    return localStorage.getItem('sidebar-collapsed') === 'true';
+  });
 
   const toggleSidebar = () => {
-    setIsCollapsed(!isCollapsed);
+    setIsCollapsed(prev => {
+      const newState = !prev;
+      localStorage.setItem('sidebar-collapsed', String(newState));
+      return newState;
+    });
   };
 
   return (
