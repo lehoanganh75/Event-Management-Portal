@@ -96,6 +96,7 @@ services:
       SPRING_DATA_REDIS_HOST: redis
       SPRING_DATA_REDIS_PORT: 6379
       IDENTITY_SERVICE_URL: http://identity-service:8083
+      LUCKY_DRAW_SERVICE_URL: http://lucky-draw-service:8084
     depends_on:
       - mariadb
       - kafka
@@ -132,6 +133,8 @@ services:
       SPRING_DATASOURCE_URL: jdbc:mariadb://mariadb:3306/lucky_draw_db?createDatabaseIfNotExist=true
       SPRING_DATASOURCE_USERNAME: root
       SPRING_DATASOURCE_PASSWORD: root
+      IDENTITY_SERVICE_URL: http://identity-service:8083
+      EVENT_SERVICE_URL: http://event-service:8082
     depends_on:
       - mariadb
     networks:
