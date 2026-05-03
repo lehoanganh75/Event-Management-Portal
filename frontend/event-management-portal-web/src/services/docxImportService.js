@@ -1,7 +1,8 @@
 import mammoth from "mammoth";
 import axios from "axios";
 
-const API_BASE_URL = "http://localhost:8082/api/v1/chat";
+const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000') + '/events/api/v1/chat';
+
 
 export const extractDataFromDocx = async (file) => {
   try {

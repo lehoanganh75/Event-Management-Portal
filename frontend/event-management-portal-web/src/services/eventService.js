@@ -1,7 +1,8 @@
 import axios from 'axios';
 
-const BASE_URL = 'http://localhost:8082';
-const IDENTITY_BASE_URL = 'http://localhost:8083';
+const BASE_URL = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000') + '/events';
+const IDENTITY_BASE_URL = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000') + '/identity';
+
 
 // 1. PUBLIC API
 const publicApi = axios.create({
