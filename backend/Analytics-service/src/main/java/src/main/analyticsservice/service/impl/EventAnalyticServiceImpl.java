@@ -1,7 +1,6 @@
 package src.main.analyticsservice.service.impl;
 
 import jakarta.transaction.Transactional;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import src.main.analyticsservice.entity.EventAnalytic;
 import src.main.analyticsservice.repository.EventAnalyticsRepository;
@@ -81,8 +80,8 @@ public class EventAnalyticServiceImpl implements EventAnalyticService {
         Map<String, Object> report = new HashMap<>();
         report.put("stats", analytic);
 
-        String performanceNote = analytic.getConversionRate() > 70 ?
-                "Sự kiện thành công vượt mong đợi" : "Cần cải thiện khâu nhắc lịch tham gia";
+        String performanceNote = analytic.getConversionRate() > 70 ? "Sự kiện thành công vượt mong đợi"
+                : "Cần cải thiện khâu nhắc lịch tham gia";
 
         report.put("performanceNote", performanceNote);
 

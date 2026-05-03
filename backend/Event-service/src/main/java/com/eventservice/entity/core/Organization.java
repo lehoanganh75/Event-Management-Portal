@@ -1,15 +1,5 @@
 package com.eventservice.entity.core;
 
-import com.eventservice.entity.core.*;
-import com.eventservice.entity.people.*;
-import com.eventservice.entity.registration.*;
-import com.eventservice.entity.social.*;
-import com.eventservice.entity.engagement.*;
-import com.eventservice.entity.engagement.quiz.*;
-import com.eventservice.entity.engagement.survey.*;
-import com.eventservice.entity.template.*;
-import com.eventservice.entity.report.*;
-
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -32,11 +22,11 @@ public class Organization {
     @GeneratedValue(strategy = GenerationType.UUID)
     private String id;
 
-    private String name;           // Tên đơn vị (vd: Khoa CNTT)
-    private String description;    // Mô tả đơn vị
-    private String logoUrl;        // Link ảnh đại diện
-    private String email;          // Email liên lạc chính thức
-    private String phone;          // Số điện thoại
+    private String name; // Tên đơn vị (vd: Khoa CNTT)
+    private String description; // Mô tả đơn vị
+    private String logoUrl; // Link ảnh đại diện
+    private String email; // Email liên lạc chính thức
+    private String phone; // Số điện thoại
     private String officeLocation; // Văn phòng (vd: Phòng H3.1)
 
     @Enumerated(EnumType.STRING)

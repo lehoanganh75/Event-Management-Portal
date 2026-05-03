@@ -1,15 +1,5 @@
 package com.eventservice.entity.engagement.quiz;
 
-import com.eventservice.entity.core.*;
-import com.eventservice.entity.people.*;
-import com.eventservice.entity.registration.*;
-import com.eventservice.entity.social.*;
-import com.eventservice.entity.engagement.*;
-import com.eventservice.entity.engagement.quiz.*;
-import com.eventservice.entity.engagement.survey.*;
-import com.eventservice.entity.template.*;
-import com.eventservice.entity.report.*;
-
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.*;
@@ -41,9 +31,9 @@ public class QuizQuestion {
     private QuestionType type;
 
     private int orderIndex;
-    
+
     private int timeLimit; // Seconds
-    
+
     private int basePoints;
 
     private String hint;
@@ -51,8 +41,8 @@ public class QuizQuestion {
     @OneToMany(mappedBy = "question", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.EAGER)
     @Builder.Default
     private List<QuizOption> options = new ArrayList<>();
-    
+
     // For Word Scramble or Matching, we might store the correct sequence/pairs
     @Column(columnDefinition = "TEXT")
-    private String correctData; 
+    private String correctData;
 }

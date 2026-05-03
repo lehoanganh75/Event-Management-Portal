@@ -25,7 +25,6 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 import javax.crypto.spec.SecretKeySpec;
 import java.util.Arrays;
 import java.util.Base64;
-import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
 
 @Configuration
 @EnableWebSecurity
@@ -71,28 +70,29 @@ public class SecurityConfig {
 
                                                 // 4. Public GET routes for events (Narrowed to avoid matching private
                                                 // routes)
-                                                .requestMatchers(new AntPathRequestMatcher("/events", "GET"))
-                                                .permitAll()
-                                                .requestMatchers(new AntPathRequestMatcher("/events/ongoing", "GET"))
-                                                .permitAll()
-                                                .requestMatchers(new AntPathRequestMatcher("/events/upcoming-week",
-                                                                "GET"))
-                                                .permitAll()
-                                                .requestMatchers(new AntPathRequestMatcher("/events/featured", "GET"))
-                                                .permitAll()
-                                                .requestMatchers(new AntPathRequestMatcher("/events/news", "GET"))
-                                                .permitAll()
-                                                .requestMatchers(new AntPathRequestMatcher("/events/plans", "GET"))
-                                                .permitAll()
-                                                .requestMatchers(new AntPathRequestMatcher("/events/{id}", "GET"))
-                                                .permitAll()
+                                                // .requestMatchers(new AntPathRequestMatcher("/events", "GET"))
+                                                // .permitAll()
+                                                // .requestMatchers(new AntPathRequestMatcher("/events/ongoing", "GET"))
+                                                // .permitAll()
+                                                // .requestMatchers(new AntPathRequestMatcher("/events/upcoming-week",
+                                                // "GET"))
+                                                // .permitAll()
+                                                // .requestMatchers(new AntPathRequestMatcher("/events/featured",
+                                                // "GET"))
+                                                // .permitAll()
+                                                // .requestMatchers(new AntPathRequestMatcher("/events/news", "GET"))
+                                                // .permitAll()
+                                                // .requestMatchers(new AntPathRequestMatcher("/events/plans", "GET"))
+                                                // .permitAll()
+                                                // .requestMatchers(new AntPathRequestMatcher("/events/{id}", "GET"))
+                                                // .permitAll()
 
-                                                .requestMatchers(new AntPathRequestMatcher("/quizzes/**", "GET"))
-                                                .permitAll()
-                                                .requestMatchers(new AntPathRequestMatcher("/surveys/**", "GET"))
-                                                .permitAll()
-                                                .requestMatchers(new AntPathRequestMatcher("/posts/**", "GET"))
-                                                .permitAll()
+                                                // .requestMatchers(new AntPathRequestMatcher("/quizzes/**", "GET"))
+                                                // .permitAll()
+                                                // .requestMatchers(new AntPathRequestMatcher("/surveys/**", "GET"))
+                                                // .permitAll()
+                                                // .requestMatchers(new AntPathRequestMatcher("/posts/**", "GET"))
+                                                // .permitAll()
 
                                                 // 5. Everything else
                                                 .anyRequest().authenticated())

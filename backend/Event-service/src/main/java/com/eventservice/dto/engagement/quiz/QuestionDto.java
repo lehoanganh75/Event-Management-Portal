@@ -1,24 +1,8 @@
 package com.eventservice.dto.engagement.quiz;
 
-import com.eventservice.dto.core.request.*;
-import com.eventservice.dto.core.response.*;
-import com.eventservice.dto.registration.request.*;
-import com.eventservice.dto.registration.response.*;
-import com.eventservice.dto.social.request.*;
-import com.eventservice.dto.social.response.*;
-import com.eventservice.dto.plan.request.*;
-import com.eventservice.dto.plan.response.*;
-import com.eventservice.dto.user.*;
-import com.eventservice.dto.engagement.*;
-import com.eventservice.dto.engagement.quiz.*;
-import com.eventservice.dto.engagement.survey.*;
-
 import com.eventservice.entity.engagement.quiz.QuestionType;
 import lombok.AllArgsConstructor;
-import com.eventservice.dto.engagement.survey.*;
 
-import com.eventservice.entity.engagement.quiz.QuestionType;
-import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -41,7 +25,8 @@ public class QuestionDto {
     private String correctData; // Only returned to organizer or verified on backend
 
     public static QuestionDto from(com.eventservice.entity.engagement.quiz.QuizQuestion q) {
-        if (q == null) return null;
+        if (q == null)
+            return null;
         return QuestionDto.builder()
                 .id(q.getId())
                 .content(q.getContent())

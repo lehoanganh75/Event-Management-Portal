@@ -1,20 +1,5 @@
 package com.eventservice.dto.engagement.survey;
 
-import com.eventservice.dto.core.request.*;
-import com.eventservice.dto.core.response.*;
-import com.eventservice.dto.registration.request.*;
-import com.eventservice.dto.registration.response.*;
-import com.eventservice.dto.social.request.*;
-import com.eventservice.dto.social.response.*;
-import com.eventservice.dto.plan.request.*;
-import com.eventservice.dto.plan.response.*;
-import com.eventservice.dto.user.*;
-import com.eventservice.dto.engagement.*;
-import com.eventservice.dto.engagement.quiz.*;
-import com.eventservice.dto.engagement.survey.*;
-
-import com.eventservice.dto.engagement.survey.*;
-
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -34,7 +19,8 @@ public class SurveyDto {
     private boolean isPublished;
 
     public static SurveyDto from(com.eventservice.entity.engagement.survey.Survey survey) {
-        if (survey == null) return null;
+        if (survey == null)
+            return null;
         return SurveyDto.builder()
                 .id(survey.getId())
                 .eventId(survey.getEvent() != null ? survey.getEvent().getId() : null)

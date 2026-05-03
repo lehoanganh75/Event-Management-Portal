@@ -8,10 +8,6 @@ import com.eventservice.dto.plan.response.EventPlanResponse;
 import com.eventservice.entity.core.*;
 import com.eventservice.entity.people.*;
 import com.eventservice.entity.registration.*;
-import com.eventservice.entity.social.*;
-import com.eventservice.entity.engagement.*;
-import com.eventservice.entity.template.*;
-import com.eventservice.entity.report.*;
 import com.eventservice.entity.enums.OrganizerRole;
 import com.eventservice.service.EventOrganizerService;
 import com.eventservice.service.EventPresenterService;
@@ -40,8 +36,6 @@ import java.util.stream.Collectors;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
-import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/events")

@@ -11,8 +11,10 @@ services:
       - "3309:3306"
     volumes:
       - mariadb_data:/var/lib/mysql
+      - ./docker/mysql/init.sql:/docker-entrypoint-initdb.d/init.sql
     networks:
       - micro-network
+
 
   mongodb:
     image: mongo:7
@@ -66,13 +68,15 @@ services:
     restart: always
     ports:
       - "8081:8081"
-    environment:
-      EUREKA_CLIENT_ENABLED: "false"
+    env_file:
+      - ./Analytics-service/.env
+    environment: 
       SPRING_DATASOURCE_URL: jdbc:mariadb://mariadb:3306/analytics_db?createDatabaseIfNotExist=true
       SPRING_DATASOURCE_USERNAME: root
       SPRING_DATASOURCE_PASSWORD: root
     depends_on:
       - mariadb
+
     networks:
       - micro-network
 
@@ -122,7 +126,7 @@ services:
     ports:
       - "8084:8084"
     env_file:
-        - ./Lucky-draw-service/.env
+      - ./Lucky-draw-service/.env
     environment:
       SPRING_DATASOURCE_URL: jdbc:mariadb://mariadb:3306/lucky_draw_db?createDatabaseIfNotExist=true
       SPRING_DATASOURCE_USERNAME: root

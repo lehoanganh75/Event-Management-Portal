@@ -1,18 +1,5 @@
 package com.eventservice.dto.user;
 
-import com.eventservice.dto.core.request.*;
-import com.eventservice.dto.core.response.*;
-import com.eventservice.dto.registration.request.*;
-import com.eventservice.dto.registration.response.*;
-import com.eventservice.dto.social.request.*;
-import com.eventservice.dto.social.response.*;
-import com.eventservice.dto.plan.request.*;
-import com.eventservice.dto.plan.response.*;
-import com.eventservice.dto.user.*;
-import com.eventservice.dto.engagement.*;
-import com.eventservice.dto.engagement.quiz.*;
-import com.eventservice.dto.engagement.survey.*;
-
 import com.eventservice.entity.people.EventPresenter;
 import com.eventservice.entity.registration.EventRegistration;
 import lombok.Getter;
@@ -28,10 +15,10 @@ public class EventUserRoleResponse {
     private boolean isPresented;
     private boolean isRegistered;
     private String organizerRole; // LEADER, MEMBER, etc.
-    private String systemRole;    // ADMIN, STUDENT, etc.
+    private String systemRole; // ADMIN, STUDENT, etc.
 
-    private EventRegistration registration;     // chi tiết vé, QR, status...
-    private EventPresenter presenter;      // thông tin phiên trình bày
+    private EventRegistration registration; // chi tiết vé, QR, status...
+    private EventPresenter presenter; // thông tin phiên trình bày
 
     // Permissions tiện lợi
     private boolean canEditEvent;
@@ -44,4 +31,3 @@ public class EventUserRoleResponse {
     // thêm sau: canCheckIn, canExport, ...
     private boolean canScanQR; // keep this one if it's already used
 }
-
