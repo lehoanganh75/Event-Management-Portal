@@ -18,7 +18,36 @@ services:
       - name: event-route
         paths:
           - /events
-        strip_path: true
+        strip_path: false
+      - name: posts-route
+        paths:
+          - /posts
+        strip_path: false
+      - name: organizations-route
+        paths:
+          - /organizations
+        strip_path: false
+      - name: templates-route
+        paths:
+          - /templates
+        strip_path: false
+      - name: surveys-route
+        paths:
+          - /surveys
+        strip_path: false
+      - name: quizzes-route
+        paths:
+          - /quizzes
+        strip_path: false
+      - name: chat-route
+        paths:
+          - /api/v1/chat
+        strip_path: false
+      - name: ai-planning-route
+        paths:
+          - /api/v1/ai-planning
+        strip_path: false
+
 
   # 3. Identity Service
   - name: identity-service
