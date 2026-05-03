@@ -42,7 +42,7 @@ const AdminEventDetailPage = () => {
     try {
       setLoading(true);
       const resEvent = await eventService.getEventById(id);
-      
+
       // ✅ Nếu không còn là ban tổ chức (và không phải Admin hệ thống) thì đá ra ngoài Home
       const roles = user?.roles || (user?.role ? [user.role] : []);
       const isSystemAdmin = roles.some(r => ["SUPER_ADMIN", "ADMIN"].includes(r?.toUpperCase()));
@@ -174,7 +174,7 @@ const AdminEventDetailPage = () => {
         toast.error("Không xác định được người thực hiện");
         return;
       }
-      await eventService.manualCheckIn(registrationId, user.id); 
+      await eventService.manualCheckIn(registrationId, user.id);
       toast.success("Điểm danh thủ công thành công!");
       fetchData();
     } catch (err) {

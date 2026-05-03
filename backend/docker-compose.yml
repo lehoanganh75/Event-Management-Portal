@@ -95,6 +95,8 @@ services:
       SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
       SPRING_DATA_REDIS_HOST: redis
       SPRING_DATA_REDIS_PORT: 6379
+      IDENTITY_SERVICE_URL: http://identity-service:8083
+      LUCKY_DRAW_SERVICE_URL: http://lucky-draw-service:8084
     depends_on:
       - mariadb
       - kafka
