@@ -230,6 +230,11 @@ const eventService = {
     createLuckyDrawEntry: (drawId) => privateApi.post(`/entries/${drawId}`),
 
     // --- GROUP 9: AI CHAT ---
+    chat: {
+        analyzeStats: (statsJson) => privateApi.post('/api/v1/chat/analyze-stats', statsJson, {
+            headers: { 'Content-Type': 'text/plain' }
+        }),
+    },
     createChatSession: (data) => privateApi.post('/api/v1/chat/sessions', data),
     sendChatMessage: (data) => privateApi.post('/api/v1/chat/messages', data),
 
@@ -248,7 +253,11 @@ const eventService = {
     removeOrganizer: (organizerId) => privateApi.delete(`/events/organizers/${organizerId}`),
     removePresenter: (presenterId) => privateApi.delete(`/events/presenters/${presenterId}`),
 
-    getEventSummary: (id) => publicApi.get(`/events/${id}/summary`),
+    getEventSummary: (id) => {
+        const token = localStorage.getItem('accessToken');
+        const api = token ? privateApi : publicApi;
+        return api.get(`/events/${id}/summary`);
+    },
     getOrganizerRoles: () => privateApi.get('/events/organizer-roles').then(res => res.data),
 
     leaveTeam: (eventId) => privateApi.post(`/events/${eventId}/organizers/leave`),

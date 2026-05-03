@@ -755,7 +755,7 @@ const EventDetailManagement = ({
               <div className="space-y-8">
                 {/* TIMELINE SECTION (Simplified) */}
                 <div className="pb-16">
-                  <h3 className="font-bold text-sm mb-16 flex items-center gap-2 text-slate-800 uppercase tracking-tight">
+                  <h3 className="font-bold text-sm mb-28 flex items-center gap-2 text-slate-800 uppercase tracking-tight">
                     <Flag className="text-amber-500" size={18} /> Lộ trình thời gian
                   </h3>
 
@@ -798,7 +798,7 @@ const EventDetailManagement = ({
                             <div className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2" style={{ left: `${deadlinePos}%` }}>
                               <div className={`w-3 h-3 rounded-full border-2 ${isPast(deadline) ? 'bg-indigo-500 border-indigo-100' : 'bg-white border-slate-300'} z-10`} />
                               <div className="absolute top-1/2 left-1/2 w-px h-8 bg-slate-200 -translate-x-1/2" />
-                              <div className="absolute top-10 left-1/2 -translate-x-1/2 text-center w-32">
+                              <div className="absolute top-12 left-1/2 -translate-x-1/2 text-center w-32">
                                 <p className="text-[9px] font-black text-rose-500 uppercase tracking-tighter">Hạn đăng ký</p>
                                 <p className="text-[10px] font-bold text-slate-700 leading-tight">{formatFullDateTime(event.registrationDeadline)}</p>
                               </div>
@@ -808,7 +808,7 @@ const EventDetailManagement = ({
                             <div className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2" style={{ left: `${startPos}%` }}>
                               <div className={`w-3 h-3 rounded-full border-2 ${isPast(start) ? 'bg-indigo-500 border-indigo-100' : 'bg-white border-slate-300'} z-10`} />
                               <div className="absolute bottom-1/2 left-1/2 w-px h-8 bg-slate-200 -translate-x-1/2" />
-                              <div className="absolute bottom-10 left-1/2 -translate-x-1/2 text-center w-32">
+                              <div className="absolute bottom-12 left-1/2 -translate-x-1/2 text-center w-32">
                                 <p className="text-[9px] font-black text-blue-500 uppercase tracking-tighter">Bắt đầu</p>
                                 <p className="text-[10px] font-bold text-slate-700 leading-tight">{formatFullDateTime(event.startTime)}</p>
                               </div>
@@ -818,7 +818,7 @@ const EventDetailManagement = ({
                             <div className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2" style={{ left: `${endPos}%` }}>
                               <div className={`w-3 h-3 rounded-full border-2 ${isPast(end) ? 'bg-indigo-500 border-indigo-100' : 'bg-white border-slate-300'} z-10`} />
                               <div className="absolute top-1/2 left-1/2 w-px h-8 bg-slate-200 -translate-x-1/2" />
-                              <div className="absolute top-10 left-1/2 -translate-x-1/2 text-center w-32">
+                              <div className="absolute top-12 left-1/2 -translate-x-1/2 text-center w-32">
                                 <p className="text-[9px] font-black text-emerald-500 uppercase tracking-tighter">Kết thúc</p>
                                 <p className="text-[10px] font-bold text-slate-700 leading-tight">{formatFullDateTime(event.endTime)}</p>
                               </div>

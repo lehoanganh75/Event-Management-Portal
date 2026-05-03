@@ -11,6 +11,7 @@ const StaffEventDetailPage = () => {
   const { user } = useAuth();
 
   const [event, setEvent] = useState(null);
+  const [eventSummary, setEventSummary] = useState(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("Tổng quan");
   const [showQRScanner, setShowQRScanner] = useState(false);
@@ -20,6 +21,15 @@ const StaffEventDetailPage = () => {
       setLoading(true);
       const resEvent = await eventService.getEventById(id);
       setEvent(resEvent.data);
+
+      if (['PUBLISHED', 'ONGOING', 'COMPLETED'].includes(resEvent.data?.status)) {
+        try {
+          const resSummary = await eventService.getEventSummary(id);
+          setEventSummary(resSummary.data);
+        } catch (e) {
+          console.warn("Chưa có báo cáo tổng kết");
+        }
+      }
     } catch (err) {
       toast.error("Lỗi tải dữ liệu");
     } finally {
@@ -73,6 +83,7 @@ const StaffEventDetailPage = () => {
   return (
     <EventDetailManagement
       event={event}
+      eventSummary={eventSummary}
       loading={loading}
       activeTab={activeTab}
       setActiveTab={setActiveTab}

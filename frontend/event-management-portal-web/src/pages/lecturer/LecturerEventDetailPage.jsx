@@ -55,8 +55,8 @@ const LecturerEventDetailPage = () => {
 
       setEvent(resEvent.data);
       
-      // Fetch summary if completed
-      if (resEvent.data?.status === "COMPLETED") {
+      // Fetch summary if event is published, ongoing, or completed
+      if (['PUBLISHED', 'ONGOING', 'COMPLETED'].includes(resEvent.data?.status)) {
         try {
           const resSummary = await eventService.getEventSummary(id);
           setEventSummary(resSummary.data);

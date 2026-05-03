@@ -55,7 +55,7 @@ const AdminEventDetailPage = () => {
 
       setEvent(resEvent.data);
 
-      if (resEvent.data?.status === 'COMPLETED') {
+      if (['PUBLISHED', 'ONGOING', 'COMPLETED'].includes(resEvent.data?.status)) {
         try {
           const resSummary = await eventService.getEventSummary(id);
           setEventSummary(resSummary.data);

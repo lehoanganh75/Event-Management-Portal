@@ -658,18 +658,19 @@ public class GeminiChatServiceImpl implements GeminiChatService {
     public String analyzeEventStatistics(String eventDataJson) {
         log.info("Requesting AI to analyze event statistics");
         try {
-            String prompt = String.format("""
+            String promptTemplate = """
                 [ROLE]
                 Bạn là Chuyên gia Phân tích Dữ liệu Sự kiện (Event Data Analyst).
                 
                 [INPUT DATA - JSON]
-                %s
+                {{EVENT_DATA}}
                 
                 [GOAL]
                 Dựa trên dữ liệu thực tế của sự kiện, hãy đưa ra các đánh giá thông minh, trung thực và có giá trị chuyên môn.
                 
                 [OUTPUT FORMAT - JSON ONLY]
                 {
+                  "successLevel": "Đánh giá mức độ thành công chung (Ví dụ: Xuất sắc, Khá tốt, Cần cải thiện, ...)",
                   "summary": "Đánh giá tổng quát (khoảng 2-3 câu, nêu bật hiệu quả)",
                   "recommendation": "Lời khuyên hành động (ví dụ: Mở rộng quy mô, Tăng cường truyền thông...)",
                   "highlight": "Điểm sáng nhất của sự kiện (ví dụ: Tỷ lệ check-in cao, Phản hồi tích cực...)",
@@ -677,12 +678,77 @@ public class GeminiChatServiceImpl implements GeminiChatService {
                 }
                 
                 Lưu ý: Chỉ trả về JSON, dùng ngôn ngữ Tiếng Việt chuyên nghiệp, lịch sự.
-                """, eventDataJson);
+                """;
+            String prompt = promptTemplate.replace("{{EVENT_DATA}}", eventDataJson);
 
-            return callGeminiAPI(prompt);
+            String result = callGeminiAPI(prompt);
+            if ("ERROR_AI_OVERLOADED".equals(result)) {
+                log.warn("AI API key invalid or overloaded. Using smart programmatic fallback.");
+                return generateFallbackStatistics(eventDataJson);
+            }
+            return result;
         } catch (Exception e) {
             log.error("Error analyzing event statistics: {}", e.getMessage());
-            return "ERROR_AI_OVERLOADED";
+            return generateFallbackStatistics(eventDataJson);
+        }
+    }
+
+    private String generateFallbackStatistics(String eventDataJson) {
+        try {
+            JsonNode data = objectMapper.readTree(eventDataJson);
+            int totalReg = data.path("totalRegistered").asInt(0);
+            int totalCheckIn = data.path("totalCheckedIn").asInt(0);
+            
+            String successLevel = "Chưa xác định";
+            String summary = "Sự kiện bước đầu ghi nhận các chỉ số tương tác khá tốt.";
+            String recommendation = "Tiếp tục duy trì hệ thống đăng ký và nhắc hẹn hiện tại.";
+            String highlight = "Dữ liệu được cập nhật tự động.";
+            String lessonsLearned = "Để có phân tích dự báo sâu hơn, hệ thống AI Insight đang trong trạng thái bảo trì và sẽ cung cấp dữ liệu chi tiết sau.";
+            
+            if (totalReg > 0 && totalCheckIn > 0) {
+                double rate = (double) totalCheckIn / totalReg * 100;
+                if (rate >= 80) {
+                    successLevel = "Xuất sắc";
+                    summary = String.format("Sự kiện đạt hiệu quả xuất sắc với %d lượt đăng ký và %d lượt check-in thực tế.", totalReg, totalCheckIn);
+                    recommendation = "Nghiên cứu mở rộng quy mô tổ chức cho các sự kiện có chủ đề tương tự trong tương lai.";
+                    highlight = String.format("Tỷ lệ tham gia cao đáng kể (%.1f%%).", rate);
+                    lessonsLearned = "Sự quan tâm của khán giả rất lớn, cho thấy chủ đề sự kiện đáp ứng đúng nhu cầu thực tế và công tác nhắc hẹn qua Email/SMS hoạt động hoàn hảo.";
+                } else if (rate >= 50) {
+                    successLevel = "Khá tốt";
+                    summary = String.format("Sự kiện đạt mức độ tương tác khá với %d lượt tham gia trên tổng số %d đăng ký.", totalCheckIn, totalReg);
+                    recommendation = "Tăng cường nhắc hẹn tự động sát giờ sự kiện để tối đa hóa tỷ lệ tham gia.";
+                    highlight = "Quá trình đăng ký diễn ra rất sôi nổi.";
+                    lessonsLearned = "Có sự rơi rụng nhất định giữa lúc đăng ký và lúc tham gia thực tế. Cần phân tích lại khung giờ tổ chức xem có phù hợp với đối tượng mục tiêu hay không.";
+                } else {
+                    successLevel = "Cần cải thiện";
+                    summary = String.format("Tỷ lệ tham gia thực tế khá thấp (%d/%d).", totalCheckIn, totalReg);
+                    recommendation = "Kiểm tra lại hệ thống quét mã QR hoặc quy trình đón tiếp để đảm bảo không bỏ sót người tham dự.";
+                    highlight = "Hệ thống ghi nhận đầy đủ lượng người đăng ký ban đầu.";
+                    lessonsLearned = "Cần cải thiện mạnh mẽ chiến dịch truyền thông trước sự kiện và rà soát lại các yếu tố gây trở ngại cho người tham gia (thời tiết, địa điểm, thời gian).";
+                }
+            }
+            
+            // Format as valid JSON
+            return String.format("""
+            {
+              "successLevel": "%s",
+              "summary": "%s",
+              "recommendation": "%s",
+              "highlight": "%s",
+              "lessonsLearned": "%s"
+            }
+            """, successLevel, summary, recommendation, highlight, lessonsLearned);
+        } catch (Exception e) {
+            log.error("Fallback generation failed: {}", e.getMessage());
+            return """
+            {
+              "successLevel": "Chưa rõ",
+              "summary": "Đã ghi nhận dữ liệu thống kê sự kiện thành công.",
+              "recommendation": "Tiếp tục thu thập dữ liệu đăng ký và check-in.",
+              "highlight": "Hệ thống đang theo dõi tiến độ sự kiện.",
+              "lessonsLearned": "Hệ thống AI phân tích đang bảo trì, vui lòng thử lại sau ít phút."
+            }
+            """;
         }
     }
 }

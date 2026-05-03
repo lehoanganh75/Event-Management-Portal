@@ -39,7 +39,8 @@ const EventStatistics = ({ summary, loading: initialLoading, eventTitle }) => {
             summary: res.data.result.substring(0, 200),
             recommendation: "Tiếp tục tối ưu",
             highlight: "Dữ liệu thực tế",
-            lessonsLearned: res.data.result
+            lessonsLearned: res.data.result,
+            successLevel: attendanceRate > 75 ? "Xuất sắc" : attendanceRate > 50 ? "Khá Tốt" : "Cần Cải Thiện"
           });
         }
       }
@@ -65,7 +66,21 @@ const EventStatistics = ({ summary, loading: initialLoading, eventTitle }) => {
     </div>
   );
 
-  const { detailedAnalysis, totalRegistered, totalCheckedIn, attendanceRate, isLive } = summary;
+  const { totalRegistered, totalCheckedIn, attendanceRate, isLive } = summary;
+  const rawDetailedAnalysis = summary.detailedAnalysis;
+
+  const detailedAnalysis = useMemo(() => {
+    if (!rawDetailedAnalysis) return {};
+    if (typeof rawDetailedAnalysis === 'string') {
+      try {
+        return JSON.parse(rawDetailedAnalysis);
+      } catch (e) {
+        console.error("Failed to parse detailedAnalysis", e);
+        return {};
+      }
+    }
+    return rawDetailedAnalysis;
+  }, [rawDetailedAnalysis]);
 
   // Process timeline data for charts
   const registrationData = useMemo(() => {
@@ -182,8 +197,8 @@ const EventStatistics = ({ summary, loading: initialLoading, eventTitle }) => {
               </span>
             )}
           </h3>
-          <div className="h-[300px] w-full">
-            <ResponsiveContainer width="100%" height="100%">
+          <div className="w-full relative" style={{ height: 300 }}>
+            <ResponsiveContainer width="100%" height={300}>
               <AreaChart data={registrationData}>
                 <defs>
                   <linearGradient id="colorReg" x1="0" y1="0" x2="0" y2="1">
@@ -197,7 +212,7 @@ const EventStatistics = ({ summary, loading: initialLoading, eventTitle }) => {
                 <Tooltip 
                   contentStyle={{borderRadius: '16px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)'}}
                 />
-                <Area type="monotone" dataKey="value" stroke="#6366f1" strokeWidth={3} fillOpacity={1} fill="url(#colorReg)" />
+                <Area type="monotone" dataKey="value" stroke="#6366f1" strokeWidth={3} fillOpacity={1} fill="url(#colorReg)" activeDot={{ r: 6 }} dot={{ r: 4, fill: '#6366f1' }} />
               </AreaChart>
             </ResponsiveContainer>
           </div>
@@ -209,8 +224,8 @@ const EventStatistics = ({ summary, loading: initialLoading, eventTitle }) => {
             <Clock size={20} className="text-emerald-600" />
             Mật độ check-in theo khung giờ
           </h3>
-          <div className="h-[300px] w-full">
-            <ResponsiveContainer width="100%" height="100%">
+          <div className="w-full relative" style={{ height: 300 }}>
+            <ResponsiveContainer width="100%" height={300}>
               <BarChart data={checkInData}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
                 <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fontSize: 12, fill: '#64748b'}} dy={10} />
@@ -230,8 +245,8 @@ const EventStatistics = ({ summary, loading: initialLoading, eventTitle }) => {
         {/* Status Distribution */}
         <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm lg:col-span-1">
           <h3 className="text-lg font-bold text-slate-800 mb-6">Trạng thái đăng ký</h3>
-          <div className="h-[250px] w-full">
-            <ResponsiveContainer width="100%" height="100%">
+          <div className="w-full relative" style={{ height: 250 }}>
+            <ResponsiveContainer width="100%" height={250}>
               <PieChart>
                 <Pie
                   data={statusData}
@@ -260,9 +275,16 @@ const EventStatistics = ({ summary, loading: initialLoading, eventTitle }) => {
             </div>
           ) : (
             <div className="relative z-10">
-              <h3 className="text-2xl font-bold mb-2 flex items-center gap-2">
-                <Sparkles size={24} className="text-amber-300" />
-                Đánh giá tổng quát
+              <h3 className="text-2xl font-bold mb-2 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Sparkles size={24} className="text-amber-300" />
+                  Đánh giá tổng quát
+                </div>
+                {aiAnalysis?.successLevel && (
+                  <span className="px-3 py-1 bg-white/20 backdrop-blur-md text-amber-300 text-xs font-black uppercase tracking-widest rounded-full shadow-sm border border-white/30">
+                    {aiAnalysis.successLevel}
+                  </span>
+                )}
               </h3>
               <p className="text-indigo-50 mb-6 font-medium leading-relaxed">
                 {aiAnalysis?.summary || `Dựa trên dữ liệu thu thập được, sự kiện của bạn đã đạt hiệu quả ${attendanceRate > 70 ? 'vượt mong đợi' : attendanceRate > 40 ? 'khá tốt' : 'cần cải thiện'}.`}

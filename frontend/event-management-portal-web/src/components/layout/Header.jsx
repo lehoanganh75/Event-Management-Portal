@@ -62,6 +62,33 @@ const Header = () => {
   // Navigation state (Scroll Spy)
   const [activeSection, setActiveSection] = useState("home");
 
+  // Language toggle state
+  const [currentLang, setCurrentLang] = useState("vi");
+
+  useEffect(() => {
+    // Detect current language from cookie
+    if (document.cookie.includes("googtrans=/vi/en")) {
+      setCurrentLang("en");
+    } else {
+      setCurrentLang("vi");
+    }
+  }, []);
+
+  const toggleLanguage = () => {
+    const newLang = currentLang === "vi" ? "en" : "vi";
+    if (newLang === "en") {
+      document.cookie = "googtrans=/vi/en; path=/";
+      document.cookie = "googtrans=/vi/en; path=/; domain=" + window.location.hostname;
+    } else {
+      // Clear cookie to revert to original Vietnamese
+      document.cookie = "googtrans=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
+      document.cookie = "googtrans=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; domain=" + window.location.hostname;
+      document.cookie = "googtrans=/vi/vi; path=/";
+      document.cookie = "googtrans=/vi/vi; path=/; domain=" + window.location.hostname;
+    }
+    window.location.reload();
+  };
+
   const menuRef = useRef(null);
   const notificationRef = useRef(null);
 
@@ -325,17 +352,20 @@ const Header = () => {
       <header className="sticky top-0 z-50 bg-white/80 backdrop-blur-md border-b border-slate-100 shadow-sm">
         {/* Top Bar */}
         <div className="bg-gradient-to-r from-[#1a479a] to-[#2563eb] text-white py-1.5 px-4 md:px-10 text-xs flex justify-between items-center">
-          <div className="hidden md:flex items-center gap-2">
+          <div className="hidden md:flex items-center gap-2 notranslate">
             <span className="w-1.5 h-1.5 bg-green-400 rounded-full animate-pulse" />
             Hệ thống Quản lý Sự kiện IUH
           </div>
           <div className="flex items-center gap-4 ml-auto">
-            <a href="mailto:support@iuh.edu.vn" className="hover:text-orange-200 flex items-center gap-1">
+            <a href="https://www.facebook.com/sviuh/" className="hover:text-orange-200 flex items-center gap-1">
               <Mail size={13} /> Hỗ trợ kỹ thuật
             </a>
             <div className="h-3 w-px bg-white/30" />
-            <div className="flex items-center gap-1 cursor-pointer">
-              <Globe size={13} /> Tiếng Việt
+            <div
+              className="flex items-center gap-1 cursor-pointer hover:text-amber-200 transition bg-white/10 px-2 py-1 rounded-lg notranslate"
+              onClick={toggleLanguage}
+            >
+              <Globe size={13} /> {currentLang === "en" ? "English" : "Tiếng Việt"}
             </div>
           </div>
         </div>
