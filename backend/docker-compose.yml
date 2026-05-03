@@ -155,9 +155,19 @@ services:
     networks:
       - micro-network
 
+  event-management-fe:
+    build: ../frontend/event-management-portal-web
+    container_name: event-management-frontend
+    ports:
+      - "3000:80"
+    restart: always
+    networks:
+      - micro-network
+
 # ========================
 # KONG API GATEWAY
 # ========================
+
   kong:
     image: kong:3.6
     container_name: kong-server
