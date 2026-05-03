@@ -10,7 +10,7 @@ import java.util.List;
 
 @FeignClient(
         name = "identity-service",
-        url = "http://localhost:8083",
+        url = "${IDENTITY_SERVICE_URL:http://localhost:8083}",
         configuration = FeignClientConfig.class
 )
 public interface IdentityClient {
