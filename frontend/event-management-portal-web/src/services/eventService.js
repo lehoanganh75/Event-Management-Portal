@@ -86,24 +86,64 @@ const transformListResponse = (res) => ({
 
 const eventService = {
     // --- GROUP 1: PUBLIC / GENERAL EVENTS ---
-    getEventsForUser: (params = {}) => publicApi.get('/events', { params }).then(transformListResponse),
-    getOngoingEvents: () => publicApi.get('/events/ongoing').then(transformListResponse),
-    getUpcomingEvents: () => publicApi.get('/events/upcoming-week').then(transformListResponse),
-    getFeaturedEvents: () => publicApi.get('/events/featured').then(transformListResponse),
-    getCompletedEvents: () => publicApi.get('/events/news').then(transformListResponse),
+    getEventsForUser: (params = {}) => {
+        const token = localStorage.getItem('accessToken');
+        const api = token ? privateApi : publicApi;
+        return api.get('/events', { params }).then(transformListResponse);
+    },
+    getOngoingEvents: () => {
+        const token = localStorage.getItem('accessToken');
+        const api = token ? privateApi : publicApi;
+        return api.get('/events/ongoing').then(transformListResponse);
+    },
+    getUpcomingEvents: () => {
+        const token = localStorage.getItem('accessToken');
+        const api = token ? privateApi : publicApi;
+        return api.get('/events/upcoming-week').then(transformListResponse);
+    },
+    getFeaturedEvents: () => {
+        const token = localStorage.getItem('accessToken');
+        const api = token ? privateApi : publicApi;
+        return api.get('/events/featured').then(transformListResponse);
+    },
+    getCompletedEvents: () => {
+        const token = localStorage.getItem('accessToken');
+        const api = token ? privateApi : publicApi;
+        return api.get('/events/news').then(transformListResponse);
+    },
     getEventById: (id) => {
         const token = localStorage.getItem('accessToken');
         const api = token ? privateApi : publicApi;
         return api.get(`/events/${id}`).then(res => ({ ...res, data: transformBaseData(res.data) }));
     },
     getByStatus: (status) => privateApi.get('/events/by-statuses', { params: { statuses: status.toUpperCase() } }).then(res => ({ ...res, data: (res.data || []).map(transformBaseData) })),
-    getAllPlans: (params = {}) => publicApi.get('/events/plans', { params }).then(transformListResponse),
+    getAllPlans: (params = {}) => {
+        const token = localStorage.getItem('accessToken');
+        const api = token ? privateApi : publicApi;
+        return api.get('/events/plans', { params }).then(transformListResponse);
+    },
 
     // --- Related Info (Public) ---
-    getPresenters: (eventId) => publicApi.get(`/events/${eventId}/presenters`),
-    getParticipants: (eventId) => publicApi.get(`/events/${eventId}/participants`),
-    getOrganizers: (eventId) => publicApi.get(`/events/${eventId}/organizers`),
-    registerParticipant: (eventId, data) => publicApi.post(`/events/${eventId}/participants/register`, data),
+    getPresenters: (eventId) => {
+        const token = localStorage.getItem('accessToken');
+        const api = token ? privateApi : publicApi;
+        return api.get(`/events/${eventId}/presenters`);
+    },
+    getParticipants: (eventId) => {
+        const token = localStorage.getItem('accessToken');
+        const api = token ? privateApi : publicApi;
+        return api.get(`/events/${eventId}/participants`);
+    },
+    getOrganizers: (eventId) => {
+        const token = localStorage.getItem('accessToken');
+        const api = token ? privateApi : publicApi;
+        return api.get(`/events/${eventId}/organizers`);
+    },
+    registerParticipant: (eventId, data) => {
+        const token = localStorage.getItem('accessToken');
+        const api = token ? privateApi : publicApi;
+        return api.post(`/events/${eventId}/participants/register`, data);
+    },
 
     getAllOrganizations: () => privateApi.get('/organizations'),
     createOrganization: (data) => privateApi.post('/organizations', data),
