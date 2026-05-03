@@ -65,6 +65,16 @@ public class SecurityConfig {
                                                                 "/swagger-ui/**",
                                                                 "/swagger-ui.html",
                                                                 "/uploads/**",
+                                                                "/events",
+                                                                "/events/ongoing",
+                                                                "/events/upcoming-week",
+                                                                "/events/featured",
+                                                                "/events/news",
+                                                                "/events/plans",
+                                                                "/events/{id}",
+                                                                "/quizzes/**",
+                                                                "/surveys/**",
+                                                                "/posts/**",
                                                                 "/error")
                                                 .permitAll()
 
