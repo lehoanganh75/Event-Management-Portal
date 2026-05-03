@@ -125,9 +125,21 @@ const eventService = {
     cancelEvent: (id, reason) => privateApi.patch(`/events/${id}/cancel`, null, { params: { reason } }),
 
     // --- GROUP 3: POSTS ---
-    getAllPosts: (params) => publicApi.get('/posts', { params }),
-    getPostById: (id) => publicApi.get(`/posts/${id}`),
-    getEventPosts: (eventId) => publicApi.get(`/posts/detail/${eventId}`),
+    getAllPosts: (params) => {
+        const token = localStorage.getItem('accessToken');
+        const api = token ? privateApi : publicApi;
+        return api.get('/posts', { params });
+    },
+    getPostById: (id) => {
+        const token = localStorage.getItem('accessToken');
+        const api = token ? privateApi : publicApi;
+        return api.get(`/posts/${id}`);
+    },
+    getEventPosts: (eventId) => {
+        const token = localStorage.getItem('accessToken');
+        const api = token ? privateApi : publicApi;
+        return api.get(`/posts/detail/${eventId}`);
+    },
     getPostsByUser: (accountId) => privateApi.get(`/posts/user/${accountId}`),
     createPost: (postData) => privateApi.post('/posts', postData),
     updatePost: (id, postDetails) => privateApi.put(`/posts/${id}`, postDetails),
