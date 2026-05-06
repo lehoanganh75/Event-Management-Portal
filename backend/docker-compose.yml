@@ -74,8 +74,12 @@ services:
       SPRING_DATASOURCE_URL: jdbc:mariadb://mariadb:3306/analytics_db?createDatabaseIfNotExist=true
       SPRING_DATASOURCE_USERNAME: root
       SPRING_DATASOURCE_PASSWORD: root
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      APP_SERVICES_EVENT_SERVICE_URL: http://event-service:8082
+      APP_SERVICES_LUCKY_DRAW_SERVICE_URL: http://lucky-draw-service:8084
     depends_on:
       - mariadb
+      - kafka
 
     networks:
       - micro-network

@@ -11,6 +11,7 @@ const LecturerEventDetailPage = () => {
   const navigate = useNavigate();
   const { id } = useParams();
   const { user } = useAuth();
+  const pathPrefix = "/lecturer";
 
   const [event, setEvent] = useState(null);
   const [luckyDraw, setLuckyDraw] = useState(null);
@@ -43,18 +44,22 @@ const LecturerEventDetailPage = () => {
       setLoading(true);
       const resEvent = await eventService.getEventById(id);
 
-      // ✅ Nếu không còn là ban tổ chức (và không phải Admin hệ thống) thì đá ra ngoài Home
       const roles = user?.roles || (user?.role ? [user.role] : []);
       const isSystemAdmin = roles.some(r => ["SUPER_ADMIN", "ADMIN"].includes(r?.toUpperCase()));
+      const isCreator = resEvent.data?.currentUserRole?.creator;
+      const isPresented = resEvent.data?.currentUserRole?.presented;
 
-      if (!resEvent.data?.currentUserRole?.organizerRole && !isSystemAdmin) {
-        toast.info("Bạn không còn thuộc ban tổ chức sự kiện này.");
-        navigate('/');
+      console.log("Current User Role Data:", resEvent.data?.currentUserRole);
+
+      // Cho phép truy cập nếu là Ban tổ chức, hoặc là Người tạo, hoặc Diễn giả, hoặc là Admin hệ thống
+      if (!resEvent.data?.currentUserRole?.organizerRole && !isCreator && !isPresented && !isSystemAdmin) {
+        toast.info("Bạn không có quyền truy cập sự kiện này.");
+        navigate(`${pathPrefix}/events`);
         return;
       }
 
       setEvent(resEvent.data);
-      
+
       // Fetch summary if completed
       if (resEvent.data?.status === "COMPLETED") {
         try {
@@ -167,7 +172,7 @@ const LecturerEventDetailPage = () => {
         toast.error("Không xác định được người thực hiện");
         return;
       }
-      await eventService.manualCheckIn(registrationId, user.id); 
+      await eventService.manualCheckIn(registrationId, user.id);
       toast.success("Điểm danh thủ công thành công!");
       fetchData();
     } catch (err) {

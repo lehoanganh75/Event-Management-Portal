@@ -3,6 +3,8 @@ package com.eventservice.client;
 import com.eventservice.config.FeignClientConfig;
 import org.springframework.cloud.openfeign.FeignClient;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestParam;
 import com.eventservice.dto.user.UserResponse;
 import java.util.List;
@@ -13,8 +15,8 @@ import java.util.List;
         configuration = FeignClientConfig.class
 )
 public interface IdentityServiceClient {
-    @GetMapping("/profiles/batch")
-    List<UserResponse> getUsersByIds(@RequestParam("ids") List<String> ids);
+    @PostMapping("/profiles/batch")
+    List<UserResponse> getUsersByIds(@RequestBody List<String> ids);
 
     @GetMapping("/profiles/invite")
     UserResponse getUsersById(@RequestParam("id") String id);

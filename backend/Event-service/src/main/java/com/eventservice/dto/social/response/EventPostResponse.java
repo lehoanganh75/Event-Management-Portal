@@ -45,7 +45,7 @@ public class EventPostResponse {
         dto.setStatus(post.getStatus());
         dto.setEventId(post.getEvent().getId());
         dto.setEventTitle(post.getEvent().getTitle());
-        // dto.setCreatedByAccountId(post.getCreatedByAccountId());
+        dto.setCreatedByAccountId(post.getAuthorAccountId());
         dto.setCreatedBy(creator);
         dto.setCreatedAt(post.getCreatedAt());
         dto.setUpdatedAt(post.getUpdatedAt());

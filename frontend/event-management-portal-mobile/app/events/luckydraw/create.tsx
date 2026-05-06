@@ -69,49 +69,12 @@ export default function CreateLuckyDrawScreen() {
     }
   };
 
-  // Logic cập nhật prize kèm khống chế tỉ lệ 100%
-  const updatePrize = (index: number, field: keyof Prize, value: any) => {
-    const newPrizes = [...prizes];
-
-    if (field === "winProbabilityPercent") {
-      let numValue = parseFloat(value) || 0;
-      if (numValue < 0) numValue = 0;
-
-      const otherTotal = prizes.reduce(
-        (sum, p, i) =>
-          i !== index ? sum + Number(p.winProbabilityPercent) : sum,
-        0,
-      );
-
-      if (otherTotal + numValue > 100) {
-        numValue = parseFloat((100 - otherTotal).toFixed(2));
-        Alert.alert("Giới hạn", "Tổng tỉ lệ không được vượt quá 100%");
-      }
-      newPrizes[index] = { ...newPrizes[index], [field]: numValue };
-    } else {
-      newPrizes[index] = { ...newPrizes[index], [field]: value };
-    }
-    setPrizes(newPrizes);
-  };
-
-  const currentUserTotal = prizes.reduce(
-    (sum, p) => sum + Number(p.winProbabilityPercent),
-    0,
-  );
-  const autoProb = Math.max(0, 100 - currentUserTotal).toFixed(2);
-
   const handleSave = async () => {
     if (!form.title) return Alert.alert("Lỗi", "Vui lòng nhập tiêu đề");
     if (prizes.some((p) => !p.name))
       return Alert.alert("Lỗi", "Vui lòng nhập đầy đủ tên các giải thưởng");
 
-    // Tự động chèn giải mặc định "May mắn lần sau"
     const finalPrizes = [...prizes];
-    finalPrizes.push({
-      name: "Chúc bạn may mắn lần sau",
-      quantity: 999999,
-      winProbabilityPercent: parseFloat(autoProb),
-    });
 
     setLoading(true);
     try {
@@ -129,182 +92,183 @@ export default function CreateLuckyDrawScreen() {
       setLoading(false);
     }
   };
+};
 
-  return (
-    <View style={styles.container}>
-      <StatusBar style="dark" />
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-          <Ionicons name="close" size={24} color="#1e293b" />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Thiết lập vòng quay</Text>
-        <View style={{ width: 40 }} />
-      </View>
+return (
+  <View style={styles.container}>
+    <StatusBar style="dark" />
+    <View style={styles.header}>
+      <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
+        <Ionicons name="close" size={24} color="#1e293b" />
+      </TouchableOpacity>
+      <Text style={styles.headerTitle}>Thiết lập vòng quay</Text>
+      <View style={{ width: 40 }} />
+    </View>
 
-      <KeyboardAvoidingView
-        behavior={Platform.OS === "ios" ? "padding" : "height"}
-        style={{ flex: 1 }}
+    <KeyboardAvoidingView
+      behavior={Platform.OS === "ios" ? "padding" : "height"}
+      style={{ flex: 1 }}
+    >
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.scrollContent}
       >
-        <ScrollView
-          showsVerticalScrollIndicator={false}
-          contentContainerStyle={styles.scrollContent}
-        >
-          <View style={styles.section}>
-            <Text style={styles.sectionLabel}>THÔNG TIN CHUNG</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="Tiêu đề vòng quay"
-              value={form.title}
-              onChangeText={(text) => setForm({ ...form, title: text })}
-            />
-            <TextInput
-              style={[styles.input, styles.textArea]}
-              placeholder="Mô tả chương trình"
-              multiline
-              value={form.description}
-              onChangeText={(text) => setForm({ ...form, description: text })}
-            />
-          </View>
+        <View style={styles.section}>
+          <Text style={styles.sectionLabel}>THÔNG TIN CHUNG</Text>
+          <TextInput
+            style={styles.input}
+            placeholder="Tiêu đề vòng quay"
+            value={form.title}
+            onChangeText={(text) => setForm({ ...form, title: text })}
+          />
+          <TextInput
+            style={[styles.input, styles.textArea]}
+            placeholder="Mô tả chương trình"
+            multiline
+            value={form.description}
+            onChangeText={(text) => setForm({ ...form, description: text })}
+          />
+        </View>
 
-          {/* Thanh trạng thái tỉ lệ % */}
-          <View style={styles.statusContainer}>
-            <View style={styles.sectionHeader}>
-              <Text style={styles.sectionLabel}>PHÂN BỔ TỈ LỆ (%)</Text>
-              <Text
-                style={[
-                  styles.statusText,
-                  { color: currentUserTotal >= 100 ? "#ef4444" : "#10b981" },
-                ]}
-              >
-                {currentUserTotal.toFixed(2)}% / 100%
-              </Text>
-            </View>
-            <View style={styles.progressBarWrapper}>
-              <View
-                style={[
-                  styles.progressBarFill,
-                  {
-                    width: `${currentUserTotal}%`,
-                    backgroundColor:
-                      currentUserTotal >= 100 ? "#ef4444" : "#10b981",
-                  },
-                ]}
-              />
-            </View>
-          </View>
-
-          <View style={styles.section}>
-            <View style={styles.sectionHeader}>
-              <Text style={styles.sectionLabel}>DANH SÁCH GIẢI THƯỞNG</Text>
-              <TouchableOpacity onPress={addPrize} style={styles.addBtn}>
-                <Ionicons name="add-circle" size={20} color="#10b981" />
-                <Text style={styles.addBtnText}>Thêm giải</Text>
-              </TouchableOpacity>
-            </View>
-
-            {prizes.map((prize, index) => (
-              <View key={index} style={styles.prizeCard}>
-                <View style={styles.prizeHeader}>
-                  <Text style={styles.prizeIndex}>Giải #{index + 1}</Text>
-                  <TouchableOpacity onPress={() => removePrize(index)}>
-                    <Ionicons name="trash-outline" size={18} color="#ef4444" />
-                  </TouchableOpacity>
-                </View>
-                <TextInput
-                  style={styles.prizeInput}
-                  placeholder="Tên giải thưởng"
-                  value={prize.name}
-                  onChangeText={(val) => updatePrize(index, "name", val)}
-                />
-                <View style={styles.row}>
-                  <View style={styles.col}>
-                    <Text style={styles.miniLabel}>Số lượng</Text>
-                    <TextInput
-                      style={styles.prizeInput}
-                      keyboardType="numeric"
-                      value={String(prize.quantity)}
-                      onChangeText={(val) =>
-                        updatePrize(index, "quantity", parseInt(val) || 0)
-                      }
-                    />
-                  </View>
-                  <View style={{ width: 12 }} />
-                  <View style={styles.col}>
-                    <Text style={styles.miniLabel}>Tỉ lệ (%)</Text>
-                    <TextInput
-                      style={styles.prizeInput}
-                      keyboardType="numeric"
-                      placeholder="0.0"
-                      value={String(prize.winProbabilityPercent)}
-                      onChangeText={(val) =>
-                        updatePrize(index, "winProbabilityPercent", val)
-                      }
-                    />
-                  </View>
-                </View>
-              </View>
-            ))}
-
-            {/* Giải mặc định tự động */}
-            <View
+        {/* Thanh trạng thái tỉ lệ % */}
+        <View style={styles.statusContainer}>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionLabel}>PHÂN BỔ TỈ LỆ (%)</Text>
+            <Text
               style={[
-                styles.prizeCard,
-                { backgroundColor: "#f8fafc", borderStyle: "dashed" },
+                styles.statusText,
+                { color: currentUserTotal >= 100 ? "#ef4444" : "#10b981" },
               ]}
             >
+              {currentUserTotal.toFixed(2)}% / 100%
+            </Text>
+          </View>
+          <View style={styles.progressBarWrapper}>
+            <View
+              style={[
+                styles.progressBarFill,
+                {
+                  width: `${currentUserTotal}%`,
+                  backgroundColor:
+                    currentUserTotal >= 100 ? "#ef4444" : "#10b981",
+                },
+              ]}
+            />
+          </View>
+        </View>
+
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionLabel}>DANH SÁCH GIẢI THƯỞNG</Text>
+            <TouchableOpacity onPress={addPrize} style={styles.addBtn}>
+              <Ionicons name="add-circle" size={20} color="#10b981" />
+              <Text style={styles.addBtnText}>Thêm giải</Text>
+            </TouchableOpacity>
+          </View>
+
+          {prizes.map((prize, index) => (
+            <View key={index} style={styles.prizeCard}>
               <View style={styles.prizeHeader}>
-                <Text style={[styles.prizeIndex, { color: "#64748b" }]}>
-                  MẶC ĐỊNH (CÒN LẠI)
-                </Text>
-                <Ionicons name="lock-closed" size={14} color="#94a3b8" />
+                <Text style={styles.prizeIndex}>Giải #{index + 1}</Text>
+                <TouchableOpacity onPress={() => removePrize(index)}>
+                  <Ionicons name="trash-outline" size={18} color="#ef4444" />
+                </TouchableOpacity>
               </View>
               <TextInput
-                style={[styles.prizeInput, { color: "#94a3b8" }]}
-                value="Chúc bạn may mắn lần sau"
-                editable={false}
+                style={styles.prizeInput}
+                placeholder="Tên giải thưởng"
+                value={prize.name}
+                onChangeText={(val) => updatePrize(index, "name", val)}
               />
               <View style={styles.row}>
                 <View style={styles.col}>
                   <Text style={styles.miniLabel}>Số lượng</Text>
                   <TextInput
-                    style={[styles.prizeInput, { color: "#94a3b8" }]}
-                    value="Không giới hạn"
-                    editable={false}
+                    style={styles.prizeInput}
+                    keyboardType="numeric"
+                    value={String(prize.quantity)}
+                    onChangeText={(val) =>
+                      updatePrize(index, "quantity", parseInt(val) || 0)
+                    }
                   />
                 </View>
                 <View style={{ width: 12 }} />
                 <View style={styles.col}>
-                  <Text style={styles.miniLabel}>Tỉ lệ tự động (%)</Text>
-                  <View
-                    style={[
-                      styles.prizeInput,
-                      { backgroundColor: "#e2e8f0", justifyContent: "center" },
-                    ]}
-                  >
-                    <Text style={{ fontWeight: "800", color: "#1e293b" }}>
-                      {autoProb}%
-                    </Text>
-                  </View>
+                  <Text style={styles.miniLabel}>Tỉ lệ (%)</Text>
+                  <TextInput
+                    style={styles.prizeInput}
+                    keyboardType="numeric"
+                    placeholder="0.0"
+                    value={String(prize.winProbabilityPercent)}
+                    onChangeText={(val) =>
+                      updatePrize(index, "winProbabilityPercent", val)
+                    }
+                  />
+                </View>
+              </View>
+            </View>
+          ))}
+
+          {/* Giải mặc định tự động */}
+          <View
+            style={[
+              styles.prizeCard,
+              { backgroundColor: "#f8fafc", borderStyle: "dashed" },
+            ]}
+          >
+            <View style={styles.prizeHeader}>
+              <Text style={[styles.prizeIndex, { color: "#64748b" }]}>
+                MẶC ĐỊNH (CÒN LẠI)
+              </Text>
+              <Ionicons name="lock-closed" size={14} color="#94a3b8" />
+            </View>
+            <TextInput
+              style={[styles.prizeInput, { color: "#94a3b8" }]}
+              value="Chúc bạn may mắn lần sau"
+              editable={false}
+            />
+            <View style={styles.row}>
+              <View style={styles.col}>
+                <Text style={styles.miniLabel}>Số lượng</Text>
+                <TextInput
+                  style={[styles.prizeInput, { color: "#94a3b8" }]}
+                  value="Không giới hạn"
+                  editable={false}
+                />
+              </View>
+              <View style={{ width: 12 }} />
+              <View style={styles.col}>
+                <Text style={styles.miniLabel}>Tỉ lệ tự động (%)</Text>
+                <View
+                  style={[
+                    styles.prizeInput,
+                    { backgroundColor: "#e2e8f0", justifyContent: "center" },
+                  ]}
+                >
+                  <Text style={{ fontWeight: "800", color: "#1e293b" }}>
+                    {autoProb}%
+                  </Text>
                 </View>
               </View>
             </View>
           </View>
+        </View>
 
-          <TouchableOpacity
-            style={[styles.submitBtn, loading && { opacity: 0.7 }]}
-            onPress={handleSave}
-            disabled={loading}
-          >
-            {loading ? (
-              <ActivityIndicator color="#fff" />
-            ) : (
-              <Text style={styles.submitBtnText}>XÁC NHẬN TẠO VÒNG QUAY</Text>
-            )}
-          </TouchableOpacity>
-        </ScrollView>
-      </KeyboardAvoidingView>
-    </View>
-  );
+        <TouchableOpacity
+          style={[styles.submitBtn, loading && { opacity: 0.7 }]}
+          onPress={handleSave}
+          disabled={loading}
+        >
+          {loading ? (
+            <ActivityIndicator color="#fff" />
+          ) : (
+            <Text style={styles.submitBtnText}>XÁC NHẬN TẠO VÒNG QUAY</Text>
+          )}
+        </TouchableOpacity>
+      </ScrollView>
+    </KeyboardAvoidingView>
+  </View>
+);
 }
 
 const styles = StyleSheet.create({

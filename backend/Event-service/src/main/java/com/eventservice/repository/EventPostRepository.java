@@ -39,4 +39,14 @@ public interface EventPostRepository extends JpaRepository<EventPost, String> {
     @org.springframework.transaction.annotation.Transactional
     @Query(value = "UPDATE event_posts SET is_deleted = 1, updated_at = NOW() WHERE event_id = :eventId", nativeQuery = true)
     void softDeleteByEventId(@Param("eventId") String eventId);
+
+    @Query("SELECT DISTINCT p FROM EventPost p JOIN p.event e " +
+           "LEFT JOIN e.organizers o " +
+           "LEFT JOIN e.presenters pr " +
+           "WHERE p.isDeleted = false AND (" +
+           "  e.createdByAccountId = :accId OR " +
+           "  (o.accountId = :accId AND o.isDeleted = false) OR " +
+           "  (pr.presenterAccountId = :accId AND pr.isDeleted = false)" +
+           ") ORDER BY p.createdAt DESC")
+    List<EventPost> findInvolvedPostsByAccountId(@Param("accId") String accId);
 }

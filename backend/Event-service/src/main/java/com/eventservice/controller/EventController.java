@@ -95,11 +95,20 @@ public class EventController {
     // --- 3. NHÓM CÁ NHÂN HÓA (DÀNH CHO TRANG CÁ NHÂN) ---
     @GetMapping("/my-events")
     public ResponseEntity<List<EventResponse>> getMyEvents(
-            @AuthenticationPrincipal Jwt jwt,
-            @RequestParam(value = "role", required = false, defaultValue = "ALL") String role) {
-
+            @AuthenticationPrincipal Jwt jwt) {
         String accountId = jwt.getSubject();
-        return ResponseEntity.ok(eventService.findMyEventsByRole(accountId, role));
+        return ResponseEntity.ok(eventService.findInvolvedEvents(accountId));
+    }
+
+    @GetMapping("/involved-ids")
+    public ResponseEntity<List<String>> getInvolvedEventIds(@AuthenticationPrincipal Jwt jwt) {
+        String accountId = jwt.getSubject();
+        return ResponseEntity.ok(eventService.getInvolvedEventIdsByAccountId(accountId));
+    }
+
+    @PostMapping("/titles")
+    public ResponseEntity<Map<String, String>> getEventTitles(@RequestBody List<String> eventIds) {
+        return ResponseEntity.ok(eventService.getEventTitles(eventIds));
     }
 
     @GetMapping("/{id}")

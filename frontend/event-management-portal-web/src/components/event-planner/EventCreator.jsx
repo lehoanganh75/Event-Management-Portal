@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from "react";
+import { motion } from "framer-motion";
 import { toast } from "react-toastify";
 import ManualInputStep from "./ManualInputStep";
 import LuckyDrawStep from "./LuckyDrawStep";
 import InteractionStep from "./InteractionStep";
-import { EventReviewStep } from "./EventReviewstep";
-import { EventProgramStep } from "./Eventprogramstep";
+import EventReviewStep from "./EventReviewstep";
+import EventProgramStep from "./Eventprogramstep";
 import { exportToWord } from "./WordExporter";
 import eventService from "../../services/eventService";
 import luckyDrawService from "../../services/luckyDrawService";
@@ -139,11 +140,10 @@ export const EventCreator = ({
       luckyDrawEndTime: endTime.toISOString().slice(0, 16),
       allowMultipleWins: false,
       prizes: [
-        { id: 1, name: "iPad Pro M4", count: 1, rate: 1, description: "Máy tính bảng mạnh mẽ nhất với màn hình OLED Tandem và chip M4 siêu nhanh." },
-        { id: 2, name: "Bàn phím cơ Keychron", count: 3, rate: 5, description: "Bàn phím cơ không dây hoàn hảo cho làm việc đa thiết bị." },
-        { id: 3, name: "Chuột Logitech MX Master 3S", count: 5, rate: 10, description: "Chuột ergonomic biểu tượng, cuộn MagSpeed và cảm biến 8K DPI." },
-        { id: 4, name: "Voucher Steam 200k", count: 20, rate: 30, description: "Thẻ quà tặng trị giá 200.000đ áp dụng cho tất cả trò chơi trên Steam." },
-        { id: 'consolation', name: "Chúc bạn may mắn lần sau", count: 999, rate: 54, description: "Cảm ơn bạn đã quan tâm, hẹn gặp lại ở sự kiện lần sau nhé!", isDefault: true }
+        { id: 1, name: "iPad Pro M4", count: 1, description: "Máy tính bảng mạnh mẽ nhất với màn hình OLED Tandem và chip M4 siêu nhanh." },
+        { id: 2, name: "Bàn phím cơ Keychron", count: 3, description: "Bàn phím cơ không dây hoàn hảo cho làm việc đa thiết bị." },
+        { id: 3, name: "Chuột Logitech MX Master 3S", count: 5, description: "Chuột ergonomic biểu tượng, cuộn MagSpeed và cảm biến 8K DPI." },
+        { id: 4, name: "Voucher Steam 200k", count: 20, description: "Thẻ quà tặng trị giá 200.000đ áp dụng cho tất cả trò chơi trên Steam." }
       ],
     };
     setFormData(sample);
@@ -425,8 +425,7 @@ export const EventCreator = ({
               prizes: (data.prizes || []).map(p => ({
                 name: p.name,
                 description: p.description || "",
-                quantity: p.count || p.quantity || 1,
-                winProbabilityPercent: p.rate || p.winProbabilityPercent || 10
+                quantity: p.count || p.quantity || 1
               }))
             };
             await luckyDrawService.create(luckyDrawPayload);

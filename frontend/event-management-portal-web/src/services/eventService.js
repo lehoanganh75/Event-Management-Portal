@@ -149,7 +149,7 @@ const eventService = {
     createOrganization: (data) => privateApi.post('/organizations', data),
 
     // --- GROUP 2: AUTHENTICATED / MY EVENTS ---
-    getMyEvents: (role = 'ALL') => privateApi.get('/events/my-events', { params: { role } }).then(transformListResponse),
+    getMyEvents: () => privateApi.get('/events/my-events').then(transformListResponse),
     getAdminAllEvents: () => privateApi.get('/events/admin/all').then(transformListResponse),
     updateLuckyDraw: (eventId) => privateApi.put(`/events/${eventId}/lucky-draw`),
     createEvent: (payload) => {
@@ -165,6 +165,7 @@ const eventService = {
     cancelEvent: (id, reason) => privateApi.patch(`/events/${id}/cancel`, null, { params: { reason } }),
 
     // --- GROUP 3: POSTS ---
+    getMyInvolvedPosts: () => privateApi.get('/posts/my-involved').then(res => res.data),
     getAllPosts: (params) => {
         const token = localStorage.getItem('accessToken');
         const api = token ? privateApi : publicApi;
@@ -185,6 +186,7 @@ const eventService = {
     updatePost: (id, postDetails) => privateApi.put(`/posts/${id}`, postDetails),
     deletePost: (id) => privateApi.delete(`/posts/${id}`),
     reactToPost: (postId, data) => privateApi.post(`/posts/${postId}/react`, data),
+    incrementPostView: (postId) => publicApi.post(`/posts/${postId}/view`),
 
     // --- Comments ---
     createComment: (postId, data) => privateApi.post(`/posts/comments/${postId}`, data),

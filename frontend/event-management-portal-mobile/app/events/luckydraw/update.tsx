@@ -48,11 +48,7 @@ export default function UpdateLuckyDrawScreen() {
               allowMultipleWins: data.allowMultipleWins || false,
             });
 
-            // Lọc bỏ giải mặc định để Admin chỉ sửa giải họ đã thêm
-            const userPrizes = data.prizes.filter(
-              (p: any) => p.name !== "Chúc bạn may mắn lần sau",
-            );
-            setPrizes(userPrizes);
+            setPrizes(data.prizes);
           }
         })
         .catch((err) => {
@@ -64,9 +60,7 @@ export default function UpdateLuckyDrawScreen() {
   }, [id]);
 
   const addPrize = () => {
-    if (currentUserTotal >= 100)
-      return Alert.alert("Giới hạn", "Tỉ lệ đã đạt 100%");
-    setPrizes([...prizes, { name: "", quantity: 1, winProbabilityPercent: 0 }]);
+    setPrizes([...prizes, { name: "", quantity: 1 }]);
   };
 
   const removePrize = (index: number) => {
@@ -77,38 +71,14 @@ export default function UpdateLuckyDrawScreen() {
 
   const updatePrize = (index: number, field: keyof Prize, value: any) => {
     const newPrizes = [...prizes];
-    if (field === "winProbabilityPercent") {
-      let numValue = parseFloat(value) || 0;
-      const otherTotal = prizes.reduce(
-        (sum, p, i) =>
-          i !== index ? sum + Number(p.winProbabilityPercent) : sum,
-        0,
-      );
-      if (otherTotal + numValue > 100) {
-        numValue = parseFloat((100 - otherTotal).toFixed(2));
-      }
-      newPrizes[index] = { ...newPrizes[index], [field]: numValue };
-    } else {
-      newPrizes[index] = { ...newPrizes[index], [field]: value };
-    }
+    newPrizes[index] = { ...newPrizes[index], [field]: value };
     setPrizes(newPrizes);
   };
-
-  const currentUserTotal = prizes.reduce(
-    (sum, p) => sum + Number(p.winProbabilityPercent),
-    0,
-  );
-  const autoProb = Math.max(0, 100 - currentUserTotal).toFixed(2);
 
   const handleUpdate = async () => {
     if (!form.title) return Alert.alert("Lỗi", "Vui lòng nhập tiêu đề");
 
     const finalPrizes = [...prizes];
-    finalPrizes.push({
-      name: "Chúc bạn may mắn lần sau",
-      quantity: 999999,
-      winProbabilityPercent: parseFloat(autoProb),
-    });
 
     setLoading(true);
     try {
@@ -166,22 +136,7 @@ export default function UpdateLuckyDrawScreen() {
             />
           </View>
 
-          {/* Progress Bar */}
-          <View style={styles.statusContainer}>
-            <View style={styles.sectionHeader}>
-              <Text style={styles.sectionLabel}>
-                TỔNG TỈ LỆ: {currentUserTotal.toFixed(2)}%
-              </Text>
-            </View>
-            <View style={styles.progressBarWrapper}>
-              <View
-                style={[
-                  styles.progressBarFill,
-                  { width: `${currentUserTotal}%`, backgroundColor: "#10b981" },
-                ]}
-              />
-            </View>
-          </View>
+
 
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
@@ -207,7 +162,7 @@ export default function UpdateLuckyDrawScreen() {
                 />
                 <View style={styles.row}>
                   <View style={styles.col}>
-                    <Text style={styles.miniLabel}>Số lượng</Text>
+                    <Text style={styles.miniLabel}>Số lượng giải</Text>
                     <TextInput
                       style={styles.prizeInput}
                       keyboardType="numeric"
@@ -217,36 +172,11 @@ export default function UpdateLuckyDrawScreen() {
                       }
                     />
                   </View>
-                  <View style={{ width: 12 }} />
-                  <View style={styles.col}>
-                    <Text style={styles.miniLabel}>Tỉ lệ (%)</Text>
-                    <TextInput
-                      style={styles.prizeInput}
-                      keyboardType="numeric"
-                      value={String(prize.winProbabilityPercent)}
-                      onChangeText={(val) =>
-                        updatePrize(index, "winProbabilityPercent", val)
-                      }
-                    />
-                  </View>
                 </View>
               </View>
             ))}
 
-            <View
-              style={[
-                styles.prizeCard,
-                { backgroundColor: "#f8fafc", borderStyle: "dashed" },
-              ]}
-            >
-              <Text style={styles.prizeIndex}>GIẢI MẶC ĐỊNH (TỰ ĐỘNG)</Text>
-              <View style={styles.row}>
-                <Text style={{ flex: 1, color: "#94a3b8" }}>
-                  Chúc bạn may mắn lần sau
-                </Text>
-                <Text style={{ fontWeight: "800" }}>{autoProb}%</Text>
-              </View>
-            </View>
+
           </View>
 
           <TouchableOpacity

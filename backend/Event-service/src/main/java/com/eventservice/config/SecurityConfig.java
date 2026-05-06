@@ -72,9 +72,13 @@ public class SecurityConfig {
                                                                 "/events/news",
                                                                 "/events/plans",
                                                                 "/events/{id}",
+                                                                "/events/{eventId}/invitations",
+                                                                "/events/{eventId}/accept-invite",
+                                                                "/events/{eventId}/reject-invite",
                                                                 "/quizzes/**",
                                                                 "/surveys/**",
                                                                 "/posts/**",
+                                                                "/ws/chat/**",
                                                                 "/error")
                                                 .permitAll()
 

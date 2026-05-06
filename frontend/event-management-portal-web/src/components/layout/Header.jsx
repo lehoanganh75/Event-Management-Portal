@@ -274,13 +274,14 @@ const Header = () => {
   };
 
   const isSuperAdmin = () => {
-    const roles = user?.roles || (user?.role ? [user.role] : []);
+    const roles = Array.isArray(user?.roles) ? user.roles : (user?.role ? [user.role] : []);
     return roles.some((r) => r?.toUpperCase() === "SUPER_ADMIN");
   };
 
   const isAdminOnly = () => {
-    const roles = user?.roles || (user?.role ? [user.role] : []);
-    return roles.some((r) => r?.toUpperCase() === "ADMIN") && !isSuperAdmin();
+    const roles = Array.isArray(user?.roles) ? user.roles : (user?.role ? [user.role] : []);
+    const hasAdmin = roles.some((r) => r?.toUpperCase() === "ADMIN");
+    return hasAdmin && !isSuperAdmin();
   };
 
   const isEventStaff = () => {
@@ -289,6 +290,11 @@ const Header = () => {
 
   const isLeaderRole = () => {
     return user?.eventRoles?.some(role => role.toUpperCase() === 'LEADER');
+  };
+
+  const hasRole = (roleName) => {
+    const roles = Array.isArray(user?.roles) ? user.roles : (user?.role ? [user.role] : []);
+    return roles.some(r => r.toUpperCase() === roleName.toUpperCase());
   };
 
   const isActive = (path) => location.pathname === path;
@@ -385,14 +391,7 @@ const Header = () => {
                 Tin tức
               </Link>
 
-              {isSuperAdmin() && (
-                <Link
-                  to="/admin"
-                  className="ml-4 px-5 py-2.5 rounded-xl text-sm font-medium bg-orange-50 text-orange-600 hover:bg-orange-100 transition-all border border-orange-100 shadow-sm"
-                >
-                  Quản trị
-                </Link>
-              )}
+
 
               {isAdminOnly() && (
                 <Link
@@ -608,9 +607,6 @@ const Header = () => {
                                 {user.fullName || user.username}
                               </p>
                               <div className="flex items-center gap-1.5 mt-0.5">
-                                <div className="w-4 h-4 bg-blue-100 text-blue-600 rounded flex items-center justify-center">
-                                  <ShieldCheck size={12} />
-                                </div>
                                 <p className="text-sm text-blue-600 font-medium">
                                   {getPrimaryRole()}
                                 </p>
@@ -622,7 +618,8 @@ const Header = () => {
                         {/* Menu Items */}
                         <div className="p-2">
                           <Link
-                            to="/userprofile"
+                            to={hasRole('ADMIN') || hasRole('SUPER_ADMIN') ? "/admin/profile" :
+                              hasRole('LECTURER') ? "/lecturer/profile" : "/student/profile"}
                             onClick={() => setIsMenuOpen(false)}
                             className="flex items-center gap-4 px-5 py-3.5 text-[15px] font-medium text-slate-700 hover:bg-slate-100 rounded-2xl transition-all active:bg-slate-200"
                           >
@@ -630,56 +627,64 @@ const Header = () => {
                             Hồ sơ cá nhân
                           </Link>
 
+                          {/* Dashboard Link based on Role */}
                           {isSuperAdmin() && (
                             <Link
-                              to="/admin"
+                              to="/admin/dashboard"
                               onClick={() => setIsMenuOpen(false)}
                               className="flex items-center gap-4 px-5 py-3.5 text-[15px] font-medium text-orange-600 hover:bg-orange-50 rounded-2xl transition-all active:bg-orange-100"
                             >
                               <LayoutDashboard size={20} className="text-orange-500" />
-                              Trang Quản trị
+                              Bảng điều khiển Admin
                             </Link>
                           )}
 
                           {isAdminOnly() && (
                             <Link
-                              to="/lecturer"
+                              to="/admin/dashboard"
                               onClick={() => setIsMenuOpen(false)}
                               className="flex items-center gap-4 px-5 py-3.5 text-[15px] font-medium text-blue-600 hover:bg-blue-50 rounded-2xl transition-all active:bg-blue-100"
                             >
                               <LayoutDashboard size={20} className="text-blue-500" />
-                              Trang Quản lý
+                              Bảng điều khiển Admin
                             </Link>
                           )}
 
-                          {isEventStaff() && !isAdminOnly() && !isSuperAdmin() && (
+                          {(hasRole('LECTURER') || isEventStaff()) && !isAdminOnly() && !isSuperAdmin() && (
                             <Link
-                              to={isLeaderRole() ? "/lecturer" : "/lecturer/events"}
+                              to="/lecturer/dashboard"
                               onClick={() => setIsMenuOpen(false)}
                               className="flex items-center gap-4 px-5 py-3.5 text-[15px] font-medium text-indigo-600 hover:bg-indigo-50 rounded-2xl transition-all active:bg-indigo-100"
                             >
-                              <ShieldCheck size={20} className="text-indigo-500" />
-                              Ban tổ chức
+                              <LayoutDashboard size={20} className="text-indigo-500" />
+                              Bảng điều khiển BTC
                             </Link>
                           )}
 
-                          <Link
-                            to="/my-events"
-                            onClick={() => setIsMenuOpen(false)}
-                            className="flex items-center gap-4 px-5 py-3.5 text-[15px] font-medium text-slate-700 hover:bg-slate-100 rounded-2xl transition-all active:bg-slate-200"
-                          >
-                            <Calendar size={20} className="text-slate-500" />
-                            Sự kiện của tôi
-                          </Link>
+                          {/* Student Dashboard for regular students/guests */}
+                          {!isSuperAdmin() && !isAdminOnly() && !hasRole('LECTURER') && !isEventStaff() && (
+                            <Link
+                              to="/student/dashboard"
+                              onClick={() => setIsMenuOpen(false)}
+                              className="flex items-center gap-4 px-5 py-3.5 text-[15px] font-medium text-emerald-600 hover:bg-emerald-50 rounded-2xl transition-all active:bg-emerald-100"
+                            >
+                              <LayoutDashboard size={20} className="text-emerald-500" />
+                              Bảng điều khiển cá nhân
+                            </Link>
+                          )}
 
-                          <Link
-                            to="/settings"
-                            onClick={() => setIsMenuOpen(false)}
-                            className="flex items-center gap-4 px-5 py-3.5 text-[15px] font-medium text-slate-700 hover:bg-slate-100 rounded-2xl transition-all active:bg-slate-200"
-                          >
-                            <Settings size={20} className="text-slate-500" />
-                            Cài đặt
-                          </Link>
+                          {hasRole('GUEST') && (
+                            <Link
+                              to="/student/events"
+                              onClick={() => setIsMenuOpen(false)}
+                              className="flex items-center gap-4 px-5 py-3.5 text-[15px] font-medium text-slate-700 hover:bg-slate-100 rounded-2xl transition-all active:bg-slate-200"
+                            >
+                              <Calendar size={20} className="text-slate-500" />
+                              Sự kiện của tôi
+                            </Link>
+                          )}
+
+
                         </div>
 
                         {/* Divider */}

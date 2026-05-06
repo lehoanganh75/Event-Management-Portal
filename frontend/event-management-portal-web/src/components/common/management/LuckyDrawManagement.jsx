@@ -35,7 +35,7 @@ const LuckyDrawManagement = ({
 
   const [formData, setFormData] = useState({
     eventId: "", title: "", description: "", status: "PENDING", allowMultipleWins: false,
-    prizes: [{ name: "", quantity: 1, winProbabilityPercent: 0 }]
+    prizes: [{ name: "", quantity: 1 }]
   });
 
   const stats = useMemo(() => ({
@@ -46,14 +46,8 @@ const LuckyDrawManagement = ({
     totalPrizes: luckyDraws?.reduce((acc, draw) => acc + (draw.prizes?.length || 0), 0) || 0
   }), [luckyDraws, winners]);
 
-  const unluckyPercent = useMemo(() => {
-    const totalAllocated = formData.prizes.reduce((sum, p) => sum + (parseFloat(p.winProbabilityPercent) || 0), 0);
-    const remain = 100 - totalAllocated;
-    return remain > 0 ? remain.toFixed(2) : "0.00";
-  }, [formData.prizes]);
-
   const resetForm = useCallback(() => {
-    setFormData({ eventId: "", title: "", description: "", status: "PENDING", allowMultipleWins: false, prizes: [{ name: "", quantity: 1, winProbabilityPercent: 0 }] });
+    setFormData({ eventId: "", title: "", description: "", status: "PENDING", allowMultipleWins: false, prizes: [{ name: "", quantity: 1 }] });
     setSelectedDate(""); setIsEditMode(false); setEditingId(null);
   }, []);
 
@@ -71,10 +65,9 @@ const LuckyDrawManagement = ({
       description: item.description || "",
       status: item.status,
       allowMultipleWins: item.allowMultipleWins,
-      prizes: (item.prizes || []).filter(p => p.name !== "Chúc bạn may mắn lần sau").map(p => ({
+      prizes: (item.prizes || []).map(p => ({
         name: p.name,
-        quantity: p.quantity,
-        winProbabilityPercent: (p.winProbabilityPercent * 100).toFixed(2)
+        quantity: p.quantity
       }))
     });
     setIsCreateModalOpen(true);
@@ -88,13 +81,10 @@ const LuckyDrawManagement = ({
         ...formData,
         startTime: `${selectedDate}T${startTimeOnly}:00`,
         endTime: `${selectedDate}T${endTimeOnly}:00`,
-        prizes: [
-          ...formData.prizes.filter(p => p.name.trim() !== "").map(p => ({
-            ...p,
-            winProbabilityPercent: (parseFloat(p.winProbabilityPercent) / 100).toFixed(4)
-          })),
-          { name: "Chúc bạn may mắn lần sau", quantity: 999999, winProbabilityPercent: (parseFloat(unluckyPercent) / 100).toFixed(4) }
-        ]
+        prizes: formData.prizes.filter(p => p.name.trim() !== "").map(p => ({
+          name: p.name,
+          quantity: p.quantity
+        }))
       };
       if (isEditMode) await updateDraw(editingId, payload);
       else await createDraw(payload);
@@ -222,7 +212,7 @@ const LuckyDrawManagement = ({
               <thead className="bg-slate-50 border-b border-gray-200">
                 <tr>
                   <th className="p-4 font-semibold text-gray-600">Tên chiến dịch</th>
-                  <th className="p-4 text-center font-semibold text-gray-600">Mã sự kiện</th>
+                  <th className="p-4 text-center font-semibold text-gray-600">Sự kiện</th>
                   <th className="p-4 font-semibold text-gray-600">Thời gian</th>
                   <th className="p-4 text-center font-semibold text-gray-600">Trạng thái</th>
                   <th className="p-4 text-center font-semibold text-gray-600">Hành động</th>
@@ -236,7 +226,9 @@ const LuckyDrawManagement = ({
                       <p className="text-[10px] text-slate-400 font-mono">ID: {item.id.substring(0, 8)}</p>
                     </td>
                     <td className="p-4 text-center">
-                      <span className="px-2 py-1 bg-slate-100 rounded text-[10px] font-bold text-slate-500">{item.eventId}</span>
+                      <span className="px-2 py-1 bg-indigo-50 rounded text-[10px] font-bold text-indigo-600 border border-indigo-100">
+                        {item.eventTitle || item.eventId}
+                      </span>
                     </td>
                     <td className="p-4">
                       <div className="flex flex-col text-xs text-slate-600">
@@ -301,24 +293,20 @@ const LuckyDrawManagement = ({
                 <div className="space-y-4 pt-4 border-t border-dashed border-slate-200">
                   <div className="flex justify-between items-center">
                     <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Cơ cấu quà tặng ({formData.prizes.length})</p>
-                    <button onClick={() => setFormData(prev => ({ ...prev, prizes: [...prev.prizes, { name: "", quantity: 1, winProbabilityPercent: 0 }] }))} className="text-[10px] font-black text-indigo-600 uppercase flex items-center gap-1"><Plus size={12} /> Thêm giải</button>
+                    <button onClick={() => setFormData(prev => ({ ...prev, prizes: [...prev.prizes, { name: "", quantity: 1 }] }))} className="text-[10px] font-black text-indigo-600 uppercase flex items-center gap-1"><Plus size={12} /> Thêm giải</button>
                   </div>
                   {formData.prizes.map((prize, idx) => (
                     <div key={idx} className="p-4 bg-slate-50/50 border border-slate-100 rounded-3xl space-y-3 relative group">
                       <div className="flex gap-3 items-center">
                         <input className="flex-1 px-4 py-2.5 bg-white border border-transparent rounded-xl text-xs font-bold outline-none shadow-sm" placeholder="Tên quà tặng..." value={prize.name} onChange={e => handlePrizeChange(idx, 'name', e.target.value)} />
                         <div className="w-24 relative">
-                          <input type="number" className="w-full px-4 py-2.5 bg-indigo-50 border border-indigo-100 rounded-xl text-center font-black text-indigo-600 text-xs" value={prize.winProbabilityPercent} onChange={e => handlePrizeChange(idx, 'winProbabilityPercent', e.target.value)} />
-                          <span className="absolute -top-2 -right-1 bg-white border border-indigo-200 text-indigo-600 text-[8px] font-black px-1.5 rounded-full">%</span>
+                          <input type="number" className="w-full px-4 py-2.5 bg-indigo-50 border border-indigo-100 rounded-xl text-center font-black text-indigo-600 text-xs" value={prize.quantity} onChange={e => handlePrizeChange(idx, 'quantity', e.target.value)} />
                         </div>
                         {formData.prizes.length > 1 && <button onClick={() => setFormData(p => ({ ...p, prizes: p.prizes.filter((_, i) => i !== idx) }))} className="text-slate-300 hover:text-rose-500"><Trash2 size={16} /></button>}
                       </div>
                     </div>
                   ))}
-                  <div className="flex justify-between items-center p-4 bg-slate-100/50 rounded-2xl border-2 border-dashed border-slate-200">
-                    <span className="text-[10px] font-black text-slate-400 uppercase italic">Tỉ lệ rớt giải ("May mắn lần sau"):</span>
-                    <span className="text-sm font-black text-slate-500">{unluckyPercent}%</span>
-                  </div>
+
                 </div>
               </div>
 

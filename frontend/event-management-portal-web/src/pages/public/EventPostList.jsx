@@ -51,7 +51,7 @@ const EventPostList = () => {
               <p className="font-bold text-[12px] hover:underline cursor-pointer text-slate-900">
                 {comment.commenter?.fullName || "Người dùng hệ thống"}
               </p>
-              {comment.commenter?.id === postAuthorId && (
+              {String(comment.commenter?.id) === String(postAuthorId) && (
                 <span className="bg-blue-600 text-white text-[9px] px-1.5 py-0.5 rounded flex items-center h-4 font-medium">Tác giả</span>
               )}
             </div>

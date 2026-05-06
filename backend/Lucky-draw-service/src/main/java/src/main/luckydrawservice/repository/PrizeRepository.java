@@ -11,5 +11,7 @@ public interface PrizeRepository extends JpaRepository<Prize, String> {
     List<Prize> findByLuckyDrawId(String luckyDrawId);
     List<Prize> findByLuckyDrawIdAndRemainingQuantityGreaterThan(String luckyDrawId, int i);
 
-    void deleteByLuckyDrawId(String luckyDrawId);
+    @org.springframework.data.jpa.repository.Modifying
+    @org.springframework.data.jpa.repository.Query("DELETE FROM Prize p WHERE p.luckyDraw.id = :luckyDrawId")
+    void deleteByLuckyDrawId(@org.springframework.data.repository.query.Param("luckyDrawId") String luckyDrawId);
 }

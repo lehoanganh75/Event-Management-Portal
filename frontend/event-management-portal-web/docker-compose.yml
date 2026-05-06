@@ -5,3 +5,10 @@ services:
     ports:
       - "3000:80"
     restart: always
+    develop:
+      watch:
+        - path: .
+          action: rebuild
+          ignore:
+            - node_modules/
+            - dist/

@@ -27,8 +27,13 @@ public class LuckyDrawController {
     }
 
     @GetMapping
-    public ResponseEntity<List<LuckyDraw>> getAllLuckyDraws() {
+    public ResponseEntity<List<LuckyDrawResponse>> getAllLuckyDraws() {
         return ResponseEntity.ok(luckyDrawService.getAllLuckyDraws());
+    }
+    
+    @GetMapping("/my-involved")
+    public ResponseEntity<List<LuckyDrawResponse>> getMyInvolvedLuckyDraws(@RequestHeader("Authorization") String token) {
+        return ResponseEntity.ok(luckyDrawService.getInvolvedLuckyDraws(token));
     }
 
     @GetMapping("/{luckyDrawId}")

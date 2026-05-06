@@ -11,7 +11,8 @@ import java.util.Optional;
 
 public interface LuckyDrawService {
     LuckyDraw createLuckyDraw(LuckyDrawCreateRequest request, String createdByAccountId);
-    List<LuckyDraw> getAllLuckyDraws();
+    List<LuckyDrawResponse> getAllLuckyDraws();
+    List<LuckyDrawResponse> getInvolvedLuckyDraws(String token);
 
     void deleteLuckyDrawByEventId(String eventId);
     void deleteLuckyDraw(String id);

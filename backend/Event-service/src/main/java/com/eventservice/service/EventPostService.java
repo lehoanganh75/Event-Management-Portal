@@ -13,7 +13,7 @@ import java.util.List;
 
 public interface EventPostService {
     // 1. Tìm kiếm và Lọc (Search & Filter)
-    Page<EventPost> getAllPosts(String title, PostStatus status, Pageable pageable);
+    List<EventPostDetailResponse> getAllPosts(String title, PostStatus status);
 
 
     List<EventPostDetailResponse> getPostsByEvent(String eventId);
@@ -33,7 +33,7 @@ public interface EventPostService {
     void deletePost(String id);
 
     @Transactional
-    EventPost reactToPost(String postId, String accountId, String emoji);
+    EventPostDetailResponse reactToPost(String postId, String accountId, String emoji);
 
     List<EventPostResponse> getPostsByAccountId(String accountId);
 
@@ -41,4 +41,9 @@ public interface EventPostService {
 
     @Transactional
     EventPost createPost(EventPostRequest postDto);
+
+    List<EventPostDetailResponse> getInvolvedPosts(String accountId);
+
+    @Transactional
+    void incrementViewCount(String id);
 }

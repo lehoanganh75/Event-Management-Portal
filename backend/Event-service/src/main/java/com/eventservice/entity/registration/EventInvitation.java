@@ -30,6 +30,9 @@ public class EventInvitation {
     @Column(nullable = false)
     private String inviteeEmail; // Email người được mời (Dùng email để mời cả người chưa có acc)
 
+    @Column
+    private String inviteeAccountId; // ID tài khoản người được mời (null nếu chưa có tài khoản)
+
     @Enumerated(EnumType.STRING)
     @Builder.Default
     private InvitationType type = InvitationType.ORGANIZER;

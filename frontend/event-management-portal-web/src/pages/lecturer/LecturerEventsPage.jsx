@@ -6,3 +6,4 @@ const LecturerEventsPage = () => {
 };
 
 export default LecturerEventsPage;
+

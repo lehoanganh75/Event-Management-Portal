@@ -10,6 +10,15 @@ import { useAuth } from "../../context/AuthContext";
 import eventService from "../../services/eventService";
 import Layout from "../../components/layout/Layout";
 import PostDetailManagement from "../../components/common/management/PostDetailManagement";
+import { createStompClient } from "../../utils/socket";
+
+const updateCommentInTree = (list, commentId, updateFn) => {
+  return list.map(item => {
+    if (String(item.id) === String(commentId)) return updateFn(item);
+    if (item.replies?.length > 0) return { ...item, replies: updateCommentInTree(item.replies, commentId, updateFn) };
+    return item;
+  });
+};
 
 export default function PostDetailPage() {
   const { id } = useParams();
@@ -20,6 +29,7 @@ export default function PostDetailPage() {
   const [comments, setComments] = useState([]);
   const [error, setError] = useState(null);
   const [isSubmittingComment, setIsSubmittingComment] = useState(false);
+  const [loading, setLoading] = useState(true);
 
   const loadPost = useCallback(async () => {
     try {
@@ -39,13 +49,47 @@ export default function PostDetailPage() {
     if (id) loadPost();
   }, [id, loadPost]);
 
-  const updateCommentInTree = (list, commentId, updateFn) => {
-    return list.map(item => {
-      if (item.id === commentId) return updateFn(item);
-      if (item.replies?.length > 0) return { ...item, replies: updateCommentInTree(item.replies, commentId, updateFn) };
-      return item;
+  useEffect(() => {
+    if (!id || !post) return;
+
+    const stompClient = createStompClient(() => {
+      stompClient.subscribe(`/topic/posts/${id}`, (message) => {
+        const event = JSON.parse(message.body);
+        if (event.type === 'LIKE') {
+          setPost(prev => ({ ...prev, reactions: event.data }));
+        } else if (event.type === 'VIEW') {
+          setPost(prev => ({ ...prev, viewCount: event.data }));
+        } else if (event.type === 'COMMENT') {
+          const isReply = !!event.data.parentId;
+          if (isReply) {
+            setComments(prev => updateCommentInTree(prev, event.data.parentId, (parent) => {
+              const existingReplies = parent.replies || [];
+              if (existingReplies.some(r => String(r.id) === String(event.data.id))) return parent;
+              return { ...parent, replies: [...existingReplies, event.data] };
+            }));
+          } else {
+            setComments(prev => {
+              if (prev.some(c => String(c.id) === String(event.data.id))) return prev;
+              return [event.data, ...prev];
+            });
+          }
+        } else if (event.type === 'COMMENT_LIKE') {
+          setComments(prev => updateCommentInTree(prev, event.data.id, (comment) => ({
+            ...comment,
+            reactions: event.data.reactions
+          })));
+        }
+      });
     });
-  };
+
+    stompClient.activate();
+
+    return () => {
+      if (stompClient.active) stompClient.deactivate();
+    };
+  }, [id, !!post]);
+
+
 
   const handleReactPost = async (emoji) => {
     if (!currentUser) {
@@ -93,7 +137,11 @@ export default function PostDetailPage() {
     setIsSubmittingComment(true);
     try {
       const res = await eventService.createComment(id, { content });
-      setComments(prev => [res.data, ...prev]);
+      const newComment = res.data;
+      setComments(prev => {
+        if (prev.some(c => String(c.id) === String(newComment.id))) return prev;
+        return [newComment, ...prev];
+      });
     } catch (err) {
       toast.error("Không thể gửi bình luận");
     } finally {
@@ -110,10 +158,15 @@ export default function PostDetailPage() {
     setIsSubmittingComment(true);
     try {
       const res = await eventService.createComment(id, { content, parentId });
-      setComments(prev => updateCommentInTree(prev, parentId, (parent) => ({
-        ...parent,
-        replies: [...(parent.replies || []), res.data]
-      })));
+      const newReply = res.data;
+      setComments(prev => updateCommentInTree(prev, parentId, (parent) => {
+        const existingReplies = parent.replies || [];
+        if (existingReplies.some(r => String(r.id) === String(newReply.id))) return parent;
+        return {
+          ...parent,
+          replies: [...existingReplies, newReply]
+        };
+      }));
     } catch (err) {
       toast.error("Không thể gửi phản hồi");
     } finally {
@@ -175,22 +228,21 @@ export default function PostDetailPage() {
 
         {/* Content Area */}
         <div className="max-w-5xl mx-auto px-6 -mt-16">
-          <div className="bg-white rounded-3xl shadow-xl overflow-hidden border border-gray-100">
-            <PostDetailManagement
-              post={post}
-              comments={comments}
-              currentUser={currentUser}
-              loading={loading}
-              error={error}
-              handleReactPost={handleReactPost}
-              handleReactComment={handleReactComment}
-              handleSubmitComment={handleSubmitComment}
-              handleSubmitReply={handleSubmitReply}
-              isSubmittingComment={isSubmittingComment}
-              onRefresh={loadPost}
-              backPath="/news"
-            />
-          </div>
+          <PostDetailManagement
+            post={post}
+            comments={comments}
+            currentUser={currentUser}
+            loading={loading}
+            error={error}
+            handleReactPost={handleReactPost}
+            handleReactComment={handleReactComment}
+            handleSubmitComment={handleSubmitComment}
+            handleSubmitReply={handleSubmitReply}
+            isSubmittingComment={isSubmittingComment}
+            onRefresh={loadPost}
+            backPath="/news"
+            hideHeader={true}
+          />
         </div>
       </div>
     </Layout>

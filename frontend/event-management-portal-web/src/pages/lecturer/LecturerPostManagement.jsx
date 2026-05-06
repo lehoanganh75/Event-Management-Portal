@@ -24,8 +24,8 @@ const LecturerPostManagement = () => {
   const fetchPosts = useCallback(async () => {
     setLoading(true);
     try {
-      const response = await eventService.getAllPosts({ size: 1000 });
-      setPosts(response.data.content || response.data || []);
+      const response = await eventService.getMyInvolvedPosts();
+      setPosts(response || []);
     } catch (error) {
       toast.error("Lỗi tải danh sách bài viết");
     } finally {
@@ -33,11 +33,11 @@ const LecturerPostManagement = () => {
     }
   }, []);
 
+  console.log("posts: ", posts);
+
+
   const fetchUserEvents = useCallback(async () => {
     try {
-      // Use getByStatus or similar to get a broader list of events if needed, 
-      // but for Lecturer, we want events where they have a role or belong to the org.
-      // eventService.getMyEvents('ALL') might be better here.
       const res = await eventService.getMyEvents('ALL');
       setUserEvents(res.data || []);
     } catch (err) { }
@@ -96,7 +96,7 @@ const LecturerPostManagement = () => {
       deletePost={handleDelete}
       onRefresh={fetchPosts}
       eligibleEvents={userEvents}
-      title="Quản lý bài đăng của tôi"
+      title="Quản lý bài đăng của sự kiện"
       eventTitle="Tất cả sự kiện"
       detailPathPrefix="/lecturer/posts"
       isSystemAdmin={isSystemAdmin}

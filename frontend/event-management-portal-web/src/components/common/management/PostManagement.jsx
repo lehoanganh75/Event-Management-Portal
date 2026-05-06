@@ -101,18 +101,27 @@ const PostManagement = ({
     if (!selectedEvent) return false;
     if (isSystemAdmin) return true;
     const role = selectedEvent.currentUserRole;
-    const isInOrganization = user?.organizationId === selectedEvent?.organization?.id || 
-                             user?.orgId === selectedEvent?.organization?.id;
-    return role?.organizerRole || role?.presented || isInOrganization;
+    const isInOrganization = user?.organizationId === selectedEvent?.organization?.id ||
+      user?.orgId === selectedEvent?.organization?.id;
+
+    // Được đăng bài nếu là Admin, hoặc có vai trò (BTC, Diễn giả, Người tạo), hoặc thuộc tổ chức
+    return isSystemAdmin || role?.organizerRole || role?.presented || role?.creator || isInOrganization;
   }, [postFormData.eventId, eligibleEvents, isSystemAdmin, user]);
 
   const needsApproval = useMemo(() => {
     if (isSystemAdmin) return false;
     const selectedEvent = eligibleEvents.find(e => e.id === postFormData.eventId);
-    const isInOrganization = user?.organizationId === selectedEvent?.organization?.id || 
-                             user?.orgId === selectedEvent?.organization?.id;
-    if (isInOrganization) return false;
-    return true; // Lecturers/Presenters/Organizers who are not admins/org members need approval
+    if (!selectedEvent) return true;
+
+    const role = selectedEvent.currentUserRole;
+    const isInOrganization = user?.organizationId === selectedEvent?.organization?.id ||
+      user?.orgId === selectedEvent?.organization?.id;
+
+    // KHÔNG cần duyệt nếu: Là Admin hệ thống, Hoặc thuộc Tổ chức sở hữu, Hoặc là Ban tổ chức, Hoặc là Người tạo
+    if (isInOrganization || role?.organizerRole || role?.creator) return false;
+
+    // Các vai trò khác (như Diễn giả) thì phải duyệt
+    return true;
   }, [isSystemAdmin, user, eligibleEvents, postFormData.eventId]);
 
   const handleOpenModal = () => {
@@ -153,9 +162,9 @@ const PostManagement = ({
       // logic: organizations -> PUBLISHED, EventPresenter/EventOrganizer -> PENDING
       const selectedEvent = eligibleEvents.find(e => e.id === postFormData.eventId);
       const isOrganizerOrPresenter = selectedEvent?.currentUserRole?.organizerRole || selectedEvent?.currentUserRole?.presented;
-      const isInOrganization = user?.organizationId === selectedEvent?.organization?.id || 
-                               user?.orgId === selectedEvent?.organization?.id || 
-                               isSystemAdmin;
+      const isInOrganization = user?.organizationId === selectedEvent?.organization?.id ||
+        user?.orgId === selectedEvent?.organization?.id ||
+        isSystemAdmin;
 
       let finalStatus = postFormData.status;
       if (finalStatus === "PUBLISHED") {
@@ -177,8 +186,8 @@ const PostManagement = ({
         toast.success("Đã cập nhật bài viết thành công!");
       } else {
         await createPost(payload);
-        const successMsg = finalStatus === "PENDING" 
-          ? "Bài viết đã được gửi và đang chờ phê duyệt!" 
+        const successMsg = finalStatus === "PENDING"
+          ? "Bài viết đã được gửi và đang chờ phê duyệt!"
           : "Đã đăng bài viết thành công!";
         toast.success(successMsg);
       }
@@ -231,14 +240,15 @@ const PostManagement = ({
     return (posts || []).filter((post) => {
       // 1. Visibility Check (for non-admins)
       if (!isSystemAdmin) {
-        const isAuthor = post.accountId === (user?.id || user?.accountId);
+        const authorId = post.author?.id || post.createdByAccountId || post.accountId;
+        const isAuthor = authorId === (user?.id || user?.accountId);
         const eventId = post.eventId || post.event?.id;
         const eventInfo = eligibleEvents.find(e => e.id === eventId);
-        
+
         const hasEventRole = eventInfo?.currentUserRole?.organizerRole || eventInfo?.currentUserRole?.presented;
-        const isInEventOrg = user?.organizationId === eventInfo?.organization?.id || 
-                             user?.orgId === eventInfo?.organization?.id;
-        
+        const isInEventOrg = user?.organizationId === eventInfo?.organization?.id ||
+          user?.orgId === eventInfo?.organization?.id;
+
         // If not author AND no role/org in the event, hide the post
         if (!isAuthor && !hasEventRole && !isInEventOrg) return false;
       }
@@ -246,7 +256,7 @@ const PostManagement = ({
       // 2. Search & Tab Filter
       const searchLower = searchTerm.toLowerCase();
       const matchSearch = !searchTerm || post.title?.toLowerCase().includes(searchLower) || post.content?.toLowerCase().includes(searchLower);
-      
+
       let matchTab = true;
       switch (activeTab) {
         case "Đã đăng": matchTab = post.status === "PUBLISHED"; break;
@@ -350,7 +360,9 @@ const PostManagement = ({
             <table className="w-full text-sm">
               <thead className="bg-slate-50 border-b border-gray-200">
                 <tr>
+                  <th className="p-4 text-left font-semibold text-slate-700">Người đăng</th>
                   <th className="p-4 text-left font-semibold text-slate-700">Tiêu đề bài viết</th>
+                  <th className="p-4 text-left font-semibold text-slate-700">Sự kiện</th>
                   <th className="p-4 text-left font-semibold text-slate-700">Nội dung</th>
                   <th className="p-4 text-left font-semibold text-slate-700">Loại</th>
                   <th className="p-4 text-left font-semibold text-slate-700">Ngày tạo</th>
@@ -362,7 +374,24 @@ const PostManagement = ({
                 {paginatedPosts.length > 0 ? (
                   paginatedPosts.map((post) => (
                     <tr key={post.id} className="hover:bg-slate-50/80 transition-colors">
+                      <td className="p-4">
+                        <div className="flex items-center gap-3">
+                          <img
+                            src={post.author?.avatarUrl || "https://ui-avatars.com/api/?name=" + (post.author?.fullName || "User")}
+                            alt="Avatar"
+                            className="w-8 h-8 rounded-full object-cover border border-slate-200"
+                          />
+                          <span className="font-medium text-slate-700 whitespace-nowrap">
+                            {post.author?.fullName || "Người dùng"}
+                          </span>
+                        </div>
+                      </td>
                       <td className="p-4"><p className="font-bold text-slate-800 truncate max-w-[200px]">{post.title}</p></td>
+                      <td className="p-4">
+                        <p className="text-sm font-medium text-blue-600 bg-blue-50 px-2 py-1 rounded-md border border-blue-100 truncate max-w-[150px]">
+                          {post.eventTitle || "Sự kiện khác"}
+                        </p>
+                      </td>
                       <td className="p-4"><p className="text-sm text-gray-600 line-clamp-2 leading-relaxed max-w-[300px]">{post.content}</p></td>
                       <td className="p-4">
                         <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium ${POST_TYPES[post.postType]?.color || "bg-gray-100"}`}>
@@ -389,7 +418,7 @@ const PostManagement = ({
                     </tr>
                   ))
                 ) : (
-                  <tr><td colSpan={6} className="p-20 text-center"><div className="flex flex-col items-center"><div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center text-slate-400 mb-4"><Search size={32} /></div><p className="text-gray-500 font-medium">Không tìm thấy bài viết nào</p></div></td></tr>
+                  <tr><td colSpan={8} className="p-20 text-center"><div className="flex flex-col items-center"><div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center text-slate-400 mb-4"><Search size={32} /></div><p className="text-gray-500 font-medium">Không tìm thấy bài viết nào</p></div></td></tr>
                 )}
               </tbody>
             </table>
@@ -429,6 +458,8 @@ const PostManagement = ({
                     <div className="flex flex-wrap gap-1.5 mt-1">
                       <select value={postFormData.eventId} onChange={(e) => setPostFormData({ ...postFormData, eventId: e.target.value })} className="text-[10px] font-bold bg-slate-100 text-slate-600 px-2 py-1 rounded-md border-none focus:ring-0 cursor-pointer hover:bg-slate-200 transition-colors max-w-[150px] truncate">
                         <option value="">Chọn sự kiện...</option>
+                        {console.log("eligibleEventsList: ", eligibleEvents)}
+
                         {isFetchingEvents ? (
                           <option disabled>Đang tải...</option>
                         ) : eligibleEvents
@@ -436,7 +467,8 @@ const PostManagement = ({
                             if (isSystemAdmin) return true;
                             const role = ev.currentUserRole;
                             const isInOrg = user?.organizationId === ev.organization?.id || user?.orgId === ev.organization?.id;
-                            return role?.organizerRole || role?.presented || isInOrg;
+                            // Hiện tất cả sự kiện có liên quan (BTC, Diễn giả, hoặc Người tạo)
+                            return isSystemAdmin || role?.organizerRole || role?.presented || role?.creator || isInOrg;
                           })
                           .map(ev => (
                             <option key={ev.id} value={ev.id}>{ev.title}</option>
@@ -474,11 +506,11 @@ const PostManagement = ({
               <div className="p-4 bg-white border-t border-slate-100">
                 <button onClick={handleCreatePost} disabled={isSubmitting || (postFormData.eventId && !canPostForSelectedEvent)} className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-slate-300 text-white py-3 rounded-xl font-bold shadow-lg transition-all flex items-center justify-center gap-2">
                   {isSubmitting ? <Loader2 size={18} className="animate-spin" /> : <Send size={18} />}
-                  {editingPostId 
-                    ? "Cập nhật bài viết" 
-                    : (postFormData.status === "PUBLISHED" 
-                        ? (needsApproval ? "Gửi bài duyệt" : "Đăng bài ngay") 
-                        : "Lưu bản nháp")}
+                  {editingPostId
+                    ? "Cập nhật bài viết"
+                    : (postFormData.status === "PUBLISHED"
+                      ? (needsApproval ? "Gửi bài duyệt" : "Đăng bài ngay")
+                      : "Lưu bản nháp")}
                 </button>
               </div>
             </motion.div>

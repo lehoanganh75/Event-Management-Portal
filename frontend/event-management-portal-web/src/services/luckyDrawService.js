@@ -61,6 +61,7 @@ privateApi.interceptors.response.use(
 const luckyDrawService = {
     // ==================== CAMPAIGNS ====================
     getAll: () => privateApi.get('/lucky-draws'),
+    getMyInvolved: () => privateApi.get('/lucky-draws/my-involved'),
 
     getById: (id) => privateApi.get(`/lucky-draws/${id}`),
 

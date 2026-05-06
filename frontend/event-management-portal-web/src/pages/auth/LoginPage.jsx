@@ -31,9 +31,9 @@ const LoginPage = () => {
   useEffect(() => {
     if (user && user.role) {
       const userRole = user.role.toUpperCase();
-      if (userRole === "SUPER_ADMIN") {
+      if (userRole === "SUPER_ADMIN" || userRole === "ADMIN") {
         navigate("/admin/dashboard");
-      } else if (userRole === "ADMIN") {
+      } else if (userRole === "LECTURER") {
         navigate("/lecturer/dashboard");
       } else {
         navigate("/");

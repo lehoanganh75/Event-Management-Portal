@@ -16,13 +16,21 @@ import EventPostList from "../pages/public/EventPostList";
 import CalendarPage from "../pages/public/CalendarPage";
 import ResetPassword from "../pages/auth/ResetPassword";
 import ForgotPassword from "../pages/auth/ForgotPassword";
+import PublicProfilePage from "../pages/public/PublicProfilePage";
+import PostDetailPage from "../pages/public/PostDetailPage";
 
 // Layouts
 import DashboardLayout from "../components/layout/DashboardLayout";
 
 // Student Pages
-import MyEventsPage from "../pages/user/MyEventsPage";
-import NotificationUserPage from "../pages/user/NotificationPage";
+import StudentEventsPage from "../pages/user/StudentEventsPage";
+import StudentEventDetailPage from "../pages/user/StudentEventDetailPage";
+import StudentNotificationsPage from "../pages/user/StudentNotificationsPage";
+import StudentPlansPage from "../pages/user/StudentPlansPage";
+import StudentPostManagement from "../pages/user/StudentPostManagement";
+import StudentPostDetailPage from "../pages/user/StudentPostDetailPage";
+import StudentTemplatesPage from "../pages/user/StudentTemplatesPage";
+import StudentLuckyDrawManagement from "../pages/user/StudentLuckyDrawManagement";
 
 // Common Pages
 import Dashboard from "../pages/common/Dashboard";
@@ -57,6 +65,7 @@ import CoordinatorPage from "../pages/event-management/CoordinatorPage";
 import MemberScanPage from "../pages/event-management/MemberScanPage";
 import AdvisorPage from "../pages/event-management/AdvisorPage";
 import ProfileManagement from "../pages/common/ProfileManagement";
+import LecturerTemplatesPage from "../pages/lecturer/LecturerTemplatesPage";
 
 const AppRouter = () => {
   const location = useLocation();
@@ -77,6 +86,8 @@ const AppRouter = () => {
         <Route path="/reset-password" element={<ResetPassword />} />
         <Route path="/news" element={<NewsPage />} />
         <Route path="/news/:eventId" element={<EventPostList />} />
+        <Route path="/posts/:id" element={<PostDetailPage />} />
+        <Route path="/profile" element={<PublicProfilePage />} />
 
         {/* --- ROLE BASED DASHBOARD ROUTES --- */}
 
@@ -84,21 +95,16 @@ const AppRouter = () => {
         <Route path="/student" element={<DashboardLayout />}>
           <Route index element={<Navigate to="dashboard" replace />} />
           <Route path="dashboard" element={<Dashboard />} />
-          <Route path="events" element={<MyEventsPage />} />
-          <Route path="plans" element={<LecturerPlansPage />} />
-          <Route path="posts" element={<NewsPage />} />
-          <Route path="notifications" element={<NotificationUserPage />} />
-          <Route path="notifications/:userId" element={<NotificationUserPage />} />
-          <Route path="profile" element={<ProfileManagement />} />
-        </Route>
-
-        {/* Guest/Registered User Routes */}
-        <Route path="/user" element={<DashboardLayout />}>
-          <Route index element={<Navigate to="dashboard" replace />} />
-          <Route path="dashboard" element={<Dashboard />} />
-          <Route path="events" element={<EventsPage />} />
-          <Route path="posts" element={<NewsPage />} />
-          <Route path="notifications" element={<NotificationUserPage />} />
+          <Route path="plans" element={<StudentPlansPage />} />
+          <Route path="events">
+            <Route index element={<StudentEventsPage />} />
+            <Route path=":id" element={<StudentEventDetailPage />} />
+          </Route>
+          <Route path="posts" element={<StudentPostManagement />} />
+          <Route path="posts/:id" element={<StudentPostDetailPage />} />
+          <Route path="templates" element={<StudentTemplatesPage />} />
+          <Route path="notifications" element={<StudentNotificationsPage />} />
+          <Route path="spinner" element={<StudentLuckyDrawManagement />} />
           <Route path="profile" element={<ProfileManagement />} />
         </Route>
 
@@ -107,11 +113,15 @@ const AppRouter = () => {
           <Route index element={<Navigate to="dashboard" replace />} />
           <Route path="dashboard" element={<Dashboard />} />
           <Route path="plans" element={<LecturerPlansPage />} />
-          <Route path="events" element={<LecturerEventsPage />} />
+          <Route path="events">
+            <Route index element={<LecturerEventsPage />} />
+            <Route path=":id" element={<LecturerEventDetailPage />} />
+          </Route>
           <Route path="posts" element={<LecturerPostManagement />} />
+          <Route path="posts/:id" element={<LecturerPostDetailPage />} />
+          <Route path="templates" element={<LecturerTemplatesPage />} />
           <Route path="notifications" element={<LecturerNotificationsPage />} />
           <Route path="spinner" element={<LecturerLuckyDrawManagement />} />
-          <Route path="events/:id/lucky-draw/setup" element={<LuckyDrawConfigPage userType="lecturer" />} />
           <Route path="profile" element={<ProfileManagement />} />
         </Route>
 

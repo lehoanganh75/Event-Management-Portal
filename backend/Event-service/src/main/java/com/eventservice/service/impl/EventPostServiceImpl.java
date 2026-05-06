@@ -15,6 +15,7 @@ import com.eventservice.entity.social.PostComment;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import com.eventservice.entity.core.Event;
@@ -35,12 +36,39 @@ public class EventPostServiceImpl implements EventPostService {
     private final EventPostRepository eventPostRepository;
     private final EventRepository eventRepository;
     private final IdentityServiceClient identityServiceClient;
+    private final SimpMessagingTemplate messagingTemplate;
 
+    @Transactional(readOnly = true)
     @Override
-    public Page<EventPost> getAllPosts(String title, PostStatus status, Pageable pageable) {
-        return eventPostRepository.findAllWithFilters(title, status, pageable);
+    public List<EventPostDetailResponse> getAllPosts(String title, PostStatus status) {
+        List<EventPost> posts = eventPostRepository.findAll().stream()
+                .filter(p -> !p.isDeleted())
+                .filter(p -> status == null || p.getStatus() == status)
+                .filter(p -> title == null || p.getTitle().toLowerCase().contains(title.toLowerCase()))
+                .sorted(Comparator.comparing(EventPost::getCreatedAt).reversed())
+                .collect(Collectors.toList());
+
+        if (posts.isEmpty()) {
+            return Collections.emptyList();
+        }
+
+        // 1. Gom tất cả Account IDs để gọi Identity 1 lần
+        Set<String> allAccountIds = new HashSet<>();
+        for (EventPost post : posts) {
+            allAccountIds.add(post.getAuthorAccountId());
+            collectAccountIds(post.getComments(), allAccountIds);
+        }
+
+        // 2. Fetch User Map (Batching)
+        Map<String, UserResponse> userMap = fetchUsersMap(allAccountIds);
+
+        // 3. Map sang DTO
+        return posts.stream()
+                .map(post -> mapToPostDetailResponse(post, userMap))
+                .collect(Collectors.toList());
     }
 
+    @Transactional(readOnly = true)
     @Override
     public List<EventPostDetailResponse> getPostsByEvent(String eventId) {
         List<EventPost> eventPosts = eventPostRepository.findByEventIdAndIsDeletedFalse(eventId);
@@ -64,6 +92,7 @@ public class EventPostServiceImpl implements EventPostService {
                 .collect(Collectors.toList());
     }
 
+    @Transactional(readOnly = true)
     @Override
     public EventPostDetailResponse getPostDetail(String id) {
         EventPost post = eventPostRepository.findByIdAndIsDeletedFalse(id)
@@ -281,7 +310,7 @@ public class EventPostServiceImpl implements EventPostService {
 
     @Transactional
     @Override
-    public EventPost reactToPost(String postId, String accountId, String emoji) {
+    public EventPostDetailResponse reactToPost(String postId, String accountId, String emoji) {
         EventPost post = eventPostRepository.findById(postId)
                 .orElseThrow(() -> new RuntimeException("Bài viết không tồn tại!"));
 
@@ -296,7 +325,71 @@ public class EventPostServiceImpl implements EventPostService {
         }
 
         post.setReactions(reactions);
-        return eventPostRepository.save(post);
+        EventPost saved = eventPostRepository.save(post);
+
+        // Broadcast reaction update
+        messagingTemplate.convertAndSend("/topic/posts/" + postId,
+                PostInteractionEvent.builder()
+                        .postId(postId)
+                        .type(PostInteractionEvent.Type.LIKE)
+                        .data(saved.getReactions())
+                        .build());
+
+        // Sử dụng hàm helper đã có để map sang DetailResponse (có trường author)
+        Map<String, UserResponse> userMap = fetchUsersMap(Collections.singleton(saved.getAuthorAccountId()));
+        return mapToPostDetailResponse(saved, userMap);
+    }
+    @Transactional(readOnly = true)
+    @Override
+    public List<EventPostDetailResponse> getInvolvedPosts(String accountId) {
+        // Kiểm tra quyền hạn từ SecurityContext
+        var authentication = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
+        boolean isAdmin = authentication.getAuthorities().stream()
+                .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN") || a.getAuthority().equals("ROLE_SUPER_ADMIN"));
+
+        List<EventPost> posts;
+        if (isAdmin) {
+            // Nếu là Admin, lấy tất cả bài viết chưa xóa
+            posts = eventPostRepository.findAll().stream()
+                    .filter(p -> !p.isDeleted())
+                    .sorted(Comparator.comparing(EventPost::getCreatedAt).reversed())
+                    .collect(Collectors.toList());
+        } else {
+            // Nếu là Lecturer, lấy bài viết liên quan
+            posts = eventPostRepository.findInvolvedPostsByAccountId(accountId);
+        }
+
+        if (posts.isEmpty()) return Collections.emptyList();
+
+        // Gom tất cả Account IDs (bao gồm cả commenter nếu muốn lấy comment ban đầu)
+        Set<String> allAccountIds = new HashSet<>();
+        for (EventPost post : posts) {
+            allAccountIds.add(post.getAuthorAccountId());
+            collectAccountIds(post.getComments(), allAccountIds);
+        }
+
+        Map<String, UserResponse> userMap = fetchUsersMap(allAccountIds);
+
+        return posts.stream()
+                .map(post -> mapToPostDetailResponse(post, userMap))
+                .collect(Collectors.toList());
+    }
+
+    @Transactional
+    @Override
+    public void incrementViewCount(String id) {
+        eventPostRepository.findById(id).ifPresent(post -> {
+            post.setViewCount(post.getViewCount() + 1);
+            EventPost saved = eventPostRepository.save(post);
+
+            // Broadcast view update
+            messagingTemplate.convertAndSend("/topic/posts/" + id,
+                    PostInteractionEvent.builder()
+                            .postId(id)
+                            .type(PostInteractionEvent.Type.VIEW)
+                            .data(saved.getViewCount())
+                            .build());
+        });
     }
 }
 

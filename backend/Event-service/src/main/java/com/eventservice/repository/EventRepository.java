@@ -2,9 +2,11 @@ package com.eventservice.repository;
 
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
+import org.springframework.transaction.annotation.Transactional;
 import com.eventservice.entity.core.Event;
 import com.eventservice.entity.enums.EventStatus;
 
@@ -16,90 +18,144 @@ import java.util.Optional;
 @Repository
 public interface EventRepository extends JpaRepository<Event, String> {
 
-    Optional<Event> findById(String id);
-    Optional<Event> findBySlug(String slug);
+        Optional<Event> findById(String id);
 
-    @EntityGraph(attributePaths = {"presenters", "organizers", "participants"})
-    List<Event> findByCreatedByAccountIdAndCreatedAtBetweenAndIsDeletedFalse(
-            String accountId, LocalDateTime start, LocalDateTime end);
+        Optional<Event> findBySlug(String slug);
 
-    List<Event> findByStatusInAndIsDeletedFalseAndCreatedByAccountId(
-            List<EventStatus> statuses, String accountId);
+        @EntityGraph(attributePaths = { "presenters", "organizers", "participants" })
+        List<Event> findByCreatedByAccountIdAndCreatedAtBetweenAndIsDeletedFalse(
+                        String accountId, LocalDateTime start, LocalDateTime end);
 
-    Optional<Event> findByIdAndIsDeletedFalse(String id);
+        List<Event> findByStatusInAndIsDeletedFalseAndCreatedByAccountId(
+                        List<EventStatus> statuses, String accountId);
 
-    Optional<Event> findBySlugAndIsDeletedFalse(String slug);
+        Optional<Event> findByIdAndIsDeletedFalse(String id);
 
-    List<Event> findByCreatedByAccountIdAndStatusInAndStartTimeBetweenAndIsDeletedFalse(
-            String accountId,
-            Collection<EventStatus> statuses,
-            LocalDateTime start,
-            LocalDateTime end
-    );
+        Optional<Event> findBySlugAndIsDeletedFalse(String slug);
 
-    @Query("SELECT e FROM Event e WHERE e.organization.ownerAccountId = :ownerId AND e.isDeleted = false")
-    List<Event> findEventsByOrganizationOwner(@Param("ownerId") String ownerId);
+        List<Event> findByCreatedByAccountIdAndStatusInAndStartTimeBetweenAndIsDeletedFalse(
+                        String accountId,
+                        Collection<EventStatus> statuses,
+                        LocalDateTime start,
+                        LocalDateTime end);
 
-    // Truy vấn qua bảng trung gian EventOrganizer
-    @Query("SELECT e FROM Event e JOIN e.organizers o WHERE o.accountId = :accId AND e.isDeleted = false AND o.isDeleted = false")
-    List<Event> findEventsByOrganizerAccountId(@Param("accId") String accId);
+        @Query("SELECT e FROM Event e WHERE e.organization.ownerAccountId = :ownerId AND e.isDeleted = false")
+        List<Event> findEventsByOrganizationOwner(@Param("ownerId") String ownerId);
 
-    // Truy vấn qua bảng EventPresenter
-    @Query("SELECT e FROM Event e JOIN e.presenters p WHERE p.presenterAccountId = :accId AND e.isDeleted = false AND p.isDeleted = false")
-    List<Event> findEventsByPresenterAccountId(@Param("accId") String accId);
+        // Truy vấn qua bảng trung gian EventOrganizer
+        @Query("SELECT e FROM Event e JOIN e.organizers o WHERE o.accountId = :accId AND e.isDeleted = false AND o.isDeleted = false")
+        List<Event> findEventsByOrganizerAccountId(@Param("accId") String accId);
 
-    // Truy vấn qua bảng Registration
-    @Query("SELECT e FROM Event e JOIN e.registrations r WHERE r.participantAccountId = :accId AND e.isDeleted = false AND r.isDeleted = false AND r.status != 'CANCELLED'")
-    List<Event> findEventsByParticipantAccountId(@Param("accId") String accId);
+        // Truy vấn qua bảng EventPresenter
+        @Query("SELECT e FROM Event e JOIN e.presenters p WHERE p.presenterAccountId = :accId AND e.isDeleted = false AND p.isDeleted = false")
+        List<Event> findEventsByPresenterAccountId(@Param("accId") String accId);
 
-    // Truy vấn sự kiện do tôi TẠO
-    @Query("SELECT e FROM Event e WHERE e.createdByAccountId = :accId AND e.isDeleted = false")
-    List<Event> findByCreatedByAccountIdAndIsDeletedFalse(@Param("accId") String accId);
+        // Truy vấn qua bảng Registration
+        @Query("SELECT e FROM Event e JOIN e.registrations r WHERE r.participantAccountId = :accId AND e.isDeleted = false AND r.isDeleted = false AND r.status != 'CANCELLED'")
+        List<Event> findEventsByParticipantAccountId(@Param("accId") String accId);
 
-    // Truy vấn sự kiện do tôi PHÊ DUYỆT (Dành cho Admin/Manager)
-    @Query("SELECT e FROM Event e WHERE e.approvedByAccountId = :accId AND e.isDeleted = false")
-    List<Event> findByApprovedByAccountIdAndIsDeletedFalse(@Param("accId") String accId);
+        // Truy vấn sự kiện do tôi TẠO
+        @Query("SELECT e FROM Event e WHERE e.createdByAccountId = :accId AND e.isDeleted = false")
+        List<Event> findByCreatedByAccountIdAndIsDeletedFalse(@Param("accId") String accId);
 
-    @Query("SELECT e FROM Event e WHERE e.status IN :statuses " +
-            "AND e.isDeleted = false " +
-            "AND e.startTime <= :now " +
-            "AND e.endTime >= :now " +
-            "ORDER BY e.endTime ASC")
-    List<Event> findOngoingEvents(@Param("statuses") List<EventStatus> statuses, @Param("now") LocalDateTime now);
+        // Truy vấn sự kiện do tôi PHÊ DUYỆT (Dành cho Admin/Manager)
+        @Query("SELECT e FROM Event e WHERE e.approvedByAccountId = :accId AND e.isDeleted = false")
+        List<Event> findByApprovedByAccountIdAndIsDeletedFalse(@Param("accId") String accId);
 
-    List<Event> findByStatusInAndIsDeletedFalseOrderByStartTimeDesc(List<EventStatus> statuses);
-    List<Event> findByIsDeletedFalseOrderByCreatedAtDesc();
-    List<Event> findByIsDeletedFalseOrderByStartTimeDesc();
+        // --- CÁCH 2: TRUY VẤN TỐI ƯU (SINGLE QUERY) ---
 
-    @EntityGraph(attributePaths = {"presenters", "organizers"})
-    List<Event> findByStartTimeBetweenAndStatusAndIsDeletedFalse(
-            LocalDateTime start,
-            LocalDateTime end,
-            EventStatus status
-    );
+        @Query("SELECT DISTINCT e FROM Event e " +
+                        "LEFT JOIN e.organizers o " +
+                        "LEFT JOIN e.presenters p " +
+                        "LEFT JOIN e.registrations r " +
+                        "WHERE e.isDeleted = false AND (" +
+                        "  e.createdByAccountId = :accId OR " +
+                        "  e.approvedByAccountId = :accId OR " +
+                        "  e.organization.ownerAccountId = :accId OR " +
+                        "  (o.accountId = :accId AND o.isDeleted = false) OR " +
+                        "  (p.presenterAccountId = :accId AND p.isDeleted = false) OR " +
+                        "  (r.participantAccountId = :accId AND r.isDeleted = false AND r.status != 'CANCELLED')" +
+                        ")")
+        List<Event> findEventsByUserAnyRole(@Param("accId") String accId);
 
-    List<Event> findByStatusInAndIsDeletedFalse(List<EventStatus> statuses);
+        @Query("SELECT DISTINCT e FROM Event e " +
+                        "LEFT JOIN e.organizers o " +
+                        "LEFT JOIN e.presenters p " +
+                        "WHERE e.isDeleted = false AND (" +
+                        "  e.createdByAccountId = :accId OR " +
+                        "  (o.accountId = :accId AND o.isDeleted = false) OR " +
+                        "  (p.presenterAccountId = :accId AND p.isDeleted = false)" +
+                        ")")
+        List<Event> findInvolvedEventsByAccountId(@Param("accId") String accId);
 
-    @Query("SELECT COUNT(r) FROM EventRegistration r WHERE r.event.id = :eventId AND r.isDeleted = false")
-    long countRegistrationsByEventId(@Param("eventId") String eventId);
+        @Query("SELECT e FROM Event e WHERE e.status IN :statuses " +
+                        "AND e.isDeleted = false " +
+                        "AND e.startTime <= :now " +
+                        "AND e.endTime >= :now " +
+                        "ORDER BY e.endTime ASC")
+        List<Event> findOngoingEvents(@Param("statuses") List<EventStatus> statuses, @Param("now") LocalDateTime now);
 
-    List<Event> findByStatusInAndIsDeletedFalseOrderByRegistrationDeadlineAsc(List<EventStatus> publicStatuses);
+        List<Event> findByStatusInAndIsDeletedFalseOrderByStartTimeDesc(List<EventStatus> statuses);
 
-    List<Event> findByStatus(EventStatus eventStatus);
-    @Query("SELECT e FROM Event e WHERE " +
-           "(LOWER(e.title) LIKE LOWER(CONCAT('%', :keyword, '%')) OR " +
-           "LOWER(e.description) LIKE LOWER(CONCAT('%', :keyword, '%')) OR " +
-           "LOWER(e.eventTopic) LIKE LOWER(CONCAT('%', :keyword, '%'))) " +
-           "AND e.isDeleted = false " +
-           "ORDER BY e.startTime DESC")
-    List<Event> searchByKeyword(@Param("keyword") String keyword);
+        List<Event> findByIsDeletedFalseOrderByCreatedAtDesc();
 
-    long countByIsDeletedFalse();
-    long countByStatusAndIsDeletedFalse(EventStatus status);
-    long countByCreatedByAccountIdAndIsDeletedFalse(String accountId);
-    long countByCreatedByAccountIdAndStatusAndIsDeletedFalse(String accountId, EventStatus status);
+        List<Event> findByIsDeletedFalseOrderByStartTimeDesc();
 
-    org.springframework.data.domain.Page<Event> findByCreatedByAccountIdAndIsDeletedFalseOrderByCreatedAtDesc(String accountId, org.springframework.data.domain.Pageable pageable);
+        @EntityGraph(attributePaths = { "presenters", "organizers" })
+        List<Event> findByStartTimeBetweenAndStatusAndIsDeletedFalse(
+                        LocalDateTime start,
+                        LocalDateTime end,
+                        EventStatus status);
 
-    List<Event> findByOrganizationIdAndIsDeletedFalse(String orgId);
+        List<Event> findByStatusInAndIsDeletedFalse(List<EventStatus> statuses);
+
+        @Query("SELECT COUNT(r) FROM EventRegistration r WHERE r.event.id = :eventId AND r.isDeleted = false")
+        long countRegistrationsByEventId(@Param("eventId") String eventId);
+
+        List<Event> findByStatusInAndIsDeletedFalseOrderByRegistrationDeadlineAsc(List<EventStatus> publicStatuses);
+
+        @Query("SELECT DISTINCT e FROM Event e " +
+                        "LEFT JOIN e.organizers o " +
+                        "LEFT JOIN e.presenters p " +
+                        "WHERE e.isDeleted = false AND e.status IN :statuses AND (" +
+                        "  e.createdByAccountId = :accId OR " +
+                        "  (o.accountId = :accId AND o.isDeleted = false) OR " +
+                        "  (p.presenterAccountId = :accId AND p.isDeleted = false)" +
+                        ")")
+        List<Event> findInvolvedPlansByAccountId(@Param("accId") String accId,
+                        @Param("statuses") List<EventStatus> statuses);
+
+        List<Event> findByStatus(EventStatus eventStatus);
+
+        @Query("SELECT e FROM Event e WHERE " +
+                        "(LOWER(e.title) LIKE LOWER(CONCAT('%', :keyword, '%')) OR " +
+                        "LOWER(e.description) LIKE LOWER(CONCAT('%', :keyword, '%')) OR " +
+                        "LOWER(e.eventTopic) LIKE LOWER(CONCAT('%', :keyword, '%'))) " +
+                        "AND e.isDeleted = false " +
+                        "ORDER BY e.startTime DESC")
+        List<Event> searchByKeyword(@Param("keyword") String keyword);
+
+        long countByIsDeletedFalse();
+
+        long countByStatusAndIsDeletedFalse(EventStatus status);
+
+        long countByCreatedByAccountIdAndIsDeletedFalse(String accountId);
+
+        long countByCreatedByAccountIdAndStatusAndIsDeletedFalse(String accountId, EventStatus status);
+
+        org.springframework.data.domain.Page<Event> findByCreatedByAccountIdAndIsDeletedFalseOrderByCreatedAtDesc(
+                        String accountId, org.springframework.data.domain.Pageable pageable);
+
+        List<Event> findByOrganizationIdAndIsDeletedFalse(String orgId);
+
+        @Query("SELECT e.id FROM Event e WHERE e.status IN :sourceStatuses AND e.endTime < :now AND e.isDeleted = false")
+        List<String> findExpiredEventIds(@Param("sourceStatuses") List<EventStatus> sourceStatuses,
+                        @Param("now") LocalDateTime now);
+
+        @Modifying
+        @Transactional
+        @Query("UPDATE Event e SET e.status = :targetStatus " +
+                        "WHERE e.id IN :eventIds")
+        int updateStatusesByIds(@Param("eventIds") List<String> eventIds,
+                        @Param("targetStatus") EventStatus targetStatus);
 }

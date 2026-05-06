@@ -9,9 +9,12 @@ import org.hibernate.annotations.UpdateTimestamp;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Set;
 
 @Entity
 @Data
+@EqualsAndHashCode(of = "id")
+@ToString(exclude = {"prizes", "entries", "results"})
 @AllArgsConstructor
 @NoArgsConstructor
 @Table(name = "lucky_draws")
@@ -42,21 +45,21 @@ public class LuckyDraw {
             cascade = CascadeType.ALL,
             orphanRemoval = true)
     @JsonIgnoreProperties("luckyDraw")
-    private List<Prize> prizes;
+    private Set<Prize> prizes;
 
     // 1 LuckyDraw có nhiều Entry
     @OneToMany(mappedBy = "luckyDraw",
             cascade = CascadeType.ALL,
             orphanRemoval = true)
     @JsonIgnoreProperties("luckyDraw")
-    private List<DrawEntry> entries;
+    private Set<DrawEntry> entries;
 
     // 1 LuckyDraw có nhiều Result
     @OneToMany(mappedBy = "luckyDraw",
             cascade = CascadeType.ALL,
             orphanRemoval = true)
     @JsonIgnoreProperties("luckyDraw")
-    private List<DrawResult> results;
+    private Set<DrawResult> results;
 
     @CreationTimestamp
     private LocalDateTime createdAt;

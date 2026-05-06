@@ -98,14 +98,6 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
-    public User approveUser(String userId) {
-        User user = userRepository.findByIdAndIsDeletedFalse(userId)
-                .orElseThrow(() -> new RuntimeException("User not found or deleted: " + userId));
-        user.setStatus(AccountStatus.ACTIVE);
-        return userRepository.save(user);
-    }
-
-    @Override
     public UserResponse updateStatus(String userId, String status) {
         User user = userRepository.findByIdAndIsDeletedFalse(userId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found or deleted"));

@@ -28,12 +28,11 @@ public class EventPostController {
 
     // Lấy tất cả bài đăng với tùy chọn tìm kiếm và lọc theo trạng thái
     @GetMapping
-    public ResponseEntity<Page<EventPost>> getAllPosts(
+    public ResponseEntity<List<EventPostDetailResponse>> getAllPosts(
             @RequestParam(required = false) String searchTerm,
-            @RequestParam(required = false) PostStatus status,
-            @PageableDefault(size = 10, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable) {
+            @RequestParam(required = false) PostStatus status) {
 
-        return ResponseEntity.ok(eventPostService.getAllPosts(searchTerm, status, pageable));
+        return ResponseEntity.ok(eventPostService.getAllPosts(searchTerm, status));
     }
 
     // Lấy bài đăng theo ID
@@ -81,13 +80,27 @@ public class EventPostController {
         List<EventPostResponse> posts = eventPostService.getPostsByAccountIdAndEventId(accountId, eventId);
         return ResponseEntity.ok(posts);
     }
+
     @PostMapping("/{id}/react")
-    public ResponseEntity<EventPost> reactToPost(
+    public ResponseEntity<EventPostDetailResponse> reactToPost(
             @PathVariable String id,
             @RequestBody Map<String, String> request,
             @AuthenticationPrincipal Jwt jwt) {
         String accountId = jwt.getSubject();
         String emoji = request.get("emoji");
         return ResponseEntity.ok(eventPostService.reactToPost(id, accountId, emoji));
+    }
+
+    @GetMapping("/my-involved")
+    public ResponseEntity<List<EventPostDetailResponse>> getMyInvolvedPosts(
+            @AuthenticationPrincipal Jwt jwt) {
+        String accountId = jwt.getSubject();
+        return ResponseEntity.ok(eventPostService.getInvolvedPosts(accountId));
+    }
+
+    @PostMapping("/{id}/view")
+    public ResponseEntity<Void> incrementViewCount(@PathVariable String id) {
+        eventPostService.incrementViewCount(id);
+        return ResponseEntity.ok().build();
     }
 }

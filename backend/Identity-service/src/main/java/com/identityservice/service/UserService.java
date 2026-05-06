@@ -17,7 +17,7 @@ public interface UserService {
 
     // --- Admin Operations ---
     List<UserResponse> findAll();
-    User approveUser(String userId);
+
     UserResponse updateStatus(String userId, String status);
     UserResponse updateRole(String userId, String roleName);
     void delete(String userId);

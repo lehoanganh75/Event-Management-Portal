@@ -14,6 +14,7 @@ import java.util.List;
 public class LuckyDrawResponse {
     private String id;
     private String eventId;
+    private String eventTitle;
     private UserResponse creator;
     private String title;
     private String description;

@@ -13,10 +13,14 @@ import {
   XCircle,
   X,
   Undo2,
-  ArrowLeft
+  ArrowLeft,
+  Eye
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useNavigate } from "react-router-dom";
+import { toast } from "react-toastify";
+import eventService from "../../../services/eventService";
+import { createStompClient } from "../../../utils/socket";
 
 const EMOJIS = ["❤️", "👍", "🔥", "😊", "🎉", "👏", "😮", "😢", "🙌", "✨", "🙏", "💯", "🤣", "😍", "💡"];
 const REACTION_LABELS = {
@@ -62,9 +66,10 @@ const RenderComment = ({
     }
   }, [replyContent, activeReplyId, comment.id]);
 
-  const avatar = comment.author?.avatarUrl && comment.author.avatarUrl !== "default-avatar-url.png"
-    ? comment.author.avatarUrl
-    : `https://api.dicebear.com/7.x/initials/svg?seed=${comment.author?.fullName || 'User'}`;
+  const author = comment.commenter || comment.author;
+  const avatar = author?.avatarUrl && author.avatarUrl !== "default-avatar-url.png"
+    ? author.avatarUrl
+    : `https://api.dicebear.com/7.x/initials/svg?seed=${author?.fullName || 'User'}`;
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -92,8 +97,8 @@ const RenderComment = ({
       <div className="flex-1 min-w-0">
         <div className="inline-block bg-slate-100 rounded-2xl px-4 py-2 max-w-full shadow-sm relative group">
           <div className="flex items-center gap-2 mb-0.5">
-            <p className="font-bold text-[13px] text-slate-900">{comment.author?.fullName || "Người dùng"}</p>
-            {comment.authorAccountId === post?.authorAccountId && (
+            <p className="font-bold text-[13px] text-slate-900">{author?.fullName || "Người dùng"}</p>
+            {String(author?.id) === String(post?.author?.id) && (
               <span className="bg-blue-600 text-white text-[9px] px-1.5 py-0.5 rounded font-bold uppercase tracking-wider">Tác giả</span>
             )}
           </div>
@@ -138,9 +143,15 @@ const RenderComment = ({
 
         {activeReplyId === comment.id && (
           <div className="mt-3 flex gap-2 animate-in slide-in-from-top-1 reply-input-container">
-            <div className="w-6 h-6 rounded-full bg-slate-200 overflow-hidden flex-shrink-0"><img src={DEFAULT_AVATAR} className="w-full h-full object-cover" alt="User" /></div>
+            <div className="w-6 h-6 rounded-full bg-slate-200 overflow-hidden flex-shrink-0 border border-slate-100 shadow-sm">
+              <img
+                src={currentUser?.avatarUrl || `https://api.dicebear.com/7.x/initials/svg?seed=${currentUser?.fullName || 'User'}`}
+                className="w-full h-full object-cover"
+                alt="User"
+              />
+            </div>
             <div className="flex-1 relative">
-              <textarea ref={replyTextareaRef} autoFocus value={replyContent} onChange={(e) => setReplyContent(e.target.value)} placeholder={`Phản hồi ${comment.author?.fullName}...`} className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-4 py-2.5 text-[13px] opacity-70 focus:opacity-100 focus:bg-white focus:border-slate-300 transition-all duration-300 resize-none min-h-[40px] pr-20 outline-none overflow-hidden" onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSubmitReply(comment.id); } }} />
+              <textarea ref={replyTextareaRef} autoFocus value={replyContent} onChange={(e) => setReplyContent(e.target.value)} placeholder={`Phản hồi ${author?.fullName}...`} className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-4 py-2.5 text-[13px] opacity-70 focus:opacity-100 focus:bg-white focus:border-slate-300 transition-all duration-300 resize-none min-h-[40px] pr-20 outline-none overflow-hidden" onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSubmitReply(comment.id, replyContent); setReplyContent(""); setActiveReplyId(null); } }} />
               <div className="absolute right-2 bottom-1.5 flex items-center gap-1.5">
                 <button onClick={() => setShowLocalEmojiPicker(!showLocalEmojiPicker)} className={`p-1.5 rounded-full transition-colors ${showLocalEmojiPicker ? 'bg-amber-100 text-amber-500' : 'text-slate-400 hover:bg-slate-200'}`}><Smile size={18} /></button>
                 {showLocalEmojiPicker && (
@@ -148,7 +159,7 @@ const RenderComment = ({
                     {EMOJIS.map(emoji => <button key={emoji} onClick={() => addEmojiToReply(emoji)} className="w-9 h-9 flex items-center justify-center hover:bg-slate-50 rounded-xl text-xl transition-all hover:scale-110 active:scale-90">{emoji}</button>)}
                   </div>
                 )}
-                <button onClick={() => handleSubmitReply(comment.id)} disabled={!replyContent.trim() || isSubmittingComment} className="p-1.5 bg-blue-600 text-white rounded-full disabled:bg-slate-200 disabled:text-slate-400 transition-all hover:bg-blue-700 active:scale-90 shadow-sm">{isSubmittingComment ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}</button>
+                <button onClick={() => { handleSubmitReply(comment.id, replyContent); setReplyContent(""); setActiveReplyId(null); }} disabled={!replyContent.trim() || isSubmittingComment} className="p-1.5 bg-blue-600 text-white rounded-full disabled:bg-slate-200 disabled:text-slate-400 transition-all hover:bg-blue-700 active:scale-90 shadow-sm">{isSubmittingComment ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}</button>
               </div>
             </div>
           </div>
@@ -170,7 +181,8 @@ const PostDetailManagement = ({
   handleSubmitReply,
   isSubmittingComment = false,
   onRefresh,
-  backPath = -1
+  backPath = -1,
+  hideHeader = false
 }) => {
   const navigate = useNavigate();
   const [commentContent, setCommentContent] = useState("");
@@ -197,22 +209,34 @@ const PostDetailManagement = ({
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
+  useEffect(() => {
+    if (post?.id) {
+      const timer = setTimeout(() => {
+        eventService.incrementPostView(post.id).catch(() => { });
+      }, 3000); // Tăng view nếu người dùng xem bài viết quá 3 giây
+      return () => clearTimeout(timer);
+    }
+  }, [post?.id]);
+
   const countTotalComments = useCallback((list) => {
     if (!list || list.length === 0) return 0;
     return list.reduce((total, comment) => total + 1 + countTotalComments(comment.replies), 0);
   }, []);
 
-  const totalComments = useMemo(() => countTotalComments(comments), [comments, countTotalComments]);
+  const totalComments = useMemo(() => {
+    if (post?.commentCount !== undefined) return post.commentCount;
+    return countTotalComments(comments);
+  }, [post?.commentCount, comments, countTotalComments]);
 
   if (loading) return (
-    <div className="flex flex-col items-center justify-center min-h-screen text-gray-500 bg-gray-50">
+    <div className={`flex flex-col items-center justify-center ${hideHeader ? 'py-10' : 'min-h-screen'} text-gray-500 bg-gray-50`}>
       <Loader2 className="animate-spin mb-2 text-blue-600" size={40} />
       <p className="font-medium">Đang tải nội dung bài viết...</p>
     </div>
   );
 
   if (error || !post) return (
-    <div className="text-center py-20 text-red-500 bg-gray-50 min-h-screen px-4">
+    <div className={`text-center ${hideHeader ? 'py-10' : 'py-20'} text-red-500 bg-gray-50 min-h-screen px-4`}>
       <div className="bg-white p-8 rounded-2xl shadow-sm inline-block max-w-md">
         <p className="text-lg font-semibold">{error || "Không tìm thấy bài viết"}</p>
         <button onClick={onRefresh} className="mt-4 bg-blue-600 text-white px-6 py-2 rounded-xl hover:bg-blue-700 transition-colors">Thử lại</button>
@@ -226,15 +250,17 @@ const PostDetailManagement = ({
   const hasLiked = !!userReaction;
 
   return (
-    <div className="bg-slate-50 min-h-screen p-6 md:p-6 flex flex-col items-center">
-      <div className="w-full mb-4">
-        <button onClick={() => navigate(backPath)} className="group flex items-center gap-2 text-sm font-semibold text-slate-500 hover:text-blue-600 transition-all">
-          <div className="w-8 h-8 bg-white rounded-full shadow-sm border border-slate-200 flex items-center justify-center group-hover:border-blue-200 group-hover:bg-blue-50 transition-all"><ArrowLeft size={16} /></div>
-          Quay lại
-        </button>
-      </div>
+    <div className={`${hideHeader ? 'w-full' : 'bg-slate-50 min-h-screen p-6 flex flex-col items-center'}`}>
+      {!hideHeader && (
+        <div className="w-full mb-4">
+          <button onClick={() => navigate(backPath)} className="group flex items-center gap-2 text-sm font-semibold text-slate-500 hover:text-blue-600 transition-all">
+            <div className="w-8 h-8 bg-white rounded-full shadow-sm border border-slate-200 flex items-center justify-center group-hover:border-blue-200 group-hover:bg-blue-50 transition-all"><ArrowLeft size={16} /></div>
+            Quay lại
+          </button>
+        </div>
+      )}
 
-      <div className="w-full bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden h-fit">
+      <div className={`w-full bg-white ${hideHeader ? '' : 'rounded-2xl shadow-sm border border-slate-200'} overflow-hidden h-fit`}>
         <div className="p-4 flex justify-between items-start">
           <div className="flex gap-3">
             <div className="w-10 h-10 rounded-full overflow-hidden border border-slate-100 shadow-sm"><img src={post.author?.avatarUrl || DEFAULT_AVATAR} className="w-full h-full object-cover" alt="author" /></div>
@@ -267,15 +293,21 @@ const PostDetailManagement = ({
         )}
 
         <div className="px-4 py-3 flex justify-between items-center text-slate-500 text-[13px] border-b border-slate-50">
-          <div className="flex items-center gap-1.5">
-            {postReactionList.length > 0 ? (
-              <div className="flex -space-x-1 items-center mr-1">
-                {Array.from(new Set(postReactionList)).slice(0, 3).map((emo, i) => <span key={i} className="text-base bg-white rounded-full shadow-sm ring-1 ring-slate-100">{emo}</span>)}
-              </div>
-            ) : (<div className="bg-blue-500 p-1 rounded-full"><ThumbsUp size={10} className="text-white fill-white" /></div>)}
-            <span className="font-medium">{postReactionList.length > 0 ? `${postReactionList.length} người tương tác` : `${post.viewCount || 0} lượt xem`}</span>
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-1.5">
+              {postReactionList.length > 0 ? (
+                <div className="flex -space-x-1 items-center mr-1">
+                  {Array.from(new Set(postReactionList)).slice(0, 3).map((emo, i) => <span key={i} className="text-base bg-white rounded-full shadow-sm ring-1 ring-slate-100">{emo}</span>)}
+                </div>
+              ) : (<div className="bg-blue-500 p-1 rounded-full"><ThumbsUp size={10} className="text-white fill-white" /></div>)}
+              <span className="font-medium text-slate-500">{postReactionList.length} người tương tác</span>
+            </div>
+            <div className="flex items-center gap-1 text-slate-400">
+              <Eye size={14} />
+              <span>{post.viewCount || 0} lượt xem</span>
+            </div>
           </div>
-          <div className="font-medium">{totalComments} bình luận</div>
+          <div className="font-medium text-slate-500">{totalComments} bình luận</div>
         </div>
 
         <div className="px-2 py-1 flex border-b border-slate-100">
@@ -291,6 +323,16 @@ const PostDetailManagement = ({
             </div>
           </div>
           <button onClick={() => mainTextareaRef.current?.focus()} className="flex-1 flex items-center justify-center gap-2 py-2 hover:bg-slate-50 rounded-xl transition-all text-slate-600 font-bold text-[14px]"><MessageCircle size={18} /> Bình luận</button>
+          <button
+            onClick={() => {
+              const url = `${window.location.origin}/posts/${post.id}`;
+              navigator.clipboard.writeText(url);
+              toast.success("Đã sao chép liên kết bài viết!");
+            }}
+            className="flex-1 flex items-center justify-center gap-2 py-2 hover:bg-slate-50 rounded-xl transition-all text-slate-600 font-bold text-[14px]"
+          >
+            <Share2 size={18} /> Chia sẻ
+          </button>
         </div>
 
         <div className="p-4 bg-slate-50/30">

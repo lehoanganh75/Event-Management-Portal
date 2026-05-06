@@ -16,119 +16,121 @@ import java.util.Map;
 import java.util.Optional;
 
 public interface EventService {
-    // Lấy sự kiện cho xem (trang chủ, trang danh sách sự kiện)
-    List<EventResponse> findEventsForUser();
+        // Lấy sự kiện cho xem (trang chủ, trang danh sách sự kiện)
+        List<EventResponse> findEventsForUser();
 
-    // Lấy sự kiện đang diễn ra hôm nay
-    List<EventResponse> getOngoingEvents();
+        // Lấy sự kiện đang diễn ra hôm nay
+        List<EventResponse> getOngoingEvents();
 
-    List<EventResponse> getCompletedEvents();
+        List<EventResponse> getCompletedEvents();
 
-    // Lấy sự kiện sắp diễn ra trong tuần này
-    List<EventResponse> getUpcomingEventsThisWeek();
+        // Lấy sự kiện sắp diễn ra trong tuần này
+        List<EventResponse> getUpcomingEventsThisWeek();
 
-    // Lấy sự kiện nổi bật nhất (Featured)
-    List<EventResponse> getFeaturedEvents();
+        // Lấy sự kiện nổi bật nhất (Featured)
+        List<EventResponse> getFeaturedEvents();
 
-    // Lấy sự kiện cho admin và super admin xem (trang quản lý sự kiện)
-    List<EventResponse> findEventsForAdmin();
+        // Lấy sự kiện cho admin và super admin xem (trang quản lý sự kiện)
+        List<EventResponse> findEventsForAdmin();
 
-    List<EventResponse> findMyEventsByRole(String accountId, String roleType);
+        List<EventResponse> findInvolvedEvents(String accountId);
 
-    List<EventResponse> getMyEventsByAccountAndMonth(String accountId, String roleType, int month, int year);
+        List<EventResponse> getInvolvedEventsByAccountAndMonth(String accountId, int month, int year);
 
-    EventResponse getEventById(String id, String accountId);
+        EventResponse getEventById(String id, String accountId);
 
-    @Transactional
-    void updateLuckyDrawId(String id, boolean hasLuckyDraw);
+        @Transactional
+        void updateLuckyDrawId(String id, boolean hasLuckyDraw);
 
-    Event createEvent(Event event, List<String> organizerIds, List<Map<String, Object>> presenterIds,
-            List<Map<String, Object>> invitations, MultipartFile file);
+        Event createEvent(Event event, List<String> organizerIds, List<Map<String, Object>> presenterIds,
+                        List<Map<String, Object>> invitations, MultipartFile file);
 
-    @Transactional
-    Event saveEvent(Event event);
+        @Transactional
+        Event saveEvent(Event event);
 
-    Page<Event> getAllEvents(PageRequest pageable);
+        Page<Event> getAllEvents(PageRequest pageable);
 
-    Event updateEvent(String id, Event eventDetails);
+        Event updateEvent(String id, Event eventDetails);
 
-    @Transactional
-    void deleteEvent(String id);
+        @Transactional
+        void deleteEvent(String id);
 
-    @Transactional
-    List<EventResponse> getEventsByStatuses(List<String> statuses, String accountId);
+        @Transactional
+        List<EventResponse> getEventsByStatuses(List<String> statuses, String accountId);
 
-    List<EventResponse> getAllPlans();
+        List<EventResponse> getAllPlans();
 
-    List<EventResponse> getPlansByStatus(EventStatus status);
+        List<EventResponse> getPlansByStatus(EventStatus status);
 
-    List<EventResponse> getPlansByStatusById(EventStatus status, String accountId);
+        List<EventResponse> getPlansByStatusById(EventStatus status, String accountId);
 
-    Event createPlan(Event event);
+        Event createPlan(Event event);
 
-    Event updatePlan(String id, Event planDetails);
+        Event updatePlan(String id, Event planDetails);
 
-    void deletePlan(String id);
+        void deletePlan(String id);
 
-    Event submitPlanForApproval(String id);
+        Event submitPlanForApproval(String id);
 
-    Event approvePlan(String id, String approverId);
+        Event approvePlan(String id, String approverId);
 
-    Event rejectPlan(String id, String approverId, String reason);
+        Event rejectPlan(String id, String approverId, String reason);
 
-    Event createEventFromPlan(String planId, Event eventDetails);
+        Event createEventFromPlan(String planId, Event eventDetails);
 
-    Event approveEvent(String id, String approverId);
+        Event approveEvent(String id, String approverId);
 
-    Event rejectEvent(String id, String approverId, String reason);
+        Event rejectEvent(String id, String approverId, String reason);
 
-    Event startEvent(String id);
+        Event startEvent(String id);
 
-    Event completeEvent(String id);
+        Event completeEvent(String id);
 
-    Event cancelEvent(String id, String reason);
+        Event cancelEvent(String id, String reason);
 
-    List<EventPlanResponse> getAllPlansEnriched();
+        List<EventPlanResponse> getAllPlansEnriched();
 
-    List<EventPlanResponse> getPlansByAccountId(String accountId);
+        List<EventPlanResponse> getPlansByAccountId(String accountId);
 
-    List<EventPlanResponse> getEventsByStatus(EventStatus status);
+        List<EventPlanResponse> getEventsByStatus(EventStatus status);
 
-    List<EventPlanResponse> getPlansPendingApproval();
+        List<EventPlanResponse> getPlansPendingApproval();
 
-    List<EventPlanResponse> getEventsPendingApproval();
+        List<EventPlanResponse> getEventsPendingApproval();
 
-    Event updateEventStatus(String id, EventStatus status, String approverId, String accountId);
+        Event updateEventStatus(String id, EventStatus status, String approverId, String accountId);
 
-    Map<String, String> inviteParticipants(String eventId, String organizerId,
-            com.eventservice.dto.registration.request.EventInvitationRequest request);
+        Map<String, String> inviteParticipants(String eventId, String organizerId,
+                        com.eventservice.dto.registration.request.EventInvitationRequest request);
 
-    Map<String, String> acceptInvite(String eventId, String token);
+        Map<String, String> acceptInvite(String eventId, String token);
 
-    EventInvitation getInvitationByToken(String eventId, String token);
+        EventInvitation getInvitationByToken(String eventId, String token);
 
-    Map<String, String> rejectInvite(String eventId, String token, String reason);
+        Map<String, String> rejectInvite(String eventId, String token, String reason);
 
-    @Transactional
-    void sendOrganizerInvitations(String eventId, List<Map<String, Object>> invitations);
+        @Transactional
+        void sendOrganizerInvitations(String eventId, List<Map<String, Object>> invitations);
 
-    @Transactional
-    void sendPresenterInvitations(String eventId, List<Map<String, Object>> invitations);
+        @Transactional
+        void sendPresenterInvitations(String eventId, List<Map<String, Object>> invitations);
 
-    @Transactional
-    void cancelInvitation(String invitationId);
+        @Transactional
+        void cancelInvitation(String invitationId);
 
-    EventSummaryResponse getEventSummary(String id);
+        EventSummaryResponse getEventSummary(String id);
 
-    List<EventResponse> findEventsByOrganization(String orgId);
+        List<EventResponse> findEventsByOrganization(String orgId);
 
-    List<EventResponse> findEventsByOrganizationOwner(String ownerId);
+        List<EventResponse> findEventsByOrganizationOwner(String ownerId);
 
-    Map<String, Long> getQuickStats();
+        Map<String, Long> getQuickStats();
 
-    Map<String, Object> getLecturerStats(String accountId);
+        Map<String, Object> getLecturerStats(String accountId);
 
-    Event saveDraft(Event event);
+        Event saveDraft(Event event);
 
-    List<String> getOrganizerRoles(String accountId);
+        List<String> getOrganizerRoles(String accountId);
+        List<String> getInvolvedEventIdsByAccountId(String accountId);
+        Map<String, String> getEventTitles(List<String> eventIds);
 }

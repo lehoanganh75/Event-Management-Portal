@@ -9,7 +9,7 @@ services:
       - name: analytics-route
         paths:
           - /analytics
-        strip_path: true
+        strip_path: false
 
   # 2. Event Service (Trong ảnh thư mục là Event-service)
   - name: event-service
@@ -18,6 +18,10 @@ services:
       - name: event-route
         paths:
           - /events
+        strip_path: false
+      - name: registrations-route
+        paths:
+          - /registrations
         strip_path: false
       - name: posts-route
         paths:
@@ -46,6 +50,10 @@ services:
       - name: ai-planning-route
         paths:
           - /api/v1/ai-planning
+        strip_path: false
+      - name: ws-route
+        paths:
+          - /ws
         strip_path: false
 
 
@@ -82,15 +90,19 @@ plugins:
       origins:
         - "http://localhost:3000"
         - "http://localhost:5173"
+        - "http://localhost:5174"
       methods:
         - GET
         - POST
         - PUT
         - DELETE
         - OPTIONS
+        - PATCH
       headers:
         - Accept
         - Authorization
         - Content-Type
+        - Origin
+        - X-Requested-With
       credentials: true
       max_age: 3600

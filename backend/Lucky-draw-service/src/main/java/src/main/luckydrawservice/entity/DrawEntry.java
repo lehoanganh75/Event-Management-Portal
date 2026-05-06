@@ -2,13 +2,13 @@ package src.main.luckydrawservice.entity;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
-import lombok.AllArgsConstructor;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import lombok.*;
 import java.time.LocalDateTime;
 
 @Entity
 @Data
+@EqualsAndHashCode(of = "id")
+@ToString(exclude = "luckyDraw")
 @NoArgsConstructor
 @AllArgsConstructor
 @Table(name = "draw_entries", uniqueConstraints = @UniqueConstraint(columnNames = { "lucky_draw_id", "userProfileId" }))

@@ -15,81 +15,52 @@ export default function LuckyDrawStep({ formData, setFormData, onNext, onBack })
   const [showAiSuggestions, setShowAiSuggestions] = useState(false);
   const [prizes, setPrizes] = useState(() => {
     if (formData.prizes && formData.prizes.length > 0) return formData.prizes;
-    return [{ id: 'consolation', name: "Chúc bạn may mắn lần sau", count: 999, rate: 100, description: "Cảm ơn bạn đã tham gia, hãy thử lại ở các sự kiện sau nhé!", isDefault: true }];
+    return [];
   });
 
   const [isActive, setIsActive] = useState(formData.hasLuckyDraw || false);
 
-  const aiSuggestions = [
-    { name: "iPhone 15 Pro Max", count: 1, rate: 1, description: "Smartphone cao cấp nhất với camera 48MP và chip A17 Pro mạnh mẽ." },
-    { name: "Tai nghe Sony WH-1000XM5", count: 2, rate: 2, description: "Tai nghe không dây chống ồn chủ động tốt nhất thế giới hiện nay." },
-    { name: "Apple Watch Series 9", count: 3, rate: 3, description: "Đồng hồ thông minh theo dõi sức khỏe và luyện tập chuyên nghiệp." },
-    { name: "Loa Bluetooth Marshall", count: 5, rate: 5, description: "Thiết kế retro sang trọng với chất âm đặc trưng của hãng Marshall." },
-    { name: "Chuột Gaming Logitech G502", count: 10, rate: 10, description: "Chuột chơi game quốc dân với cảm biến HERO 25K siêu chính xác." },
-    { name: "Bàn phím cơ Akko 3068B", count: 5, rate: 5, description: "Bàn phím cơ nhỏ gọn, switch gõ êm ái, hỗ trợ đa kết nối." },
-    { name: "Sạc dự phòng Anker 20000mAh", count: 20, rate: 15, description: "Sạc nhanh PowerIQ 2.0, dung lượng lớn, an toàn cho thiết bị." },
-    { name: "Voucher IUH Shop 200k", count: 50, rate: 25, description: "Phiếu mua hàng áp dụng cho tất cả sản phẩm tại cửa hàng lưu niệm IUH." },
-    { name: "Bình giữ nhiệt Lock&Lock", count: 30, rate: 15, description: "Dung lượng 500ml, giữ nhiệt lên đến 12 giờ, inox 304 cao cấp." },
-  ];
-
-  const calculateConsolationRate = (currentPrizes) => {
-    const otherPrizesRate = currentPrizes
-      .filter(p => !p.isDefault)
-      .reduce((sum, p) => sum + (Number(p.rate) || 0), 0);
-    return Math.max(0, 100 - otherPrizesRate);
-  };
-
   const handleToggle = () => {
-    const newStatus = !isActive;
-    setIsActive(newStatus);
-    setFormData({ ...formData, hasLuckyDraw: newStatus });
+    const nextState = !isActive;
+    setIsActive(nextState);
+    setFormData({ ...formData, hasLuckyDraw: nextState });
   };
+
+  const aiSuggestions = [
+    { name: "iPhone 15 Pro Max", count: 1, description: "Smartphone cao cấp nhất với camera 48MP và chip A17 Pro mạnh mẽ." },
+    { name: "Tai nghe Sony WH-1000XM5", count: 2, description: "Tai nghe không dây chống ồn chủ động tốt nhất thế giới hiện nay." },
+    { name: "Apple Watch Series 9", count: 3, description: "Đồng hồ thông minh theo dõi sức khỏe và luyện tập chuyên nghiệp." },
+    { name: "Loa Bluetooth Marshall", count: 5, description: "Thiết kế retro sang trọng với chất âm đặc trưng của hãng Marshall." },
+    { name: "Chuột Gaming Logitech G502", count: 10, description: "Chuột chơi game quốc dân với cảm biến HERO 25K siêu chính xác." },
+    { name: "Bàn phím cơ Akko 3068B", count: 5, description: "Bàn phím cơ nhỏ gọn, switch gõ êm ái, hỗ trợ đa kết nối." },
+    { name: "Sạc dự phòng Anker 20000mAh", count: 20, description: "Sạc nhanh PowerIQ 2.0, dung lượng lớn, an toàn cho thiết bị." },
+    { name: "Voucher IUH Shop 200k", count: 50, description: "Phiếu mua hàng áp dụng cho tất cả sản phẩm tại cửa hàng lưu niệm IUH." },
+    { name: "Bình giữ nhiệt Lock&Lock", count: 30, description: "Dung lượng 500ml, giữ nhiệt lên đến 12 giờ, inox 304 cao cấp." },
+  ];
 
   const addPrize = (prize) => {
     const newId = Date.now();
-    const newPrizesWithoutDefault = prizes.filter(p => !p.isDefault);
-    const updatedPrizes = [...newPrizesWithoutDefault, { ...prize, id: newId }];
-
-    const finalPrizes = [
-      ...updatedPrizes,
-      { id: 'consolation', name: "Chúc bạn may mắn lần sau", count: 999, rate: calculateConsolationRate(updatedPrizes), isDefault: true }
-    ];
-
-    setPrizes(finalPrizes);
-    setFormData({ ...formData, prizes: finalPrizes });
+    const updatedPrizes = [...prizes, { ...prize, id: newId }];
+    setPrizes(updatedPrizes);
+    setFormData({ ...formData, prizes: updatedPrizes });
   };
 
   const removePrize = (id) => {
-    if (id === 'consolation') return; // Không cho xóa giải mặc định
     const updatedPrizes = prizes.filter((p) => p.id !== id);
-
-    // Cập nhật lại tỷ lệ cho giải mặc định
-    const finalPrizes = updatedPrizes.map(p =>
-      p.isDefault ? { ...p, rate: calculateConsolationRate(updatedPrizes) } : p
-    );
-
-    setPrizes(finalPrizes);
-    setFormData({ ...formData, prizes: finalPrizes });
+    setPrizes(updatedPrizes);
+    setFormData({ ...formData, prizes: updatedPrizes });
   };
 
   const addManualPrize = () => {
-    addPrize({ name: "Giải thưởng mới", count: 1, rate: 5, description: "" });
+    addPrize({ name: "Giải thưởng mới", count: 1, description: "" });
   };
 
   const updatePrize = (id, field, value) => {
-    if (id === 'consolation' && field === 'rate') return; // Không cho sửa tỷ lệ giải mặc định thủ công
-
     const updatedPrizes = prizes.map((p) =>
       p.id === id ? { ...p, [field]: value } : p
     );
-
-    // Tính toán lại tỷ lệ giải mặc định
-    const finalPrizes = updatedPrizes.map(p =>
-      p.isDefault ? { ...p, rate: calculateConsolationRate(updatedPrizes) } : p
-    );
-
-    setPrizes(finalPrizes);
-    setFormData({ ...formData, prizes: finalPrizes });
+    setPrizes(updatedPrizes);
+    setFormData({ ...formData, prizes: updatedPrizes });
   };
 
   return (
@@ -280,7 +251,7 @@ export default function LuckyDrawStep({ formData, setFormData, onNext, onBack })
                       <div>
                         <div style={{ fontSize: 14, fontWeight: 700, color: "#1e293b" }}>{s.name}</div>
                         <div style={{ fontSize: 12, color: "#64748b", marginTop: 2 }}>
-                          Số lượng: {s.count} • Tỷ lệ: {s.rate}% • {s.description}
+                          Số lượng: {s.count} • {s.description}
                         </div>
                       </div>
                       <button
@@ -309,10 +280,9 @@ export default function LuckyDrawStep({ formData, setFormData, onNext, onBack })
               <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
                 <thead style={{ background: "#f8fafc", borderBottom: "1px solid #f1f5f9" }}>
                   <tr>
-                    <th style={{ textAlign: "left", padding: "12px 16px", color: "#475569", fontWeight: 700, width: "25%" }}>Tên giải thưởng</th>
-                    <th style={{ textAlign: "left", padding: "12px 16px", color: "#475569", fontWeight: 700, width: "40%" }}>Mô tả chi tiết</th>
+                    <th style={{ textAlign: "left", padding: "12px 16px", color: "#475569", fontWeight: 700, width: "30%" }}>Tên giải thưởng</th>
+                    <th style={{ textAlign: "left", padding: "12px 16px", color: "#475569", fontWeight: 700, width: "45%" }}>Mô tả chi tiết</th>
                     <th style={{ textAlign: "center", padding: "12px 16px", color: "#475569", fontWeight: 700 }}>Số lượng</th>
-                    <th style={{ textAlign: "center", padding: "12px 16px", color: "#475569", fontWeight: 700 }}>Tỷ lệ (%)</th>
                     <th style={{ textAlign: "center", padding: "12px 16px", color: "#475569", fontWeight: 700 }}>Thao tác</th>
                   </tr>
                 </thead>
@@ -322,56 +292,42 @@ export default function LuckyDrawStep({ formData, setFormData, onNext, onBack })
                       <tr key={p.id} style={{ borderBottom: "1px solid #f1f5f9" }}>
                         <td style={{ padding: "12px 16px" }}>
                           <input
-                            style={{ width: "100%", border: "none", outline: "none", fontSize: 13, color: "#1e293b", fontWeight: 600, background: p.isDefault ? "transparent" : "#fff" }}
+                            style={{ width: "100%", border: "none", outline: "none", fontSize: 13, color: "#1e293b", fontWeight: 600, background: "#fff" }}
                             value={p.name}
-                            readOnly={p.isDefault}
                             onChange={(e) => updatePrize(p.id, 'name', e.target.value)}
                           />
                         </td>
                         <td style={{ padding: "12px 16px" }}>
                           <input
-                            style={{ width: "100%", border: "1px solid transparent", outline: "none", fontSize: 12, color: "#64748b", background: p.isDefault ? "transparent" : "#f8fafc", padding: "4px 8px", borderRadius: 6, transition: "all 0.2s" }}
+                            style={{ width: "100%", border: "1px solid transparent", outline: "none", fontSize: 12, color: "#64748b", background: "#f8fafc", padding: "4px 8px", borderRadius: 6, transition: "all 0.2s" }}
                             placeholder="Nhập mô tả giải thưởng..."
                             value={p.description || ""}
-                            readOnly={p.isDefault}
                             onChange={(e) => updatePrize(p.id, 'description', e.target.value)}
-                            onFocus={(e) => !p.isDefault && (e.target.style.borderColor = "#cbd5e1")}
-                            onBlur={(e) => !p.isDefault && (e.target.style.borderColor = "transparent")}
+                            onFocus={(e) => (e.target.style.borderColor = "#cbd5e1")}
+                            onBlur={(e) => (e.target.style.borderColor = "transparent")}
                           />
                         </td>
                         <td style={{ padding: "12px 16px", textAlign: "center" }}>
                           <input
                             type="number"
-                            style={{ width: 60, border: "1px solid #e2e8f0", borderRadius: 4, padding: "4px 8px", textAlign: "center", background: p.isDefault ? "#f1f5f9" : "#fff" }}
+                            style={{ width: 60, border: "1px solid #e2e8f0", borderRadius: 4, padding: "4px 8px", textAlign: "center", background: "#fff" }}
                             value={p.count}
-                            readOnly={p.isDefault}
                             onChange={(e) => updatePrize(p.id, 'count', parseInt(e.target.value))}
                           />
                         </td>
                         <td style={{ padding: "12px 16px", textAlign: "center" }}>
-                          <input
-                            type="number"
-                            style={{ width: 60, border: "1px solid #e2e8f0", borderRadius: 4, padding: "4px 8px", textAlign: "center", background: p.isDefault ? "#f1f5f9" : "#fff", color: p.isDefault ? "#8b5cf6" : "#1e293b", fontWeight: p.isDefault ? 800 : 400 }}
-                            value={p.rate}
-                            readOnly={p.isDefault}
-                            onChange={(e) => updatePrize(p.id, 'rate', parseInt(e.target.value))}
-                          />
-                        </td>
-                        <td style={{ padding: "12px 16px", textAlign: "center" }}>
-                          {!p.isDefault && (
-                            <button
-                              onClick={() => removePrize(p.id)}
-                              style={{ background: "none", border: "none", color: "#94a3b8", cursor: "pointer" }}
-                            >
-                              <Trash2 size={16} />
-                            </button>
-                          )}
+                          <button
+                            onClick={() => removePrize(p.id)}
+                            style={{ background: "none", border: "none", color: "#94a3b8", cursor: "pointer" }}
+                          >
+                            <Trash2 size={16} />
+                          </button>
                         </td>
                       </tr>
                     ))
                   ) : (
                     <tr>
-                      <td colSpan="5" style={{ padding: "40px", textAlign: "center", color: "#94a3b8" }}>
+                      <td colSpan="4" style={{ padding: "40px", textAlign: "center", color: "#94a3b8" }}>
                         Chưa có giải thưởng nào. Click "AI gợi ý" hoặc thêm thủ công.
                       </td>
                     </tr>

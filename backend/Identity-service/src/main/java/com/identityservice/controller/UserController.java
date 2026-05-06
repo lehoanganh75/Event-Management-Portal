@@ -47,12 +47,7 @@ public class UserController {
         return ResponseEntity.ok(userService.updateUser(userId, updatedProfile));
     }
 
-    @PreAuthorize("hasRole('ADMIN')")
-    @PutMapping("/{userId}/approval")
-    public ResponseEntity<UserResponse> updateApprovalStatus(@PathVariable String userId) {
-        userService.approveUser(userId);
-        return ResponseEntity.ok(userService.getUserById(userId));
-    }
+
 
     // Admin endpoints
     @PreAuthorize("hasRole('ADMIN')")
@@ -97,6 +92,11 @@ public class UserController {
 
     @GetMapping("/batch")
     public ResponseEntity<List<UserResponse>> getUsersByIds(@RequestParam List<String> ids) {
+        return ResponseEntity.ok(userService.findAllByIds(ids));
+    }
+
+    @PostMapping("/batch")
+    public ResponseEntity<List<UserResponse>> getUsersByIdsPost(@RequestBody List<String> ids) {
         return ResponseEntity.ok(userService.findAllByIds(ids));
     }
 

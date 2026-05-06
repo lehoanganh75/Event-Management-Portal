@@ -6,3 +6,5 @@ const LecturerPlansPage = () => {
 };
 
 export default LecturerPlansPage;
+
+

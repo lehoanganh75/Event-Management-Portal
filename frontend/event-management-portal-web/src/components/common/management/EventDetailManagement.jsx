@@ -33,7 +33,8 @@ import {
   Maximize2,
   ClipboardCheck,
   ShieldCheck,
-  Waves
+  Waves,
+  Bot
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import authService from "../../../services/authService";
@@ -44,6 +45,7 @@ import QuizCreatorModal from "../../quiz/QuizCreatorModal";
 import SurveyModal from "../../survey/SurveyModal";
 import SurveyCreatorModal from "../../survey/SurveyCreatorModal";
 import EventStatistics from "./EventStatistics";
+import EventAIAnalysis from "./EventAIAnalysis";
 import QRCode from "react-qr-code";
 import DuckRaceLuckyDraw from "../../engagement/DuckRaceLuckyDraw";
 import { useQuiz } from "../../../hooks/useQuiz";
@@ -623,7 +625,12 @@ const EventDetailManagement = ({
       tabs.push({ key: "Thống kê", label: "Thống kê", icon: TrendingUp });
     }
 
-    // 10. Cài đặt (Hệ thống)
+    // 10. Phân tích AI (Giai đoạn hậu sự kiện)
+    if (canSeeAll || up.canViewAnalytics) {
+      tabs.push({ key: "Phân tích AI", label: "Phân tích AI", icon: Bot });
+    }
+
+    // 11. Cài đặt (Hệ thống)
     if (canSeeAll || up.canEditEvent || event.currentUserRole?.organizerRole) {
       tabs.push({ key: "Cài đặt", label: "Cài đặt", icon: Settings });
     }
@@ -1408,7 +1415,10 @@ const EventDetailManagement = ({
                       <div className="flex items-center gap-3">
                         {userPerms.canManageTeam && (
                           <button
-                            onClick={() => setActiveTab("Lời mời")}
+                            onClick={() => {
+                              setIsAddingMember(true);
+                              addInvite();
+                            }}
                             className="bg-slate-900 hover:bg-slate-800 text-white px-6 py-2.5 rounded-2xl text-sm font-bold flex items-center gap-2 shadow-lg shadow-slate-200 transition-all active:scale-95"
                           >
                             <UserPlus size={18} /> Mời thành viên
@@ -2098,6 +2108,13 @@ const EventDetailManagement = ({
                   }}
                   loading={loading}
                 />
+              </div>
+            )}
+
+            {/* PHÂN TÍCH AI */}
+            {activeTab === "Phân tích AI" && (
+              <div className="space-y-8">
+                <EventAIAnalysis eventId={event.id} />
               </div>
             )}
 

@@ -30,6 +30,18 @@ export const LuckyDrawProvider = ({ children }) => {
         }
     }, []);
 
+    const fetchInvolvedDraws = useCallback(async () => {
+        setLoading(true);
+        try {
+            const res = await luckyDrawService.getMyInvolved();
+            setLuckyDraws(res.data || []);
+        } catch (error) {
+            console.error("Lỗi tải danh sách may mắn liên quan:", error);
+        } finally {
+            setLoading(false);
+        }
+    }, []);
+
     // Lấy chi tiết và lượt tham gia của user
     const fetchDrawDetail = useCallback(async (id) => {
         setLoading(true);
@@ -128,6 +140,7 @@ export const LuckyDrawProvider = ({ children }) => {
         isSpinning,
         loading,
         fetchAllDraws,
+        fetchInvolvedDraws,
         fetchDrawDetail,
         spinWheel,
         joinLuckyDraw,

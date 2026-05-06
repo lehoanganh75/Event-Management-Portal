@@ -14,4 +14,10 @@ public interface EventClient {
 
     @org.springframework.web.bind.annotation.GetMapping("/events/{id}")
     src.main.luckydrawservice.dto.EventResponse getEventById(@PathVariable("id") String id, @org.springframework.web.bind.annotation.RequestHeader("Authorization") String token);
+
+    @org.springframework.web.bind.annotation.GetMapping("/events/involved-ids")
+    java.util.List<String> getInvolvedEventIds(@org.springframework.web.bind.annotation.RequestHeader("Authorization") String token);
+
+    @org.springframework.web.bind.annotation.PostMapping("/events/titles")
+    java.util.Map<String, String> getEventTitles(@org.springframework.web.bind.annotation.RequestBody java.util.List<String> eventIds);
 }

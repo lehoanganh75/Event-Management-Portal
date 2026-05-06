@@ -25,19 +25,16 @@ public class MockDataSeeder implements CommandLineRunner {
 
     @Override
     public void run(String... args) throws Exception {
-        String eventName = "Hội thảo Công nghệ AI và Tương lai 2026";
-        
-        // 1. Kiểm tra xem sự kiện đã có chưa
-        List<Event> events = eventRepository.findAll().stream()
-                .filter(e -> e.getTitle().equalsIgnoreCase(eventName))
-                .toList();
+        // 1. Lấy sự kiện đầu tiên trong database
+        List<Event> events = eventRepository.findAll();
 
         if (events.isEmpty()) {
-            log.warn("MockDataSeeder: Không tìm thấy sự kiện '{}' để nạp dữ liệu.", eventName);
+            log.warn("MockDataSeeder: Không tìm thấy sự kiện nào trong database để nạp dữ liệu.");
             return;
         }
 
         Event event = events.get(0);
+        String eventName = event.getTitle();
         
         // 2. Kiểm tra xem đã có dữ liệu mẫu chưa (tránh nạp trùng)
         long existingCount = registrationRepository.countByEventIdAndIsDeletedFalse(event.getId());

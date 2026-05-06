@@ -4,10 +4,12 @@ import com.eventservice.client.IdentityServiceClient;
 import com.eventservice.dto.user.UserResponse;
 import com.eventservice.entity.social.EventPost;
 import com.eventservice.entity.social.PostComment;
+import com.eventservice.dto.social.response.PostInteractionEvent;
 import com.eventservice.repository.EventPostRepository;
 import com.eventservice.repository.PostCommentRepository;
 import com.eventservice.service.PostCommentService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -21,6 +23,7 @@ public class PostCommentServiceImpl implements PostCommentService {
     private final PostCommentRepository postCommentRepository;
     private final EventPostRepository eventPostRepository;
     private final IdentityServiceClient identityServiceClient;
+    private final SimpMessagingTemplate messagingTemplate;
 
     @Override
     @Transactional
@@ -43,7 +46,18 @@ public class PostCommentServiceImpl implements PostCommentService {
         }
 
         PostComment saved = postCommentRepository.save(comment);
+        if (saved.getCreatedAt() == null) saved.setCreatedAt(java.time.LocalDateTime.now());
+        if (parentId != null) saved.setParentId(parentId);
         enrichComment(saved);
+
+        // Broadcast comment update
+        messagingTemplate.convertAndSend("/topic/posts/" + postId,
+                PostInteractionEvent.builder()
+                        .postId(postId)
+                        .type(PostInteractionEvent.Type.COMMENT)
+                        .data(saved)
+                        .build());
+
         return saved;
     }
 
@@ -66,8 +80,8 @@ public class PostCommentServiceImpl implements PostCommentService {
     }
 
     private void enrichComment(PostComment comment) {
-        UserResponse user = identityServiceClient.getUsersById(comment.getCommenterAccountId());
-        comment.setAuthor(user);
+        if (comment == null) return;
+        enrichComments(Collections.singletonList(comment));
     }
 
     private void collectIds(List<PostComment> comments, Set<String> ids) {
@@ -123,6 +137,18 @@ public class PostCommentServiceImpl implements PostCommentService {
         }
         
         comment.setReactions(reactions);
-        return postCommentRepository.save(comment);
+        PostComment saved = postCommentRepository.save(comment);
+        if (saved.getParentComment() != null) saved.setParentId(saved.getParentComment().getId());
+        enrichComment(saved);
+
+        // Broadcast reaction
+        messagingTemplate.convertAndSend("/topic/posts/" + saved.getPost().getId(),
+                PostInteractionEvent.builder()
+                        .postId(saved.getPost().getId())
+                        .type(PostInteractionEvent.Type.COMMENT_LIKE)
+                        .data(saved)
+                        .build());
+
+        return saved;
     }
 }

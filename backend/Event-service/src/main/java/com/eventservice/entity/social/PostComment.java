@@ -40,6 +40,9 @@ public class PostComment {
     @GeneratedValue(strategy = GenerationType.UUID)
     private String id;
 
+    @Transient
+    private String parentId;
+
     // --- Author ---
     @Column(nullable = false)
     private String commenterAccountId; // ID người bình luận

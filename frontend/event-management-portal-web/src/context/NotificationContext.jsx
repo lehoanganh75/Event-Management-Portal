@@ -30,7 +30,7 @@ export const NotificationProvider = ({ children }) => {
                 notificationService.getRecent(userId, 10),
                 notificationService.getUnreadCount(userId)
             ]);
-            
+
             setNotifications(recentRes.data || []);
             setUnreadCount(countRes.data || 0);
         } catch (error) {
@@ -51,9 +51,13 @@ export const NotificationProvider = ({ children }) => {
     useEffect(() => {
         const userId = user?.id || user?.accountId;
         if (isAuthenticated && userId) {
+            const wsBaseUrl = import.meta.env.VITE_API_BASE_URL || "http://localhost:8000";
+            const wsBrokerUrl = wsBaseUrl.replace(/^http/, "ws") + "/notification/ws";
+            const sockJsUrl = wsBaseUrl + "/notification/ws";
+
             const stompClient = new Client({
-                brokerURL: "ws://localhost:8085/ws",
-                webSocketFactory: () => new SockJS("http://localhost:8085/ws"),
+                brokerURL: wsBrokerUrl,
+                webSocketFactory: () => new SockJS(sockJsUrl),
                 reconnectDelay: 5000,
                 heartbeatIncoming: 4000,
                 heartbeatOutgoing: 4000,
@@ -76,7 +80,7 @@ export const NotificationProvider = ({ children }) => {
                                     </div>,
                                     'error'
                                 );
-                                
+
                                 // Đợi 2s để user kịp nhìn thấy thông báo rồi logout
                                 setTimeout(() => {
                                     localStorage.clear();
@@ -122,7 +126,7 @@ export const NotificationProvider = ({ children }) => {
     const markAsRead = async (notificationId) => {
         try {
             await notificationService.markAsRead(notificationId);
-            setNotifications(prev => 
+            setNotifications(prev =>
                 prev.map(n => n.id === notificationId ? { ...n, read: true } : n)
             );
             setUnreadCount(prev => Math.max(0, prev - 1));

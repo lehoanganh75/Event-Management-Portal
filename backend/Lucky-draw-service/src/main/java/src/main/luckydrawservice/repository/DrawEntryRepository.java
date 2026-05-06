@@ -17,4 +17,8 @@ public interface DrawEntryRepository extends JpaRepository<DrawEntry, String> {
     java.util.List<DrawEntry> findByLuckyDrawIdAndStatus(String luckyDrawId, EntryStatus status);
 
     Optional<DrawEntry> findByLuckyDrawIdAndUserProfileId(String luckyDrawId, String userProfileId);
+
+    @org.springframework.data.jpa.repository.Modifying
+    @org.springframework.data.jpa.repository.Query("DELETE FROM DrawEntry d WHERE d.luckyDraw.id = :luckyDrawId")
+    void deleteByLuckyDrawId(@org.springframework.data.repository.query.Param("luckyDrawId") String luckyDrawId);
 }

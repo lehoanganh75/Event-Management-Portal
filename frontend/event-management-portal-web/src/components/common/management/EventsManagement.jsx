@@ -48,8 +48,13 @@ const STATUS_COLOR = {
 const EventsManagement = ({ type = "lecturer", mode = "all" }) => {
   const navigate = useNavigate();
   const { user } = useAuth();
+  console.log(user);
 
-  const isAdminMode = useMemo(() => type === "admin", [type]);
+  const isAdminMode = useMemo(() => {
+    const role = user?.role;
+    // Nếu là Admin hoặc Super Admin thì luôn dùng chế độ quản trị (xem hết)
+    return role === "ADMIN" || role === "SUPER_ADMIN";
+  }, [user]);
 
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -74,28 +79,27 @@ const EventsManagement = ({ type = "lecturer", mode = "all" }) => {
   const [creatorConfig, setCreatorConfig] = useState({ initialFormData: {}, fromPlan: false, forceEventMode: false });
   const [importedRawText, setImportedRawText] = useState("");
 
-
-
   /* ===== FETCH ===== */
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
       let res;
+
+      // Kiểm tra quyền từ role để gọi API tương ứng
       if (isAdminMode) {
-        if (mode === "plan") {
-          res = await eventService.getAllPlans();
-        } else if (mode === "event") {
-          // You might need a specific getAdminAllEvents that only returns non-plan events
-          // or just filter from all. But let's use the separate plan endpoint for plans.
-          res = await eventService.getAdminAllEvents();
-        } else {
-          res = await eventService.getAdminAllEvents();
-        }
+        // SUPER_ADMIN, ADMIN -> Load toàn bộ (is_deleted = false)
+        res = mode === "plan"
+          ? await eventService.getAllPlans()
+          : await eventService.getAdminAllEvents();
       } else {
+        // LECTURER, STUDENT... -> Load sự kiện liên quan đến mình
         res = mode === "plan"
           ? await eventService.getMyPlans()
           : await eventService.getMyEvents();
       }
+
+      console.log(isAdminMode);
+      console.log(res.data);
 
       let allData = res.data || [];
       if (mode !== "all") {
@@ -109,6 +113,7 @@ const EventsManagement = ({ type = "lecturer", mode = "all" }) => {
       setLoading(false);
     }
   }, [isAdminMode, mode, allowedStatuses]);
+
 
   useEffect(() => {
     fetchData();

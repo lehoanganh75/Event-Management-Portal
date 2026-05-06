@@ -59,7 +59,11 @@ public class LuckyDrawServiceImpl implements LuckyDrawService {
 
         Optional<LuckyDraw> existingOpt = luckyDrawRepository.findByEventId(request.getEventId());
         if (existingOpt.isPresent()) {
-            luckyDrawRepository.delete(existingOpt.get());
+            LuckyDraw existing = existingOpt.get();
+            drawResultRepository.deleteByLuckyDrawId(existing.getId());
+            drawEntryRepository.deleteByLuckyDrawId(existing.getId());
+            prizeRepository.deleteByLuckyDrawId(existing.getId());
+            luckyDrawRepository.delete(existing);
             luckyDrawRepository.flush();
         }
 
@@ -215,9 +219,18 @@ public class LuckyDrawServiceImpl implements LuckyDrawService {
                 })
                 .collect(Collectors.toList()) : Collections.emptyList();
 
+        String eventTitle = "N/A";
+        try {
+            Map<String, String> titles = eventClient.getEventTitles(Collections.singletonList(draw.getEventId()));
+            eventTitle = titles.getOrDefault(draw.getEventId(), "N/A");
+        } catch (Exception e) {
+            log.error("Failed to fetch event title for {}: {}", draw.getEventId(), e.getMessage());
+        }
+
         return LuckyDrawResponse.builder()
                 .id(draw.getId())
                 .eventId(draw.getEventId())
+                .eventTitle(eventTitle)
                 .creator(finalUserMap.get(draw.getCreatedByAccountId()))
                 .title(draw.getTitle())
                 .description(draw.getDescription())
@@ -233,8 +246,60 @@ public class LuckyDrawServiceImpl implements LuckyDrawService {
 
     @Override
     @Transactional
-    public List<LuckyDraw> getAllLuckyDraws() {
-        return luckyDrawRepository.findAllByIsDeletedFalse();
+    public List<LuckyDrawResponse> getAllLuckyDraws() {
+        return enrichLuckyDraws(luckyDrawRepository.findAllByIsDeletedFalse());
+    }
+
+    private List<LuckyDrawResponse> enrichLuckyDraws(List<LuckyDraw> draws) {
+        if (draws.isEmpty()) return Collections.emptyList();
+
+        // 1. Collect all Event IDs and User IDs
+        Set<String> eventIds = draws.stream().map(LuckyDraw::getEventId).collect(Collectors.toSet());
+        Set<String> userIds = draws.stream().map(LuckyDraw::getCreatedByAccountId).filter(Objects::nonNull).collect(Collectors.toSet());
+
+        // 2. Fetch Event Titles and User Info in bulk
+        Map<String, String> eventTitles = new HashMap<>();
+        try {
+            eventTitles = eventClient.getEventTitles(new ArrayList<>(eventIds));
+        } catch (Exception e) {
+            log.error("Failed to fetch event titles: {}", e.getMessage());
+        }
+
+        Map<String, UserResponse> userMap = new HashMap<>();
+        try {
+            List<UserResponse> users = identityClient.getUsersByIds(new ArrayList<>(userIds));
+            userMap = users.stream().collect(Collectors.toMap(UserResponse::getId, u -> u));
+        } catch (Exception e) {
+            log.error("Failed to fetch user info: {}", e.getMessage());
+        }
+
+        // 3. Map to Response DTOs
+        final Map<String, String> finalTitles = eventTitles;
+        final Map<String, UserResponse> finalUsers = userMap;
+
+        return draws.stream().map(draw -> LuckyDrawResponse.builder()
+                .id(draw.getId())
+                .eventId(draw.getEventId())
+                .eventTitle(finalTitles.getOrDefault(draw.getEventId(), "N/A"))
+                .creator(finalUsers.get(draw.getCreatedByAccountId()))
+                .title(draw.getTitle())
+                .description(draw.getDescription())
+                .status(draw.getStatus().name())
+                .allowMultipleWins(draw.isAllowMultipleWins())
+                .startTime(draw.getStartTime())
+                .endTime(draw.getEndTime())
+                .build()
+        ).collect(Collectors.toList());
+    }
+
+    @Override
+    public List<LuckyDrawResponse> getInvolvedLuckyDraws(String token) {
+        List<String> eventIds = eventClient.getInvolvedEventIds(token);
+        if (eventIds == null || eventIds.isEmpty()) {
+            return Collections.emptyList();
+        }
+        List<LuckyDraw> draws = luckyDrawRepository.findByEventIdInAndIsDeletedFalse(eventIds);
+        return enrichLuckyDraws(draws);
     }
 
     @Transactional
@@ -562,9 +627,18 @@ public class LuckyDrawServiceImpl implements LuckyDrawService {
                 })
                 .collect(Collectors.toList()) : Collections.emptyList();
 
+        String eventTitle = "N/A";
+        try {
+            Map<String, String> titles = eventClient.getEventTitles(Collections.singletonList(luckyDraw.getEventId()));
+            eventTitle = titles.getOrDefault(luckyDraw.getEventId(), "N/A");
+        } catch (Exception e) {
+            log.error("Failed to fetch event title for {}: {}", luckyDraw.getEventId(), e.getMessage());
+        }
+
         return Optional.of(LuckyDrawResponse.builder()
                 .id(luckyDraw.getId())
                 .eventId(luckyDraw.getEventId())
+                .eventTitle(eventTitle)
                 .creator(finalUserMap.get(luckyDraw.getCreatedByAccountId()))
                 .title(luckyDraw.getTitle())
                 .description(luckyDraw.getDescription())
@@ -643,9 +717,10 @@ public class LuckyDrawServiceImpl implements LuckyDrawService {
     @Transactional
     public void updateClaimed(String resultId, boolean claimed) {
         src.main.luckydrawservice.entity.DrawResult result = drawResultRepository.findById(resultId)
-                .orElseThrow(() -> new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.NOT_FOUND,
+                .orElseThrow(() -> new org.springframework.web.server.ResponseStatusException(
+                        org.springframework.http.HttpStatus.NOT_FOUND,
                         "Không tìm thấy kết quả trúng giải"));
-        
+
         if (result.isClaimed() != claimed) {
             result.setClaimed(claimed);
             drawResultRepository.save(result);
