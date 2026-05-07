@@ -222,7 +222,7 @@ const Header = () => {
   // Removed logoutToastVisible useEffect
 
   const getPrimaryRole = () => {
-    const rawRole = user?.role || user?.roles?.[0] || "";
+    const rawRole = user?.role || "";
     const systemRole = rawRole.toUpperCase();
 
     // 1. Ưu tiên các vai trò quản trị hệ thống (SUPER_ADMIN, ADMIN)
@@ -274,14 +274,11 @@ const Header = () => {
   };
 
   const isSuperAdmin = () => {
-    const roles = Array.isArray(user?.roles) ? user.roles : (user?.role ? [user.role] : []);
-    return roles.some((r) => r?.toUpperCase() === "SUPER_ADMIN");
+    return user?.role?.toUpperCase() === "SUPER_ADMIN";
   };
 
   const isAdminOnly = () => {
-    const roles = Array.isArray(user?.roles) ? user.roles : (user?.role ? [user.role] : []);
-    const hasAdmin = roles.some((r) => r?.toUpperCase() === "ADMIN");
-    return hasAdmin && !isSuperAdmin();
+    return user?.role?.toUpperCase() === "ADMIN";
   };
 
   const isEventStaff = () => {
@@ -293,8 +290,7 @@ const Header = () => {
   };
 
   const hasRole = (roleName) => {
-    const roles = Array.isArray(user?.roles) ? user.roles : (user?.role ? [user.role] : []);
-    return roles.some(r => r.toUpperCase() === roleName.toUpperCase());
+    return user?.role?.toUpperCase() === roleName.toUpperCase();
   };
 
   const isActive = (path) => location.pathname === path;
@@ -619,7 +615,8 @@ const Header = () => {
                         <div className="p-2">
                           <Link
                             to={hasRole('ADMIN') || hasRole('SUPER_ADMIN') ? "/admin/profile" :
-                              hasRole('LECTURER') ? "/lecturer/profile" : "/student/profile"}
+                              hasRole('LECTURER') ? "/lecturer/profile" :
+                                hasRole('GUEST') ? "/profile" : "/student/profile"}
                             onClick={() => setIsMenuOpen(false)}
                             className="flex items-center gap-4 px-5 py-3.5 text-[15px] font-medium text-slate-700 hover:bg-slate-100 rounded-2xl transition-all active:bg-slate-200"
                           >
@@ -662,7 +659,7 @@ const Header = () => {
                           )}
 
                           {/* Student Dashboard for regular students/guests */}
-                          {!isSuperAdmin() && !isAdminOnly() && !hasRole('LECTURER') && !isEventStaff() && (
+                          {!isSuperAdmin() && !isAdminOnly() && !hasRole('LECTURER') && !isEventStaff() && !hasRole('GUEST') && (
                             <Link
                               to="/student/dashboard"
                               onClick={() => setIsMenuOpen(false)}
@@ -675,7 +672,7 @@ const Header = () => {
 
                           {hasRole('GUEST') && (
                             <Link
-                              to="/student/events"
+                              to="/guest-events"
                               onClick={() => setIsMenuOpen(false)}
                               className="flex items-center gap-4 px-5 py-3.5 text-[15px] font-medium text-slate-700 hover:bg-slate-100 rounded-2xl transition-all active:bg-slate-200"
                             >
@@ -724,32 +721,34 @@ const Header = () => {
       {/* Logout Modal */}
       <AnimatePresence>
         {isLogoutModalOpen && (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/40">
+          <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm">
             <motion.div
-              initial={{ scale: 0.9, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.9, opacity: 0 }}
-              className="bg-white rounded-3xl p-8 max-w-sm w-full text-center shadow-2xl"
+              initial={{ scale: 0.95, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.95, opacity: 0, y: 20 }}
+              className="bg-white rounded-[32px] p-10 max-w-sm w-full text-center shadow-2xl border border-slate-100"
             >
-              <div className="w-16 h-16 mx-auto mb-6 bg-red-50 text-red-500 rounded-full flex items-center justify-center">
-                <LogOut size={32} />
-              </div>
-              <h2 className="text-2xl font-bold mb-2">Đăng xuất?</h2>
-              <p className="text-gray-600 mb-8">Bạn có chắc chắn muốn đăng xuất khỏi tài khoản?</p>
+              <div className="flex flex-col items-center">
+                <div className="w-20 h-20 mx-auto mb-6 bg-rose-50 text-rose-500 rounded-full flex items-center justify-center shadow-inner">
+                  <LogOut size={32} strokeWidth={2.5} />
+                </div>
+                <h3 className="text-2xl font-black text-slate-800 mb-3 uppercase tracking-tight">Đăng xuất?</h3>
+                <p className="text-slate-500 text-sm font-medium leading-relaxed mb-8">Bạn có chắc chắn muốn đăng xuất khỏi tài khoản?</p>
 
-              <div className="flex gap-3">
-                <button
-                  onClick={() => setIsLogoutModalOpen(false)}
-                  className="flex-1 py-3 rounded-2xl font-medium text-gray-600 hover:bg-gray-100 transition"
-                >
-                  Hủy
-                </button>
-                <button
-                  onClick={handleLogout}
-                  className="flex-1 py-3 rounded-2xl font-medium bg-red-500 text-white hover:bg-red-600 transition"
-                >
-                  Đăng xuất
-                </button>
+                <div className="flex flex-col w-full gap-3">
+                  <button
+                    onClick={handleLogout}
+                    className="w-full py-4 bg-rose-500 text-white rounded-2xl font-black text-sm uppercase tracking-widest hover:bg-rose-600 hover:shadow-lg hover:shadow-rose-100 active:scale-[0.98] transition-all cursor-pointer"
+                  >
+                    Đăng xuất
+                  </button>
+                  <button
+                    onClick={() => setIsLogoutModalOpen(false)}
+                    className="w-full py-4 bg-white text-slate-400 rounded-2xl font-black text-sm uppercase tracking-widest hover:text-slate-600 hover:bg-slate-50 transition-all cursor-pointer"
+                  >
+                    Hủy
+                  </button>
+                </div>
               </div>
             </motion.div>
           </div>

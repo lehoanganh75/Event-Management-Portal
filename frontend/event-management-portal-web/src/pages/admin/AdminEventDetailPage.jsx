@@ -1,6 +1,7 @@
-import React, { useState, useEffect, useCallback, useMemo } from "react";
+import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
+import { useNotification } from "../../context/NotificationContext";
 import { toast } from "react-toastify";
 import eventService from "../../services/eventService";
 import luckyDrawService from "../../services/luckyDrawService";
@@ -37,21 +38,13 @@ const AdminEventDetailPage = () => {
   const [isAddingPresenter, setIsAddingPresenter] = useState(false);
   const [presenterInvitations, setPresenterInvitations] = useState([]);
   const [isInvitingPresenter, setIsInvitingPresenter] = useState(false);
+  const { notifications } = useNotification();
+  const lastHandledNotificationRef = useRef(null);
 
   const fetchData = useCallback(async () => {
     try {
       setLoading(true);
       const resEvent = await eventService.getEventById(id);
-
-      // ✅ Nếu không còn là ban tổ chức (và không phải Admin hệ thống) thì đá ra ngoài Home
-      const roles = user?.roles || (user?.role ? [user.role] : []);
-      const isSystemAdmin = roles.some(r => ["SUPER_ADMIN", "ADMIN"].includes(r?.toUpperCase()));
-
-      if (!resEvent.data?.currentUserRole?.organizerRole && !isSystemAdmin) {
-        toast.info("Bạn không còn thuộc ban tổ chức sự kiện này.");
-        navigate('/');
-        return;
-      }
 
       setEvent(resEvent.data);
 
@@ -93,6 +86,47 @@ const AdminEventDetailPage = () => {
   useEffect(() => {
     if (id) fetchData();
   }, [fetchData]);
+
+  // Real-time data refreshing when notifications arrive
+  useEffect(() => {
+    if (!notifications || notifications.length === 0) return;
+
+    const latest = notifications[0];
+
+    // Avoid re-processing the exact same notification object
+    if (lastHandledNotificationRef.current === latest) return;
+    lastHandledNotificationRef.current = latest;
+
+    const relevantTypes = [
+      'INVITATION_ACCEPTED',
+      'INVITATION_REJECTED',
+      'INVITATION_CANCELLED',
+      'REGISTRATION_CREATED',
+      'REGISTRATION_APPROVED',
+      'REGISTRATION_REJECTED',
+      'LEAVE_REQUEST_APPROVED',
+      'LEAVE_REQUEST_REJECTED',
+      'LEAVE_REQUEST_CANCELLED'
+    ];
+
+    const entityId = String(latest.relatedEntityId || '');
+    const currentId = String(id || '');
+    const currentUuid = String(event?.id || '');
+
+    const isRelevantEvent = entityId === currentId ||
+      (currentUuid && entityId === currentUuid) ||
+      (latest.actionUrl && latest.actionUrl.includes(currentId)) ||
+      (latest.actionUrl && currentUuid && latest.actionUrl.includes(currentUuid));
+
+    if (relevantTypes.includes(latest.type) && isRelevantEvent) {
+      console.log(`🔄 [Realtime] Refreshing data for event ${id} due to ${latest.type}`);
+      // Small delay to ensure backend transaction is committed
+      const timer = setTimeout(() => {
+        fetchData();
+      }, 1000);
+      return () => clearTimeout(timer);
+    }
+  }, [notifications, id, event?.id, fetchData]);
 
   const fetchUsers = async () => {
     setLoadingUsers(true);
@@ -259,6 +293,7 @@ const AdminEventDetailPage = () => {
         ...inv,
         inviteeEmail: inv.inviteeEmail?.trim()
       }));
+      console.log("sendOrganizerInvitations", payload);
       await eventService.sendOrganizerInvitations(id, { invitations: payload });
       toast.success("Đã gửi lời mời!");
       setInvitations([]);
@@ -420,6 +455,13 @@ const AdminEventDetailPage = () => {
       updateInvite={(idx, field, val) => {
         const newList = [...invitations];
         newList[idx][field] = val;
+        if (field === 'inviteeEmail' && val) {
+          const matchedUser = systemUsers.find(u => u.email?.toLowerCase() === val.toLowerCase());
+          if (matchedUser) {
+            newList[idx].inviteeAccountId = matchedUser.id;
+            newList[idx].fullName = matchedUser.profile?.fullName || matchedUser.fullName || matchedUser.username;
+          }
+        }
         setInvitations(newList);
       }}
       removeInvite={(idx) => setInvitations(invitations.filter((_, i) => i !== idx))}
@@ -432,6 +474,13 @@ const AdminEventDetailPage = () => {
       updatePresenterInvite={(idx, field, val) => {
         const newList = [...presenterInvitations];
         newList[idx][field] = val;
+        if (field === 'inviteeEmail' && val) {
+          const matchedUser = systemUsers.find(u => u.email?.toLowerCase() === val.toLowerCase());
+          if (matchedUser) {
+            newList[idx].inviteeAccountId = matchedUser.id;
+            newList[idx].fullName = matchedUser.profile?.fullName || matchedUser.fullName || matchedUser.username;
+          }
+        }
         setPresenterInvitations(newList);
       }}
       removePresenterInvite={(idx) => setPresenterInvitations(presenterInvitations.filter((_, i) => i !== idx))}

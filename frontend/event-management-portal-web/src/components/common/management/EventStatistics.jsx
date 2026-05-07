@@ -25,7 +25,7 @@ const EventStatistics = ({ summary, loading: initialLoading, eventTitle }) => {
         registrationTimeline: summary.detailedAnalysis?.registrationTimeline,
         checkInTimeline: summary.detailedAnalysis?.checkInTimeline
       };
-      
+
       const res = await eventService.chat.analyzeStats(JSON.stringify(statsData));
       if (res.data?.code === 1000 && res.data.result) {
         try {
@@ -34,12 +34,17 @@ const EventStatistics = ({ summary, loading: initialLoading, eventTitle }) => {
           setAiAnalysis(parsed);
         } catch (e) {
           console.error("Failed to parse AI JSON:", e);
-          // Fallback if AI returns plain text
+          // Fallback if AI returns plain text or error
+          const isError = res.data.result === "ERROR_AI_OVERLOADED";
           setAiAnalysis({
-            summary: res.data.result.substring(0, 200),
-            recommendation: "Tiếp tục tối ưu",
-            highlight: "Dữ liệu thực tế",
-            lessonsLearned: res.data.result
+            summary: isError
+              ? "Hệ thống AI đang tạm thời quá tải hoặc chưa sẵn sàng. Bạn vẫn có thể xem các số liệu thống kê chi tiết bên dưới."
+              : res.data.result.substring(0, 200),
+            recommendation: isError ? "Vui lòng thử lại sau" : "Tiếp tục tối ưu",
+            highlight: isError ? "Đang bảo trì" : "Dữ liệu thực tế",
+            lessonsLearned: isError
+              ? "Chúng tôi không thể trích xuất bài học kinh nghiệm tự động lúc này. Vui lòng dựa trên các biểu đồ thống kê để đưa ra đánh giá thủ công."
+              : res.data.result
           });
         }
       }
@@ -139,31 +144,31 @@ const EventStatistics = ({ summary, loading: initialLoading, eventTitle }) => {
     <div className="space-y-8 animate-in fade-in duration-500">
       {/* Overview Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        <StatCard 
-          icon={<UserPlus className="text-indigo-600" />} 
-          label="Tổng đăng ký" 
-          value={totalRegistered} 
-          trend="+12%" 
-          color="indigo" 
+        <StatCard
+          icon={<UserPlus className="text-indigo-600" />}
+          label="Tổng đăng ký"
+          value={totalRegistered}
+          trend="+12%"
+          color="indigo"
         />
-        <StatCard 
-          icon={<CheckCircle className="text-emerald-600" />} 
-          label="Đã tham gia" 
-          value={totalCheckedIn} 
-          trend={`${attendanceRate.toFixed(1)}%`} 
-          color="emerald" 
+        <StatCard
+          icon={<CheckCircle className="text-emerald-600" />}
+          label="Đã tham gia"
+          value={totalCheckedIn}
+          trend={`${attendanceRate.toFixed(1)}%`}
+          color="emerald"
         />
-        <StatCard 
-          icon={<Clock className="text-amber-600" />} 
-          label="Tỷ lệ có mặt" 
-          value={`${attendanceRate.toFixed(1)}%`} 
-          color="amber" 
+        <StatCard
+          icon={<Clock className="text-amber-600" />}
+          label="Tỷ lệ có mặt"
+          value={`${attendanceRate.toFixed(1)}%`}
+          color="amber"
         />
-        <StatCard 
-          icon={<TrendingUp className="text-rose-600" />} 
-          label="Độ hiệu quả" 
-          value={attendanceRate > 70 ? "Cao" : attendanceRate > 40 ? "Trung bình" : "Thấp"} 
-          color="rose" 
+        <StatCard
+          icon={<TrendingUp className="text-rose-600" />}
+          label="Độ hiệu quả"
+          value={attendanceRate > 70 ? "Cao" : attendanceRate > 40 ? "Trung bình" : "Thấp"}
+          color="rose"
         />
       </div>
 
@@ -187,15 +192,15 @@ const EventStatistics = ({ summary, loading: initialLoading, eventTitle }) => {
               <AreaChart data={registrationData}>
                 <defs>
                   <linearGradient id="colorReg" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#6366f1" stopOpacity={0.1}/>
-                    <stop offset="95%" stopColor="#6366f1" stopOpacity={0}/>
+                    <stop offset="5%" stopColor="#6366f1" stopOpacity={0.1} />
+                    <stop offset="95%" stopColor="#6366f1" stopOpacity={0} />
                   </linearGradient>
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fontSize: 12, fill: '#64748b'}} dy={10} />
-                <YAxis axisLine={false} tickLine={false} tick={{fontSize: 12, fill: '#64748b'}} />
-                <Tooltip 
-                  contentStyle={{borderRadius: '16px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)'}}
+                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#64748b' }} dy={10} />
+                <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#64748b' }} />
+                <Tooltip
+                  contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
                 />
                 <Area type="monotone" dataKey="value" stroke="#6366f1" strokeWidth={3} fillOpacity={1} fill="url(#colorReg)" />
               </AreaChart>
@@ -213,11 +218,11 @@ const EventStatistics = ({ summary, loading: initialLoading, eventTitle }) => {
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={checkInData}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fontSize: 12, fill: '#64748b'}} dy={10} />
-                <YAxis axisLine={false} tickLine={false} tick={{fontSize: 12, fill: '#64748b'}} />
-                <Tooltip 
-                  cursor={{fill: '#f8fafc'}}
-                  contentStyle={{borderRadius: '16px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)'}}
+                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#64748b' }} dy={10} />
+                <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#64748b' }} />
+                <Tooltip
+                  cursor={{ fill: '#f8fafc' }}
+                  contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
                 />
                 <Bar dataKey="value" fill="#10b981" radius={[8, 8, 0, 0]} barSize={40} />
               </BarChart>
@@ -288,7 +293,7 @@ const EventStatistics = ({ summary, loading: initialLoading, eventTitle }) => {
         <div className="absolute top-0 right-0 p-8 opacity-5">
           <Lightbulb size={120} className="text-amber-500" />
         </div>
-        
+
         <div className="relative z-10">
           <h3 className="text-xl font-bold text-slate-800 mb-4 flex items-center gap-2">
             <Award size={24} className="text-amber-500" />
@@ -296,12 +301,12 @@ const EventStatistics = ({ summary, loading: initialLoading, eventTitle }) => {
           </h3>
           <div className="text-gray-600 mb-8 leading-relaxed italic text-sm border-l-4 border-amber-200 pl-4 py-2 bg-amber-50/30 rounded-r-2xl">
             {isAnalysing ? (
-                <div className="flex items-center gap-3 py-2">
-                    <Loader2 size={16} className="animate-spin text-amber-500" />
-                    <span>AI đang đúc kết bài học từ dữ liệu...</span>
-                </div>
+              <div className="flex items-center gap-3 py-2">
+                <Loader2 size={16} className="animate-spin text-amber-500" />
+                <span>AI đang đúc kết bài học từ dữ liệu...</span>
+              </div>
             ) : (
-                aiAnalysis?.lessonsLearned || "Thông qua việc phân tích dữ liệu tham gia, phản hồi từ người dùng và hiệu quả hoạt động, nhà trường có thể rút ra những bài học kinh nghiệm, từ đó cải tiến quy trình tổ chức và nâng cao chất lượng sự kiện trong những lần tiếp theo."
+              aiAnalysis?.lessonsLearned || "Thông qua việc phân tích dữ liệu tham gia, phản hồi từ người dùng và hiệu quả hoạt động, nhà trường có thể rút ra những bài học kinh nghiệm, từ đó cải tiến quy trình tổ chức và nâng cao chất lượng sự kiện trong những lần tiếp theo."
             )}
           </div>
 
@@ -320,7 +325,7 @@ const EventStatistics = ({ summary, loading: initialLoading, eventTitle }) => {
                 ))}
               </ul>
             </div>
-            
+
             <div className="space-y-4">
               <h4 className="font-bold text-slate-700 flex items-center gap-2 text-sm uppercase tracking-wider">
                 <div className="w-2 h-2 bg-indigo-500 rounded-full"></div>

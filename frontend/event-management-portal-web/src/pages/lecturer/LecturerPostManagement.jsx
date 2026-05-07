@@ -16,7 +16,7 @@ const LecturerPostManagement = () => {
   const [userEvents, setUserEvents] = useState([]);
 
   const isSystemAdmin = useMemo(() => {
-    const roles = user?.roles || (user?.role ? [{ name: user.role }] : []);
+    const roles = user?.role ? [{ name: user.role }] : [];
     return roles.some(r => r.name === 'ADMIN' || r.name === 'SUPER_ADMIN');
   }, [user]);
 

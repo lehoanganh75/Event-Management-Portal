@@ -261,7 +261,6 @@ const NotificationPage = () => {
   if (isLoading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-50 to-white">
-        <Header />
         <div className="flex items-center justify-center h-[calc(100vh-64px)]">
           <div className="text-center">
             <Loader2 className="w-12 h-12 text-blue-500 animate-spin mx-auto mb-4" />
@@ -274,7 +273,6 @@ const NotificationPage = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-white">
-      <Header />
 
       <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6 mb-6">

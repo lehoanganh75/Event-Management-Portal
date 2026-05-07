@@ -81,10 +81,12 @@ public interface EventRepository extends JpaRepository<Event, String> {
         @Query("SELECT DISTINCT e FROM Event e " +
                         "LEFT JOIN e.organizers o " +
                         "LEFT JOIN e.presenters p " +
+                        "LEFT JOIN e.registrations r " +
                         "WHERE e.isDeleted = false AND (" +
                         "  e.createdByAccountId = :accId OR " +
                         "  (o.accountId = :accId AND o.isDeleted = false) OR " +
-                        "  (p.presenterAccountId = :accId AND p.isDeleted = false)" +
+                        "  (p.presenterAccountId = :accId AND p.isDeleted = false) OR " +
+                        "  (r.participantAccountId = :accId AND r.isDeleted = false AND r.status != 'CANCELLED')" +
                         ")")
         List<Event> findInvolvedEventsByAccountId(@Param("accId") String accId);
 
@@ -109,7 +111,7 @@ public interface EventRepository extends JpaRepository<Event, String> {
 
         List<Event> findByStatusInAndIsDeletedFalse(List<EventStatus> statuses);
 
-        @Query("SELECT COUNT(r) FROM EventRegistration r WHERE r.event.id = :eventId AND r.isDeleted = false")
+        @Query("SELECT COUNT(r) FROM EventRegistration r WHERE r.event.id = :eventId AND r.isDeleted = false AND r.status != 'CANCELLED'")
         long countRegistrationsByEventId(@Param("eventId") String eventId);
 
         List<Event> findByStatusInAndIsDeletedFalseOrderByRegistrationDeadlineAsc(List<EventStatus> publicStatuses);

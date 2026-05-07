@@ -44,19 +44,7 @@ const LecturerEventDetailPage = () => {
       setLoading(true);
       const resEvent = await eventService.getEventById(id);
 
-      const roles = user?.roles || (user?.role ? [user.role] : []);
-      const isSystemAdmin = roles.some(r => ["SUPER_ADMIN", "ADMIN"].includes(r?.toUpperCase()));
-      const isCreator = resEvent.data?.currentUserRole?.creator;
-      const isPresented = resEvent.data?.currentUserRole?.presented;
-
       console.log("Current User Role Data:", resEvent.data?.currentUserRole);
-
-      // Cho phép truy cập nếu là Ban tổ chức, hoặc là Người tạo, hoặc Diễn giả, hoặc là Admin hệ thống
-      if (!resEvent.data?.currentUserRole?.organizerRole && !isCreator && !isPresented && !isSystemAdmin) {
-        toast.info("Bạn không có quyền truy cập sự kiện này.");
-        navigate(`${pathPrefix}/events`);
-        return;
-      }
 
       setEvent(resEvent.data);
 

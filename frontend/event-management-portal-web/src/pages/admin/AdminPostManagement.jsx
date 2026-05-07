@@ -12,7 +12,7 @@ const AdminPostManagement = ({ eventId, eventTitle }) => {
   const [isFetchingEvents, setIsFetchingEvents] = useState(false);
 
   const isSystemAdmin = useMemo(() => {
-    return user?.roles?.some(r => r.name === 'ADMIN' || r.name === 'SUPER_ADMIN') || user?.role === 'ADMIN';
+    return ['ADMIN', 'SUPER_ADMIN'].includes(user?.role?.toUpperCase());
   }, [user]);
 
   const fetchPosts = useCallback(async () => {

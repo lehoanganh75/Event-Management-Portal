@@ -4,44 +4,28 @@ import com.eventservice.dto.EventPlanSuggestion;
 import com.eventservice.dto.ProgramItemSuggestion;
 import com.eventservice.entity.social.ChatMessage;
 import com.eventservice.entity.enums.ChatMessageRole;
-
 import com.eventservice.service.GeminiChatService;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import okhttp3.*;
-
-import java.util.Map;
-import java.util.HashMap;
-import org.springframework.beans.factory.annotation.Value;
+import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
 import java.time.LocalTime;
-import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
-import java.util.concurrent.TimeUnit;
+import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
 @Slf4j
 public class GeminiChatServiceImpl implements GeminiChatService {
 
-    @Value("${gemini.api.key:}")
-    private String geminiApiKey;
-
-    @Value("${gemini.api.url:https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent}")
-    private String geminiApiUrl;
-
+    private final ChatClient chatClient;
     private final ObjectMapper objectMapper;
-
-    private final OkHttpClient httpClient = new OkHttpClient.Builder()
-            .connectTimeout(30, TimeUnit.SECONDS)
-            .readTimeout(120, TimeUnit.SECONDS)
-            .writeTimeout(30, TimeUnit.SECONDS)
-            .build();
 
     @Override
     public String generateChatResponse(String userMessage, List<ChatMessage> conversationHistory, String contextType) {
@@ -320,118 +304,16 @@ public class GeminiChatServiceImpl implements GeminiChatService {
         return context.toString();
     }
 
-    private String callGeminiAPI(String prompt) throws Exception {
-        if (geminiApiKey == null || geminiApiKey.isEmpty()) {
-            log.warn("Gemini API key not configured, returning fallback response");
-            return "Xin lỗi, dịch vụ AI chưa được cấu hình. Vui lòng liên hệ quản trị viên.";
+    private String callGeminiAPI(String prompt) {
+        try {
+            return chatClient.prompt()
+                    .user(prompt)
+                    .call()
+                    .content();
+        } catch (Exception e) {
+            log.error("AI service call failed: {}", e.getMessage());
+            return "ERROR_AI_OVERLOADED";
         }
-
-        // Build correct Gemini API request body
-        String requestBody = String.format("""
-                {
-                  "contents": [
-                    {
-                      "parts": [
-                        { "text": %s }
-                      ]
-                    }
-                  ],
-                  "generationConfig": {
-                    "temperature": 0.4,
-                    "maxOutputTokens": 4096
-                  }
-                }
-                """, objectMapper.writeValueAsString(prompt));
-
-        // Danh sách các model dự phòng theo thứ tự ưu tiên (Dùng các model thực tế đang
-        // tồn tại)
-        List<String> modelsToTry = List.of(
-                "gemini-2.5-flash",
-                "gemini-3.1-flash-lite-preview",
-                "gemini-2.0-flash",
-                "gemini-1.5-pro");
-
-        // Lấy tên model hiện tại từ URL (để biết nên bắt đầu từ đâu nếu URL đã chỉ định
-        // model khác)
-        String currentModelInConfig = "gemini-2.5-flash";
-        if (geminiApiUrl.contains("models/")) {
-            currentModelInConfig = geminiApiUrl.substring(geminiApiUrl.indexOf("models/") + 7,
-                    geminiApiUrl.indexOf(":generateContent"));
-        }
-
-        // Tạo bản copy danh sách và đưa model cấu hình lên đầu nếu chưa có
-        List<String> effectiveModels = new ArrayList<>(modelsToTry);
-        if (!effectiveModels.contains(currentModelInConfig)) {
-            effectiveModels.add(0, currentModelInConfig);
-        }
-
-        for (String modelName : effectiveModels) {
-            String targetUrl = String
-                    .format("https://generativelanguage.googleapis.com/v1beta/models/%s:generateContent", modelName);
-
-            // Tăng số lần thử lại lên 5 lần cho mỗi model (Chờ lâu cũng được nhưng phải ra
-            // kết quả)
-            for (int attempt = 0; attempt <= 4; attempt++) {
-                Request request = new Request.Builder()
-                        .url(targetUrl + "?key=" + geminiApiKey)
-                        .post(RequestBody.create(requestBody, MediaType.parse("application/json")))
-                        .build();
-
-                try (Response response = httpClient.newCall(request).execute()) {
-                    int code = response.code();
-                    String responseBody = response.body() != null ? response.body().string() : "";
-
-                    // TRƯỜNG HỢP 1: Thành công
-                    if (response.isSuccessful()) {
-                        JsonNode jsonNode = objectMapper.readTree(responseBody);
-                        JsonNode textNode = jsonNode.at("/candidates/0/content/parts/0/text");
-
-                        if (textNode.isMissingNode()) {
-                            String finishReason = jsonNode.at("/candidates/0/finishReason").asText("");
-                            if ("SAFETY".equals(finishReason)) {
-                                return "🛡️ Nội dung này đã bị hệ thống an toàn chặn. Vui lòng đặt câu hỏi khác.";
-                            }
-                            log.warn("Model {} returned empty content. Moving to next model.", modelName);
-                            break;
-                        }
-                        return textNode.asText().trim();
-                    }
-
-                    // TRƯỜNG HỢP 2: Hết Quota (429) hoặc Model không tồn tại (404)
-                    if (code == 429 || code == 404) {
-                        log.warn("Model {} reached limit or not found. Code: {}. Body: {}. Switching model...",
-                                modelName, code, responseBody);
-                        break;
-                    }
-
-                    // TRƯỜNG HỢP 3: Lỗi Server (5xx) hoặc quá tải tạm thời
-                    if (code >= 500) {
-                        log.warn("Model {} error {}. Body: {}. Attempt {}/5.", modelName, code, responseBody,
-                                attempt + 1);
-                        if (code == 503 && attempt >= 1) {
-                            log.warn("Model {} is heavily overloaded (503). Switching to next model immediately.",
-                                    modelName);
-                            break; // Thoát vòng lặp retry để thử model tiếp theo
-                        }
-                        Thread.sleep(2000 * (attempt + 1));
-                        continue;
-                    }
-
-                    // Các lỗi khác (400, v.v.)
-                    log.error("Model {} error {}. Body: {}. Trying next model.", modelName, code, responseBody);
-                    break;
-
-                } catch (Exception e) {
-                    log.error("Network error with model {} (Attempt {}): {}", modelName, attempt, e.getMessage());
-                    Thread.sleep(2000);
-                    if (attempt == 4)
-                        break;
-                }
-            }
-        }
-
-        // Nếu tất cả các model và các lượt thử đều thất bại
-        return "ERROR_AI_OVERLOADED";
     }
 
     private EventPlanSuggestion parseEventPlanSuggestion(String jsonResponse) {
@@ -572,10 +454,9 @@ public class GeminiChatServiceImpl implements GeminiChatService {
         }
     }
 
-    // ==================== END ====================
     @Override
     public EventPlanSuggestion generatePlanFromTemplate(String templateName, String templateDescription,
-                                                        String userContext) {
+                                                         String userContext) {
         String prompt = String.format("""
                 Bạn là chuyên gia lập kế hoạch sự kiện chuyên nghiệp.
                 Hãy tạo một bản kế hoạch chi tiết dựa trên mẫu sau:
@@ -654,6 +535,7 @@ public class GeminiChatServiceImpl implements GeminiChatService {
             }
         }
     }
+
     @Override
     public String analyzeEventStatistics(String eventDataJson) {
         log.info("Requesting AI to analyze event statistics");

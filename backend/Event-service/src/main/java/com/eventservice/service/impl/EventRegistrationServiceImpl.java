@@ -60,6 +60,7 @@ public class EventRegistrationServiceImpl implements EventRegistrationService {
         return registrationRepository.findByEventIdAndParticipantAccountId(eventId, userRegistrationId);
     }
 
+    @Transactional
     @Override
     public EventRegistration registerForEvent(String idOrSlug, String userId) {
         String eventId = resolveEventId(idOrSlug);
@@ -76,9 +77,32 @@ public class EventRegistrationServiceImpl implements EventRegistrationService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Sự kiện đã hết chỗ");
         }
 
-        // 4. Kiểm tra xem user đã đăng ký chưa (tránh đăng ký trùng)
-        if (registrationRepository.existsByEventIdAndParticipantAccountIdAndIsDeletedFalse(eventId, userId)) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "Bạn đã đăng ký sự kiện này rồi");
+        // 4. Kiểm tra xem user đã đăng ký chưa
+        Optional<EventRegistration> existingReg = registrationRepository.findByEventIdAndParticipantAccountId(eventId,
+                userId);
+
+        EventRegistration registration;
+        boolean isReactivating = false;
+
+        if (existingReg.isPresent()) {
+            registration = existingReg.get();
+            if (registration.getStatus() == RegistrationStatus.REGISTERED) {
+                throw new ResponseStatusException(HttpStatus.CONFLICT, "Bạn đã đăng ký sự kiện này rồi");
+            }
+            if (registration.getStatus() == RegistrationStatus.ATTENDED) {
+                throw new ResponseStatusException(HttpStatus.CONFLICT, "Bạn đã tham gia sự kiện này rồi");
+            }
+            // If it was cancelled, we allow re-registration
+            isReactivating = true;
+        } else {
+            registration = new EventRegistration();
+            registration.setEvent(event);
+            registration.setParticipantAccountId(userId);
+
+            // Tạo mã vé (VD: TITLE-001)
+            long currentCount = registrationRepository.countByEventId(eventId) + 1;
+            String ticketCode = String.format("%s-%04d", event.getSlug().toUpperCase(), currentCount);
+            registration.setTicketCode(ticketCode);
         }
 
         // 4.1 Kiểm tra trùng lịch (với các sự kiện đã đăng ký)
@@ -98,26 +122,26 @@ public class EventRegistrationServiceImpl implements EventRegistrationService {
                             + "' trùng thời gian.");
         }
 
-        // 5. Tạo mã vé (VD: TITLE-001)
-        long currentCount = registrationRepository.countByEventId(eventId) + 1;
-        String ticketCode = String.format("%s-%04d", event.getSlug().toUpperCase(), currentCount);
-
         // 6. Khởi tạo đối tượng đăng ký
         String qrToken = qrTokenUtil.generateQRToken(userId, eventId, event.getEndTime());
-        EventRegistration registration = EventRegistration.builder()
-                .event(event)
-                .participantAccountId(userId)
-                .status(RegistrationStatus.REGISTERED) // Chuyển thẳng sang REGISTERED nếu tự đăng ký
-                .ticketCode(ticketCode)
-                .qrToken(qrToken)
-                .qrTokenExpiry(qrTokenUtil.getExpiryFromToken(qrToken))
-                .build();
+        registration.setStatus(RegistrationStatus.REGISTERED);
+        registration.setQrToken(qrToken);
+        registration.setQrTokenExpiry(qrTokenUtil.getExpiryFromToken(qrToken));
+        registration.setRegisteredAt(LocalDateTime.now());
+        registration.setCheckedIn(false);
+        registration.setCheckInTime(null);
+
+        // Save registration FIRST so count includes it
+        EventRegistration savedRegistration = registrationRepository.save(registration);
+        registrationRepository.flush();
 
         // 7. Cập nhật số lượng người đã đăng ký vào bảng Event
-        event.setRegisteredCount(event.getRegisteredCount() + 1);
+        long actualCount = registrationRepository.countByEventIdAndStatusIn(eventId, 
+            List.of(RegistrationStatus.REGISTERED, RegistrationStatus.ATTENDED));
+        event.setRegisteredCount((int) actualCount);
         eventRepository.save(event);
 
-        return registrationRepository.save(registration);
+        return savedRegistration;
     }
 
     @Transactional
@@ -193,7 +217,17 @@ public class EventRegistrationServiceImpl implements EventRegistrationService {
         registration.setQrToken(qrToken);
         registration.setQrTokenExpiry(qrTokenUtil.getExpiryFromToken(qrToken));
 
-        return registrationRepository.save(registration);
+        // Save registration FIRST so count includes it
+        EventRegistration savedRegistration = registrationRepository.save(registration);
+        registrationRepository.flush();
+
+        // Increment count - Synchronize with actual registrations
+        long actualCount = registrationRepository.countByEventIdAndStatusIn(event.getId(), 
+            List.of(RegistrationStatus.REGISTERED, RegistrationStatus.ATTENDED));
+        event.setRegisteredCount((int) actualCount);
+        eventRepository.save(event);
+
+        return savedRegistration;
     }
 
     @Override
@@ -435,8 +469,20 @@ public class EventRegistrationServiceImpl implements EventRegistrationService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Không thể hủy vì bạn đã thực hiện check-in rồi");
         }
 
+        if (registration.getStatus() == RegistrationStatus.CANCELLED) {
+            return registration;
+        }
+
         registration.setStatus(RegistrationStatus.CANCELLED);
         EventRegistration saved = registrationRepository.save(registration);
+        registrationRepository.flush();
+
+        // Update event count - Synchronize with actual registrations
+        Event event = registration.getEvent();
+        long actualCount = registrationRepository.countByEventIdAndStatusIn(event.getId(), 
+            List.of(RegistrationStatus.REGISTERED, RegistrationStatus.ATTENDED));
+        event.setRegisteredCount((int) actualCount);
+        eventRepository.save(event);
 
         return saved;
     }

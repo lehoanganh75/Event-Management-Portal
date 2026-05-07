@@ -1,9 +1,13 @@
 import React, { useCallback, useEffect, useState } from "react";
-import { RefreshCw, AlertCircle, Clock, MapPin, QrCode } from "lucide-react";
+import { RefreshCw, AlertCircle, Clock, MapPin, QrCode, Download, Printer, Calendar } from "lucide-react";
 import { motion } from "framer-motion";
 import eventService from "../../services/eventService";
+import QRCode from "react-qr-code";
+import { useAuth } from "../../context/AuthContext";
+import { User, Mail, Building2, Tag } from "lucide-react";
 
 export default function TicketDetail({ eventId }) {
+  const { user: authUser } = useAuth();
   const [event, setEvent] = useState();
   const [registration, setRegistration] = useState();
   const [loading, setLoading] = useState(true);
@@ -39,87 +43,123 @@ export default function TicketDetail({ eventId }) {
   }
 
   return (
-    <div className="w-full mx-auto animate-in fade-in slide-in-from-top-4 duration-500">
-      <div className="bg-white rounded-[24px] shadow-xl overflow-hidden border border-slate-100 flex flex-col">
-        {/* Event Header Mini */}
-        <div className="p-4 flex gap-4 bg-slate-50 border-b border-slate-100">
-          <img
-            src={event.coverImage}
-            alt={event.title}
-            className="w-16 h-16 object-cover rounded-xl shadow-sm flex-shrink-0"
-          />
-          <div className="flex-1 min-w-0">
-            <span className="text-[9px] font-black uppercase text-blue-600 tracking-tighter">
+    <div className="w-full max-w-sm mx-auto animate-in fade-in zoom-in duration-500">
+      {/* Physical Ticket Look */}
+      <div className="relative bg-white rounded-[32px] shadow-2xl overflow-hidden border border-slate-100 flex flex-col group">
+
+        {/* Top Section - Movie Header Style */}
+        <div className="relative bg-indigo-900 px-8 py-10">
+          <div className="absolute inset-0 opacity-10" style={{ backgroundImage: 'radial-gradient(circle at 2px 2px, white 1px, transparent 0)', backgroundSize: '20px 20px' }} />
+          <div className="relative z-10 flex flex-col gap-2">
+            <span className="w-fit px-3 py-1 bg-white/20 backdrop-blur-md text-white text-[10px] font-black uppercase tracking-[0.2em] rounded-md border border-white/10 shadow-sm">
               {event.type}
             </span>
-            <h3 className="text-sm font-extrabold text-slate-800 leading-tight line-clamp-2 uppercase">
+            <h3 className="text-xl font-black text-white leading-tight uppercase tracking-tight drop-shadow-lg">
               {event.title}
             </h3>
-            <p className="mt-1 text-[10px] text-slate-500 font-bold flex items-center gap-1">
-              <Clock size={12} className="text-blue-500" />
-              {new Date(event.startTime).toLocaleDateString("vi-VN")}
+          </div>
+        </div>
+
+        {/* Info Grid - The "Details" section */}
+        <div className="px-8 py-5 grid grid-cols-2 gap-x-4 gap-y-4 bg-white">
+          <div className="space-y-1">
+            <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-1.5">
+              <Calendar size={10} className="text-indigo-500" /> Ngày tổ chức
+            </p>
+            <p className="text-[12px] font-bold text-slate-800">
+              {new Date(event.startTime).toLocaleDateString("vi-VN", { weekday: 'short', day: '2-digit', month: '2-digit', year: 'numeric' })}
+            </p>
+          </div>
+          <div className="space-y-1 text-right">
+            <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-1.5 justify-end">
+              <Clock size={10} className="text-indigo-500" /> Thời gian
+            </p>
+            <p className="text-[12px] font-bold text-slate-800">
+              {new Date(event.startTime).toLocaleTimeString("vi-VN", { hour: '2-digit', minute: '2-digit' })}
+            </p>
+          </div>
+          <div className="col-span-2 space-y-1">
+            <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-1.5">
+              <MapPin size={10} className="text-rose-500" /> Địa điểm
+            </p>
+            <p className="text-[12px] font-bold text-slate-800 line-clamp-1">
+              {event.location}
+            </p>
+          </div>
+
+          <div className="space-y-1">
+            <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-1.5">
+              <Building2 size={10} className="text-indigo-500" /> Tổ chức
+            </p>
+            <p className="text-[11px] font-bold text-slate-700 truncate">
+              {event.organizationName || "Ban tổ chức"}
+            </p>
+          </div>
+          <div className="space-y-1 text-right">
+            <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-1.5 justify-end">
+              <Tag size={10} className="text-indigo-500" /> Phân loại
+            </p>
+            <p className="text-[11px] font-bold text-slate-700 uppercase">
+              {event.type}
             </p>
           </div>
         </div>
 
-        {/* Divider with Cut-out effects */}
-        <div className="relative flex items-center justify-between px-4 h-6">
-          <div className="w-6 h-6 bg-[#f8fafc] border border-slate-100 rounded-full -ml-7 shadow-inner" />
-          <div className="flex-1 border-t border-dashed border-slate-200 mx-2" />
-          <div className="w-6 h-6 bg-[#f8fafc] border border-slate-100 rounded-full -mr-7 shadow-inner" />
+        {/* The "Tear-off" Stub Divider */}
+        <div className="relative flex items-center h-10 bg-white">
+          <div className="absolute -left-5 w-10 h-10 bg-slate-100 rounded-full border border-slate-200/50 shadow-inner" />
+          <div className="flex-1 border-t-2 border-dashed border-slate-100 mx-4" />
+          <div className="absolute -right-5 w-10 h-10 bg-slate-100 rounded-full border border-slate-200/50 shadow-inner" />
         </div>
 
-        {/* QR Section - Tinh giản */}
-        <div className="px-6 pb-6 pt-2 text-center">
-          <div className="py-8 px-4 bg-slate-50 rounded-[2rem] border border-dashed border-slate-200 mb-4 flex flex-col items-center gap-3">
-             <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center shadow-sm border border-slate-100">
-                <QrCode size={32} className="text-blue-500 opacity-20" />
-             </div>
-             <p className="text-xs text-slate-500 font-bold uppercase tracking-wider">Sử dụng tính năng quét mã</p>
-             <p className="text-[10px] text-slate-400 max-w-[200px] leading-relaxed">
-                Để thực hiện điểm danh, vui lòng sử dụng nút <strong>"QUÉT MÃ ĐIỂM DANH"</strong> tại trang chi tiết sự kiện để quét mã QR từ Ban tổ chức.
-             </p>
+        {/* Stub Section - QR & Code */}
+        <div className="px-8 pb-10 pt-4 bg-white text-center space-y-6">
+          <div className="flex flex-col items-center gap-4">
+            {registration.qrToken ? (
+              <div className="p-4 bg-slate-50 rounded-3xl border border-slate-100 shadow-sm hover:shadow-md transition-shadow">
+                <QRCode
+                  value={registration.qrToken}
+                  size={140}
+                  level="H"
+                  style={{ height: "auto", maxWidth: "100%", width: "100%" }}
+                />
+              </div>
+            ) : (
+              <div className="w-32 h-32 bg-slate-50 rounded-3xl flex items-center justify-center border border-dashed border-slate-200">
+                <QrCode size={48} className="text-slate-200" />
+              </div>
+            )}
           </div>
-          
-          <div className="mt-5">
-            <p className="font-mono text-xl font-black tracking-[4px] text-slate-900 leading-none">
-              {registration.ticketCode}
-            </p>
-            <div className={`mt-3 inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-wider ${
-                registration.checkedIn 
-                ? "bg-emerald-50 text-emerald-600 border border-emerald-100" 
-                : "bg-blue-50 text-blue-600 border border-blue-100"
-            }`}>
-                {registration.checkedIn ? "✓ Đã Check-in" : "Đã đăng ký"}
+
+          <div className="flex flex-col gap-3">
+            <button
+              onClick={() => window.print()}
+              className="group flex items-center justify-center gap-3 w-full py-4 bg-slate-900 text-white rounded-2xl text-[11px] font-black uppercase tracking-[0.2em] transition-all shadow-xl hover:bg-indigo-600 hover:shadow-indigo-200 active:scale-95"
+            >
+              <Download size={16} className="group-hover:animate-bounce" />
+              Tải vé điện tử
+            </button>
+
+            <div className={`py-2 rounded-xl text-[10px] font-black uppercase tracking-widest ${registration.checkedIn
+              ? "bg-emerald-50 text-emerald-600"
+              : "bg-indigo-50 text-indigo-600"
+              }`}>
+              {registration.checkedIn ? "✓ Đã Check-in" : "Chưa Check-in"}
             </div>
           </div>
         </div>
 
-        {/* Footer Details - Chữ nhỏ hơn */}
-        <div className="bg-slate-50/50 px-6 py-4 border-t border-slate-100 grid grid-cols-2 gap-4">
-            <div>
-              <p className="text-slate-400 text-[9px] font-black uppercase tracking-tighter">Địa điểm</p>
-              <p className="text-[11px] font-bold text-slate-700 mt-0.5 line-clamp-1 truncate italic">
-                {event.location}
-              </p>
-            </div>
-            <div className="text-right">
-              <p className="text-slate-400 text-[9px] font-black uppercase tracking-tighter">Ngày đăng ký</p>
-              <p className="text-[11px] font-bold text-slate-700 mt-0.5">
-                {new Date(registration.registeredAt).toLocaleDateString("vi-VN")}
-              </p>
-            </div>
-        </div>
+        {/* Brand Bar */}
+        <div className="h-2 bg-indigo-600 w-full" />
       </div>
 
-      {/* Mini Warning */}
-      <div className="mt-4 p-3 bg-blue-50/50 border border-blue-100 rounded-xl flex gap-3 items-center">
-        <AlertCircle className="text-blue-500 shrink-0" size={14} />
-        <p className="text-[10px] text-blue-700 font-medium leading-tight">
-          {event.notes || "Vui lòng chuẩn bị mã QR này tại lối vào để thủ tục check-in nhanh chóng hơn."}
+      {/* Security Tip */}
+      <div className="mt-6 flex items-start gap-3 px-4 py-4 bg-amber-50 rounded-2xl border border-amber-100/50">
+        <AlertCircle className="text-amber-500 shrink-0 mt-0.5" size={16} />
+        <p className="text-[11px] text-amber-700 font-medium leading-relaxed">
+          {event.notes || "Vui lòng không chia sẻ mã QR này cho bất kỳ ai. Nhân viên sẽ quét mã này tại cổng vào để xác nhận tư cách tham dự của bạn."}
         </p>
       </div>
-
     </div>
   );
-}
+}

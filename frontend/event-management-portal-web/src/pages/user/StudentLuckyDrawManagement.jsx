@@ -16,8 +16,7 @@ const StudentLuckyDrawManagement = () => {
   } = useLuckyDraw();
   const { user } = useAuth();
 
-  const isAdmin = user?.roles?.some(role => ['ADMIN', 'SUPER_ADMIN'].includes(role)) || 
-                  (user?.role === 'ADMIN' || user?.role === 'SUPER_ADMIN');
+  const isAdmin = ['ADMIN', 'SUPER_ADMIN'].includes(user?.role?.toUpperCase());
 
   useEffect(() => {
     if (isAdmin) {

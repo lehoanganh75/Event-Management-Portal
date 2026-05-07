@@ -1,6 +1,7 @@
 import React from "react";
 import { Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { AnimatePresence } from "framer-motion";
+import { useEffect } from "react";
 
 // Public Pages
 import VangLaiPage from "../pages/public/VangLaiPage";
@@ -18,6 +19,7 @@ import ResetPassword from "../pages/auth/ResetPassword";
 import ForgotPassword from "../pages/auth/ForgotPassword";
 import PublicProfilePage from "../pages/public/PublicProfilePage";
 import PostDetailPage from "../pages/public/PostDetailPage";
+import GuestEventsPage from "../pages/public/GuestEventsPage";
 
 // Layouts
 import DashboardLayout from "../components/layout/DashboardLayout";
@@ -26,7 +28,6 @@ import DashboardLayout from "../components/layout/DashboardLayout";
 import StudentEventsPage from "../pages/user/StudentEventsPage";
 import StudentEventDetailPage from "../pages/user/StudentEventDetailPage";
 import StudentNotificationsPage from "../pages/user/StudentNotificationsPage";
-import StudentPlansPage from "../pages/user/StudentPlansPage";
 import StudentPostManagement from "../pages/user/StudentPostManagement";
 import StudentPostDetailPage from "../pages/user/StudentPostDetailPage";
 import StudentTemplatesPage from "../pages/user/StudentTemplatesPage";
@@ -67,11 +68,23 @@ import AdvisorPage from "../pages/event-management/AdvisorPage";
 import ProfileManagement from "../pages/common/ProfileManagement";
 import LecturerTemplatesPage from "../pages/lecturer/LecturerTemplatesPage";
 
+// Scroll To Top Component
+const ScrollToTop = () => {
+  const { pathname } = useLocation();
+
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [pathname]);
+
+  return null;
+};
+
 const AppRouter = () => {
   const location = useLocation();
 
   return (
     <AnimatePresence mode="wait">
+      <ScrollToTop />
       <Routes location={location} key={location.pathname}>
         {/* Public Routes */}
         <Route path="/" element={<VangLaiPage />} />
@@ -88,6 +101,7 @@ const AppRouter = () => {
         <Route path="/news/:eventId" element={<EventPostList />} />
         <Route path="/posts/:id" element={<PostDetailPage />} />
         <Route path="/profile" element={<PublicProfilePage />} />
+        <Route path="/guest-events" element={<GuestEventsPage />} />
 
         {/* --- ROLE BASED DASHBOARD ROUTES --- */}
 
@@ -95,7 +109,6 @@ const AppRouter = () => {
         <Route path="/student" element={<DashboardLayout />}>
           <Route index element={<Navigate to="dashboard" replace />} />
           <Route path="dashboard" element={<Dashboard />} />
-          <Route path="plans" element={<StudentPlansPage />} />
           <Route path="events">
             <Route index element={<StudentEventsPage />} />
             <Route path=":id" element={<StudentEventDetailPage />} />

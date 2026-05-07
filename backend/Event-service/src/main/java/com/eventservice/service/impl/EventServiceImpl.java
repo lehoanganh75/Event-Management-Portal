@@ -23,6 +23,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.http.HttpStatus;
 import org.springframework.kafka.core.KafkaTemplate;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.server.ResponseStatusException;
@@ -464,7 +465,8 @@ public class EventServiceImpl implements EventService {
 
     @Override
     public Map<String, String> getEventTitles(List<String> eventIds) {
-        if (eventIds == null || eventIds.isEmpty()) return Collections.emptyMap();
+        if (eventIds == null || eventIds.isEmpty())
+            return Collections.emptyMap();
         return eventRepository.findAllById(eventIds).stream()
                 .collect(Collectors.toMap(Event::getId, Event::getTitle));
     }
@@ -824,26 +826,49 @@ public class EventServiceImpl implements EventService {
             throw new ResponseStatusException(HttpStatus.GONE, "Lời mời này không còn khả dụng");
         }
 
-        // 4. Xác định người dùng chấp nhận lời mời từ Redis hoặc DB
+        // 4. Xác định người dùng chấp nhận lời mời (Đảm bảo lấy ID, nếu không được thì
+        // dùng EMAIL)
         String redisKey = RedisConstant.EVENT_INVITE_PREFIX + token;
         String inviteeId = redisTemplate.opsForValue().get(redisKey);
 
         if (inviteeId == null) {
-            log.warn(
-                    "#### [INVITE] Token {} not found in Redis cache. Invitation may be expired or from an old system.",
-                    token);
-            // Nếu không có trong Redis, thử lấy từ DB (email người nhận trong invitation)
-            if (invitation.getInviteeEmail() != null && !invitation.getInviteeEmail().isBlank()) {
-                // Có thể cần mapping email sang accountId, ví dụ nếu hệ thống có bảng Account
-                // Ở đây giả sử inviteeEmail chính là inviteeId (nếu không, cần truy vấn
-                // accountId từ email)
-                inviteeId = invitation.getInviteeEmail();
-                log.info("#### [INVITE] Using inviteeEmail from DB as inviteeId: {}", inviteeId);
-            } else {
-                throw new ResponseStatusException(HttpStatus.GONE,
-                        "Lời mời này đã hết hạn hoặc không hợp lệ. Vui lòng liên hệ người quản lý sự kiện để được mời lại.");
+            // Ưu tiên 1: Lấy từ bản ghi lời mời (nếu đã có ID)
+            if (invitation.getInviteeAccountId() != null && !invitation.getInviteeAccountId().isBlank()) {
+                inviteeId = invitation.getInviteeAccountId();
+            }
+            // Ưu tiên 2: Lấy từ phiên đăng nhập hiện tại (nếu có)
+            else {
+                try {
+                    String currentUserId = SecurityContextHolder.getContext().getAuthentication().getName();
+                    if (currentUserId != null && !currentUserId.equals("anonymousUser")) {
+                        inviteeId = currentUserId;
+                    }
+                } catch (Exception e) {
+                }
+            }
+
+            // Ưu tiên 3: Truy vấn ID từ Identity Service qua email
+            if (inviteeId == null || inviteeId.contains("@")) {
+                String searchEmail = invitation.getInviteeEmail();
+                try {
+                    List<UserResponse> users = identityClient.getUsersByEmails(List.of(searchEmail));
+                    if (users != null && !users.isEmpty()) {
+                        inviteeId = users.get(0).getId();
+                    }
+                } catch (Exception e) {
+                    log.error("#### [INVITE] Identity Service lookup failed (401/error): {}", e.getMessage());
+                }
             }
         }
+
+        // Chốt hạ: Bắt buộc phải có ID thực thụ (không được là email hoặc null)
+        if (inviteeId == null || inviteeId.isBlank() || inviteeId.contains("@")) {
+            log.error("#### [INVITE] Failed to resolve a valid User ID for acceptance. Final value: {}", inviteeId);
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "Không thể xác định tài khoản. Vui lòng đăng nhập hệ thống trước khi chấp nhận lời mời.");
+        }
+
+        log.info("#### [INVITE] Accepting invitation for User ID: {}", inviteeId);
 
         LocalDateTime startTime = event.getStartTime();
         LocalDateTime endTime = event.getEndTime();
@@ -928,6 +953,22 @@ public class EventServiceImpl implements EventService {
         invitation.setRespondedAt(LocalDateTime.now());
         invitationRepository.save(invitation);
 
+        // 7. Gửi thông báo realtime cho người mời
+        try {
+            String roleName = (invitation.getType() == InvitationType.PRESENTER) ? "Diễn giả" : "Ban tổ chức";
+            NotificationEventDto notification = NotificationEventDto.builder()
+                    .recipientId(invitation.getInviterAccountId())
+                    .title("Lời mời đã được chấp nhận")
+                    .message("Người dùng (" + invitation.getInviteeEmail() + ") đã chấp nhận lời mời tham gia " + roleName + " sự kiện: \"" + event.getTitle() + "\"")
+                    .type("INVITATION_ACCEPTED")
+                    .relatedEntityId(event.getId())
+                    .actionUrl("/admin/events/" + event.getId())
+                    .build();
+            notificationProducer.sendNotification(notification);
+        } catch (Exception e) {
+            log.error("#### [INVITE] Failed to send accept notification: {}", e.getMessage());
+        }
+
         // String redisKey = RedisConstant.EVENT_INVITE_PREFIX + token;
         // redisTemplate.delete(redisKey);
 
@@ -951,6 +992,23 @@ public class EventServiceImpl implements EventService {
 
         Map<String, String> response = new HashMap<>();
         response.put("message", "Đã từ chối lời mời thành công");
+
+        // 4. Gửi thông báo realtime cho người mời
+        try {
+            String roleName = (invitation.getType() == InvitationType.PRESENTER) ? "Diễn giả" : "Ban tổ chức";
+            NotificationEventDto notification = NotificationEventDto.builder()
+                    .recipientId(invitation.getInviterAccountId())
+                    .title("Lời mời bị từ chối")
+                    .message("Người dùng (" + invitation.getInviteeEmail() + ") đã từ chối lời mời tham gia " + roleName + " sự kiện: \"" + invitation.getEvent().getTitle() + "\"")
+                    .type("INVITATION_REJECTED")
+                    .relatedEntityId(invitation.getEvent().getId())
+                    .actionUrl("/admin/events/" + invitation.getEvent().getId())
+                    .build();
+            notificationProducer.sendNotification(notification);
+        } catch (Exception e) {
+            log.error("#### [INVITE] Failed to send reject notification: {}", e.getMessage());
+        }
+
         return response;
     }
 
@@ -1989,9 +2047,6 @@ public class EventServiceImpl implements EventService {
                 continue;
             final String email = rawEmail.trim(); // Trim and make final for lambda use
 
-            // Prevent duplicates: We will check by accountId later if possible,
-            // but the invitation check by email below handles most cases.
-
             // Prevent duplicates: Check if already has a PENDING invitation
             Optional<EventInvitation> existing = invitationRepository.findByEventIdAndInviteeEmail(eventId, email);
             if (existing.isPresent() && existing.get().getStatus() == InvitationStatus.PENDING) {
@@ -2017,6 +2072,8 @@ public class EventServiceImpl implements EventService {
             }
             invitation.setTargetRole(targetRole);
 
+
+
             // Fix: correctly read message from payload
             String message = (String) invMap.get("message");
             if (message != null && !message.isBlank()) {
@@ -2030,26 +2087,39 @@ public class EventServiceImpl implements EventService {
             invitation.setToken(UUID.randomUUID().toString());
             invitation.setSentAt(LocalDateTime.now());
             invitation.setExpiredAt(LocalDateTime.now().plusDays(7));
+
+            // 2. Resolve inviteeAccountId BEFORE saving to DB if not provided in payload
+            String inviteeAccountId = (String) invMap.get("inviteeAccountId");
+            if (inviteeAccountId == null || inviteeAccountId.isBlank()) {
+                try {
+                    log.info("#### [INVITE-DEBUG] Resolving account ID for email: [{}]", email);
+                    List<UserResponse> users = identityClient.getUsersByEmails(List.of(email));
+                    if (users != null && !users.isEmpty()) {
+                        inviteeAccountId = users.get(0).getId();
+                        log.info("#### [INVITE-DEBUG] Identity Service MATCH: email={} -> userId={}", email,
+                                inviteeAccountId);
+                    } else {
+                        log.warn("#### [INVITE-DEBUG] Identity Service NO MATCH for email: [{}]", email);
+                    }
+                } catch (Exception e) {
+                    log.error("#### [INVITE-DEBUG] Identity Service ERROR for email [{}]: {}", email, e.getMessage());
+                }
+            } else {
+                log.info("#### [INVITE-DEBUG] Using provided accountId from payload: {}", inviteeAccountId);
+            }
+
+            log.info("#### [INVITE-DEBUG] FINAL PERSIST: email={} -> accountId={}", email, inviteeAccountId);
+            invitation.setInviteeAccountId(inviteeAccountId);
             invitationRepository.save(invitation);
 
-            // Resolve and persist inviteeAccountId → DB (durable) + Redis (fast cache)
-            try {
-                List<UserResponse> matchedUsers = identityClient.getUsersByEmails(List.of(email));
-                if (matchedUsers != null && !matchedUsers.isEmpty()) {
-                    String userId = matchedUsers.get(0).getId();
-                    // Save to DB for durability (survives Redis restart)
-                    invitation.setInviteeAccountId(userId);
-                    invitationRepository.save(invitation);
-                    // Also cache in Redis for fast lookup
+            // 3. Cache in Redis for acceptance flow
+            if (inviteeAccountId != null) {
+                try {
                     String redisKey = RedisConstant.EVENT_INVITE_PREFIX + invitation.getToken();
-                    redisTemplate.opsForValue().set(redisKey, userId, 7, java.util.concurrent.TimeUnit.DAYS);
-                    log.info("#### [INVITE] Persisted inviteeAccountId: token={} → userId={}", invitation.getToken(),
-                            userId);
-                } else {
-                    log.warn("#### [INVITE] No account found for email: {}. inviteeAccountId will be null.", email);
+                    redisTemplate.opsForValue().set(redisKey, inviteeAccountId, 7, java.util.concurrent.TimeUnit.DAYS);
+                } catch (Exception e) {
+                    log.error("#### [INVITE] Failed to cache in Redis: {}", e.getMessage());
                 }
-            } catch (Exception e) {
-                log.error("#### [INVITE] Failed to resolve inviteeAccountId for email {}: {}", email, e.getMessage());
             }
 
             // Send Email
@@ -2113,7 +2183,39 @@ public class EventServiceImpl implements EventService {
             invitation.setSentAt(LocalDateTime.now());
             invitation.setExpiredAt(LocalDateTime.now().plusDays(7));
 
+            // Resolve inviteeAccountId BEFORE saving to DB
+            Object rawAccountId = invMap.get("inviteeAccountId");
+            String inviteeAccountId = null;
+            if (rawAccountId != null && !rawAccountId.toString().isBlank()) {
+                inviteeAccountId = rawAccountId.toString().trim();
+            }
+
+            if (inviteeAccountId == null) {
+                try {
+                    log.info("#### [INVITE-DEBUG] Resolving presenter ID for email: [{}]", email);
+                    List<UserResponse> users = identityClient.getUsersByEmails(List.of(email));
+                    if (users != null && !users.isEmpty()) {
+                        inviteeAccountId = users.get(0).getId();
+                        log.info("#### [INVITE-DEBUG] Presenter MATCH: email={} -> userId={}", email, inviteeAccountId);
+                    }
+                } catch (Exception e) {
+                    log.error("#### [INVITE-DEBUG] Presenter lookup ERROR for email [{}]: {}", email, e.getMessage());
+                }
+            }
+
+            log.info("#### [INVITE-DEBUG] FINAL PERSIST (Presenter): email={} -> accountId={}", email,
+                    inviteeAccountId);
+            invitation.setInviteeAccountId(inviteeAccountId);
             invitationRepository.save(invitation);
+
+            // Cache in Redis
+            if (inviteeAccountId != null) {
+                try {
+                    String redisKey = RedisConstant.EVENT_INVITE_PREFIX + invitation.getToken();
+                    redisTemplate.opsForValue().set(redisKey, inviteeAccountId, 7, java.util.concurrent.TimeUnit.DAYS);
+                } catch (Exception e) {
+                }
+            }
 
             // 3. Send Email
             String inviteUrl = appProperties.getFrontend().getBaseUrl() + "/invitation/accept?eventId=" + eventId
@@ -2155,8 +2257,27 @@ public class EventServiceImpl implements EventService {
     public void cancelInvitation(String invitationId) {
         log.info("Hủy lời mời ID: {}", invitationId);
         invitationRepository.findById(invitationId).ifPresent(invitation -> {
+            String inviteeId = invitation.getInviteeAccountId();
+            String eventTitle = invitation.getEvent().getTitle();
+            
             invitationRepository.delete(invitation);
             log.info("Đã xóa lời mời ID: {}", invitationId);
+
+            // Gửi thông báo cho người được mời (nếu họ có tài khoản)
+            if (inviteeId != null && !inviteeId.isBlank()) {
+                try {
+                    NotificationEventDto notification = NotificationEventDto.builder()
+                            .recipientId(inviteeId)
+                            .title("Lời mời đã bị hủy")
+                            .message("Lời mời tham gia sự kiện \"" + eventTitle + "\" đã bị người quản lý hủy bỏ.")
+                            .type("INVITATION_CANCELLED")
+                            .relatedEntityId(invitation.getEvent().getId())
+                            .build();
+                    notificationProducer.sendNotification(notification);
+                } catch (Exception e) {
+                    log.error("#### [INVITE] Failed to send cancel notification: {}", e.getMessage());
+                }
+            }
         });
     }
 

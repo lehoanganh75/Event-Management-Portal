@@ -10,7 +10,8 @@ const roleMap = {
   SUPER_ADMIN: "Quản trị viên cấp cao",
   ADMIN: "Quản trị viên",
   LECTURER: "Giảng viên / Tổ chức",
-  STUDENT: "Sinh viên"
+  STUDENT: "Sinh viên",
+  GUEST: "Người dùng"
 };
 
 const DashboardHeader = () => {
@@ -21,6 +22,7 @@ const DashboardHeader = () => {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [isNotificationOpen, setIsNotificationOpen] = useState(false);
 
+  const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
   const notificationRef = useRef(null);
   const menuRef = useRef(null);
 
@@ -37,14 +39,15 @@ const DashboardHeader = () => {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  const handleLogoutAction = async () => {
+  const handleLogout = async () => {
     try {
       await logout();
-      setIsDropdownOpen(false);
+      setIsLogoutModalOpen(false);
       showToast("Đăng xuất thành công!", "success");
       setTimeout(() => navigate("/login"), 1000);
     } catch (error) {
       console.error("Lỗi đăng xuất:", error);
+      showToast("Lỗi khi đăng xuất", "error");
     }
   };
 
@@ -88,7 +91,8 @@ const DashboardHeader = () => {
   };
 
   return (
-    <header className="h-20 bg-white border-b border-slate-200 flex items-center justify-between px-8 sticky top-0 z-20 shadow-sm">
+    <>
+      <header className="h-20 bg-white border-b border-slate-200 flex items-center justify-between px-8 sticky top-0 z-10 shadow-sm">
       <div className="flex items-center gap-6">
         <h2 className="text-sm font-black text-slate-800/40 uppercase tracking-[0.2em] hidden md:block border-l-4 border-indigo-500 pl-4 py-1">
           Bảng điều khiển hệ thống
@@ -242,13 +246,16 @@ const DashboardHeader = () => {
                     </button>
                   )}
 
-                  <div className="h-px bg-slate-50 my-2 mx-3" />
+                  <div className="h-px bg-slate-50 my-2" />
 
                   <button
-                    onClick={handleLogoutAction}
-                    className="w-full px-4 py-3 text-left text-xs font-black text-rose-500 hover:bg-rose-50 flex items-center gap-3.5 transition-all uppercase tracking-[0.2em]"
+                    onClick={() => {
+                      setIsDropdownOpen(false);
+                      setIsLogoutModalOpen(true);
+                    }}
+                    className="w-full px-4 py-2.5 text-left text-xs font-bold text-rose-600 hover:bg-rose-50 flex items-center gap-3.5 transition-all"
                   >
-                    <div className="w-8 h-8 rounded-lg bg-rose-100/50 flex items-center justify-center text-rose-500">
+                    <div className="w-8 h-8 rounded-lg bg-rose-50 flex items-center justify-center text-rose-500">
                       <LogOut size={16} />
                     </div>
                     Đăng xuất
@@ -259,8 +266,49 @@ const DashboardHeader = () => {
           </div>
         </div>
       </div>
+
     </header>
-  );
+    {/* Logout Confirmation Modal moved outside header */}
+    <AnimatePresence>
+      {isLogoutModalOpen && (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95, y: 20 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.95, y: 20 }}
+            className="bg-white rounded-[32px] p-10 max-w-sm w-full shadow-2xl border border-slate-100"
+          >
+            <div className="flex flex-col items-center text-center">
+              <div className="w-20 h-20 bg-rose-50 rounded-full flex items-center justify-center text-rose-500 mb-6 shadow-inner">
+                <LogOut size={32} strokeWidth={2.5} />
+              </div>
+
+              <h3 className="text-2xl font-black text-slate-800 mb-3 uppercase tracking-tight">Đăng xuất?</h3>
+              <p className="text-slate-500 text-sm font-medium leading-relaxed mb-8">
+                Bạn có chắc chắn muốn đăng xuất khỏi tài khoản?
+              </p>
+
+              <div className="flex flex-col w-full gap-3">
+                <button
+                  onClick={handleLogout}
+                  className="w-full py-4 bg-rose-500 text-white rounded-2xl font-black text-sm uppercase tracking-widest hover:bg-rose-600 hover:shadow-lg hover:shadow-rose-100 active:scale-[0.98] transition-all cursor-pointer"
+                >
+                  Đăng xuất
+                </button>
+                <button
+                  onClick={() => setIsLogoutModalOpen(false)}
+                  className="w-full py-4 bg-white text-slate-400 rounded-2xl font-black text-sm uppercase tracking-widest hover:text-slate-600 hover:bg-slate-50 transition-all cursor-pointer"
+                >
+                  Hủy
+                </button>
+              </div>
+            </div>
+          </motion.div>
+        </div>
+      )}
+    </AnimatePresence>
+  </>
+);
 };
 
 export default DashboardHeader;

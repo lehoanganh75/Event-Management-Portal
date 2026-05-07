@@ -210,7 +210,7 @@ export default function AIChatBot() {
   const initChat = useCallback(async () => {
     try {
       const stored = localStorage.getItem("ai_chat_session_id");
-      const res = await eventService.createChatSession({
+      const res = await eventService.chat.createSession({
         sessionId: stored,
         contextType: "GENERAL_INQUIRY"
       });
@@ -264,7 +264,7 @@ export default function AIChatBot() {
     setLoading(true);
 
     try {
-      const res = await eventService.sendChatMessage({
+      const res = await eventService.chat.sendMessage({
         sessionId: sessionId,
         content: text,
         messageType: "TEXT"

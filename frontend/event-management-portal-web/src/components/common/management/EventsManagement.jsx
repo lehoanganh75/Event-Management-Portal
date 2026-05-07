@@ -454,8 +454,8 @@ const EventsManagement = ({ type = "lecturer", mode = "all" }) => {
         </div>
 
         <div className="flex gap-3">
-          {/* Luôn hiển thị Import và Tạo mới đối với Admin hoặc trong mode Plan */}
-          {(isAdminMode || mode === "plan" || mode === "all") && (
+          {/* Luôn hiển thị Import và Tạo mới đối với Admin, Student hoặc trong mode Plan */}
+          {(isAdminMode || type === "student" || mode === "plan" || mode === "all") && (
             <>
               <label className={`flex items-center gap-2 bg-indigo-50 text-indigo-600 hover:bg-indigo-100 px-5 py-2.5 rounded-lg text-sm font-bold transition-all cursor-pointer border border-indigo-200 shadow-sm ${isImporting ? 'opacity-50 pointer-events-none' : ''}`}>
                 <input
@@ -478,7 +478,7 @@ const EventsManagement = ({ type = "lecturer", mode = "all" }) => {
                 className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-lg text-sm font-medium transition-all shadow-sm"
               >
                 <Plus size={18} />
-                {mode === "plan" ? "Tạo kế hoạch mới" : "Tạo sự kiện mới"}
+                {mode === "plan" ? "Tạo kế hoạch mới" : (type === "student" ? "Đề xuất sự kiện" : "Tạo sự kiện mới")}
               </button>
             </>
           )}
@@ -695,7 +695,7 @@ const EventsManagement = ({ type = "lecturer", mode = "all" }) => {
                     <td className="p-4">
                       <div className="flex justify-center gap-1.5">
                         <button
-                          onClick={() => navigate(isAdminMode ? `/admin/events/${e.id}` : `/lecturer/events/${e.id}`)}
+                          onClick={() => navigate(isAdminMode ? `/admin/events/${e.id}` : `/${type}/events/${e.id}`)}
                           className="p-2 hover:bg-gray-100 rounded-lg text-gray-600 hover:text-blue-600 transition-all"
                           title="Bảng điều khiển"
                         >

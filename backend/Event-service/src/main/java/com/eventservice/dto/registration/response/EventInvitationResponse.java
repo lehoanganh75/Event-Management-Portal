@@ -19,14 +19,19 @@ public class EventInvitationResponse {
     private String type;
     private String message;
     private String targetRole;
+    private String presenterSession;
+    private String rejectionReason;
 
     public static EventInvitationResponse from(EventInvitation invitation, UserResponse invitee, UserResponse inviter) {
-        if (invitation == null) return null;
+        if (invitation == null)
+            return null;
         return EventInvitationResponse.builder()
                 .id(invitation.getId())
                 .status(invitation.getStatus() != null ? invitation.getStatus().name() : null)
                 .type(invitation.getType() != null ? invitation.getType().name() : "ORGANIZER")
                 .targetRole(invitation.getTargetRole() != null ? invitation.getTargetRole().name() : null)
+                .presenterSession(invitation.getPresenterSession())
+                .rejectionReason(invitation.getRejectionReason())
                 .message(invitation.getMessage())
                 .sentAt(invitation.getSentAt())
                 .respondedAt(invitation.getRespondedAt())

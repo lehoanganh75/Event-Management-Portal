@@ -116,6 +116,11 @@ const eventService = {
         const api = token ? privateApi : publicApi;
         return api.get(`/events/${id}`).then(res => ({ ...res, data: transformBaseData(res.data) }));
     },
+    getEventBySlug: (slug) => {
+        const token = localStorage.getItem('accessToken');
+        const api = token ? privateApi : publicApi;
+        return api.get(`/events/${slug}`).then(res => ({ ...res, data: transformBaseData(res.data) }));
+    },
     getByStatus: (status) => privateApi.get('/events/by-statuses', { params: { statuses: status.toUpperCase() } }).then(res => ({ ...res, data: (res.data || []).map(transformBaseData) })),
     getAllPlans: (params = {}) => {
         const token = localStorage.getItem('accessToken');
@@ -285,8 +290,13 @@ const eventService = {
     createLuckyDrawEntry: (drawId) => privateApi.post(`/entries/${drawId}`),
 
     // --- GROUP 9: AI CHAT ---
-    createChatSession: (data) => privateApi.post('/api/v1/chat/sessions', data),
-    sendChatMessage: (data) => privateApi.post('/api/v1/chat/messages', data),
+    chat: {
+        createSession: (data) => privateApi.post('/api/v1/chat/sessions', data),
+        sendMessage: (data) => privateApi.post('/api/v1/chat/messages', data),
+        analyzeStats: (statsJson) => privateApi.post('/api/v1/chat/analyze-stats', statsJson, {
+            headers: { 'Content-Type': 'text/plain' }
+        }),
+    },
 
     // --- GROUP 10: UTILS ---
     uploadImage: (formData) => privateApi.post('/events/upload-image', formData, {
