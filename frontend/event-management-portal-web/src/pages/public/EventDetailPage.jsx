@@ -139,6 +139,17 @@ export default function EventDetail() {
   };
 
   const confirmRegistration = async () => {
+    if (!user) {
+      toast.info("Vui lòng đăng nhập để đăng ký tham gia sự kiện!", {
+        autoClose: 2000
+      });
+      setShowRegisterModal(false);
+      setTimeout(() => {
+        navigate("/login");
+      }, 2000);
+      return;
+    }
+
     setIsRegistering(true);
     try {
       await eventService.registerEvent(event.id);
