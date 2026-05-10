@@ -178,35 +178,10 @@ const Header = () => {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  // Scroll Spy logic
+  // Set active section based on current path
   useEffect(() => {
-    const handleScroll = () => {
-      if (location.pathname !== "/") return;
-
-      const scrollPosition = window.scrollY;
-      const eventSection = document.getElementById("su-kien");
-
-      if (eventSection) {
-        const sectionTop = eventSection.offsetTop - 200;
-        if (scrollPosition >= sectionTop) {
-          setActiveSection("events");
-        } else {
-          setActiveSection("home");
-        }
-      } else {
-        // Fallback if element not found
-        if (scrollPosition > 400) {
-          setActiveSection("events");
-        } else {
-          setActiveSection("home");
-        }
-      }
-    };
-
     if (location.pathname === "/") {
-      window.addEventListener("scroll", handleScroll);
-      // Initial check
-      handleScroll();
+      setActiveSection("home");
     } else if (location.pathname.startsWith("/events")) {
       setActiveSection("events");
     } else if (location.pathname === "/calendar") {
@@ -216,8 +191,6 @@ const Header = () => {
     } else {
       setActiveSection("");
     }
-
-    return () => window.removeEventListener("scroll", handleScroll);
   }, [location.pathname]);
   // Removed logoutToastVisible useEffect
 
