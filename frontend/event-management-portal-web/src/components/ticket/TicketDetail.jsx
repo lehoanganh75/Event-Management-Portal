@@ -3,8 +3,9 @@ import { RefreshCw, AlertCircle, Clock, MapPin, QrCode, Download, Printer, Calen
 import { motion } from "framer-motion";
 import eventService from "../../services/eventService";
 import QRCode from "react-qr-code";
-import { useAuth } from "../../context/AuthContext";
-import { User, Mail, Building2, Tag } from "lucide-react";
+import { User, Mail, Building2, Tag, Camera } from "lucide-react";
+import QRScannerModal from "../common/management/QRScannerModal";
+import { toast } from "react-toastify";
 
 export default function TicketDetail({ eventId }) {
   const { user: authUser } = useAuth();
@@ -12,6 +13,7 @@ export default function TicketDetail({ eventId }) {
   const [registration, setRegistration] = useState();
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [showScanner, setShowScanner] = useState(false);
 
   const fetchData = useCallback(async () => {
     try {
@@ -29,6 +31,17 @@ export default function TicketDetail({ eventId }) {
       setRefreshing(false);
     }
   }, [eventId]);
+
+  const handleScanSuccess = async (token) => {
+    setShowScanner(false);
+    try {
+      await eventService.checkInByEventToken(token);
+      toast.success("Điểm danh thành công!");
+      fetchData();
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Mã QR không hợp lệ hoặc đã hết hạn");
+    }
+  };
 
   useEffect(() => {
     fetchData();
@@ -146,6 +159,16 @@ export default function TicketDetail({ eventId }) {
               }`}>
               {registration.checkedIn ? "✓ Đã Check-in" : "Chưa Check-in"}
             </div>
+
+            {!registration.checkedIn && (
+              <button
+                onClick={() => setShowScanner(true)}
+                className="group flex items-center justify-center gap-3 w-full py-4 bg-indigo-50 text-indigo-600 rounded-2xl text-[11px] font-black uppercase tracking-[0.2em] transition-all border border-indigo-100 hover:bg-indigo-100 active:scale-95 shadow-sm"
+              >
+                <Camera size={16} />
+                Quét mã BTC để điểm danh
+              </button>
+            )}
           </div>
         </div>
 
@@ -160,6 +183,14 @@ export default function TicketDetail({ eventId }) {
           {event.notes || "Vui lòng không chia sẻ mã QR này cho bất kỳ ai. Nhân viên sẽ quét mã này tại cổng vào để xác nhận tư cách tham dự của bạn."}
         </p>
       </div>
+
+      <QRScannerModal
+        isOpen={showScanner}
+        onClose={() => setShowScanner(false)}
+        onScanSuccess={handleScanSuccess}
+        title="Quét mã BTC"
+        instruction="Vui lòng đưa camera vào mã QR của Ban tổ chức để thực hiện điểm danh tự động."
+      />
     </div>
   );
 }

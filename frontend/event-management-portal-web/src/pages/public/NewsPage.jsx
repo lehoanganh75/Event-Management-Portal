@@ -13,6 +13,7 @@ import eventService from "../../services/eventService";
 import Layout from "../../components/layout/Layout";
 import PostDetailManagement from "../../components/common/management/PostDetailManagement";
 import { createStompClient } from "../../utils/socket";
+import { useLanguage } from "../../context/LanguageContext";
 
 const updateCommentInTree = (list, commentId, updateFn) => {
   return list.map(item => {
@@ -25,6 +26,7 @@ const updateCommentInTree = (list, commentId, updateFn) => {
 export default function NewsPage() {
   const navigate = useNavigate();
   const { user: currentUser } = useAuth();
+  const { t } = useLanguage();
 
   const [posts, setPosts] = useState([]);
   const [events, setEvents] = useState([]);
@@ -56,7 +58,7 @@ export default function NewsPage() {
         if (post.eventId && !eventMap.has(post.eventId)) {
           eventMap.set(post.eventId, {
             id: post.eventId,
-            title: post.eventTitle || "Sự kiện không tên",
+            title: post.eventTitle || t("newsPage.unnamed"),
             type: post.postType
           });
         }
@@ -146,7 +148,7 @@ export default function NewsPage() {
           };
         }
       });
-      // Cập nhật số lượng bình luận trên bài viết
+      // Tăng số lượng bình luận trên bài viết
       setPosts(prev => prev.map(p => p.id === postId ? { ...p, commentCount: (p.commentCount || 0) + 1 } : p));
     } else if (type === 'COMMENT_LIKE') {
       setPostComments(prev => {
@@ -208,15 +210,16 @@ export default function NewsPage() {
     }
   };
 
-  const handleSubmitComment = async (postId, content) => {
+  const handleSubmitComment = async (postId, content, imageUrl) => {
     if (!currentUser) {
       toast.info("Vui lòng đăng nhập để bình luận");
       navigate("/login");
       return;
     }
+    if (submittingComments[postId]) return;
     setSubmittingComments(prev => ({ ...prev, [postId]: true }));
     try {
-      const res = await eventService.createComment(postId, { content });
+      const res = await eventService.createComment(postId, { content, imageUrl });
       const newComment = res.data;
       setPostComments(prev => {
         const existing = prev[postId] || [];
@@ -226,6 +229,7 @@ export default function NewsPage() {
           [postId]: [newComment, ...existing]
         };
       });
+      setPosts(prev => prev.map(p => p.id === postId ? { ...p, commentCount: (p.commentCount || 0) + 1 } : p));
     } catch (err) {
       toast.error("Không thể gửi bình luận");
     } finally {
@@ -233,15 +237,16 @@ export default function NewsPage() {
     }
   };
 
-  const handleSubmitReply = async (postId, parentId, content) => {
+  const handleSubmitReply = async (postId, parentId, content, imageUrl) => {
     if (!currentUser) {
       toast.info("Vui lòng đăng nhập để phản hồi");
       navigate("/login");
       return;
     }
+    if (submittingComments[postId]) return;
     setSubmittingComments(prev => ({ ...prev, [postId]: true }));
     try {
-      const res = await eventService.createComment(postId, { content, parentId });
+      const res = await eventService.createComment(postId, { content, parentId, imageUrl });
       const newReply = res.data;
       setPostComments(prev => ({
         ...prev,
@@ -254,10 +259,46 @@ export default function NewsPage() {
           };
         })
       }));
+      setPosts(prev => prev.map(p => p.id === postId ? { ...p, commentCount: (p.commentCount || 0) + 1 } : p));
     } catch (err) {
       toast.error("Không thể gửi phản hồi");
     } finally {
       setSubmittingComments(prev => ({ ...prev, [postId]: false }));
+    }
+  };
+
+  const handleDeleteComment = async (postId, commentId) => {
+    if (!currentUser) return;
+
+    // Optimistic Update
+    const previousComments = { ...postComments };
+    const previousPosts = [...posts];
+
+    setPostComments(prev => {
+      const existing = prev[postId] || [];
+      const removeById = (list, id) => {
+        return list
+          .filter(item => String(item.id) !== String(id))
+          .map(item => ({
+            ...item,
+            replies: item.replies ? removeById(item.replies, id) : []
+          }));
+      };
+      return {
+        ...prev,
+        [postId]: removeById(existing, commentId)
+      };
+    });
+    setPosts(prev => prev.map(p => p.id === postId ? { ...p, commentCount: Math.max(0, (p.commentCount || 1) - 1) } : p));
+
+    try {
+      await eventService.deleteComment(commentId);
+      toast.success("Đã xóa bình luận");
+    } catch (err) {
+      // Rollback
+      setPostComments(previousComments);
+      setPosts(previousPosts);
+      toast.error("Không thể xóa bình luận. Vui lòng thử lại.");
     }
   };
 
@@ -272,8 +313,8 @@ export default function NewsPage() {
                 <Newspaper size={32} />
               </div>
               <div>
-                <h1 className="text-4xl font-black tracking-tight uppercase">Bảng tin sự kiện</h1>
-                <p className="text-blue-100 font-medium opacity-80">Khám phá các câu chuyện và khoảnh khắc từ sự kiện của chúng tôi</p>
+                <h1 className="text-4xl font-black tracking-tight uppercase">{t("newsPage.title")}</h1>
+                <p className="text-blue-100 font-medium opacity-80">{t("newsPage.subtitle")}</p>
               </div>
             </div>
           </div>
@@ -292,7 +333,7 @@ export default function NewsPage() {
                 >
                   <div className="flex items-center gap-2">
                     <Filter size={18} className="text-indigo-600" />
-                    <h2 className="font-black text-slate-800 uppercase tracking-tighter">Lọc theo sự kiện</h2>
+                    <h2 className="font-black text-slate-800 uppercase tracking-tighter">{t("newsPage.filterByEvent")}</h2>
                   </div>
                   <button className="text-slate-400 hover:text-indigo-600 transition-colors">
                     {isFilterExpanded ? <X size={16} /> : <Plus size={16} />}
@@ -306,7 +347,7 @@ export default function NewsPage() {
                       <Search size={14} className="absolute left-3 top-2.5 text-slate-400" />
                       <input
                         type="text"
-                        placeholder="Tìm sự kiện..."
+                        placeholder={t("newsPage.searchEventPlaceholder")}
                         value={eventSearch}
                         onChange={(e) => setEventSearch(e.target.value)}
                         className="w-full bg-slate-50 border border-slate-100 rounded-xl pl-9 pr-3 py-2 text-[12px] focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all font-medium"
@@ -321,7 +362,7 @@ export default function NewsPage() {
                           : "text-slate-500 hover:bg-slate-50"
                           }`}
                       >
-                        <span>Tất cả tin tức</span>
+                        <span>{t("newsPage.allNews")}</span>
                         <span className={`px-2 py-0.5 rounded-full text-[10px] ${activeEventId === "all" ? "bg-white/20" : "bg-slate-100"}`}>
                           {posts.length}
                         </span>
@@ -345,7 +386,7 @@ export default function NewsPage() {
 
                       {filteredEvents.length === 0 && eventSearch && (
                         <div className="py-8 text-center text-slate-400 text-[11px] font-medium italic">
-                          Không tìm thấy sự kiện nào khớp
+                          {t("newsPage.noMatchEvent")}
                         </div>
                       )}
                     </div>
@@ -353,7 +394,7 @@ export default function NewsPage() {
                     {events.length === 0 && !loading && (
                       <div className="mt-4 p-4 bg-slate-50 rounded-2xl border border-dashed border-slate-200 text-center">
                         <Info size={20} className="mx-auto mb-2 text-slate-300" />
-                        <p className="text-[11px] text-slate-400 font-medium leading-relaxed">Chưa có sự kiện nào có bài viết công khai.</p>
+                        <p className="text-[11px] text-slate-400 font-medium leading-relaxed">{t("newsPage.noPublicPosts")}</p>
                       </div>
                     )}
                   </>
@@ -366,7 +407,7 @@ export default function NewsPage() {
               {loading ? (
                 <div className="bg-white rounded-[2rem] p-20 text-center border border-slate-100 shadow-sm">
                   <Loader2 size={48} className="animate-spin text-indigo-600 mx-auto mb-4" />
-                  <p className="font-black text-slate-400 uppercase tracking-widest text-xs italic">Đang tải bảng tin...</p>
+                  <p className="font-black text-slate-400 uppercase tracking-widest text-xs italic">{t("newsPage.loadingFeed")}</p>
                 </div>
               ) : (
                 <div className="space-y-8">
@@ -380,8 +421,9 @@ export default function NewsPage() {
                         error={null}
                         handleReactPost={(emoji) => handleReactPost(post.id, emoji)}
                         handleReactComment={(commentId, emoji) => handleReactComment(post.id, commentId, emoji)}
-                        handleSubmitComment={(content) => handleSubmitComment(post.id, content)}
-                        handleSubmitReply={(parentId, content) => handleSubmitReply(post.id, parentId, content)}
+                        handleSubmitComment={(content, img) => handleSubmitComment(post.id, content, img)}
+                        handleSubmitReply={(parentId, content, img) => handleSubmitReply(post.id, parentId, content, img)}
+                        handleDeleteComment={(commentId) => handleDeleteComment(post.id, commentId)}
                         isSubmittingComment={submittingComments[post.id]}
                         onRefresh={() => loadComments(post.id)}
                         backPath="/news"
@@ -393,8 +435,8 @@ export default function NewsPage() {
                   {filteredPosts.length === 0 && (
                     <div className="bg-white rounded-[2rem] p-20 text-center border border-slate-100 shadow-sm">
                       <Newspaper size={48} className="text-slate-200 mx-auto mb-4" />
-                      <h3 className="font-black text-slate-800 uppercase italic tracking-tight text-xl mb-2">Chưa có tin tức nào</h3>
-                      <p className="text-slate-400 text-sm font-medium">Vui lòng chọn bộ lọc khác hoặc quay lại sau.</p>
+                      <h3 className="font-black text-slate-800 uppercase italic tracking-tight text-xl mb-2">{t("newsPage.noNews")}</h3>
+                      <p className="text-slate-400 text-sm font-medium">{t("newsPage.noNewsDesc")}</p>
                     </div>
                   )}
                 </div>

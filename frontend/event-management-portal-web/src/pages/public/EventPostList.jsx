@@ -8,6 +8,7 @@ import {
 import { motion } from "framer-motion";
 import eventService from "../../services/eventService";
 import Layout from "../../components/layout/Layout";
+import { formatRelativeTime } from "../../utils/dateUtils";
 
 const EventPostList = () => {
   const { eventId } = useParams();
@@ -60,7 +61,7 @@ const EventPostList = () => {
           <div className="flex gap-4 text-[12px] font-bold text-gray-500 ml-2 mt-1">
             <button className="hover:underline">Thích</button>
             <button className="hover:underline">Phản hồi</button>
-            <span className="font-normal text-gray-400">Vừa xong</span>
+            <span className="font-normal text-gray-400">{formatRelativeTime(comment.createdAt)}</span>
           </div>
 
           {comment.replies?.map((reply) => (
@@ -101,7 +102,7 @@ const EventPostList = () => {
                 {post.pinned && <Pin size={14} className="text-blue-600 fill-blue-600" />}
               </div>
               <div className="flex items-center gap-1 text-gray-500 text-[13px]">
-                <span>{post.publishedAt ? new Date(post.publishedAt).toLocaleString('vi-VN') : "Vừa xong"}</span>
+                <span>{formatRelativeTime(post.publishedAt || post.createdAt)}</span>
                 <span>•</span> <Globe size={12} />
               </div>
             </div>
@@ -121,12 +122,6 @@ const EventPostList = () => {
         )}
 
         <div className="px-4 py-3 flex justify-between items-center text-gray-500 text-[14px] border-b border-gray-50">
-          <div className="flex items-center gap-1">
-            <div className="bg-blue-500 p-1 rounded-full border border-white">
-              <ThumbsUp size={10} className="text-white fill-white" />
-            </div>
-            <span className="ml-1">{post.viewCount || 0} lượt xem</span>
-          </div>
           <div className="text-gray-500">{totalComments} bình luận</div>
         </div>
 

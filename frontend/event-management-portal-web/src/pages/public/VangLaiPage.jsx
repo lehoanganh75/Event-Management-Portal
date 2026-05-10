@@ -9,25 +9,26 @@ import {
 import Layout from "../../components/layout/Layout";
 import AIChatBot from "../../components/chat/AIChatBot";
 import { useEvents } from "../../context/EventContext";
+import { useLanguage } from "../../context/LanguageContext";
 
-const formatDate = (dateString) => {
+const formatDate = (dateString, lang = "vi") => {
   if (!dateString) return "";
-  return new Intl.DateTimeFormat('vi-VN', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric'
+  return new Intl.DateTimeFormat(lang === "vi" ? "vi-VN" : "en-US", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
   }).format(new Date(dateString));
 };
 
-const formatTime = (dateString) => {
+const formatTime = (dateString, lang = "vi") => {
   if (!dateString) return "";
-  return new Intl.DateTimeFormat('vi-VN', {
-    hour: '2-digit',
-    minute: '2-digit'
+  return new Intl.DateTimeFormat(lang === "vi" ? "vi-VN" : "en-US", {
+    hour: "2-digit",
+    minute: "2-digit",
   }).format(new Date(dateString));
 };
 
-const EventCard = ({ event, onClick }) => {
+const EventCard = ({ event, onClick, t, lang }) => {
   return (
     <div
       onClick={() => onClick(event.id)}
@@ -43,14 +44,14 @@ const EventCard = ({ event, onClick }) => {
         {/* Top Right Badge */}
         <div className="absolute top-4 right-4">
           <span className="bg-blue-100 text-blue-600 text-[10px] font-black uppercase px-3 py-1 rounded-full shadow-sm">
-            Sắp diễn ra
+            {t("home.upcomingBadge")}
           </span>
         </div>
 
         {/* Category Badge overlay */}
         <div className="absolute bottom-4 left-4">
           <span className="bg-amber-500 text-white text-[10px] font-bold px-3 py-1 rounded-md shadow-md uppercase">
-            {event.type || "Sự kiện"}
+            {event.type || t("eventCard.event")}
           </span>
         </div>
       </div>
@@ -62,12 +63,12 @@ const EventCard = ({ event, onClick }) => {
           <div className="flex items-center gap-3 text-slate-400 text-xs font-medium">
             <div className="flex items-center gap-1">
               <Calendar size={14} />
-              <span>{formatDate(event.startTime)}</span>
+              <span>{formatDate(event.startTime, lang)}</span>
             </div>
             <div className="w-1 h-1 bg-slate-300 rounded-full" />
             <div className="flex items-center gap-1">
               <Clock size={14} />
-              <span>{formatTime(event.startTime)} - {formatTime(event.endTime)}</span>
+              <span>{formatTime(event.startTime, lang)} - {formatTime(event.endTime, lang)}</span>
             </div>
           </div>
 
@@ -81,36 +82,36 @@ const EventCard = ({ event, onClick }) => {
           {/* Location */}
           <div className="flex items-center gap-2 text-slate-500 text-sm">
             <MapPin size={16} className="text-amber-500 flex-shrink-0" />
-            <span className="line-clamp-1">{event.location || "IUH Campus"}</span>
+            <span className="line-clamp-1">{event.location || t("eventCard.defaultLocation")}</span>
           </div>
 
           {/* Participants */}
           <div className="flex items-center gap-2 text-slate-500 text-sm">
             <Users size={16} className="text-amber-500 flex-shrink-0" />
-            <span>{event.registeredCount || 0} / {event.maxParticipants || "∞"} tham gia</span>
+            <span>{event.registeredCount || 0} / {event.maxParticipants || "∞"} {t("eventCard.participants")}</span>
           </div>
         </div>
 
         {/* Action Button */}
         <button className="mt-auto w-full py-2.5 border-2 border-blue-600 text-blue-600 rounded-xl font-bold text-sm hover:bg-blue-600 hover:text-white transition-all duration-300">
-          Chi tiết
+          {t("eventCard.viewDetail")}
         </button>
       </div>
     </div>
   );
 };
 
-const SectionHeader = ({ title, viewAllLink }) => (
+const SectionHeader = ({ title, subtitle, viewAllLink, viewAllText }) => (
   <div className="flex items-center justify-between mb-8">
     <div className="space-y-1">
       <h2 className="text-3xl font-black text-slate-900 tracking-tight">{title}</h2>
-      <p className="text-slate-500 text-sm">Đừng bỏ lỡ những hoạt động hấp dẫn tại IUH</p>
+      <p className="text-slate-500 text-sm">{subtitle}</p>
     </div>
     <Link
       to={viewAllLink}
       className="text-blue-600 font-bold text-xs uppercase tracking-widest hover:text-blue-700 transition-colors"
     >
-      Xem tất cả
+      {viewAllText}
     </Link>
   </div>
 );
@@ -130,6 +131,7 @@ const VangLaiPage = () => {
   const heroScrollRef = useRef(null);
   const upcomingScrollRef = useRef(null);
   const featuredScrollRef = useRef(null);
+  const { t, language } = useLanguage();
 
   const {
     featured,
@@ -176,18 +178,18 @@ const VangLaiPage = () => {
                   <div className="inline-flex items-center gap-2 bg-white/10 px-4 py-1.5 rounded-full border border-white/20 backdrop-blur-sm">
                     <span className="w-2 h-2 bg-orange-400 rounded-full animate-pulse"></span>
                     <span className="text-[11px] font-semibold uppercase tracking-[0.2em] text-white/90">
-                      Hệ thống quản lý sự kiện 4.0
+                      {t("home.heroBadge")}
                     </span>
                   </div>
 
                   {/* TITLE */}
                   <div className="space-y-2">
                     <h2 className="text-2xl md:text-3xl font-medium text-white/80">
-                      Chào mừng đến với
+                      {t("home.heroWelcome")}
                     </h2>
 
                     <h1 className="text-4xl md:text-5xl lg:text-5xl font-extrabold leading-tight tracking-[-0.02em] text-white">
-                      Sự Kiện IUH{" "}
+                      {t("home.heroTitle")}{" "}
                       <span className="text-[#ffcc00] drop-shadow-md">
                         {new Date().getFullYear()}
                       </span>
@@ -196,8 +198,7 @@ const VangLaiPage = () => {
 
                   {/* DESCRIPTION */}
                   <p className="text-base md:text-lg text-blue-100/90 max-w-xl leading-relaxed font-light">
-                    Nền tảng tích hợp hỗ trợ tổ chức sự kiện, điểm danh QR Code và vòng quay may mắn.
-                    Kết nối sinh viên và giảng viên trong một hệ sinh thái số hiện đại.
+                    {t("home.heroDescription")}
                   </p>
 
                   {/* BUTTON */}
@@ -212,7 +213,7 @@ const VangLaiPage = () => {
                               hover:scale-[1.04] active:scale-[0.97]
                               transition-all duration-300 overflow-hidden"
                   >
-                    <span className="relative z-10">Khám phá sự kiện</span>
+                    <span className="relative z-10">{t("home.heroButton")}</span>
                     <span className="absolute inset-0 bg-white/20 opacity-0 group-hover:opacity-100 transition"></span>
                   </button>
 
@@ -237,10 +238,10 @@ const VangLaiPage = () => {
                     </button>
 
                     <div className="flex items-center justify-between mb-6 px-2 text-white">
-                      <h3 className="text-xl font-black tracking-tight uppercase">Sự kiện tiêu biểu</h3>
+                      <h3 className="text-xl font-black tracking-tight uppercase">{t("home.featuredEvents")}</h3>
                       <div className="bg-white/20 backdrop-blur-md px-4 py-2 rounded-2xl flex items-center gap-2 font-bold text-xs">
                         <Sparkles size={14} className="text-amber-300" />
-                        <span>Nổi bật</span>
+                        <span>{t("home.featured")}</span>
                       </div>
                     </div>
 
@@ -276,7 +277,7 @@ const VangLaiPage = () => {
                               <div className="mt-auto space-y-1.5">
                                 <div className="text-[#245bb5] font-bold text-[10px] flex items-center gap-1">
                                   <Clock size={12} />
-                                  {formatDate(event.startTime)}
+                                  {formatDate(event.startTime, language)}
                                 </div>
                                 <div className="flex items-center gap-1.5 text-slate-500 text-[10px]">
                                   <MapPin size={12} className="flex-shrink-0" />
@@ -288,7 +289,7 @@ const VangLaiPage = () => {
                         ))
                       ) : (
                         <div className="w-full py-10 text-center text-white/70 text-sm italic">
-                          Hiện chưa có sự kiện tiêu biểu
+                          {t("home.noFeaturedEvents")}
                         </div>
                       )}
                     </div>
@@ -303,7 +304,12 @@ const VangLaiPage = () => {
 
           {/* SỰ KIỆN SẮP DIỄN RA */}
           <section className="mb-20">
-            <SectionHeader title="Sự Kiện Sắp Diễn Ra" viewAllLink="/events" />
+            <SectionHeader
+              title={t("home.upcomingEvents")}
+              subtitle={t("home.upcomingSubtitle")}
+              viewAllLink="/events"
+              viewAllText={t("common.viewAll")}
+            />
 
             <div className="relative group/scroll">
               <div
@@ -314,10 +320,10 @@ const VangLaiPage = () => {
                   <div className="w-full py-20 flex justify-center"><Loader2 className="animate-spin text-blue-600" size={48} /></div>
                 ) : upcoming && upcoming.length > 0 ? (
                   upcoming.map(event => (
-                    <EventCard key={event.id} event={event} onClick={handleEventClick} />
+                    <EventCard key={event.id} event={event} onClick={handleEventClick} t={t} lang={language} />
                   ))
                 ) : (
-                  <div className="w-full py-20 text-center text-slate-400 font-medium bg-white rounded-3xl border border-dashed border-slate-200">Chưa có sự kiện sắp tới</div>
+                  <div className="w-full py-20 text-center text-slate-400 font-medium bg-white rounded-3xl border border-dashed border-slate-200">{t("home.noUpcomingEvents")}</div>
                 )}
               </div>
 
@@ -340,9 +346,14 @@ const VangLaiPage = () => {
             </div>
           </section>
 
-          {/* SỰ KIỆN SẮP DIỄN RA (Second Section) */}
+          {/* SỰ KIỆN NỔI BẬT */}
           <section className="mb-20">
-            <SectionHeader title="Sự kiện sắp diễn ra" viewAllLink="/events" />
+            <SectionHeader
+              title={t("home.featuredEvents")}
+              subtitle={t("home.upcomingSubtitle")}
+              viewAllLink="/events"
+              viewAllText={t("common.viewAll")}
+            />
 
             <div className="relative group/scroll">
               <div
@@ -353,10 +364,10 @@ const VangLaiPage = () => {
                   <div className="w-full py-20 flex justify-center"><Loader2 className="animate-spin text-blue-600" size={48} /></div>
                 ) : upcoming && upcoming.length > 0 ? (
                   upcoming.map(event => (
-                    <EventCard key={event.id} event={event} onClick={handleEventClick} />
+                    <EventCard key={event.id} event={event} onClick={handleEventClick} t={t} lang={language} />
                   ))
                 ) : (
-                  <div className="w-full py-20 text-center text-slate-400 font-medium bg-white rounded-3xl border border-dashed border-slate-200">Chưa có sự kiện sắp tới</div>
+                  <div className="w-full py-20 text-center text-slate-400 font-medium bg-white rounded-3xl border border-dashed border-slate-200">{t("home.noUpcomingEvents")}</div>
                 )}
               </div>
 
@@ -382,35 +393,35 @@ const VangLaiPage = () => {
           {/* TÍNH NĂNG NỔI BẬT */}
           <section className="mt-32">
             <div className="text-center mb-16 space-y-4">
-              <h2 className="text-4xl font-black text-slate-900 tracking-tight">Tính Năng Nổi Bật</h2>
+              <h2 className="text-4xl font-black text-slate-900 tracking-tight">{t("home.featuresTitle")}</h2>
               <p className="text-slate-500 text-sm max-w-2xl mx-auto leading-relaxed">
-                Hệ thống cung cấp bộ công cụ toàn diện giúp tối ưu hóa quy trình tổ chức và nâng cao trải nghiệm người tham gia.
+                {t("home.featuresSubtitle")}
               </p>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
               <FeatureCard
                 icon={Sparkles}
-                title="AI Hỗ Trợ Toàn Diện"
-                description="Tự động hóa quy trình từ lập kế hoạch, viết nội dung truyền thông đến phân tích phản hồi sau sự kiện."
+                title={t("home.feature1Title")}
+                description={t("home.feature1Desc")}
                 colorClass="bg-blue-50 text-blue-600"
               />
               <FeatureCard
                 icon={QrCode}
-                title="Check-in QR Code"
-                description="Điểm danh nhanh chóng chỉ với 1 giây. Hệ thống tự động ghi nhận thời gian và xác thực người tham gia."
+                title={t("home.feature2Title")}
+                description={t("home.feature2Desc")}
                 colorClass="bg-purple-50 text-purple-600"
               />
               <FeatureCard
                 icon={Gift}
-                title="Vòng Quay May Mắn"
-                description="Tăng tương tác với minigame vòng quay tích hợp. Tự động chọn người trúng thưởng minh bạch."
+                title={t("home.feature3Title")}
+                description={t("home.feature3Desc")}
                 colorClass="bg-amber-50 text-amber-600"
               />
               <FeatureCard
                 icon={BarChart3}
-                title="Thống Kê Real-time"
-                description="Theo dõi số lượng đăng ký, tỉ lệ tham gia và hiệu quả sự kiện qua các biểu đồ trực quan thời gian thực."
+                title={t("home.feature4Title")}
+                description={t("home.feature4Desc")}
                 colorClass="bg-emerald-50 text-emerald-600"
               />
             </div>

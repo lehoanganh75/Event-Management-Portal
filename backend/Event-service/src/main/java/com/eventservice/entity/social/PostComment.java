@@ -58,6 +58,9 @@ public class PostComment {
     private boolean isEdited = false;
 
     private boolean isDeleted = false;
+    
+    @Column(name = "image_url", columnDefinition = "TEXT")
+    private String imageUrl; // Thêm trường ảnh cho bình luận
 
     // --- Audit ---
     @CreationTimestamp
@@ -86,6 +89,7 @@ public class PostComment {
     private PostComment parentComment;
 
     @OneToMany(mappedBy = "parentComment", cascade = CascadeType.ALL)
+    @org.hibernate.annotations.OrderBy(clause = "created_at ASC")
     @JsonManagedReference(value = "comment-replies") // Cho phép hiển thị danh sách câu trả lời
     @Builder.Default
     private List<PostComment> replies = new ArrayList<>();

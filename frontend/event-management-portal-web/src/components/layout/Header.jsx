@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 import { showToast } from "../../utils/toast.jsx";
+import { useLanguage } from "../../context/LanguageContext";
 import {
   LogIn,
   User,
@@ -24,6 +25,7 @@ import {
   LayoutDashboard,
   FileText,
   Send,
+  Facebook,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Client } from "@stomp/stompjs";
@@ -51,6 +53,9 @@ const Header = () => {
   const location = useLocation();
 
   const { user, isAuthenticated, logout, loading: authLoading } = useAuth();
+  const { language, switchLanguage, t } = useLanguage();
+  const [isLangOpen, setIsLangOpen] = useState(false);
+  const langRef = useRef(null);
 
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isNotificationOpen, setIsNotificationOpen] = useState(false);
@@ -172,6 +177,9 @@ const Header = () => {
       }
       if (menuRef.current && !menuRef.current.contains(e.target)) {
         setIsMenuOpen(false);
+      }
+      if (langRef.current && !langRef.current.contains(e.target)) {
+        setIsLangOpen(false);
       }
     };
     document.addEventListener("mousedown", handleClickOutside);
@@ -329,15 +337,52 @@ const Header = () => {
         <div className="bg-gradient-to-r from-[#1a479a] to-[#2563eb] text-white py-1.5 px-4 md:px-10 text-xs flex justify-between items-center">
           <div className="hidden md:flex items-center gap-2">
             <span className="w-1.5 h-1.5 bg-green-400 rounded-full animate-pulse" />
-            Hệ thống Quản lý Sự kiện IUH
+            {t("header.systemName")}
           </div>
           <div className="flex items-center gap-4 ml-auto">
-            <a href="mailto:support@iuh.edu.vn" className="hover:text-orange-200 flex items-center gap-1">
-              <Mail size={13} /> Hỗ trợ kỹ thuật
+            <a
+              href="https://www.facebook.com/sviuh/?locale=vi_VN"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="hover:text-orange-200 flex items-center gap-1 transition-colors"
+            >
+              <Facebook size={13} /> {t("header.technicalSupport")}
             </a>
             <div className="h-3 w-px bg-white/30" />
-            <div className="flex items-center gap-1 cursor-pointer">
-              <Globe size={13} /> Tiếng Việt
+            {/* Language Switcher */}
+            <div className="relative" ref={langRef}>
+              <button
+                onClick={() => setIsLangOpen(!isLangOpen)}
+                className="flex items-center gap-1.5 hover:text-orange-200 transition-colors cursor-pointer"
+              >
+                <Globe size={13} />
+                <span>{language === "vi" ? "Tiếng Việt" : "English"}</span>
+                <ChevronDown size={11} className={`transition-transform ${isLangOpen ? "rotate-180" : ""}`} />
+              </button>
+              {isLangOpen && (
+                <div className="absolute right-0 mt-2 w-36 bg-white rounded-xl shadow-xl border border-slate-100 overflow-hidden z-[9999]">
+                  <button
+                    onClick={() => { switchLanguage("vi"); setIsLangOpen(false); }}
+                    className={`w-full flex items-center gap-2 px-4 py-2.5 text-sm transition-colors ${
+                      language === "vi"
+                        ? "bg-blue-50 text-blue-600 font-semibold"
+                        : "text-slate-700 hover:bg-slate-50"
+                    }`}
+                  >
+                    <span className="text-base">🇻🇳</span> Tiếng Việt
+                  </button>
+                  <button
+                    onClick={() => { switchLanguage("en"); setIsLangOpen(false); }}
+                    className={`w-full flex items-center gap-2 px-4 py-2.5 text-sm transition-colors ${
+                      language === "en"
+                        ? "bg-blue-50 text-blue-600 font-semibold"
+                        : "text-slate-700 hover:bg-slate-50"
+                    }`}
+                  >
+                    <span className="text-base">🇺🇸</span> English
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -360,7 +405,7 @@ const Header = () => {
                 className={`px-5 py-2.5 rounded-xl text-sm font-medium transition-all ${activeSection === "home" ? "bg-blue-600 text-white shadow-md" : "hover:bg-slate-100 text-slate-700"
                   }`}
               >
-                Trang chủ
+                {t("header.home")}
               </Link>
 
               <Link
@@ -369,7 +414,7 @@ const Header = () => {
                 className={`px-5 py-2.5 rounded-xl text-sm font-medium transition-all ${activeSection === "events" ? "bg-blue-600 text-white shadow-md" : "hover:bg-slate-100 text-slate-700"
                   }`}
               >
-                Sự kiện
+                {t("header.events")}
               </Link>
 
               <Link
@@ -377,14 +422,14 @@ const Header = () => {
                 className={`px-5 py-2.5 rounded-xl text-sm font-medium transition-all ${activeSection === "calendar" ? "bg-blue-600 text-white shadow-md" : "hover:bg-slate-100 text-slate-700"
                   }`}
               >
-                Lịch sự kiện
+                {t("header.calendar")}
               </Link>
               <Link
                 to="/news"
                 className={`px-5 py-2.5 rounded-xl text-sm font-medium transition-all ${activeSection === "news" ? "bg-blue-600 text-white shadow-md" : "hover:bg-slate-100 text-slate-700"
                   }`}
               >
-                Tin tức
+                {t("header.news")}
               </Link>
 
 
@@ -394,7 +439,7 @@ const Header = () => {
                   to="/lecturer"
                   className="ml-4 px-5 py-2.5 rounded-xl text-sm font-medium bg-blue-50 text-blue-600 hover:bg-blue-100 transition-all border border-blue-100 shadow-sm"
                 >
-                  Quản lý
+                  {t("header.management")}
                 </Link>
               )}
 
@@ -403,7 +448,7 @@ const Header = () => {
                   to={isLeaderRole() ? "/lecturer" : "/lecturer/events"}
                   className="ml-4 px-5 py-2.5 rounded-xl text-sm font-medium bg-indigo-50 text-indigo-600 hover:bg-indigo-100 transition-all border border-indigo-100 shadow-sm"
                 >
-                  Ban tổ chức
+                  {t("header.organizer")}
                 </Link>
               )}
             </nav>
@@ -616,7 +661,7 @@ const Header = () => {
                           <Link
                             to={hasRole('ADMIN') || hasRole('SUPER_ADMIN') ? "/admin/profile" :
                               hasRole('LECTURER') ? "/lecturer/profile" :
-                                hasRole('GUEST') ? "/profile" : "/student/profile"}
+                                (hasRole('STUDENT') && !isEventStaff()) || hasRole('GUEST') ? "/profile" : "/student/profile"}
                             onClick={() => setIsMenuOpen(false)}
                             className="flex items-center gap-4 px-5 py-3.5 text-[15px] font-medium text-slate-700 hover:bg-slate-100 rounded-2xl transition-all active:bg-slate-200"
                           >
@@ -658,19 +703,8 @@ const Header = () => {
                             </Link>
                           )}
 
-                          {/* Student Dashboard for regular students/guests */}
-                          {!isSuperAdmin() && !isAdminOnly() && !hasRole('LECTURER') && !isEventStaff() && !hasRole('GUEST') && (
-                            <Link
-                              to="/student/dashboard"
-                              onClick={() => setIsMenuOpen(false)}
-                              className="flex items-center gap-4 px-5 py-3.5 text-[15px] font-medium text-emerald-600 hover:bg-emerald-50 rounded-2xl transition-all active:bg-emerald-100"
-                            >
-                              <LayoutDashboard size={20} className="text-emerald-500" />
-                              Bảng điều khiển cá nhân
-                            </Link>
-                          )}
-
-                          {hasRole('GUEST') && (
+                          {/* My Events for all students and guests */}
+                          {(hasRole('STUDENT') || hasRole('GUEST')) && (
                             <Link
                               to="/guest-events"
                               onClick={() => setIsMenuOpen(false)}
@@ -710,7 +744,7 @@ const Header = () => {
                   className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-6 py-2.5 rounded-2xl font-semibold text-sm transition shadow-sm"
                 >
                   <LogIn size={18} />
-                  Đăng nhập
+                  {t("common.login")}
                 </Link>
               )}
             </div>
@@ -732,21 +766,21 @@ const Header = () => {
                 <div className="w-20 h-20 mx-auto mb-6 bg-rose-50 text-rose-500 rounded-full flex items-center justify-center shadow-inner">
                   <LogOut size={32} strokeWidth={2.5} />
                 </div>
-                <h3 className="text-2xl font-black text-slate-800 mb-3 uppercase tracking-tight">Đăng xuất?</h3>
-                <p className="text-slate-500 text-sm font-medium leading-relaxed mb-8">Bạn có chắc chắn muốn đăng xuất khỏi tài khoản?</p>
+                <h3 className="text-2xl font-black text-slate-800 mb-3 uppercase tracking-tight">{t("logout.title")}</h3>
+                <p className="text-slate-500 text-sm font-medium leading-relaxed mb-8">{t("logout.message")}</p>
 
                 <div className="flex flex-col w-full gap-3">
                   <button
                     onClick={handleLogout}
                     className="w-full py-4 bg-rose-500 text-white rounded-2xl font-black text-sm uppercase tracking-widest hover:bg-rose-600 hover:shadow-lg hover:shadow-rose-100 active:scale-[0.98] transition-all cursor-pointer"
                   >
-                    Đăng xuất
+                    {t("logout.confirm")}
                   </button>
                   <button
                     onClick={() => setIsLogoutModalOpen(false)}
                     className="w-full py-4 bg-white text-slate-400 rounded-2xl font-black text-sm uppercase tracking-widest hover:text-slate-600 hover:bg-slate-50 transition-all cursor-pointer"
                   >
-                    Hủy
+                    {t("logout.cancel")}
                   </button>
                 </div>
               </div>

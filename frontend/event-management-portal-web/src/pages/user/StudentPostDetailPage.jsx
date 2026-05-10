@@ -58,11 +58,17 @@ const StudentPostDetailPage = () => {
     }
   };
 
-  const handleSubmitComment = async (content) => {
+  const handleSubmitComment = async (content, imageUrl) => {
+    if (isSubmittingComment) return;
     setIsSubmittingComment(true);
     try {
-      const res = await eventService.createComment(id, { content });
-      setComments(prev => [res.data, ...prev]);
+      const res = await eventService.createComment(id, { content, imageUrl });
+      const newComment = res.data;
+      setComments(prev => {
+        if (prev.some(c => String(c.id) === String(newComment.id))) return prev;
+        return [newComment, ...prev];
+      });
+      setPost(prev => ({ ...prev, commentCount: (prev.commentCount || 0) + 1 }));
     } catch (err) {
       toast.error("Không thể gửi bình luận");
     } finally {
@@ -70,18 +76,55 @@ const StudentPostDetailPage = () => {
     }
   };
 
-  const handleSubmitReply = async (parentId, content) => {
+  const handleSubmitReply = async (parentId, content, imageUrl) => {
     setIsSubmittingComment(true);
     try {
-      const res = await eventService.createComment(id, { content, parentId });
-      setComments(prev => updateCommentInTree(prev, parentId, (parent) => ({
-        ...parent,
-        replies: [...(parent.replies || []), res.data]
-      })));
+      const res = await eventService.createComment(id, { content, parentId, imageUrl });
+      const newReply = res.data;
+      setComments(prev => updateCommentInTree(prev, parentId, (parent) => {
+        const existingReplies = parent.replies || [];
+        if (existingReplies.some(r => String(r.id) === String(newReply.id))) return parent;
+        return {
+          ...parent,
+          replies: [...existingReplies, newReply]
+        };
+      }));
+      setPost(prev => ({ ...prev, commentCount: (prev.commentCount || 0) + 1 }));
     } catch (err) {
       toast.error("Không thể gửi phản hồi");
     } finally {
       setIsSubmittingComment(false);
+    }
+  };
+
+  const handleDeleteComment = async (commentId) => {
+    if (!currentUser) return;
+
+    // Optimistic Update
+    const previousComments = [...comments];
+    const previousPost = { ...post };
+
+    setComments(prev => {
+      const removeById = (list, id) => {
+        return list
+          .filter(item => String(item.id) !== String(id))
+          .map(item => ({
+            ...item,
+            replies: item.replies ? removeById(item.replies, id) : []
+          }));
+      };
+      return removeById(prev, commentId);
+    });
+    setPost(prev => ({ ...prev, commentCount: Math.max(0, (prev.commentCount || 1) - 1) }));
+
+    try {
+      await eventService.deleteComment(commentId);
+      toast.success("Đã xóa bình luận");
+    } catch (err) {
+      // Rollback
+      setComments(previousComments);
+      setPost(previousPost);
+      toast.error("Không thể xóa bình luận. Vui lòng thử lại.");
     }
   };
 
@@ -96,6 +139,7 @@ const StudentPostDetailPage = () => {
       handleReactComment={handleReactComment}
       handleSubmitComment={handleSubmitComment}
       handleSubmitReply={handleSubmitReply}
+      handleDeleteComment={handleDeleteComment}
       isSubmittingComment={isSubmittingComment}
       onRefresh={loadPost}
       backPath="/student/posts"

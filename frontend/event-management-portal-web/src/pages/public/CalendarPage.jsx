@@ -17,46 +17,53 @@ import { ChevronLeft, ChevronRight, X, Users, MapPin, Calendar as CalendarIcon }
 import { Link } from "react-router-dom";
 import Header from "../../components/layout/Header";
 import eventService from "../../services/eventService";
+import { useLanguage } from "../../context/LanguageContext";
 
-const getCategoryByEventType = (type) => {
-  switch (type) {
-    case "WORKSHOP":
-    case "WEBINAR":
-      return "Học Thuật - Kỹ năng";
-    case "CONCERT":
-      return "Văn Hóa - Văn nghệ";
-    case "COMPETITION":
-      return "Thể thao";
-    case "SEMINAR":
-    case "TALKSHOW":
-    case "CONFERENCE":
-      return "Diễn đàn - Hội thảo";
-    case "FESTIVAL":
-      return "Lễ hội trường";
-    case "VOLUNTEER":
-      return "Vì Cộng Đồng";
-    case "INTERNATIONAL":
-      return "Quốc tế";
-    default:
-      return "Học Thuật - Kỹ năng";
-  }
-};
-
-const CATEGORY_COLORS = {
-  "Học Thuật - Kỹ năng": "bg-[#4B84D3]",
-  "Văn Hóa - Văn nghệ": "bg-[#F19B9B]",
-  "Thể thao": "bg-[#FFC627]",
-  "Vì Cộng Đồng": "bg-[#097341]",
-  "Quốc tế": "bg-[#FF4D4D]",
-  "Lễ hội trường": "bg-[#D97D21]",
-  "Diễn đàn - Hội thảo": "bg-[#00A195]"
-};
 
 // Fallback color if category not found
 const DEFAULT_COLOR = "bg-blue-400";
 
+
+
 const CalendarPage = () => {
-  const [currentDate, setCurrentDate] = useState(new Date()); // Auto start with current date
+  const { t, language } = useLanguage();
+
+  // Build category maps from translations
+  const getCategoryByEventType = (type) => {
+    switch (type) {
+      case "WORKSHOP":
+      case "WEBINAR":
+        return t("calendarPage.categories.academic");
+      case "CONCERT":
+        return t("calendarPage.categories.culture");
+      case "COMPETITION":
+        return t("calendarPage.categories.sport");
+      case "SEMINAR":
+      case "TALKSHOW":
+      case "CONFERENCE":
+        return t("calendarPage.categories.forum");
+      case "FESTIVAL":
+        return t("calendarPage.categories.festival");
+      case "VOLUNTEER":
+        return t("calendarPage.categories.community");
+      case "INTERNATIONAL":
+        return t("calendarPage.categories.international");
+      default:
+        return t("calendarPage.categories.academic");
+    }
+  };
+
+  const CATEGORY_COLORS_DYNAMIC = {
+    [t("calendarPage.categories.academic")]: "bg-[#4B84D3]",
+    [t("calendarPage.categories.culture")]: "bg-[#F19B9B]",
+    [t("calendarPage.categories.sport")]: "bg-[#FFC627]",
+    [t("calendarPage.categories.community")]: "bg-[#097341]",
+    [t("calendarPage.categories.international")]: "bg-[#FF4D4D]",
+    [t("calendarPage.categories.festival")]: "bg-[#D97D21]",
+    [t("calendarPage.categories.forum")]: "bg-[#00A195]",
+  };
+
+  const [currentDate, setCurrentDate] = useState(new Date());
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(true);
   
@@ -110,13 +117,16 @@ const CalendarPage = () => {
   };
 
   const renderHeader = () => {
+    const monthLabel = language === "vi"
+      ? `${t("calendarPage.month")} ${format(currentDate, "M yyyy")}`
+      : format(currentDate, "MMMM yyyy");
     return (
       <div className="flex justify-center items-center mb-6">
         <button onClick={prevMonth} className="text-red-700 hover:text-red-800 p-2">
           <ChevronLeft size={28} strokeWidth={3} />
         </button>
         <div className="bg-[#D32027] text-white px-8 py-2 rounded-lg mx-6 font-bold text-2xl uppercase">
-          Tháng {format(currentDate, "M yyyy")}
+          {monthLabel}
         </div>
         <button onClick={nextMonth} className="text-red-700 hover:text-red-800 p-2">
           <ChevronRight size={28} strokeWidth={3} />
@@ -126,7 +136,7 @@ const CalendarPage = () => {
   };
 
   const renderDays = () => {
-    const days = ["Thứ 2", "Thứ 3", "Thứ 4", "Thứ 5", "Thứ 6", "Thứ 7", "Chủ nhật"];
+    const days = t("calendarPage.weekDays");
     return (
       <div className="grid grid-cols-7 bg-[#D32027]">
         {days.map((day, idx) => (
@@ -168,7 +178,7 @@ const CalendarPage = () => {
             <div className="flex-1 overflow-visible space-y-1 mt-1 pr-1">
               {dayEvents.slice(0, 5).map((event, idx) => {
                 const category = event.categoryName || event.category || getCategoryByEventType(event.type);
-                const bgClass = CATEGORY_COLORS[category] || DEFAULT_COLOR;
+                const bgClass = CATEGORY_COLORS_DYNAMIC[category] || DEFAULT_COLOR;
                 return (
                   <Link
                     to={`/events/${event.id}`}
@@ -185,7 +195,7 @@ const CalendarPage = () => {
               
               {dayEvents.length > 5 && (
                 <div className="text-[10px] font-bold text-red-600 bg-red-50 p-1 rounded text-center mt-1 border border-red-100 hover:bg-red-100 transition-colors">
-                  + {dayEvents.length - 5} sự kiện khác
+                  + {dayEvents.length - 5} {t("calendarPage.moreEvents")}
                 </div>
               )}
             </div>
@@ -206,7 +216,7 @@ const CalendarPage = () => {
   const renderLegend = () => {
     return (
       <div className="flex flex-wrap justify-center gap-6 mb-8 mt-2">
-        {Object.entries(CATEGORY_COLORS).map(([name, colorClass]) => (
+        {Object.entries(CATEGORY_COLORS_DYNAMIC).map(([name, colorClass]) => (
           <div key={name} className="flex items-center gap-2">
             <div className={`w-5 h-5 ${colorClass}`}></div>
             <span className="text-sm font-semibold text-gray-700">{name}</span>
@@ -246,11 +256,11 @@ const CalendarPage = () => {
               <div className="bg-[#D32027] p-4 flex justify-between items-center text-white">
                 <div>
                   <h2 className="text-xl font-bold">
-                    Sự kiện ngày {selectedDay ? format(selectedDay, "dd/MM/yyyy") : ""}
+                    {t("calendarPage.eventsOnDay")} {selectedDay ? format(selectedDay, "dd/MM/yyyy") : ""}
                   </h2>
-                  <p className="text-sm opacity-90">Có {selectedDayEvents.length} sự kiện diễn ra trong ngày này</p>
+                  <p className="text-sm opacity-90">{t("calendarPage.eventsCount").replace("{n}", selectedDayEvents.length).startsWith("{n}") ? `${selectedDayEvents.length} ${t("calendarPage.eventsCount")}` : `${selectedDayEvents.length} ${t("calendarPage.eventsCount")}`}</p>
                 </div>
-                <button 
+                <button
                   onClick={() => setIsModalOpen(false)}
                   className="p-2 hover:bg-white/20 rounded-full transition-colors"
                 >
@@ -294,7 +304,7 @@ const CalendarPage = () => {
                           )}
                           <div className="flex items-center gap-2">
                             <Users size={16} className="text-[#D32027]" />
-                            <span>{event.registeredCount || 0} người đã đăng ký</span>
+                            <span>{event.registeredCount || 0} {t("calendarPage.registered")}</span>
                           </div>
                         </div>
                       </div>
@@ -308,11 +318,11 @@ const CalendarPage = () => {
               
               {/* Modal Footer */}
               <div className="p-4 border-t border-gray-100 bg-gray-50 flex justify-end">
-                <button 
+                <button
                   onClick={() => setIsModalOpen(false)}
                   className="px-6 py-2 bg-gray-200 text-gray-700 rounded-lg font-bold hover:bg-gray-300 transition-colors"
                 >
-                  Đóng
+                  {t("calendarPage.close")}
                 </button>
               </div>
             </div>

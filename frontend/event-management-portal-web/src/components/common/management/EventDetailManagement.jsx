@@ -270,6 +270,7 @@ const EventDetailManagement = ({
   const [showAllSurveyQuestions, setShowAllSurveyQuestions] = useState(false);
   const [loadingQR, setLoadingQR] = useState(false);
   const [showQRZoom, setShowQRZoom] = useState(false);
+  const [qrCountdown, setQrCountdown] = useState(30);
 
   // Quiz & Survey states
   const [showQuizModal, setShowQuizModal] = useState(false);
@@ -384,18 +385,31 @@ const EventDetailManagement = ({
 
   // 🔄 Tự động làm mới QR mỗi 30 giây khi modal đang mở và là loại DYNAMIC
   useEffect(() => {
-    let interval;
+    let refreshInterval;
+    let timerInterval;
+
     if (showEventQRModal && !loadingQR && event?.qrType === "DYNAMIC") {
-      interval = setInterval(async () => {
+      setQrCountdown(30);
+
+      refreshInterval = setInterval(async () => {
         try {
           const res = await eventService.getEventQRToken(event.id);
           setEventQRToken(res.data.token);
+          setQrCountdown(30);
         } catch (err) {
           console.error("Lỗi refresh QR:", err);
         }
-      }, 30000); // 30 giây
+      }, 30000);
+
+      timerInterval = setInterval(() => {
+        setQrCountdown(prev => (prev > 0 ? prev - 1 : 30));
+      }, 1000);
     }
-    return () => clearInterval(interval);
+
+    return () => {
+      clearInterval(refreshInterval);
+      clearInterval(timerInterval);
+    };
   }, [showEventQRModal, event?.id, loadingQR, event?.qrType]);
 
   const handleToggleCheckIn = async (enabled) => {
@@ -964,6 +978,8 @@ const EventDetailManagement = ({
         isOpen={showQRScanner}
         onClose={() => setShowQRScanner(false)}
         onScanSuccess={onQRScanSuccess}
+        title="Quét mã vé sinh viên"
+        instruction="Vui lòng đưa mã QR trên vé của sinh viên vào khung hình camera để thực hiện điểm danh."
       />
 
       {/* EVENT QR MODAL */}
@@ -1022,10 +1038,34 @@ const EventDetailManagement = ({
                   )}
                 </div>
 
-                <div className="space-y-2">
-                  <p className="text-slate-800 font-bold text-sm uppercase">{event?.title}</p>
+                <div className="space-y-4">
+                  <div className="flex flex-col items-center gap-1">
+                    <p className="text-slate-800 font-bold text-base uppercase tracking-tight">{event?.title}</p>
+                    <div className="flex items-center gap-2">
+                      <div className={`w-2 h-2 rounded-full ${event?.qrType === "DYNAMIC" ? "bg-emerald-500 animate-pulse" : "bg-blue-500"}`} />
+                      <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">
+                        {event?.qrType === "DYNAMIC" ? "QR Động (Bảo mật cao)" : "QR Tĩnh (Cố định)"}
+                      </span>
+                    </div>
+                  </div>
+
+                  {event?.qrType === "DYNAMIC" && (
+                    <div className="flex flex-col items-center gap-2 px-6 py-3 bg-indigo-50 rounded-2xl border border-indigo-100">
+                      <p className="text-[10px] font-black text-indigo-600 uppercase tracking-[0.2em]">Mã sẽ làm mới sau</p>
+                      <div className="flex items-center gap-3">
+                        <Clock size={16} className="text-indigo-600 animate-pulse" />
+                        <span className="text-2xl font-black text-indigo-900 font-mono">
+                          {qrCountdown}s
+                        </span>
+                      </div>
+                    </div>
+                  )}
+
                   <p className="text-slate-400 text-[10px] leading-relaxed px-4">
-                    Nhấp vào mã QR để phóng to hoặc tải về để in ấn và sử dụng.
+                    {event?.qrType === "DYNAMIC"
+                      ? "Mã QR này chỉ có hiệu lực trong thời gian ngắn. Vui lòng yêu cầu người tham gia quét mã ngay."
+                      : "Mã QR này cố định cho sự kiện này. Bạn có thể in mã này để người tham gia tự quét."
+                    }
                   </p>
                 </div>
 

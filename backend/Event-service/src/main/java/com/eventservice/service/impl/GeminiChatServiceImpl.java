@@ -9,7 +9,9 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import okhttp3.*;
 import org.springframework.ai.chat.client.ChatClient;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
@@ -18,19 +20,39 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 
 @Service
 @RequiredArgsConstructor
 @Slf4j
 public class GeminiChatServiceImpl implements GeminiChatService {
 
-    private final ChatClient chatClient;
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private ChatClient chatClient; // DeepSeek fallback via Spring AI
+
+    @Value("${gemini.api.key}")
+    private String geminiApiKey;
+
     private final ObjectMapper objectMapper;
+
+    private final OkHttpClient httpClient = new OkHttpClient.Builder()
+            .connectTimeout(30, TimeUnit.SECONDS)
+            .readTimeout(120, TimeUnit.SECONDS)
+            .build();
+
 
     @Override
     public String generateChatResponse(String userMessage, List<ChatMessage> conversationHistory, String contextType) {
         try {
+            // 0. Check for default responses for common questions
+            String defaultResponse = getCommonResponse(userMessage);
+            if (defaultResponse != null) {
+                log.info("Returning default response for message: {}", userMessage);
+                return defaultResponse;
+            }
+
             String systemPrompt = buildSystemPrompt(contextType);
+
             String conversationContext = buildConversationContext(conversationHistory);
 
             String fullPrompt = String.format("""
@@ -116,6 +138,11 @@ public class GeminiChatServiceImpl implements GeminiChatService {
 
     @Override
     public String analyzeUserIntent(String message) {
+        // 0. Skip AI for common greetings/identity questions
+        if (getCommonResponse(message) != null) {
+            return "GENERAL_QUESTION";
+        }
+
         try {
             String prompt = String.format("""
                     Phân tích ý định của người dùng từ tin nhắn sau:
@@ -304,16 +331,143 @@ public class GeminiChatServiceImpl implements GeminiChatService {
         return context.toString();
     }
 
-    private String callGeminiAPI(String prompt) {
-        try {
-            return chatClient.prompt()
-                    .user(prompt)
-                    .call()
-                    .content();
-        } catch (Exception e) {
-            log.error("AI service call failed: {}", e.getMessage());
-            return "ERROR_AI_OVERLOADED";
+    @Override
+    public String getQuickResponse(String message) {
+        return getCommonResponse(message);
+    }
+
+    private String getCommonResponse(String message) {
+        if (message == null || message.trim().isEmpty()) return null;
+        
+        String msg = message.toLowerCase().trim();
+        
+        // Greetings
+        if (msg.contains("chào") || msg.contains("hello") || msg.contains("hi") || msg.contains("helo") || msg.contains("xin chào")) {
+            return "Chào bạn! Tôi là trợ lý AI của hệ thống Sự kiện IUH. Rất vui được hỗ trợ bạn. Hôm nay bạn cần giúp gì nào? 😊";
         }
+        
+        // Identity
+        if (msg.contains("bạn là ai") || msg.contains("tên là gì") || msg.contains("who are you") || msg.contains("là ai") || msg.contains("giới thiệu")) {
+            return "Tôi là Trợ lý ảo AI được thiết kế riêng cho Hệ thống Quản lý Sự kiện IUH. Tôi ở đây để giúp bạn khám phá, tham gia và quản lý các hoạt động sự kiện tại trường mình một cách thông minh nhất.";
+        }
+        
+        // Capabilities
+        if (msg.contains("làm được gì") || msg.contains("giúp gì") || msg.contains("can you do") || msg.contains("tính năng")) {
+            return """
+                Tôi có thể giúp bạn rất nhiều việc đấy!
+                - 📅 **Tìm kiếm sự kiện:** Gợi ý các hội thảo, cuộc thi, lễ hội phù hợp với bạn.
+                - 📝 **Hướng dẫn đăng ký:** Hỗ trợ bạn các bước để nhận vé tham gia.
+                - 🏗️ **Lập kế hoạch:** Tư vấn cho Ban tổ chức cách xây dựng chương trình sự kiện chuyên nghiệp.
+                - ❓ **Giải đáp thắc mắc:** Trả lời các câu hỏi về địa điểm, thời gian và thông tin liên quan đến IUH Event.
+                
+                Bạn muốn thử trải nghiệm tính năng nào trước?""";
+        }
+        
+        // How to register
+        if (msg.contains("đăng ký") || msg.contains("tham gia")) {
+            if (msg.contains("như thế nào") || msg.contains("how") || msg.contains("cách")) {
+                return "Rất đơn giản! Bạn chỉ cần vào mục **Sự kiện**, chọn một sự kiện bạn quan tâm và nhấn nút **Đăng ký tham dự**. Sau khi thành công, vé QR Code sẽ xuất hiện trong mục **Sự kiện của tôi** để bạn dùng khi điểm danh.";
+            }
+        }
+        
+        // Location
+        if (msg.contains("địa chỉ") || msg.contains("ở đâu") || msg.contains("vị trí")) {
+            if (msg.contains("trường") || msg.contains("iuh")) {
+                return "Cơ sở chính của trường chúng ta nằm tại: **Số 12 Nguyễn Văn Bảo, Phường 4, Gò Vấp, TP. Hồ Chí Minh**. Ngoài ra trường còn có các cơ sở tại Quận 12, Thanh Hóa và Quảng Ngãi nữa đấy!";
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Call AI with Gemini 2.5 Flash as primary and Gemini 3.1 Flash-Lite as fallback.
+     * Falls back to DeepSeek if both Gemini models fail.
+     */
+    private String callGeminiAPI(String prompt) {
+        // Only Gemini 2.5 Flash + 3.1 Flash-Lite (NO 1.5/1.0)
+        String[] models = {"gemini-2.5-flash", "gemini-3.1-flash-lite"};
+
+        for (String model : models) {
+            try {
+                // Try v1beta first (newer models live here), then v1
+                String result = callGeminiDirect(prompt, model, "v1beta");
+                if (result == null) {
+                    result = callGeminiDirect(prompt, model, "v1");
+                }
+                
+                if (result != null) {
+                    log.info("AI response successful from model: {}", model);
+                    return result;
+                }
+            } catch (GeminiQuotaException e) {
+                log.warn("Quota exceeded for model: {}, trying next...", model);
+                continue;
+            } catch (Exception e) {
+                log.warn("Error with model {}: {}", model, e.getMessage());
+            }
+        }
+
+        // 3. Fallback to DeepSeek
+        try {
+            if (chatClient != null) {
+                log.info("Using DeepSeek as tertiary fallback");
+                return chatClient.prompt()
+                        .user(prompt)
+                        .call()
+                        .content();
+            }
+        } catch (Exception e) {
+            log.error("All AI fallbacks failed: {}", e.getMessage());
+        }
+
+        return "ERROR_AI_OVERLOADED";
+    }
+
+    private String callGeminiDirect(String prompt, String modelName, String apiVersion) throws GeminiQuotaException {
+        String url = String.format("https://generativelanguage.googleapis.com/%s/models/%s:generateContent?key=%s", 
+                apiVersion, modelName, geminiApiKey);
+        try {
+            Map<String, Object> part = Map.of("text", prompt);
+            Map<String, Object> content = Map.of("parts", List.of(part));
+            Map<String, Object> bodyMap = Map.of("contents", List.of(content));
+            String requestBody = objectMapper.writeValueAsString(bodyMap);
+
+            Request request = new Request.Builder()
+                    .url(url)
+                    .post(RequestBody.create(requestBody, MediaType.parse("application/json")))
+                    .build();
+
+            try (Response response = httpClient.newCall(request).execute()) {
+                int code = response.code();
+                if (code == 429 || code == 503) {
+                    throw new GeminiQuotaException("Gemini quota/rate limit: HTTP " + code);
+                }
+                if (code == 404) {
+                    log.debug("Model {} not found on endpoint {}", modelName, apiVersion);
+                    return null;
+                }
+                if (!response.isSuccessful()) {
+                    String errorBody = response.body() != null ? response.body().string() : "No body";
+                    log.warn("{} ({}) returned HTTP {} - Error: {}", modelName, apiVersion, code, errorBody);
+                    return null;
+                }
+                String body = response.body().string();
+                JsonNode root = objectMapper.readTree(body);
+                String text = root.at("/candidates/0/content/parts/0/text").asText(null);
+                return (text != null && !text.isBlank()) ? text : null;
+            }
+        } catch (GeminiQuotaException e) {
+            throw e;
+        } catch (Exception e) {
+            log.error("{} ({}) call exception: {}", modelName, apiVersion, e.getMessage());
+            return null;
+        }
+    }
+
+    /** Sentinel exception for Gemini quota/rate-limit errors */
+    private static class GeminiQuotaException extends Exception {
+        GeminiQuotaException(String msg) { super(msg); }
     }
 
     private EventPlanSuggestion parseEventPlanSuggestion(String jsonResponse) {

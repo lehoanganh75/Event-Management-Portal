@@ -44,6 +44,12 @@ public interface GeminiChatService {
     EventPlanSuggestion generatePlanFromTemplate(String templateName, String templateDescription, String userContext);
 
     /**
+     * Get a quick default response for common questions (no AI call needed)
+     * Returns null if no default response matches.
+     */
+    String getQuickResponse(String message);
+
+    /**
      * Analyze event statistics and provide insights
      */
     String analyzeEventStatistics(String eventDataJson);

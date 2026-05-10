@@ -198,6 +198,9 @@ const eventService = {
     getComments: (postId) => privateApi.get(`/posts/comments/${postId}`),
     deleteComment: (commentId) => privateApi.delete(`/posts/comments/${commentId}`),
     reactToComment: (commentId, data) => privateApi.post(`/posts/comments/${commentId}/react`, data),
+    uploadImage: (formData) => privateApi.post('/events/upload', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+    }),
 
     // --- GROUP 4: TEMPLATES ---
     getTemplates: () => privateApi.get('/templates'),

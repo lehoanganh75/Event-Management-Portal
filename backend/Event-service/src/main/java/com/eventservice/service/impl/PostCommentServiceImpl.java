@@ -27,7 +27,7 @@ public class PostCommentServiceImpl implements PostCommentService {
 
     @Override
     @Transactional
-    public PostComment createComment(String postId, String accountId, String content, String parentId) {
+    public PostComment createComment(String postId, String accountId, String content, String parentId, String imageUrl) {
         EventPost post = eventPostRepository.findById(postId)
                 .orElseThrow(() -> new RuntimeException("Bài viết không tồn tại!"));
 
@@ -35,6 +35,7 @@ public class PostCommentServiceImpl implements PostCommentService {
                 .post(post)
                 .commenterAccountId(accountId)
                 .content(content)
+                .imageUrl(imageUrl)
                 .isDeleted(false)
                 .isEdited(false)
                 .build();
@@ -63,7 +64,7 @@ public class PostCommentServiceImpl implements PostCommentService {
 
     @Override
     public List<PostComment> getCommentsByPost(String postId) {
-        List<PostComment> comments = postCommentRepository.findByPostIdAndParentCommentIsNullAndIsDeletedFalseOrderByCreatedAtDesc(postId);
+        List<PostComment> comments = postCommentRepository.findByPostIdAndParentCommentIsNullOrderByCreatedAtDesc(postId);
         enrichComments(comments);
         return comments;
     }
@@ -118,8 +119,16 @@ public class PostCommentServiceImpl implements PostCommentService {
     public void deleteComment(String commentId) {
         PostComment comment = postCommentRepository.findById(commentId)
                 .orElseThrow(() -> new RuntimeException("Bình luận không tồn tại!"));
-        comment.setDeleted(true);
-        postCommentRepository.save(comment);
+        String postId = comment.getPost().getId();
+        postCommentRepository.delete(comment);
+
+        // Broadcast deletion event
+        messagingTemplate.convertAndSend("/topic/posts/" + postId,
+                PostInteractionEvent.builder()
+                        .postId(postId)
+                        .type(PostInteractionEvent.Type.DELETE_COMMENT)
+                        .data(commentId)
+                        .build());
     }
     @Override
     @Transactional

@@ -1,5 +1,6 @@
 import React from "react";
 import { Routes, Route, Navigate, useLocation } from "react-router-dom";
+import { useAuth } from "../context/AuthContext";
 import { AnimatePresence } from "framer-motion";
 import { useEffect } from "react";
 
@@ -81,6 +82,12 @@ const ScrollToTop = () => {
 
 const AppRouter = () => {
   const location = useLocation();
+  const { user, isAuthenticated, loading } = useAuth();
+
+  if (loading) return null;
+
+  const isEventStaff = user?.eventRoles && user.eventRoles.length > 0;
+  const isAdmin = user?.role === 'ADMIN' || user?.role === 'SUPER_ADMIN';
 
   return (
     <AnimatePresence mode="wait">
@@ -105,8 +112,12 @@ const AppRouter = () => {
 
         {/* --- ROLE BASED DASHBOARD ROUTES --- */}
 
-        {/* Student Routes */}
-        <Route path="/student" element={<DashboardLayout />}>
+        {/* Student Routes - Restricted to BTC students only */}
+        <Route path="/student" element={
+          isAuthenticated && (isAdmin || isEventStaff) 
+            ? <DashboardLayout /> 
+            : <Navigate to="/profile" replace />
+        }>
           <Route index element={<Navigate to="dashboard" replace />} />
           <Route path="dashboard" element={<Dashboard />} />
           <Route path="events">

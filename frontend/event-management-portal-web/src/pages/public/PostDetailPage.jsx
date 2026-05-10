@@ -78,6 +78,10 @@ export default function PostDetailPage() {
             ...comment,
             reactions: event.data.reactions
           })));
+        } else if (event.type === 'DELETE_COMMENT') {
+          const deletedCommentId = event.data;
+          setComments(prev => removeCommentFromTree(prev, deletedCommentId));
+          setPost(prev => ({ ...prev, commentCount: Math.max(0, (prev.commentCount || 1) - 1) }));
         }
       });
     });
@@ -128,20 +132,22 @@ export default function PostDetailPage() {
     }
   };
 
-  const handleSubmitComment = async (content) => {
+  const handleSubmitComment = async (content, imageUrl) => {
     if (!currentUser) {
       toast.info("Vui lòng đăng nhập để bình luận");
       navigate("/login");
       return;
     }
+    if (isSubmittingComment) return;
     setIsSubmittingComment(true);
     try {
-      const res = await eventService.createComment(id, { content });
+      const res = await eventService.createComment(id, { content, imageUrl });
       const newComment = res.data;
       setComments(prev => {
         if (prev.some(c => String(c.id) === String(newComment.id))) return prev;
         return [newComment, ...prev];
       });
+      setPost(prev => ({ ...prev, commentCount: (prev.commentCount || 0) + 1 }));
     } catch (err) {
       toast.error("Không thể gửi bình luận");
     } finally {
@@ -149,15 +155,16 @@ export default function PostDetailPage() {
     }
   };
 
-  const handleSubmitReply = async (parentId, content) => {
+  const handleSubmitReply = async (parentId, content, imageUrl) => {
     if (!currentUser) {
       toast.info("Vui lòng đăng nhập để phản hồi");
       navigate("/login");
       return;
     }
+    if (isSubmittingComment) return;
     setIsSubmittingComment(true);
     try {
-      const res = await eventService.createComment(id, { content, parentId });
+      const res = await eventService.createComment(id, { content, parentId, imageUrl });
       const newReply = res.data;
       setComments(prev => updateCommentInTree(prev, parentId, (parent) => {
         const existingReplies = parent.replies || [];
@@ -167,10 +174,32 @@ export default function PostDetailPage() {
           replies: [...existingReplies, newReply]
         };
       }));
+      setPost(prev => ({ ...prev, commentCount: (prev.commentCount || 0) + 1 }));
     } catch (err) {
       toast.error("Không thể gửi phản hồi");
     } finally {
       setIsSubmittingComment(false);
+    }
+  };
+
+  const handleDeleteComment = async (commentId) => {
+    if (!currentUser) return;
+
+    // Optimistic Update: Xóa ngay trên UI
+    const previousComments = [...comments];
+    const previousPost = { ...post };
+
+    setComments(prev => removeCommentFromTree(prev, commentId));
+    setPost(prev => ({ ...prev, commentCount: Math.max(0, (prev.commentCount || 1) - 1) }));
+
+    try {
+      await eventService.deleteComment(commentId);
+      toast.success("Đã xóa bình luận");
+    } catch (err) {
+      // Rollback nếu lỗi
+      setComments(previousComments);
+      setPost(previousPost);
+      toast.error("Không thể xóa bình luận. Vui lòng thử lại.");
     }
   };
 
@@ -238,6 +267,7 @@ export default function PostDetailPage() {
             handleReactComment={handleReactComment}
             handleSubmitComment={handleSubmitComment}
             handleSubmitReply={handleSubmitReply}
+            handleDeleteComment={handleDeleteComment}
             isSubmittingComment={isSubmittingComment}
             onRefresh={loadPost}
             backPath="/news"

@@ -11,6 +11,7 @@ import {
   Users,
   Trophy,
   ClipboardCheck,
+  CheckCircle,
   ShieldCheck,
   Zap,
   Info,
@@ -18,7 +19,8 @@ import {
   Share2,
   Heart,
   Mail,
-  Phone
+  Phone,
+  Camera
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -514,54 +516,78 @@ export default function EventDetail() {
               </div>
 
               <div className="space-y-3">
-                <motion.button
-                  whileHover={{ scale: 1.01 }}
-                  whileTap={{ scale: 0.99 }}
-                  onClick={handleMainAction}
-                  disabled={
-                    isRegistering ||
-                    ((!role.registered || role.registration?.status === "CANCELLED") &&
-                      !role.creator && !role.approver && !role.organizerRole &&
-                      isDeadlinePassed(event.registrationDeadline))
-                  }
-                  className={`w-full py-4 rounded-2xl font-bold text-sm uppercase tracking-wider shadow-sm transition-all flex items-center justify-center gap-2 ${role.creator || role.approver || role.organizerRole || isSystemAdmin()
-                    ? "bg-slate-800 text-white"
-                    : role.registered
-                      ? role.registration?.checkedIn
-                        ? "bg-emerald-50 text-emerald-700 border border-emerald-100"
-                        : "bg-indigo-600 text-white"
-                      : isDeadlinePassed(event.registrationDeadline)
-                        ? "bg-slate-100 text-slate-400 cursor-not-allowed"
-                        : "bg-indigo-600 text-white hover:bg-indigo-700"
-                    }`}
-                >
-                  {isRegistering ? (
-                    <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                  ) : role.creator || role.approver || role.organizerRole || isSystemAdmin() ? (
-                    <>
-                      <ShieldCheck size={20} />
-                      Quản lý sự kiện
-                    </>
-                  ) : role.registered && role.registration?.status !== "CANCELLED" ? (
-                    <>
-                      <QrCode size={20} />
-                      {role.registration?.checkedIn ? "Đã điểm danh ✓" : "Xem vé tham gia"}
-                    </>
-                  ) : isDeadlinePassed(event.registrationDeadline) ? (
-                    "Hết hạn đăng ký"
-                  ) : (
-                    "Đăng ký ngay"
-                  )}
-                </motion.button>
-
-                {role.registered && role.registration?.status !== "CANCELLED" && !showTicket && (
-                  <button
-                    onClick={() => setShowCancelModal(true)}
-                    className="w-full py-4 text-[10px] font-black text-slate-400 hover:text-rose-500 uppercase tracking-[0.2em] transition-colors"
+                {isRegistering ? (
+                  <div className="w-full py-4 bg-indigo-600/10 rounded-2xl flex items-center justify-center">
+                    <div className="w-5 h-5 border-2 border-indigo-600/30 border-t-indigo-600 rounded-full animate-spin" />
+                  </div>
+                ) : role.creator || role.approver || role.organizerRole || isSystemAdmin() ? (
+                  <motion.button
+                    whileHover={{ scale: 1.01 }}
+                    whileTap={{ scale: 0.99 }}
+                    onClick={handleMainAction}
+                    className="w-full py-4 bg-slate-800 text-white rounded-2xl font-bold text-sm uppercase tracking-wider shadow-sm flex items-center justify-center gap-2"
                   >
-                    Hủy đăng ký tham gia
-                  </button>
+                    <ShieldCheck size={20} />
+                    Quản lý sự kiện
+                  </motion.button>
+                ) : role.registered && role.registration?.status !== "CANCELLED" ? (
+                  <div className="w-full">
+                    {role.registration?.checkedIn ? (
+                      <div className="w-full py-4 bg-emerald-50 text-emerald-700 border border-emerald-100 rounded-2xl font-bold text-sm uppercase tracking-wider flex items-center justify-center gap-2">
+                        <CheckCircle size={20} />
+                        Đã điểm danh ✓
+                      </div>
+                    ) : (
+                      <motion.button
+                        whileHover={{ scale: 1.01 }}
+                        whileTap={{ scale: 0.99 }}
+                        onClick={() => setShowScanner(true)}
+                        className="w-full py-4 bg-indigo-600 text-white rounded-2xl font-bold text-sm uppercase tracking-wider shadow-md flex items-center justify-center gap-2"
+                      >
+                        <Camera size={20} />
+                        Quét mã BTC để điểm danh
+                      </motion.button>
+                    )}
+                  </div>
+                ) : isDeadlinePassed(event.registrationDeadline) ? (
+                  <div className="w-full py-4 bg-slate-100 text-slate-400 rounded-2xl font-bold text-sm uppercase tracking-wider text-center">
+                    Hết hạn đăng ký
+                  </div>
+                ) : (
+                  <motion.button
+                    whileHover={{ scale: 1.01 }}
+                    whileTap={{ scale: 0.99 }}
+                    onClick={handleMainAction}
+                    className="w-full py-4 bg-indigo-600 text-white rounded-2xl font-bold text-sm uppercase tracking-wider shadow-sm hover:bg-indigo-700 transition-all"
+                  >
+                    Đăng ký ngay
+                  </motion.button>
                 )}
+
+                {role.registered &&
+                  role.registration?.status !== "CANCELLED" &&
+                  !showTicket &&
+                  !role.registration?.checkedIn && (
+                    (() => {
+                      const eventStartTime = new Date(event.startTime);
+                      const now = new Date();
+                      const diffInMinutes = (eventStartTime - now) / (1000 * 60);
+                      const canCancel = diffInMinutes >= 30;
+
+                      return canCancel ? (
+                        <button
+                          onClick={() => setShowCancelModal(true)}
+                          className="w-full py-4 text-[10px] font-black text-slate-400 hover:text-rose-500 uppercase tracking-[0.2em] transition-colors"
+                        >
+                          Hủy đăng ký tham gia
+                        </button>
+                      ) : (
+                        <p className="w-full py-4 text-[10px] font-bold text-slate-400 text-center uppercase tracking-widest italic">
+                          Không thể hủy đăng ký (Sự kiện sắp diễn ra)
+                        </p>
+                      );
+                    })()
+                  )}
 
                 {/* INTERACTIONS FOR REGISTERED USERS */}
                 {event.currentUserRole?.registered && (
@@ -638,6 +664,8 @@ export default function EventDetail() {
         isOpen={showScanner}
         onClose={() => setShowScanner(false)}
         onScanSuccess={handleScanSuccess}
+        title="Quét mã BTC"
+        instruction="Vui lòng đưa camera vào mã QR của Ban tổ chức để thực hiện điểm danh tự động."
       />
 
       {/* Cancel Modal */}

@@ -419,8 +419,9 @@ export default function AIChatBot() {
                 </button>
               </div>
               <p className="text-[10px] text-gray-400 mt-2 text-center flex items-center justify-center gap-1">
-                <Sparkles size={10} /> Powered by Gemini 2.5 Flash
+                <Sparkles size={10} /> Powered by Gemini 2.5 Flash & 3.1 Flash-Lite
               </p>
+
             </div>
           </motion.div>
         )}

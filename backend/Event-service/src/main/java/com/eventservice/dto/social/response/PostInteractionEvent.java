@@ -11,7 +11,7 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class PostInteractionEvent {
     public enum Type {
-        LIKE, COMMENT, VIEW, COMMENT_LIKE
+        LIKE, COMMENT, VIEW, COMMENT_LIKE, DELETE_COMMENT
     }
 
     private String postId;

@@ -27,8 +27,9 @@ public class PostCommentController {
         String accountId = jwt.getSubject();
         String content = request.get("content");
         String parentId = request.get("parentId");
+        String imageUrl = request.get("imageUrl");
         
-        return ResponseEntity.ok(postCommentService.createComment(postId, accountId, content, parentId));
+        return ResponseEntity.ok(postCommentService.createComment(postId, accountId, content, parentId, imageUrl));
     }
 
     @GetMapping("/{postId}")

@@ -3,7 +3,13 @@ import { X, Camera, RefreshCw } from 'lucide-react';
 import jsQR from 'jsqr';
 import { motion, AnimatePresence } from 'framer-motion';
 
-const QRScannerModal = ({ isOpen, onClose, onScanSuccess }) => {
+const QRScannerModal = ({
+  isOpen,
+  onClose,
+  onScanSuccess,
+  title = "Quét mã QR",
+  instruction = "Vui lòng đưa mã QR vào khung hình camera để tự động thực hiện điểm danh."
+}) => {
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
   const [error, setError] = useState(null);
@@ -117,7 +123,7 @@ const QRScannerModal = ({ isOpen, onClose, onScanSuccess }) => {
             <div className="p-2 bg-indigo-50 text-indigo-600 rounded-xl">
               <Camera size={20} />
             </div>
-            <h3 className="font-bold text-slate-800">Quét mã vé sự kiện</h3>
+            <h3 className="font-bold text-slate-800">{title}</h3>
           </div>
           <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-full transition-colors text-slate-400">
             <X size={20} />
@@ -172,7 +178,7 @@ const QRScannerModal = ({ isOpen, onClose, onScanSuccess }) => {
 
           <div className="mt-6 text-center">
             <p className="text-xs text-slate-500 leading-relaxed">
-              Vui lòng đưa mã QR trên vé của người tham gia vào khung hình camera để tự động thực hiện điểm danh.
+              {instruction}
             </p>
           </div>
         </div>

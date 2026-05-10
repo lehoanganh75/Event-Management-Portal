@@ -163,6 +163,42 @@ public class ChatServiceImpl implements ChatService {
         // Ensure we update session ID in response if it's a new one
         String currentSessionId = session.getSessionId();
 
+        // ===== FAST PATH: Check for common/default responses FIRST =====
+        // This MUST run before any AI/embedding calls to avoid timeout
+        String quickResponse = geminiChatService.getQuickResponse(request.getContent());
+        if (quickResponse != null) {
+            log.info("Fast path: returning default response for: {}", request.getContent());
+            
+            ChatMessage aiMessage = ChatMessage.builder()
+                    .chatSession(session)
+                    .role(ChatMessageRole.ASSISTANT)
+                    .type(ChatMessageType.TEXT)
+                    .content(quickResponse)
+                    .build();
+            aiMessage = chatMessageRepository.save(aiMessage);
+
+            List<String> quickReplies = List.of("Sự kiện nổi bật", "Cách đăng ký sự kiện", "Sự kiện sắp diễn ra");
+
+            ChatMessageResponse response = ChatMessageResponse.builder()
+                    .id(aiMessage.getId())
+                    .sessionId(currentSessionId)
+                    .role(ChatMessageRole.ASSISTANT)
+                    .content(quickResponse)
+                    .type(ChatMessageType.TEXT)
+                    .quickReplies(quickReplies)
+                    .createdAt(aiMessage.getCreatedAt())
+                    .build();
+
+            try {
+                messagingTemplate.convertAndSend("/topic/chat/" + currentSessionId, response);
+            } catch (Exception e) {
+                log.debug("WebSocket send failed (non-critical): {}", e.getMessage());
+            }
+
+            return response;
+        }
+
+        // ===== SLOW PATH: Full AI pipeline =====
         // Analyze intent
         String intent = geminiChatService.analyzeUserIntent(request.getContent());
         log.info("User intent: {}", intent);
