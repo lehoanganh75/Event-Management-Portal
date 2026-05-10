@@ -267,7 +267,7 @@ const RegisterPage = () => {
     <div className="min-h-screen bg-[#eef2f7] flex flex-col items-center justify-center p-4">
       <div className="w-full max-w-5xl mb-6 flex justify-start">
         <button
-          onClick={() => navigate("/login")}
+          onClick={() => navigate(-1)}
           className="group flex hover:cursor-pointer items-center gap-2 text-sm font-semibold text-[#1a3a6b] hover:gap-3 transition-all duration-200"
         >
           <span className="w-8 h-8 bg-white rounded-full shadow-sm border border-gray-200 flex items-center justify-center group-hover:bg-[#1a3a6b] group-hover:border-[#1a3a6b] transition-all duration-200">

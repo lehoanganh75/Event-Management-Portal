@@ -146,7 +146,7 @@ const MemberScanPage = () => {
       <header className="w-full max-w-md flex justify-between items-center mb-10">
         <div className="flex items-center gap-3">
           <button
-            onClick={() => navigate(`/events/${eventId}`)}
+            onClick={() => navigate(-1)}
             className="p-3 bg-slate-800 rounded-2xl text-slate-400 hover:text-white transition-colors"
             title="Quay lại"
           >

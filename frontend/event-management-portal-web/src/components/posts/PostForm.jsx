@@ -163,7 +163,7 @@ const CreatePost = () => {
       <div className="max-w-4xl mx-auto">
         <div className="mb-6">
           <button
-            onClick={() => navigate("/lecturer/posts")}
+            onClick={() => navigate(-1)}
             className="flex items-center gap-2 text-gray-600 hover:text-gray-900 mb-3 text-sm font-medium"
           >
             <ArrowLeft size={18} />

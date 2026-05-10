@@ -192,7 +192,7 @@ export default function PostDetailPage() {
         <div className="bg-[#1e3a8a] text-white pt-12 pb-24">
           <div className="max-w-5xl mx-auto px-6">
             <button
-              onClick={() => navigate("/news")}
+              onClick={() => navigate(-1)}
               className="flex items-center gap-2 text-blue-100 hover:text-white mb-8 transition-colors group"
             >
               <ArrowLeft size={20} className="group-hover:-translate-x-1 transition-transform" />
