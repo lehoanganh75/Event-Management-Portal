@@ -80,7 +80,7 @@ const LoginPage = () => {
         password: formData.password,
       });
 
-      showToast("Đăng nhập thành công! Đang chuyển hướng...", "success");
+      showToast("Đăng nhập thành công! Đang chuyển hướng", "success");
 
       // Remember Me logic
       if (rememberMe) {

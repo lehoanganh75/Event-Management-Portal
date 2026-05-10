@@ -11,13 +11,7 @@ import org.springframework.data.mongodb.repository.config.EnableMongoRepositorie
 import org.springframework.scheduling.annotation.EnableAsync;
 import org.springframework.scheduling.annotation.EnableScheduling;
 
-@SpringBootApplication(excludeName = {
-        "org.springframework.ai.autoconfigure.retry.SpringAiRetryAutoConfiguration",
-        "org.springframework.ai.autoconfigure.vertexai.gemini.VertexAiGeminiAutoConfiguration",
-        "org.springframework.ai.autoconfigure.vertexai.palm2.VertexAiPalm2AutoConfiguration",
-        "org.springframework.ai.autoconfigure.chat.client.ChatClientAutoConfiguration",
-        "org.springframework.ai.autoconfigure.vectorstore.mongo.MongoDBAtlasVectorStoreAutoConfiguration"
-})
+@SpringBootApplication
 @EnableJpaRepositories(basePackages = "com.eventservice.repository", excludeFilters = @ComponentScan.Filter(type = FilterType.ASPECTJ, pattern = "com.eventservice.repository.mongodb.*"))
 @EnableMongoRepositories(basePackages = "com.eventservice.repository.mongodb")
 @EnableFeignClients

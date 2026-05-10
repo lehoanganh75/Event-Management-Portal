@@ -38,20 +38,20 @@ public class SecurityConfig {
                 .cors(cors -> cors.configurationSource(corsConfigurationSource())) // KÍCH HOẠT CORS
                 .csrf(csrf -> csrf.disable())
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-                        .authorizeHttpRequests(auth -> auth
-                                .requestMatchers("/auth/**").permitAll()
-                                .requestMatchers("/files/**").permitAll()
-                                .requestMatchers("/error").permitAll()
-                                .requestMatchers(HttpMethod.GET, "/profiles/batch").permitAll() // Cho phép lấy info cơ bản phục vụ hiển thị sự kiện cho khách
-                                .requestMatchers("/admin/**").authenticated()
-                                .requestMatchers("/profiles/**").authenticated()
-                                .anyRequest().authenticated()
-                        )
-                 .oauth2ResourceServer(oauth2 -> oauth2
-                         .jwt(jwtConfigurer -> jwtConfigurer
-                                 .decoder(jwtDecoder())
-                                 .jwtAuthenticationConverter(jwtAuthenticationConverter()))
-                 );
+                .authorizeHttpRequests(auth -> auth
+                        .requestMatchers("/auth/**").permitAll()
+                        .requestMatchers("/files/**").permitAll()
+                        .requestMatchers("/error").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/profiles/batch").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/profiles/batch").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/profiles/invite").permitAll()
+                        .requestMatchers("/admin/**").authenticated()
+                        .requestMatchers("/profiles/**").authenticated()
+                        .anyRequest().authenticated())
+                .oauth2ResourceServer(oauth2 -> oauth2
+                        .jwt(jwtConfigurer -> jwtConfigurer
+                                .decoder(jwtDecoder())
+                                .jwtAuthenticationConverter(jwtAuthenticationConverter())));
         return http.build();
     }
 

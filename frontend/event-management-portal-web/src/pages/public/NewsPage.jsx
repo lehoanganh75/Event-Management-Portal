@@ -366,7 +366,7 @@ export default function NewsPage() {
               {loading ? (
                 <div className="bg-white rounded-[2rem] p-20 text-center border border-slate-100 shadow-sm">
                   <Loader2 size={48} className="animate-spin text-indigo-600 mx-auto mb-4" />
-                  <p className="font-black text-slate-400 uppercase tracking-widest text-xs italic">Đang tải bảng tin...</p>
+                  <p className="font-black text-slate-400 uppercase tracking-widest text-xs">Đang tải bảng tin...</p>
                 </div>
               ) : (
                 <div className="space-y-8">
