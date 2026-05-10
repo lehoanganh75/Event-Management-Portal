@@ -2,7 +2,7 @@ import React from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, Calendar, MapPin, CheckCircle2 } from "lucide-react";
 
-const RegisterModal = ({ isOpen, onClose, onConfirm, event, isRegistering, error }) => {
+const RegisterModal = ({ isOpen, onClose, onConfirm, event, isRegistering, error, isGuest }) => {
   if (!isOpen) return null;
 
   const formatDateTime = (iso) => {
@@ -53,8 +53,12 @@ const RegisterModal = ({ isOpen, onClose, onConfirm, event, isRegistering, error
                   <CheckCircle2 size={28} />
                 </div>
                 <div>
-                  <h3 className="text-xl font-bold text-gray-900">Xác nhận đăng ký</h3>
-                  <p className="text-gray-500 text-sm">Bạn đang thực hiện đăng ký tham gia sự kiện</p>
+                  <h3 className="text-xl font-bold text-gray-900">
+                    {isGuest ? "Yêu cầu đăng nhập" : "Xác nhận đăng ký"}
+                  </h3>
+                  <p className="text-gray-500 text-sm">
+                    {isGuest ? "Bạn cần đăng nhập để tiếp tục" : "Bạn đang thực hiện đăng ký tham gia sự kiện"}
+                  </p>
                 </div>
               </div>
 
@@ -75,7 +79,7 @@ const RegisterModal = ({ isOpen, onClose, onConfirm, event, isRegistering, error
               </div>
 
               {error && (
-                <motion.div 
+                <motion.div
                   initial={{ opacity: 0, y: -10 }}
                   animate={{ opacity: 1, y: 0 }}
                   className="mb-6 p-4 bg-red-50 border border-red-100 rounded-2xl flex gap-3 items-center text-red-600 text-sm font-medium"
@@ -109,7 +113,9 @@ const RegisterModal = ({ isOpen, onClose, onConfirm, event, isRegistering, error
               </div>
 
               <p className="text-center text-xs text-gray-400 mt-6">
-                Bằng cách nhấn xác nhận, bạn đồng ý với các điều khoản tham gia của sự kiện này.
+                {isGuest 
+                  ? "Vui lòng đăng nhập để có thể tham gia các hoạt động của sự kiện."
+                  : "Bằng cách nhấn xác nhận, bạn đồng ý với các điều khoản tham gia của sự kiện này."}
               </p>
             </div>
           </motion.div>

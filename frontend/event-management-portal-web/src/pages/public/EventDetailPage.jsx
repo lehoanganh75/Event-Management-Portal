@@ -643,6 +643,7 @@ export default function EventDetail() {
         event={event}
         isRegistering={isRegistering}
         error={registrationError}
+        isGuest={!user}
       />
 
       <QRScannerModal
