@@ -1,4 +1,4 @@
-// src/pages/VangLaiPage.jsx
+// src/pages/LandingPage.jsx
 import React, { useEffect, useMemo, useRef } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import {
@@ -127,7 +127,7 @@ const FeatureCard = ({ icon: Icon, title, description, colorClass }) => (
   </div>
 );
 
-const VangLaiPage = () => {
+const LandingPage = () => {
   const navigate = useNavigate();
   const heroScrollRef = useRef(null);
   const upcomingScrollRef = useRef(null);
@@ -427,4 +427,4 @@ const VangLaiPage = () => {
   );
 };
 
-export default VangLaiPage;
+export default LandingPage;

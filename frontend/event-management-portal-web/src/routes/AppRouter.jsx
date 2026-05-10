@@ -4,7 +4,7 @@ import { AnimatePresence } from "framer-motion";
 import { useEffect } from "react";
 
 // Public Pages
-import VangLaiPage from "../pages/public/VangLaiPage";
+import LandingPage from "../pages/public/LandingPage";
 import LoginPage from "../pages/auth/LoginPage";
 import RegisterPage from "../pages/auth/RegisterPage";
 import NotFoundPage from "../pages/public/NotFoundPage";
@@ -87,7 +87,7 @@ const AppRouter = () => {
       <ScrollToTop />
       <Routes location={location} key={location.pathname}>
         {/* Public Routes */}
-        <Route path="/" element={<VangLaiPage />} />
+        <Route path="/" element={<LandingPage />} />
         <Route path="/calendar" element={<CalendarPage />} />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />
