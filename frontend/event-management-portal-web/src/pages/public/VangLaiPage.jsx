@@ -134,6 +134,7 @@ const VangLaiPage = () => {
   const featuredScrollRef = useRef(null);
 
   const {
+    featured,
     ongoing,
     upcoming,
     fetchFeatured,
