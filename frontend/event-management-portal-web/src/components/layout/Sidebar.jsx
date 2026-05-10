@@ -35,7 +35,7 @@ const Sidebar = ({ isCollapsed, onToggle }) => {
         try {
             await logout();
             showToast("Đăng xuất thành công!", "success");
-            navigate("/login");
+            navigate("/");
         } catch (error) {
             console.error("Lỗi đăng xuất:", error);
             showToast("Lỗi khi đăng xuất", "error");

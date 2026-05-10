@@ -44,7 +44,7 @@ const DashboardHeader = () => {
       await logout();
       setIsLogoutModalOpen(false);
       showToast("Đăng xuất thành công!", "success");
-      setTimeout(() => navigate("/login"), 1000);
+      setTimeout(() => navigate("/"), 1000);
     } catch (error) {
       console.error("Lỗi đăng xuất:", error);
       showToast("Lỗi khi đăng xuất", "error");

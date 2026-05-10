@@ -157,7 +157,7 @@ const ProfileManagement = () => {
 
   const handleLogout = async () => {
     await logout();
-    navigate("/login");
+    navigate("/");
   };
 
   const pwStrength = (pw) => {
