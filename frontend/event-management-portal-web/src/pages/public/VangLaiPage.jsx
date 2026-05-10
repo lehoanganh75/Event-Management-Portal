@@ -42,8 +42,10 @@ const EventCard = ({ event, onClick }) => {
         />
         {/* Top Right Badge */}
         <div className="absolute top-4 right-4">
-          <span className="bg-blue-100 text-blue-600 text-[10px] font-black uppercase px-3 py-1 rounded-full shadow-sm">
-            Sắp diễn ra
+          <span className={`text-[10px] font-black uppercase px-3 py-1 rounded-full shadow-sm ${
+            event.status === 'ONGOING' ? 'bg-emerald-100 text-emerald-600' : 'bg-blue-100 text-blue-600'
+          }`}>
+            {event.status === 'ONGOING' ? 'Đang diễn ra' : 'Sắp diễn ra'}
           </span>
         </div>
 
@@ -132,17 +134,19 @@ const VangLaiPage = () => {
   const featuredScrollRef = useRef(null);
 
   const {
-    featured,
+    ongoing,
     upcoming,
     fetchFeatured,
     fetchUpcoming,
+    fetchOngoing,
     loading: eventLoading
   } = useEvents();
 
   useEffect(() => {
     fetchFeatured();
     fetchUpcoming();
-  }, [fetchFeatured, fetchUpcoming]);
+    fetchOngoing();
+  }, [fetchFeatured, fetchUpcoming, fetchOngoing]);
 
   const handleEventClick = (eventId) => {
     navigate(`/events/${eventId}`);
@@ -301,9 +305,9 @@ const VangLaiPage = () => {
 
         <div id="events-section" className="pt-16 pb-16 px-6 md:px-20 max-w-7xl mx-auto">
 
-          {/* SỰ KIỆN SẮP DIỄN RA */}
+          {/* SỰ KIỆN ĐANG DIỄN RA */}
           <section className="mb-20">
-            <SectionHeader title="Sự Kiện Sắp Diễn Ra" viewAllLink="/events" />
+            <SectionHeader title="Sự Kiện đang Diễn Ra" viewAllLink="/events" />
 
             <div className="relative group/scroll">
               <div
@@ -312,16 +316,16 @@ const VangLaiPage = () => {
               >
                 {eventLoading ? (
                   <div className="w-full py-20 flex justify-center"><Loader2 className="animate-spin text-blue-600" size={48} /></div>
-                ) : upcoming && upcoming.length > 0 ? (
-                  upcoming.map(event => (
-                    <EventCard key={event.id} event={event} onClick={handleEventClick} />
+                ) : ongoing && ongoing.length > 0 ? (
+                  ongoing.map(event => (
+                    <EventCard key={event.id} event={{...event, status: 'ONGOING'}} onClick={handleEventClick} />
                   ))
                 ) : (
-                  <div className="w-full py-20 text-center text-slate-400 font-medium bg-white rounded-3xl border border-dashed border-slate-200">Chưa có sự kiện sắp tới</div>
+                  <div className="w-full py-20 text-center text-slate-400 font-medium bg-white rounded-3xl border border-dashed border-slate-200">Hiện không có sự kiện nào đang diễn ra</div>
                 )}
               </div>
 
-              {upcoming && upcoming.length > 3 && (
+              {ongoing && ongoing.length > 3 && (
                 <>
                   <button
                     onClick={() => scroll(upcomingScrollRef, "left")}
@@ -353,7 +357,7 @@ const VangLaiPage = () => {
                   <div className="w-full py-20 flex justify-center"><Loader2 className="animate-spin text-blue-600" size={48} /></div>
                 ) : upcoming && upcoming.length > 0 ? (
                   upcoming.map(event => (
-                    <EventCard key={event.id} event={event} onClick={handleEventClick} />
+                    <EventCard key={event.id} event={{...event, status: 'UPCOMING'}} onClick={handleEventClick} />
                   ))
                 ) : (
                   <div className="w-full py-20 text-center text-slate-400 font-medium bg-white rounded-3xl border border-dashed border-slate-200">Chưa có sự kiện sắp tới</div>
