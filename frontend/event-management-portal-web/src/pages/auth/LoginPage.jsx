@@ -15,17 +15,22 @@ import { motion } from "framer-motion";
 import logo_iuh from "../../assets/images/logo_iuh.png";
 import { showToast } from "../../utils/toast.jsx";
 import { useAuth } from "../../context/AuthContext";
+import { useLanguage } from "../../context/LanguageContext";
 
 const LoginPage = () => {
   const navigate = useNavigate();
   // Lấy login và user từ Context
   const { login, user } = useAuth();
+  const { t } = useLanguage();
 
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
   const [formData, setFormData] = useState({ username: "", password: "" });
   const [errors, setErrors] = useState({});
+
+  const turnstileRef = React.useRef(null);
+  const [turnstileToken, setTurnstileToken] = useState("");
 
   // Logic điều hướng dựa trên Role sau khi 'user' trong Context thay đổi
   useEffect(() => {
@@ -47,10 +52,28 @@ const LoginPage = () => {
     if (savedUsername) {
       setFormData(prev => ({ ...prev, username: savedUsername }));
       setRememberMe(true);
+      // Focus password field if username is remembered
+      setTimeout(() => {
+        document.getElementById("password")?.focus();
+      }, 500);
     }
   }, []);
 
-  // Removed toastVisible useEffect
+  // Initialize Turnstile
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (window.turnstile) {
+        window.turnstile.render("#turnstile-container", {
+          sitekey: "0x4AAAAAADM-rC9typiEH4nF",
+          theme: "light",
+          callback: (token) => {
+            setTurnstileToken(token);
+          },
+        });
+      }
+    }, 1000);
+    return () => clearTimeout(timer);
+  }, []);
 
   const handleChange = (e) => {
     const { id, value } = e.target;
@@ -60,8 +83,12 @@ const LoginPage = () => {
 
   const validateForm = () => {
     const newErrors = {};
-    if (!formData.username.trim()) newErrors.username = "Tên đăng nhập không được để trống";
-    if (!formData.password.trim()) newErrors.password = "Mật khẩu không được để trống";
+    if (!formData.username.trim()) newErrors.username = t('username_required');
+    if (!formData.password.trim()) newErrors.password = t('password_required');
+    if (!turnstileToken) {
+      showToast("Vui lòng xác minh bạn không phải là robot", "warning");
+      return false;
+    }
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -74,13 +101,13 @@ const LoginPage = () => {
 
     try {
       // Gọi hàm login từ AuthContext
-      // Hàm này đã bao gồm: POST login -> Lưu Token -> GET Profile
       await login({
         username: formData.username,
         password: formData.password,
+        turnstileToken: turnstileToken // Gửi token lên backend nếu cần
       });
 
-      showToast("Đăng nhập thành công! Đang chuyển hướng", "success");
+      showToast(t('login_success'), "success");
 
       // Remember Me logic
       if (rememberMe) {
@@ -90,9 +117,14 @@ const LoginPage = () => {
       }
     } catch (error) {
       console.error("Login Error:", error);
-      let errorMsg = "Tên đăng nhập hoặc mật khẩu không chính xác.";
+      let errorMsg = t('login_error');
 
-      // Xử lý thông điệp lỗi từ Backend
+      // Reset Turnstile on error
+      if (window.turnstile) {
+        window.turnstile.reset("#turnstile-container");
+        setTurnstileToken("");
+      }
+
       if (error.response?.data?.message) {
         errorMsg = error.response.data.message;
       } else if (error.message) {
@@ -106,10 +138,10 @@ const LoginPage = () => {
   };
 
   const features = [
-    { icon: CalendarCheck, title: "Quản lý sự kiện", desc: "Tạo và theo dõi toàn bộ sự kiện trong trường" },
-    { icon: QrCode, title: "QR Check-in", desc: "Điểm danh nhanh chóng bằng mã QR cá nhân" },
-    { icon: Users, title: "Quản lý người dùng", desc: "Phân quyền linh hoạt theo vai trò" },
-    { icon: BarChart3, title: "Thống kê realtime", desc: "Báo cáo và phân tích dữ liệu tức thì" },
+    { icon: CalendarCheck, title: t('login_feat_event'), desc: t('login_feat_event_desc') },
+    { icon: QrCode, title: t('login_feat_qr'), desc: t('login_feat_qr_desc') },
+    { icon: Users, title: t('login_feat_users'), desc: t('login_feat_users_desc') },
+    { icon: BarChart3, title: t('login_feat_stats'), desc: t('login_feat_stats_desc') },
   ];
 
   return (
@@ -127,7 +159,7 @@ const LoginPage = () => {
               />
             </span>
             <span className="group-hover:text-[#15306b] transition-colors">
-              Quay lại
+              {t('back_btn')}
             </span>
           </button>
 
@@ -159,13 +191,12 @@ const LoginPage = () => {
                 </div>
 
                 <h2 className="text-white text-3xl font-bold leading-tight mb-3">
-                  Hệ thống Quản lý
+                  {t('login_title')}
                   <br />
                   <span className="text-blue-300">Sự kiện IUH</span>
                 </h2>
                 <p className="text-blue-200 text-sm leading-relaxed">
-                  Nền tảng số hóa toàn bộ quy trình tổ chức sự kiện — từ đăng
-                  ký, check-in đến thống kê và báo cáo realtime.
+                  {t('iuh_system_desc')}
                 </p>
               </div>
 
@@ -200,7 +231,7 @@ const LoginPage = () => {
                   ))}
                 </div>
                 <p className="text-blue-200 text-xs">
-                  Hàng nghìn người dùng tin tưởng sử dụng
+                  {t('trusted_by')}
                 </p>
               </div>
             </motion.div>
@@ -223,24 +254,24 @@ const LoginPage = () => {
 
               <div className="mb-7">
                 <h2 className="text-2xl font-bold text-[#1a3a6b] tracking-tight">
-                  Đăng nhập
+                  {t('login_title')}
                 </h2>
                 <p className="text-sm text-gray-400 mt-1">
-                  Chào mừng bạn quay trở lại!
+                  {t('welcome_back')}
                 </p>
               </div>
 
               <form onSubmit={handleLogin} className="space-y-4 mt-4">
                 <div className="space-y-1.5">
                   <label className="block text-sm font-medium text-gray-700">
-                    Tên đăng nhập
+                    {t('username_label')}
                   </label>
                   <input
                     id="username"
                     type="text"
                     value={formData.username}
                     onChange={handleChange}
-                    placeholder="Nhập tên đăng nhập"
+                    placeholder={t('username_placeholder')}
                     autoComplete="username"
                     className={`w-full px-4 py-2.5 border rounded-xl text-sm outline-none transition-all placeholder:text-gray-300 ${errors.username
                       ? "border-red-300 bg-red-50 focus:ring-2 focus:ring-red-100"
@@ -254,7 +285,7 @@ const LoginPage = () => {
 
                 <div className="space-y-1.5">
                   <label className="block text-sm font-medium text-gray-700">
-                    Mật khẩu
+                    {t('password_label')}
                   </label>
                   <div className="relative">
                     <input
@@ -262,7 +293,7 @@ const LoginPage = () => {
                       type={showPassword ? "text" : "password"}
                       value={formData.password}
                       onChange={handleChange}
-                      placeholder="Nhập mật khẩu"
+                      placeholder={t('password_placeholder')}
                       autoComplete="current-password"
                       className={`w-full px-4 py-2.5 pr-11 border rounded-xl text-sm outline-none transition-all placeholder:text-gray-300 ${errors.password
                         ? "border-red-300 bg-red-50 focus:ring-2 focus:ring-red-100"
@@ -291,7 +322,7 @@ const LoginPage = () => {
                       className="w-4 h-4 rounded border-gray-300 accent-[#1a3a6b] cursor-pointer"
                     />
                     <span className="text-sm text-gray-500">
-                      Ghi nhớ đăng nhập
+                      {t('remember_me')}
                     </span>
                   </label>
                   <button
@@ -299,9 +330,11 @@ const LoginPage = () => {
                     onClick={() => navigate("/forgot-password")}
                     className="text-sm text-[#1a3a6b] font-semibold hover:underline hover:cursor-pointer"
                   >
-                    Quên mật khẩu?
+                    {t('forgot_password')}
                   </button>
                 </div>
+
+                <div id="turnstile-container" className="flex justify-center my-4"></div>
 
                 <button
                   type="submit"
@@ -314,32 +347,32 @@ const LoginPage = () => {
                   {isLoading ? (
                     <>
                       <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                      Đang xử lý...
+                      {t('processing')}
                     </>
                   ) : (
-                    "Đăng nhập"
+                    t('login_button')
                   )}
                 </button>
               </form>
 
               <p className="text-center text-sm text-gray-400 mt-5">
-                Chưa có tài khoản?{" "}
+                {t('no_account')}{" "}
                 <button
                   type="button"
                   onClick={() => navigate("/register")}
                   className="text-[#1a3a6b] font-semibold hover:underline hover:cursor-pointer"
                 >
-                  Đăng ký ngay
+                  {t('register_now')}
                 </button>
               </p>
 
               <div className="mt-5 text-center text-xs text-gray-400 space-y-1">
-                <p>Gặp vấn đề khi đăng nhập?</p>
+                <p>{t('login_problem')}</p>
                 <button
                   type="button"
                   className="text-[#1a3a6b] font-medium hover:underline hover:cursor-pointer"
                 >
-                  Liên hệ bộ phận hỗ trợ
+                  {t('support_contact')}
                 </button>
               </div>
             </motion.div>

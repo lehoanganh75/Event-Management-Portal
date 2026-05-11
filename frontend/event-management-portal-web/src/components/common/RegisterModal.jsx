@@ -1,14 +1,17 @@
 import React from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, Calendar, MapPin, CheckCircle2 } from "lucide-react";
+import { useLanguage } from "../../context/LanguageContext";
 
 const RegisterModal = ({ isOpen, onClose, onConfirm, event, isRegistering, error, isGuest }) => {
+  const { language, t } = useLanguage();
   if (!isOpen) return null;
 
   const formatDateTime = (iso) => {
-    if (!iso) return "Chưa cập nhật";
+    if (!iso) return t('not_updated');
     const d = new Date(iso);
-    return `${d.toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" })} • ${d.toLocaleDateString("vi-VN", { day: "2-digit", month: "2-digit", year: "numeric" })}`;
+    const locale = language === 'VI' ? 'vi-VN' : 'en-US';
+    return `${d.toLocaleTimeString(locale, { hour: "2-digit", minute: "2-digit" })} • ${d.toLocaleDateString(locale, { day: "2-digit", month: "2-digit", year: "numeric" })}`;
   };
 
   return (
@@ -54,10 +57,10 @@ const RegisterModal = ({ isOpen, onClose, onConfirm, event, isRegistering, error
                 </div>
                 <div>
                   <h3 className="text-xl font-bold text-gray-900">
-                    {isGuest ? "Yêu cầu đăng nhập" : "Xác nhận đăng ký"}
+                    {isGuest ? t('login_required_title') : t('confirm_reg_title')}
                   </h3>
                   <p className="text-gray-500 text-sm">
-                    {isGuest ? "Bạn cần đăng nhập để tiếp tục" : "Bạn đang thực hiện đăng ký tham gia sự kiện"}
+                    {isGuest ? t('need_login_desc') : t('performing_reg_desc')}
                   </p>
                 </div>
               </div>
@@ -94,7 +97,7 @@ const RegisterModal = ({ isOpen, onClose, onConfirm, event, isRegistering, error
                   onClick={onClose}
                   className="flex-1 px-6 py-3.5 border border-gray-200 text-gray-600 font-semibold rounded-2xl hover:bg-gray-50 transition-colors active:scale-95"
                 >
-                  Hủy bỏ
+                  {t('cancel_btn')}
                 </button>
                 <button
                   onClick={onConfirm}
@@ -104,18 +107,18 @@ const RegisterModal = ({ isOpen, onClose, onConfirm, event, isRegistering, error
                   {isRegistering ? (
                     <>
                       <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                      <span>Đang xử lý...</span>
+                      <span>{t('processing')}</span>
                     </>
                   ) : (
-                    "Xác nhận ngay"
+                    t('confirm_now')
                   )}
                 </button>
               </div>
 
               <p className="text-center text-xs text-gray-400 mt-6">
                 {isGuest 
-                  ? "Vui lòng đăng nhập để có thể tham gia các hoạt động của sự kiện."
-                  : "Bằng cách nhấn xác nhận, bạn đồng ý với các điều khoản tham gia của sự kiện này."}
+                  ? t('guest_note')
+                  : t('member_note')}
               </p>
             </div>
           </motion.div>

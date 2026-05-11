@@ -26,5 +26,6 @@ public class PostCommentResponse {
     private LocalDateTime createdAt;
     private List<PostCommentResponse> replies;
     private java.util.Map<String, String> reactions;
+    private List<String> imageUrls;
 }
 

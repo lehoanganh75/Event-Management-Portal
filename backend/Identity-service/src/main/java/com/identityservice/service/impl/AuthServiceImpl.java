@@ -36,6 +36,10 @@ public class AuthServiceImpl implements AuthService {
     private final JwtUtils jwtUtils;
     private final PasswordEncoder passwordEncoder;
     private final EmailService emailService;
+    private final org.springframework.web.client.RestTemplate restTemplate;
+
+    @Value("${cloudflare.turnstile.secret-key}")
+    private String turnstileSecretKey;
 
     @Override
     @Transactional
@@ -158,6 +162,9 @@ public class AuthServiceImpl implements AuthService {
     @Override
     @Transactional
     public AuthResponse login(LoginRequest request) {
+        // 1. Xác thực Turnstile CAPTCHA
+        verifyTurnstile(request.getTurnstileToken());
+
         User user = userRepository.findByUsernameAndIsDeletedFalse(request.getUsername())
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.CONFLICT, "Username không tồn tại hoặc đã bị xóa"));
 
@@ -327,5 +334,28 @@ public class AuthServiceImpl implements AuthService {
 
         user.setPasswordHash(passwordEncoder.encode(newPassword));
         userRepository.save(user);
+    }
+
+    private void verifyTurnstile(String token) {
+        if (token == null || token.isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Thiếu mã xác minh người dùng thật.");
+        }
+
+        String url = "https://challenges.cloudflare.com/turnstile/v0/siteverify";
+        
+        org.springframework.util.LinkedMultiValueMap<String, String> map = new org.springframework.util.LinkedMultiValueMap<>();
+        map.add("secret", turnstileSecretKey);
+        map.add("response", token);
+
+        try {
+            Map<String, Object> response = restTemplate.postForObject(url, map, Map.class);
+            if (response == null || !Boolean.TRUE.equals(response.get("success"))) {
+                log.error("Turnstile verification failed: {}", response);
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Xác minh người dùng thật không thành công. Vui lòng thử lại.");
+            }
+        } catch (Exception e) {
+            log.error("Error calling Turnstile API", e);
+            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Lỗi hệ thống khi xác minh người dùng.");
+        }
     }
 }

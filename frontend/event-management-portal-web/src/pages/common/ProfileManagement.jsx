@@ -155,6 +155,8 @@ const ProfileManagement = () => {
     }
   };
 
+  const [isLogoutConfirmOpen, setIsLogoutConfirmOpen] = useState(false);
+
   const handleLogout = async () => {
     await logout();
     navigate("/");
@@ -188,6 +190,36 @@ const ProfileManagement = () => {
 
   return (
     <div className="font-sans">
+      {/* Logout Confirmation Modal */}
+      {isLogoutConfirmOpen && (
+        <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm">
+          <div className="bg-white rounded-[32px] p-10 max-w-sm w-full text-center shadow-2xl border border-slate-100 animate-in zoom-in duration-300">
+            <div className="flex flex-col items-center">
+              <div className="w-20 h-20 mx-auto mb-6 bg-rose-50 text-rose-500 rounded-full flex items-center justify-center shadow-inner">
+                <LogOut size={32} strokeWidth={2.5} />
+              </div>
+              <h3 className="text-2xl font-black text-slate-800 mb-3 uppercase tracking-tight">Đăng xuất?</h3>
+              <p className="text-slate-500 text-sm font-medium leading-relaxed mb-8">Bạn có chắc chắn muốn đăng xuất khỏi hệ thống không?</p>
+
+              <div className="flex flex-col w-full gap-3">
+                <button
+                  onClick={handleLogout}
+                  className="w-full py-4 bg-rose-500 text-white rounded-2xl font-black text-sm uppercase tracking-widest hover:bg-rose-600 hover:shadow-lg hover:shadow-rose-100 active:scale-[0.98] transition-all cursor-pointer"
+                >
+                  Đăng xuất
+                </button>
+                <button
+                  onClick={() => setIsLogoutConfirmOpen(false)}
+                  className="w-full py-4 bg-white text-slate-400 rounded-2xl font-black text-sm uppercase tracking-widest hover:text-slate-600 hover:bg-slate-50 transition-all cursor-pointer"
+                >
+                  Hủy bỏ
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Toast Notification */}
       {toast.show && (
         <div className={`fixed top-28 right-6 z-50 flex items-center gap-3 px-5 py-3.5 bg-white rounded-2xl shadow-2xl border transition-all ${toast.type === "success" ? "border-emerald-100" : "border-red-100"}`}>
@@ -243,7 +275,7 @@ const ProfileManagement = () => {
               </div>
 
               <div className="mt-4 pt-4 border-t border-slate-100">
-                <button onClick={handleLogout} className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold text-red-500 hover:bg-red-50 transition-all cursor-pointer">
+                <button onClick={() => setIsLogoutConfirmOpen(true)} className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold text-red-500 hover:bg-red-50 transition-all cursor-pointer">
                   <LogOut size={16} /> Đăng xuất
                 </button>
               </div>

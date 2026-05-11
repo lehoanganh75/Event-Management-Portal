@@ -15,6 +15,7 @@ import com.fasterxml.jackson.annotation.JsonBackReference;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonManagedReference;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
@@ -22,6 +23,7 @@ import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.annotations.UpdateTimestamp;
 import org.hibernate.type.SqlTypes;
 
+import org.hibernate.annotations.SQLRestriction;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -35,6 +37,7 @@ import java.util.Map;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
+@SQLRestriction("is_deleted = 0")
 public class PostComment {
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
@@ -55,9 +58,24 @@ public class PostComment {
     private String content;
 
     // --- Status ---
-    private boolean isEdited = false;
+    private Boolean isEdited = false;
 
-    private boolean isDeleted = false;
+    private Boolean isDeleted = false;
+    
+    @JsonProperty("isAnonymous")
+    @Column(name = "is_anonymous")
+    private Boolean anonymous = false;
+
+    @JsonProperty("isAnonymous")
+    public Boolean isAnonymous() {
+        return anonymous != null && anonymous;
+    }
+
+    public void setAnonymous(Boolean anonymous) {
+        this.anonymous = anonymous;
+    }
+
+    private String anonymousIdentity;
 
     // --- Audit ---
     @CreationTimestamp
@@ -70,6 +88,10 @@ public class PostComment {
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(columnDefinition = "JSON")
     private Map<String, String> reactions = new HashMap<>(); // accountId -> emoji
+
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(columnDefinition = "JSON")
+    private List<String> imageUrls = new ArrayList<>(); // accountId -> emoji
 
     // --- Relationships ---
     @ManyToOne(fetch = FetchType.LAZY)

@@ -18,7 +18,8 @@ import {
   Share2,
   Heart,
   Mail,
-  Phone
+  Phone,
+  Camera
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -34,11 +35,13 @@ import SurveyModal from "../../components/survey/SurveyModal";
 import { toast } from "react-toastify";
 import { useAuth } from "../../context/AuthContext";
 import { useQuiz } from "../../hooks/useQuiz";
+import { useLanguage } from "../../context/LanguageContext";
 
 export default function EventDetail() {
   const { eventId } = useParams();
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { language, t } = useLanguage();
 
   console.log("User", user);
 
@@ -93,7 +96,8 @@ export default function EventDetail() {
   const formatTimeRange = (startTime, endTime) => {
     const start = new Date(startTime);
     const end = new Date(endTime);
-    return `${start.toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" })} - ${end.toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" })}`;
+    const locale = language === 'VI' ? 'vi-VN' : 'en-US';
+    return `${start.toLocaleTimeString(locale, { hour: "2-digit", minute: "2-digit" })} - ${end.toLocaleTimeString(locale, { hour: "2-digit", minute: "2-digit" })}`;
   };
 
   const isDeadlinePassed = (deadline) => {
@@ -131,7 +135,11 @@ export default function EventDetail() {
     }
 
     if (role.registered && role.registration?.status !== "CANCELLED") {
-      setShowTicket(true);
+      if (role.registration?.checkedIn) {
+        setShowTicket(true);
+      } else {
+        setShowScanner(true);
+      }
       return;
     }
 
@@ -140,7 +148,7 @@ export default function EventDetail() {
 
   const confirmRegistration = async () => {
     if (!user) {
-      toast.info("Đang chuyển hướng đến trang đăng nhập để đăng ký tham gia sự kiện!", {
+      toast.info(t('reg_redirect'), {
         autoClose: 2000
       });
       setShowRegisterModal(false);
@@ -153,15 +161,14 @@ export default function EventDetail() {
     setIsRegistering(true);
     try {
       await eventService.registerEvent(event.id);
-      toast.success("Đăng ký thành công!");
+      toast.success(t('reg_success'));
       setShowRegisterModal(false);
       // Delay fetch to allow backend to update registeredCount
       setTimeout(async () => {
         await fetchEvent();
-        setShowTicket(true);
       }, 1000);
     } catch (error) {
-      const msg = error.response?.data?.message || "Đăng ký thất bại";
+      const msg = error.response?.data?.message || t('reg_failed');
       setRegistrationError(msg);
       toast.error(msg);
     } finally {
@@ -173,10 +180,10 @@ export default function EventDetail() {
     setShowScanner(false);
     try {
       await eventService.checkInByEventToken(token);
-      toast.success("Điểm danh thành công!");
+      toast.success(t('checkin_success'));
       await fetchEvent();
     } catch (err) {
-      toast.error(err.response?.data?.message || "Mã QR không hợp lệ");
+      toast.error(err.response?.data?.message || t('invalid_qr'));
     }
   };
 
@@ -184,7 +191,7 @@ export default function EventDetail() {
     setIsRegistering(true);
     try {
       await eventService.cancelRegistration(event.id);
-      toast.success("Đã hủy đăng ký");
+      toast.success(t('cancel_success'));
       setShowCancelModal(false);
       // Delay fetch to allow backend to update registeredCount
       setTimeout(async () => {
@@ -192,7 +199,7 @@ export default function EventDetail() {
         setShowTicket(false);
       }, 1000);
     } catch (error) {
-      toast.error("Hủy đăng ký thất bại");
+      toast.error(t('reg_failed'));
     } finally {
       setIsRegistering(false);
     }
@@ -203,13 +210,16 @@ export default function EventDetail() {
       <div className="min-h-screen flex items-center justify-center bg-gray-50 font-sans">
         <div className="flex flex-col items-center">
           <div className="w-16 h-16 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin"></div>
-          <p className="mt-6 text-gray-500 font-medium tracking-tight animate-pulse">Khởi tạo không gian sự kiện...</p>
+          <p className="mt-6 text-gray-500 font-medium tracking-tight animate-pulse">{t('initializing')}</p>
         </div>
       </div>
     );
   }
 
-  if (!event) return <div>Event not found</div>;
+  if (loading) {
+    // ... loading state
+  }
+  if (!event) return <div>{t('event_not_found')}</div>;
 
   const role = event.currentUserRole || {};
 
@@ -236,7 +246,7 @@ export default function EventDetail() {
             className="group bg-white/10 backdrop-blur-md hover:bg-white/20 text-white border border-white/20 px-4 py-2 rounded-2xl flex items-center gap-2 transition-all active:scale-95"
           >
             <ArrowLeft size={18} className="group-hover:-translate-x-1 transition-transform" />
-            <span className="font-semibold text-sm">Quay lại</span>
+            <span className="font-semibold text-sm">{t('back_btn')}</span>
           </button>
         </div>
 
@@ -250,7 +260,7 @@ export default function EventDetail() {
             >
               <div className="flex flex-wrap gap-2 mb-4">
                 <span className="bg-indigo-600 text-white text-[10px] font-bold uppercase tracking-widest px-3 py-1 rounded-md shadow-sm">
-                  {event.type || "SỰ KIỆN"}
+                  {event.type || t('event_type')}
                 </span>
                 {event.hasLuckyDraw && (
                   <span className="bg-amber-500 text-white text-[10px] font-bold uppercase tracking-widest px-3 py-1 rounded-md flex items-center gap-1.5 shadow-sm">
@@ -268,21 +278,21 @@ export default function EventDetail() {
               </h1>
 
               <div className="flex flex-wrap gap-8 text-white/90">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-lg bg-white/10 backdrop-blur-md flex items-center justify-center border border-white/10">
-                    <Calendar size={20} className="text-white" />
-                  </div>
-                  <div>
-                    <p className="text-[10px] font-bold text-white/60 uppercase tracking-widest mb-0.5">Ngày diễn ra</p>
-                    <p className="font-semibold text-sm md:text-base">{event.eventDate || "12/05/2026"}</p>
-                  </div>
+                <div className="w-10 h-10 rounded-lg bg-white/10 backdrop-blur-md flex items-center justify-center border border-white/10">
+                  <Calendar size={20} className="text-white" />
+                </div>
+                <div>
+                  <p className="text-[10px] font-bold text-white/60 uppercase tracking-widest mb-0.5">{t('event_date_label')}</p>
+                  <p className="font-semibold text-sm md:text-base">
+                    {event.startTime ? new Date(event.startTime).toLocaleDateString(language === 'VI' ? 'vi-VN' : 'en-US', { day: '2-digit', month: '2-digit', year: 'numeric' }) : "12/05/2026"}
+                  </p>
                 </div>
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 rounded-lg bg-white/10 backdrop-blur-md flex items-center justify-center border border-white/10">
                     <MapPin size={20} className="text-white" />
                   </div>
                   <div>
-                    <p className="text-[10px] font-bold text-white/60 uppercase tracking-widest mb-0.5">Địa điểm</p>
+                    <p className="text-[10px] font-bold text-white/60 uppercase tracking-widest mb-0.5">{t('location_label')}</p>
                     <p className="font-semibold text-sm md:text-base">{event.location}</p>
                   </div>
                 </div>
@@ -303,7 +313,7 @@ export default function EventDetail() {
             <div className="bg-white rounded-3xl p-8 shadow-sm border border-slate-200">
               <div className="flex items-center gap-3 mb-6">
                 <div className="w-1 h-6 bg-indigo-600 rounded-full" />
-                <h2 className="text-xl font-bold text-slate-800 uppercase tracking-tight">Giới thiệu sự kiện</h2>
+                <h2 className="text-xl font-bold text-slate-800 uppercase tracking-tight">{t('event_intro')}</h2>
               </div>
               <div className="prose prose-slate max-w-none">
                 <p className="text-slate-600 text-lg leading-relaxed whitespace-pre-line font-medium italic mb-8">
@@ -315,7 +325,7 @@ export default function EventDetail() {
               <div className="mt-12">
                 <h3 className="text-sm font-black text-slate-400 uppercase tracking-[0.15em] mb-6 flex items-center gap-2">
                   <Users size={16} />
-                  Đối tượng tham gia
+                  {t('target_audience')}
                 </h3>
                 <div className="flex flex-wrap gap-3">
                   {event.targetobjects?.length > 0 ? (
@@ -326,7 +336,7 @@ export default function EventDetail() {
                       </span>
                     ))
                   ) : (
-                    <span className="text-slate-400 italic">Mọi người quan tâm</span>
+                    <span className="text-slate-400 italic">{t('everyone_welcome')}</span>
                   )}
                 </div>
               </div>
@@ -337,10 +347,10 @@ export default function EventDetail() {
               <div className="flex items-center justify-between mb-8">
                 <div className="flex items-center gap-3">
                   <div className="w-1 h-6 bg-indigo-600 rounded-full" />
-                  <h2 className="text-xl font-bold text-slate-800 uppercase tracking-tight">Lịch trình chi tiết</h2>
+                  <h2 className="text-xl font-bold text-slate-800 uppercase tracking-tight">{t('detailed_schedule')}</h2>
                 </div>
                 <div className="bg-slate-50 text-slate-600 px-3 py-1 rounded-md text-[10px] font-bold uppercase tracking-widest border border-slate-100">
-                  {event.sessions?.length || 0} Phiên
+                  {event.sessions?.length || 0} {t('sessions_count')}
                 </div>
               </div>
 
@@ -353,10 +363,10 @@ export default function EventDetail() {
                     >
                       <div className="w-20 flex-shrink-0 pt-1">
                         <p className="font-bold text-slate-900 text-sm">
-                          {new Date(session.startTime).toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" })}
+                          {new Date(session.startTime).toLocaleTimeString(language === 'VI' ? "vi-VN" : "en-US", { hour: "2-digit", minute: "2-digit" })}
                         </p>
                         <p className="text-[10px] font-medium text-slate-400 uppercase tracking-wider mt-1">
-                          {new Date(session.endTime).toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" })}
+                          {new Date(session.endTime).toLocaleTimeString(language === 'VI' ? "vi-VN" : "en-US", { hour: "2-digit", minute: "2-digit" })}
                         </p>
                       </div>
 
@@ -390,7 +400,7 @@ export default function EventDetail() {
                           )}
 
                           <span className="text-[10px] font-bold text-indigo-500 bg-indigo-50 px-2 py-0.5 rounded">
-                            {index === 0 ? "Bắt đầu" : index === event.sessions.length - 1 ? "Kết thúc" : "Phiên họp"}
+                            {index === 0 ? t('session_start') : index === event.sessions.length - 1 ? t('session_end') : t('session_normal')}
                           </span>
                         </div>
                       </div>
@@ -409,7 +419,7 @@ export default function EventDetail() {
             <div className="bg-white rounded-3xl p-8 shadow-sm border border-slate-200">
               <div className="flex items-center gap-3 mb-8">
                 <div className="w-1 h-6 bg-indigo-600 rounded-full" />
-                <h2 className="text-xl font-bold text-slate-800 uppercase tracking-tight">Diễn giả & Khách mời</h2>
+                <h2 className="text-xl font-bold text-slate-800 uppercase tracking-tight">{t('presenters_guests')}</h2>
               </div>
 
               <div className="grid grid-cols-1 gap-4">
@@ -467,7 +477,7 @@ export default function EventDetail() {
             {/* ĐƠN VỊ TỔ CHỨC */}
             {event.organization && (
               <div className="bg-white rounded-3xl p-6 shadow-sm border border-slate-200">
-                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-4">Đơn vị tổ chức</p>
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-4">{t('organizer_label')}</p>
                 <div className="flex items-center gap-4">
                   <div className="w-12 h-12 rounded-xl bg-slate-50 flex items-center justify-center overflow-hidden border border-slate-200 p-2">
                     {event.organization.logourl ? (
@@ -491,8 +501,8 @@ export default function EventDetail() {
               <div className="mb-6 pt-2">
                 <div className="flex items-center justify-between mb-4">
                   <div className="flex flex-col">
-                    <span className="text-3xl font-bold text-indigo-600 tracking-tight">Miễn phí</span>
-                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Sự kiện nội bộ</span>
+                    <span className="text-3xl font-bold text-indigo-600 tracking-tight">{t('free_label')}</span>
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">{t('internal_event')}</span>
                   </div>
                   <div className="bg-slate-50 p-2 rounded-xl">
                     <QrCode size={20} className="text-slate-400" />
@@ -510,16 +520,16 @@ export default function EventDetail() {
 
                 <div className="pt-4 border-t border-slate-100 grid grid-cols-3 gap-2">
                   <div className="flex flex-col items-center">
-                    <span className="text-[9px] font-bold text-slate-400 uppercase tracking-tighter mb-1">Tổng cộng</span>
-                    <span className="font-bold text-slate-800 text-xs">{event.maxParticipants} Ghế</span>
+                    <span className="text-[9px] font-bold text-slate-400 uppercase tracking-tighter mb-1">{t('total_label')}</span>
+                    <span className="font-bold text-slate-800 text-xs">{event.maxParticipants} {t('seats_label')}</span>
                   </div>
                   <div className="flex flex-col items-center border-x border-slate-100">
-                    <span className="text-[9px] font-bold text-slate-400 uppercase tracking-tighter mb-1">Đã đăng ký</span>
+                    <span className="text-[9px] font-bold text-slate-400 uppercase tracking-tighter mb-1">{t('registered_label')}</span>
                     <span className="font-bold text-emerald-600 text-xs">{event.registeredCount}</span>
                   </div>
                   <div className="flex flex-col items-center">
-                    <span className="text-[9px] font-bold text-slate-400 uppercase tracking-tighter mb-1">Thời hạn</span>
-                    <span className="font-bold text-slate-800 text-[10px]">{new Date(event.registrationDeadline).toLocaleDateString("vi-VN", { day: '2-digit', month: '2-digit' })}</span>
+                    <span className="text-[9px] font-bold text-slate-400 uppercase tracking-tighter mb-1">{t('deadline_label')}</span>
+                    <span className="font-bold text-slate-800 text-[10px]">{new Date(event.registrationDeadline).toLocaleDateString(language === 'VI' ? "vi-VN" : "en-US", { day: '2-digit', month: '2-digit' })}</span>
                   </div>
                 </div>
               </div>
@@ -551,27 +561,44 @@ export default function EventDetail() {
                   ) : role.creator || role.approver || role.organizerRole || isSystemAdmin() ? (
                     <>
                       <ShieldCheck size={20} />
-                      Quản lý sự kiện
+                      {t('org_dashboard')}
                     </>
                   ) : role.registered && role.registration?.status !== "CANCELLED" ? (
                     <>
-                      <QrCode size={20} />
-                      {role.registration?.checkedIn ? "Đã điểm danh ✓" : "Xem vé tham gia"}
+                      {role.registration?.checkedIn ? (
+                        <>
+                          <QrCode size={20} />
+                          {t('checked_in_status')}
+                        </>
+                      ) : (
+                        <>
+                          <Camera size={20} />
+                          {t('scan_checkin')}
+                        </>
+                      )}
                     </>
                   ) : isDeadlinePassed(event.registrationDeadline) ? (
-                    "Hết hạn đăng ký"
+                    t('reg_deadline_passed')
                   ) : (
-                    "Đăng ký ngay"
+                    t('register_now')
                   )}
                 </motion.button>
 
                 {role.registered && role.registration?.status !== "CANCELLED" && !showTicket && (
-                  <button
-                    onClick={() => setShowCancelModal(true)}
-                    className="w-full py-4 text-[10px] font-black text-slate-400 hover:text-rose-500 uppercase tracking-[0.2em] transition-colors"
-                  >
-                    Hủy đăng ký tham gia
-                  </button>
+                  <div className="w-full">
+                    {new Date(event.startTime) - new Date() > 30 * 60 * 1000 ? (
+                      <button
+                        onClick={() => setShowCancelModal(true)}
+                        className="w-full py-4 text-[10px] font-black text-slate-400 hover:text-rose-500 uppercase tracking-[0.2em] transition-colors"
+                      >
+                        {t('cancel_reg')}
+                      </button>
+                    ) : (
+                      <div className="w-full py-4 text-[9px] font-bold text-slate-300 text-center uppercase tracking-wider">
+                        Quá hạn hủy đăng ký sự kiện
+                      </div>
+                    )}
+                  </div>
                 )}
 
                 {/* INTERACTIONS FOR REGISTERED USERS */}
@@ -582,13 +609,13 @@ export default function EventDetail() {
                       className="flex flex-col items-center gap-1.5 p-3 rounded-xl bg-slate-50 border border-slate-100 hover:bg-indigo-50 hover:border-indigo-100 transition-all"
                     >
                       <ClipboardCheck size={18} className="text-indigo-600" />
-                      <span className="text-[9px] font-bold text-slate-700 uppercase">Khảo sát</span>
+                      <span className="text-[9px] font-bold text-slate-700 uppercase">{t('survey_label')}</span>
                     </button>
                     <button
                       className="flex flex-col items-center gap-1.5 p-3 rounded-xl bg-slate-50 border border-slate-100 hover:bg-amber-50 hover:border-amber-100 transition-all"
                     >
                       <MessageCircle size={18} className="text-amber-600" />
-                      <span className="text-[9px] font-bold text-slate-700 uppercase">Hỏi đáp</span>
+                      <span className="text-[9px] font-bold text-slate-700 uppercase">{t('q_and_a_label')}</span>
                     </button>
                   </div>
                 )}
@@ -605,7 +632,7 @@ export default function EventDetail() {
                 Hệ thống quản lý sự kiện thông minh, điểm danh QR và chatbot AI hỗ trợ 24/7.
               </p>
               <button className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-indigo-400 hover:text-white transition-colors">
-                Tìm hiểu thêm <ChevronRight size={14} />
+                {t('explore_more')} <ChevronRight size={14} />
               </button>
             </div>
           </div>
@@ -661,11 +688,11 @@ export default function EventDetail() {
               <div className="w-16 h-16 bg-rose-50 text-rose-500 rounded-2xl flex items-center justify-center mx-auto mb-6">
                 <XCircle size={32} />
               </div>
-              <h3 className="text-xl font-bold text-slate-800 mb-2 uppercase tracking-tight">Hủy đăng ký?</h3>
-              <p className="text-slate-500 text-xs font-medium mb-8 leading-relaxed">Bạn chắc chắn muốn hủy tham gia? Bạn có thể mất suất nếu sự kiện đã đủ người.</p>
+              <h3 className="text-xl font-bold text-slate-800 mb-2 uppercase tracking-tight">{t('confirm_cancel')}</h3>
+              <p className="text-slate-500 text-xs font-medium mb-8 leading-relaxed">{t('confirm_cancel_desc')}</p>
               <div className="flex gap-3">
-                <button onClick={() => setShowCancelModal(false)} className="flex-1 py-3 bg-slate-100 text-slate-600 font-bold rounded-xl text-[10px] uppercase tracking-widest">Quay lại</button>
-                <button onClick={handleCancelRegistration} className="flex-1 py-3 bg-rose-600 text-white font-bold rounded-xl text-[10px] uppercase tracking-widest shadow-sm">Hủy ngay</button>
+                <button onClick={() => setShowCancelModal(false)} className="flex-1 py-3 bg-slate-100 text-slate-600 font-bold rounded-xl text-[10px] uppercase tracking-widest">{t('back_btn')}</button>
+                <button onClick={handleCancelRegistration} className="flex-1 py-3 bg-rose-600 text-white font-bold rounded-xl text-[10px] uppercase tracking-widest shadow-sm">{t('cancel_confirm_btn')}</button>
               </div>
             </motion.div>
           </div>

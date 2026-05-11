@@ -13,52 +13,58 @@ import {
   parseISO
 } from "date-fns";
 import viLocale from "date-fns/locale/vi";
+import enLocale from "date-fns/locale/en-US";
 import { ChevronLeft, ChevronRight, X, Users, MapPin, Calendar as CalendarIcon } from "lucide-react";
 import { Link } from "react-router-dom";
 import Header from "../../components/layout/Header";
 import eventService from "../../services/eventService";
+import { useLanguage } from "../../context/LanguageContext";
 
-const getCategoryByEventType = (type) => {
+const getCategoryByEventType = (type, t) => {
   switch (type) {
     case "WORKSHOP":
     case "WEBINAR":
-      return "Học Thuật - Kỹ năng";
+      return t('category_academic');
     case "CONCERT":
-      return "Văn Hóa - Văn nghệ";
+      return t('category_culture');
     case "COMPETITION":
-      return "Thể thao";
+      return t('category_sports');
     case "SEMINAR":
     case "TALKSHOW":
     case "CONFERENCE":
-      return "Diễn đàn - Hội thảo";
+      return t('category_forum');
     case "FESTIVAL":
-      return "Lễ hội trường";
+      return t('category_festival');
     case "VOLUNTEER":
-      return "Vì Cộng Đồng";
+      return t('category_community');
     case "INTERNATIONAL":
-      return "Quốc tế";
+      return t('category_intl');
     default:
-      return "Học Thuật - Kỹ năng";
+      return t('category_academic');
   }
 };
 
-const CATEGORY_COLORS = {
-  "Học Thuật - Kỹ năng": "bg-[#4B84D3]",
-  "Văn Hóa - Văn nghệ": "bg-[#F19B9B]",
-  "Thể thao": "bg-[#FFC627]",
-  "Vì Cộng Đồng": "bg-[#097341]",
-  "Quốc tế": "bg-[#FF4D4D]",
-  "Lễ hội trường": "bg-[#D97D21]",
-  "Diễn đàn - Hội thảo": "bg-[#00A195]"
-};
+const getCategoryColors = (t) => ({
+  [t('category_academic')]: "bg-[#4B84D3]",
+  [t('category_culture')]: "bg-[#F19B9B]",
+  [t('category_sports')]: "bg-[#FFC627]",
+  [t('category_community')]: "bg-[#097341]",
+  [t('category_intl')]: "bg-[#FF4D4D]",
+  [t('category_festival')]: "bg-[#D97D21]",
+  [t('category_forum')]: "bg-[#00A195]"
+});
 
 // Fallback color if category not found
 const DEFAULT_COLOR = "bg-blue-400";
 
 const CalendarPage = () => {
+  const { t, language } = useLanguage();
   const [currentDate, setCurrentDate] = useState(new Date()); // Auto start with current date
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(true);
+  
+  const CATEGORY_COLORS = getCategoryColors(t);
+  const locale = language === 'VI' ? viLocale : enLocale;
   
   // Modal state
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -116,7 +122,7 @@ const CalendarPage = () => {
           <ChevronLeft size={28} strokeWidth={3} />
         </button>
         <div className="bg-[#D32027] text-white px-8 py-2 rounded-lg mx-6 font-bold text-2xl uppercase">
-          Tháng {format(currentDate, "M yyyy")}
+          {t('month')} {format(currentDate, language === 'VI' ? "M yyyy" : "MMM yyyy", { locale })}
         </div>
         <button onClick={nextMonth} className="text-red-700 hover:text-red-800 p-2">
           <ChevronRight size={28} strokeWidth={3} />
@@ -126,7 +132,7 @@ const CalendarPage = () => {
   };
 
   const renderDays = () => {
-    const days = ["Thứ 2", "Thứ 3", "Thứ 4", "Thứ 5", "Thứ 6", "Thứ 7", "Chủ nhật"];
+    const days = [t('mon'), t('tue'), t('wed'), t('thu'), t('fri'), t('sat'), t('sun')];
     return (
       <div className="grid grid-cols-7 bg-[#D32027]">
         {days.map((day, idx) => (
@@ -167,7 +173,7 @@ const CalendarPage = () => {
             </div>
             <div className="flex-1 overflow-visible space-y-1 mt-1 pr-1">
               {dayEvents.slice(0, 5).map((event, idx) => {
-                const category = event.categoryName || event.category || getCategoryByEventType(event.type);
+                const category = event.categoryName || event.category || getCategoryByEventType(event.type, t);
                 const bgClass = CATEGORY_COLORS[category] || DEFAULT_COLOR;
                 return (
                   <Link
@@ -185,7 +191,7 @@ const CalendarPage = () => {
               
               {dayEvents.length > 5 && (
                 <div className="text-[10px] font-bold text-red-600 bg-red-50 p-1 rounded text-center mt-1 border border-red-100 hover:bg-red-100 transition-colors">
-                  + {dayEvents.length - 5} sự kiện khác
+                  + {dayEvents.length - 5} {t('more_events')}
                 </div>
               )}
             </div>
@@ -246,9 +252,9 @@ const CalendarPage = () => {
               <div className="bg-[#D32027] p-4 flex justify-between items-center text-white">
                 <div>
                   <h2 className="text-xl font-bold">
-                    Sự kiện ngày {selectedDay ? format(selectedDay, "dd/MM/yyyy") : ""}
+                    {t('events_on')} {selectedDay ? format(selectedDay, "dd/MM/yyyy") : ""}
                   </h2>
-                  <p className="text-sm opacity-90">Có {selectedDayEvents.length} sự kiện diễn ra trong ngày này</p>
+                  <p className="text-sm opacity-90">{language === 'VI' ? `Có ${selectedDayEvents.length} sự kiện diễn ra trong ngày này` : `There are ${selectedDayEvents.length} events on this day`}</p>
                 </div>
                 <button 
                   onClick={() => setIsModalOpen(false)}
@@ -261,7 +267,7 @@ const CalendarPage = () => {
               {/* Modal Content */}
               <div className="flex-1 overflow-y-auto p-4 space-y-4 custom-scrollbar">
                 {selectedDayEvents.map((event, idx) => {
-                  const category = event.categoryName || event.category || getCategoryByEventType(event.type);
+                  const category = event.categoryName || event.category || getCategoryByEventType(event.type, t);
                   const bgClass = CATEGORY_COLORS[category] || DEFAULT_COLOR;
                   
                   return (
@@ -294,7 +300,7 @@ const CalendarPage = () => {
                           )}
                           <div className="flex items-center gap-2">
                             <Users size={16} className="text-[#D32027]" />
-                            <span>{event.registeredCount || 0} người đã đăng ký</span>
+                            <span>{event.registeredCount || 0} {t('registered_count')}</span>
                           </div>
                         </div>
                       </div>
@@ -312,7 +318,7 @@ const CalendarPage = () => {
                   onClick={() => setIsModalOpen(false)}
                   className="px-6 py-2 bg-gray-200 text-gray-700 rounded-lg font-bold hover:bg-gray-300 transition-colors"
                 >
-                  Đóng
+                  {t('close_btn')}
                 </button>
               </div>
             </div>

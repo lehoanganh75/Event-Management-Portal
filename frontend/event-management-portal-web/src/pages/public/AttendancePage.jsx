@@ -11,6 +11,7 @@ import jsQR from "jsqr";
 import { useEvents } from "../../context/EventContext";
 import Header from "../../components/layout/Header";
 import Footer from "../../components/layout/Footer";
+import { useLanguage } from "../../context/LanguageContext";
 
 const AttendancePage = () => {
   const location = useLocation();
@@ -18,6 +19,7 @@ const AttendancePage = () => {
 
   // 2. LẤY SERVICE TỪ useEvents
   const { events } = useEvents();
+  const { t } = useLanguage();
 
   const [scanning, setScanning] = useState(false);
   const [scannedStatus, setScannedStatus] = useState(null);
@@ -53,7 +55,7 @@ const AttendancePage = () => {
         scanIntervalRef.current = setInterval(scanQRCode, 500);
       };
     } catch (err) {
-      toast.error("Không thể truy cập camera. Vui lòng kiểm tra quyền truy cập.");
+      toast.error(t('camera_access_error'));
     }
   };
 
@@ -106,9 +108,9 @@ const AttendancePage = () => {
       await events.checkIn(token);
       
       setScannedStatus("success");
-      toast.success("Điểm danh thành công!");
+      toast.success(t('checkin_success_toast'));
     } catch (error) {
-      const msg = error.response?.data?.message || "Mã QR không hợp lệ hoặc đã check-in!";
+      const msg = error.response?.data?.message || t('invalid_or_used_qr');
       toast.error(msg);
       setScannedStatus("error");
     } finally {
@@ -127,17 +129,17 @@ const AttendancePage = () => {
             <div className="bg-white rounded-4xl p-8 shadow-sm border border-slate-100 relative overflow-hidden group">
               <div className="absolute top-0 right-0 w-24 h-24 bg-blue-50 rounded-bl-full -mr-12 -mt-12 transition-transform group-hover:scale-110" />
               <div className="flex items-center gap-4 mb-8">
-                <div className="p-3 rounded-2xl bg-indigo-50 text-indigo-600">
-                  <Settings size={24} />
-                </div>
-                <div>
-                  <h2 className="font-black text-slate-800 text-lg uppercase tracking-tight">Check-in tự động</h2>
-                  <p className="text-slate-400 text-xs font-bold uppercase tracking-widest">Scanner 4.0</p>
-                </div>
-              </div>
-              <p className="text-slate-500 text-sm leading-relaxed">
-                Đưa mã QR của sinh viên vào khung quét. Hệ thống sẽ đối soát với danh sách đăng ký và ghi nhận điểm danh ngay lập tức.
-              </p>
+                 <div className="p-3 rounded-2xl bg-indigo-50 text-indigo-600">
+                   <Settings size={24} />
+                 </div>
+                 <div>
+                   <h2 className="font-black text-slate-800 text-lg uppercase tracking-tight">{t('auto_checkin')}</h2>
+                   <p className="text-slate-400 text-xs font-bold uppercase tracking-widest">Scanner 4.0</p>
+                 </div>
+               </div>
+               <p className="text-slate-500 text-sm leading-relaxed">
+                 {t('scanner_desc')}
+               </p>
             </div>
           </motion.div>
 
@@ -149,13 +151,13 @@ const AttendancePage = () => {
                   
                   {!scanning && !scannedStatus && (
                     <div className="py-10">
-                      <div className="w-24 h-24 bg-blue-50 rounded-4xl flex items-center justify-center mx-auto mb-8 rotate-12 shadow-inner">
-                        <Smartphone className="text-blue-600 w-12 h-12 -rotate-12" />
-                      </div>
-                      <h2 className="text-3xl font-black text-slate-800 mb-4 tracking-tighter uppercase">Sẵn sàng điểm danh</h2>
-                      <button onClick={startCamera} className="px-12 py-4 bg-blue-600 text-white rounded-2xl font-black shadow-xl shadow-blue-200 hover:bg-blue-700 transition-all flex items-center gap-3 mx-auto uppercase tracking-widest">
-                        <Camera size={20} /> Mở Camera
-                      </button>
+                       <div className="w-24 h-24 bg-blue-50 rounded-4xl flex items-center justify-center mx-auto mb-8 rotate-12 shadow-inner">
+                         <Smartphone className="text-blue-600 w-12 h-12 -rotate-12" />
+                       </div>
+                       <h2 className="text-3xl font-black text-slate-800 mb-4 tracking-tighter uppercase">{t('ready_to_checkin')}</h2>
+                       <button onClick={startCamera} className="px-12 py-4 bg-blue-600 text-white rounded-2xl font-black shadow-xl shadow-blue-200 hover:bg-blue-700 transition-all flex items-center gap-3 mx-auto uppercase tracking-widest">
+                         <Camera size={20} /> {t('open_camera')}
+                       </button>
                     </div>
                   )}
                   
@@ -183,27 +185,27 @@ const AttendancePage = () => {
                       <div className="relative w-24 h-24 mx-auto mb-8">
                         <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} className="absolute inset-0 bg-emerald-100 rounded-full" />
                         <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ delay: 0.2 }} className="absolute inset-2 bg-emerald-500 rounded-full flex items-center justify-center text-white">
-                          <ShieldCheck size={48} />
-                        </motion.div>
-                      </div>
-                      <h2 className="text-3xl font-black text-slate-800 mb-2">THÀNH CÔNG!</h2>
-                      <p className="text-slate-400 mb-10 font-bold text-xs uppercase tracking-widest">Đã xác nhận sự diện diện của sinh viên</p>
-                      <button onClick={startCamera} className="px-10 py-3.5 bg-slate-900 text-white rounded-2xl font-black text-xs hover:bg-blue-600 transition-all flex items-center gap-2 mx-auto uppercase tracking-widest">
-                         <RefreshCw size={16} /> Quét mã tiếp theo
-                      </button>
+                           <ShieldCheck size={48} />
+                         </motion.div>
+                       </div>
+                       <h2 className="text-3xl font-black text-slate-800 mb-2">{t('scanning_success')}</h2>
+                       <p className="text-slate-400 mb-10 font-bold text-xs uppercase tracking-widest">{t('confirmed_presence')}</p>
+                       <button onClick={startCamera} className="px-10 py-3.5 bg-slate-900 text-white rounded-2xl font-black text-xs hover:bg-blue-600 transition-all flex items-center gap-2 mx-auto uppercase tracking-widest">
+                          <RefreshCw size={16} /> {t('scan_next')}
+                       </button>
                     </div>
                   )}
                   
                   {scannedStatus === "error" && (
                     <div className="py-10">
-                      <div className="w-24 h-24 bg-rose-100 rounded-full flex items-center justify-center mx-auto mb-8">
-                        <X size={48} className="text-rose-500" />
-                      </div>
-                      <h2 className="text-3xl font-black text-slate-800 mb-2">LỖI!</h2>
-                      <p className="text-slate-400 mb-10 font-bold text-sm">Mã không hợp lệ hoặc đã được sử dụng trước đó.</p>
-                      <button onClick={startCamera} className="px-10 py-3.5 bg-slate-100 text-slate-600 rounded-2xl font-black text-xs hover:bg-slate-200 transition-all flex items-center gap-2 mx-auto">
-                         <RefreshCw size={16} /> THỬ LẠI
-                      </button>
+                       <div className="w-24 h-24 bg-rose-100 rounded-full flex items-center justify-center mx-auto mb-8">
+                         <X size={48} className="text-rose-500" />
+                       </div>
+                       <h2 className="text-3xl font-black text-slate-800 mb-2">{t('scanning_error')}</h2>
+                       <p className="text-slate-400 mb-10 font-bold text-sm">{t('invalid_or_used_qr')}</p>
+                       <button onClick={startCamera} className="px-10 py-3.5 bg-slate-100 text-slate-600 rounded-2xl font-black text-xs hover:bg-slate-200 transition-all flex items-center gap-2 mx-auto uppercase tracking-widest">
+                          <RefreshCw size={16} /> {t('try_again_btn')}
+                       </button>
                     </div>
                   )}
                 </motion.div>

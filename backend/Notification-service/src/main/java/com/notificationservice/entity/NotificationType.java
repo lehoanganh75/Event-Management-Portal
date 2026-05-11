@@ -39,5 +39,6 @@ public enum NotificationType {
     PLAN_SUBMITTED,
     PLAN_APPROVED,
     PLAN_REJECTED,
-    ACCOUNT_LOCKED
+    ACCOUNT_LOCKED,
+    COMMENT
 }

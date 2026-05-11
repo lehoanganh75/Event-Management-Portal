@@ -83,9 +83,10 @@ const AppRouter = () => {
   const location = useLocation();
 
   return (
-    <AnimatePresence mode="wait">
+    <>
       <ScrollToTop />
-      <Routes location={location} key={location.pathname}>
+      <AnimatePresence mode="wait">
+        <Routes location={location} key={location.pathname}>
         {/* Public Routes */}
         <Route path="/" element={<LandingPage />} />
         <Route path="/calendar" element={<CalendarPage />} />
@@ -170,6 +171,7 @@ const AppRouter = () => {
         <Route path="*" element={<NotFoundPage />} />
       </Routes>
     </AnimatePresence>
+    </>
   );
 };
 

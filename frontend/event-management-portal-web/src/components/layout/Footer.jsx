@@ -3,10 +3,12 @@ import logo_iuh from "../../assets/images/logo_iuh.png";
 import { MapPin, Mail, Phone, MousePointer2, Users } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useSiteStats, formatCount } from "../../hooks/useSiteStats";
+import { useLanguage } from "../../context/LanguageContext";
 
 const Footer = () => {
   const navigate = useNavigate();
   const { totalVisits, online } = useSiteStats();
+  const { t } = useLanguage();
 
   const openMap = (address) => {
     const encodedAddress = encodeURIComponent(address);
@@ -25,7 +27,7 @@ const Footer = () => {
             <div
               className="flex items-start gap-3 mb-6 cursor-pointer hover:opacity-80 transition-opacity"
               onClick={() => navigate("/")}
-              title="Quay về trang chủ"
+              title={t('back_to_home')}
             >
               <img
                 src={logo_iuh}
@@ -36,19 +38,18 @@ const Footer = () => {
 
             <div className="space-y-3 text-sm">
               <h3 className="font-bold uppercase text-[#ffcc00]">
-                Đại học Công nghiệp TP. Hồ Chí Minh
+                {t('iuh_full_name')}
               </h3>
               <p className="flex items-start gap-2">
                 <MapPin size={18} className="shrink-0 text-[#ffcc00]" />
                 <span>
-                  Địa chỉ: Số 12 Nguyễn Văn Bảo, P. Hạnh Thông, Thành phố Hồ Chí
-                  Minh
+                  {t('address_label')}: {t('main_campus_addr')}
                 </span>
               </p>
               <p className="flex items-start gap-2">
                 <Phone size={18} className="shrink-0 text-[#ffcc00]" />
                 <span>
-                  ĐT: 0283 8940 390, Tuyển sinh: 028 3985 1932 - 028 3895 5858
+                  {t('phone_label')}: 0283 8940 390, {t('admission_label')}: 028 3985 1932 - 028 3895 5858
                 </span>
               </p>
               <p className="flex items-start gap-2">
@@ -72,16 +73,16 @@ const Footer = () => {
           {/* Cột 2 & 3: Các cơ sở và phân hiệu */}
           <div className="lg:col-span-8">
             <h3 className="text-lg font-bold italic mb-6 border-b border-white/20 pb-2">
-              Các cơ sở và phân hiệu
+              {t('branches_label')}
             </h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-8 text-sm">
               {/* Nguyễn Văn Dung */}
               <div className="space-y-2">
                 <h4 className="font-bold uppercase text-[#ffcc00]">
-                  Nguyễn Văn Dung
+                  {t('branch_nv_dung')}
                 </h4>
                 <p>
-                  Địa chỉ: Số 10 Nguyễn Văn Dung, Phường An Nhơn, TP.HCM - ĐT:
+                  {t('address_label')}: {t('branch_nv_dung_addr')} - {t('phone_label')}:
                   0283.8940 390
                 </p>
                 <button
@@ -92,17 +93,17 @@ const Footer = () => {
                   }
                   className="inline-flex items-center gap-1 text-xs bg-white/10 hover:bg-white/20 px-2 py-1 rounded transition-all"
                 >
-                  <MapPin size={14} /> Xem bản đồ
+                  <MapPin size={14} /> {t('view_map')}
                 </button>
               </div>
 
               {/* Phạm Văn Chiêu */}
               <div className="space-y-2">
                 <h4 className="font-bold uppercase text-[#ffcc00]">
-                  Phạm Văn Chiêu
+                  {t('branch_pv_chieu')}
                 </h4>
                 <p>
-                  Địa chỉ: Số 20 Đường số 53, Phường An Hội Tây, TP.HCM - ĐT:
+                  {t('address_label')}: {t('branch_pv_chieu_addr')} - {t('phone_label')}:
                   0283.8940 390
                 </p>
                 <button
@@ -113,18 +114,18 @@ const Footer = () => {
                   }
                   className="inline-flex items-center gap-1 text-xs bg-white/10 hover:bg-white/20 px-2 py-1 rounded transition-all"
                 >
-                  <MapPin size={14} /> Xem bản đồ
+                  <MapPin size={14} /> {t('view_map')}
                 </button>
               </div>
 
               {/* Trung tâm VH-TT */}
               <div className="space-y-2">
                 <h4 className="font-bold uppercase text-[#ffcc00]">
-                  Trung tâm cung ứng dịch vụ VH-TT
+                  {t('branch_vhtt')}
                 </h4>
                 <p>
-                  Địa chỉ: Số 5A Nguyễn Văn Lượng, phường An Hội Đông, TP.HCM -
-                  ĐT: 0283.8940 390
+                  {t('address_label')}: {t('branch_vhtt_addr')} -
+                  {t('phone_label')}: 0283.8940 390
                 </p>
                 <button
                   onClick={() =>
@@ -134,33 +135,33 @@ const Footer = () => {
                   }
                   className="inline-flex items-center gap-1 text-xs bg-white/10 hover:bg-white/20 px-2 py-1 rounded transition-all"
                 >
-                  <MapPin size={14} /> Xem bản đồ
+                  <MapPin size={14} /> {t('view_map')}
                 </button>
               </div>
 
               {/* Nhơn Trạch */}
               <div className="space-y-2">
                 <h4 className="font-bold uppercase text-[#ffcc00]">
-                  Nhơn Trạch
+                  {t('branch_nhon_trach')}
                 </h4>
-                <p>Địa chỉ: xã Phước An, tỉnh Đồng Nai - ĐT: 0283.8940 390</p>
+                <p>{t('address_label')}: {t('branch_nhon_trach_addr')} - {t('phone_label')}: 0283.8940 390</p>
                 <button
                   onClick={() =>
                     openMap("Đại học Công nghiệp TP.HCM cơ sở Nhơn Trạch")
                   }
                   className="inline-flex items-center gap-1 text-xs bg-white/10 hover:bg-white/20 px-2 py-1 rounded transition-all"
                 >
-                  <MapPin size={14} /> Xem bản đồ
+                  <MapPin size={14} /> {t('view_map')}
                 </button>
               </div>
 
               {/* Thanh Hóa */}
               <div className="space-y-2">
                 <h4 className="font-bold uppercase text-[#ffcc00]">
-                  Thanh Hóa
+                  {t('branch_thanh_hoa')}
                 </h4>
                 <p>
-                  Địa chỉ: Phường Quảng Phú, tỉnh Thanh Hóa - ĐT: 02373.675.092
+                  {t('address_label')}: {t('branch_thanh_hoa_addr')} - {t('phone_label')}: 02373.675.092
                 </p>
                 <button
                   onClick={() =>
@@ -168,18 +169,17 @@ const Footer = () => {
                   }
                   className="inline-flex items-center gap-1 text-xs bg-white/10 hover:bg-white/20 px-2 py-1 rounded transition-all"
                 >
-                  <MapPin size={14} /> Xem bản đồ
+                  <MapPin size={14} /> {t('view_map')}
                 </button>
               </div>
 
               {/* Quảng Ngãi */}
               <div className="space-y-2">
                 <h4 className="font-bold uppercase text-[#ffcc00]">
-                  Phân hiệu Quảng Ngãi
+                  {t('branch_quang_ngai')}
                 </h4>
                 <p>
-                  Địa chỉ: Số 938 đường Quang Trung, phường Chánh Lộ, tỉnh Quảng
-                  Ngãi - ĐT: (0255) 625 0075
+                  {t('address_label')}: {t('branch_quang_ngai_addr')} - {t('phone_label')}: (0255) 625 0075
                 </p>
                 <button
                   onClick={() =>
@@ -187,7 +187,7 @@ const Footer = () => {
                   }
                   className="inline-flex items-center gap-1 text-xs bg-white/10 hover:bg-white/20 px-2 py-1 rounded transition-all"
                 >
-                  <MapPin size={14} /> Xem bản đồ
+                  <MapPin size={14} /> {t('view_map')}
                 </button>
               </div>
             </div>
@@ -197,7 +197,7 @@ const Footer = () => {
         <div className="border-t border-white/20 pt-4 mt-6 flex flex-col md:flex-row justify-between items-center text-[13px] opacity-90 gap-4">
           <div className="flex gap-6">
             <span className="flex items-center gap-1">
-              <Users size={16} className="text-[#ffcc00]" /> Số lượng truy cập:{" "}
+              <Users size={16} className="text-[#ffcc00]" /> {t('visit_count')}:{" "}
               <span className="font-bold tracking-wider tabular-nums">
                 {formatCount(totalVisits)}
               </span>
@@ -207,12 +207,12 @@ const Footer = () => {
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
                 <span className="relative inline-flex rounded-full h-2 w-2 bg-green-400"></span>
               </span>
-              <MousePointer2 size={16} className="text-[#ffcc00]" /> Đang online:{" "}
+              <MousePointer2 size={16} className="text-[#ffcc00]" /> {t('online_count')}:{" "}
               <span className="font-bold tabular-nums">{formatCount(online)}</span>
             </span>
           </div>
           <div className="text-center md:text-right">
-            © 2026 Đại học Công nghiệp TP.HCM - IUH
+            {t('copyright')}
           </div>
         </div>
       </div>

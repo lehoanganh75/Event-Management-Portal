@@ -61,7 +61,8 @@ const StudentPostDetailPage = () => {
   const handleSubmitComment = async (content) => {
     setIsSubmittingComment(true);
     try {
-      const res = await eventService.createComment(id, { content });
+      const payload = content instanceof FormData ? content : (typeof content === 'object' ? content : { content });
+      const res = await eventService.createComment(id, payload);
       setComments(prev => [res.data, ...prev]);
     } catch (err) {
       toast.error("Không thể gửi bình luận");
@@ -73,7 +74,8 @@ const StudentPostDetailPage = () => {
   const handleSubmitReply = async (parentId, content) => {
     setIsSubmittingComment(true);
     try {
-      const res = await eventService.createComment(id, { content, parentId });
+      const payload = content instanceof FormData ? content : (typeof content === 'object' ? { ...content, parentId } : { content, parentId });
+      const res = await eventService.createComment(id, payload);
       setComments(prev => updateCommentInTree(prev, parentId, (parent) => ({
         ...parent,
         replies: [...(parent.replies || []), res.data]

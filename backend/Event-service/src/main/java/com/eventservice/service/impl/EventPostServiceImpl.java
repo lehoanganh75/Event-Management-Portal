@@ -40,32 +40,25 @@ public class EventPostServiceImpl implements EventPostService {
 
     @Transactional(readOnly = true)
     @Override
-    public List<EventPostDetailResponse> getAllPosts(String title, PostStatus status) {
-        List<EventPost> posts = eventPostRepository.findAll().stream()
-                .filter(p -> !p.isDeleted())
-                .filter(p -> status == null || p.getStatus() == status)
-                .filter(p -> title == null || p.getTitle().toLowerCase().contains(title.toLowerCase()))
-                .sorted(Comparator.comparing(EventPost::getCreatedAt).reversed())
-                .collect(Collectors.toList());
+    public Page<EventPostDetailResponse> getAllPosts(String title, PostStatus status, Pageable pageable) {
+        Page<EventPost> postsPage = eventPostRepository.findAllWithFilters(title, status, pageable);
 
-        if (posts.isEmpty()) {
-            return Collections.emptyList();
+        if (postsPage.isEmpty()) {
+            return Page.empty(pageable);
         }
 
-        // 1. Gom tất cả Account IDs để gọi Identity 1 lần
+        // 1. Gom tất cả Account IDs
         Set<String> allAccountIds = new HashSet<>();
-        for (EventPost post : posts) {
+        for (EventPost post : postsPage) {
             allAccountIds.add(post.getAuthorAccountId());
             collectAccountIds(post.getComments(), allAccountIds);
         }
 
-        // 2. Fetch User Map (Batching)
+        // 2. Fetch User Map
         Map<String, UserResponse> userMap = fetchUsersMap(allAccountIds);
 
         // 3. Map sang DTO
-        return posts.stream()
-                .map(post -> mapToPostDetailResponse(post, userMap))
-                .collect(Collectors.toList());
+        return postsPage.map(post -> mapToPostDetailResponse(post, userMap));
     }
 
     @Transactional(readOnly = true)
@@ -121,13 +114,13 @@ public class EventPostServiceImpl implements EventPostService {
         res.setContent(post.getContent());
         res.setPostType(post.getPostType());
         res.setStatus(post.getStatus());
-        res.setPinned(post.isPinned());
-        res.setAllowComments(post.isAllowComments());
+        res.setPinned(post.getIsPinned());
+        res.setAllowComments(post.getAllowComments());
         res.setViewCount(post.getViewCount());
         res.setPublishedAt(post.getPublishedAt());
         res.setCreatedAt(post.getCreatedAt());
         res.setUpdatedAt(post.getUpdatedAt());
-        res.setDeleted(post.isDeleted());
+        res.setDeleted(post.getIsDeleted());
         res.setImageUrls(post.getImageUrls());
         res.setReactions(post.getReactions());
 
@@ -213,7 +206,7 @@ public class EventPostServiceImpl implements EventPostService {
     public EventPost createPost(EventPost post) {
         post.setCreatedAt(LocalDateTime.now());
         post.setUpdatedAt(LocalDateTime.now());
-        post.setDeleted(false);
+        post.setIsDeleted(false);
 
         // if (post.getStatus() == PostStatus.PUBLISHED) {
         // post.setPostAt(LocalDateTime.now());
@@ -253,7 +246,7 @@ public class EventPostServiceImpl implements EventPostService {
     public void deletePost(String id) {
         EventPost post = eventPostRepository.findByIdAndIsDeletedFalse(id)
                 .orElseThrow(() -> new RuntimeException("Bài viết không tồn tại!"));
-        post.setDeleted(true);
+        post.setIsDeleted(true);
         post.setUpdatedAt(LocalDateTime.now());
         eventPostRepository.save(post);
     }
@@ -302,7 +295,7 @@ public class EventPostServiceImpl implements EventPostService {
 
         post.setCreatedAt(LocalDateTime.now());
         post.setUpdatedAt(LocalDateTime.now());
-        post.setDeleted(false);
+        post.setIsDeleted(false);
         post.setImageUrls(postDto.getImageUrls() != null ? postDto.getImageUrls() : new ArrayList<>());
 
         return eventPostRepository.save(post);
@@ -351,7 +344,7 @@ public class EventPostServiceImpl implements EventPostService {
         if (isAdmin) {
             // Nếu là Admin, lấy tất cả bài viết chưa xóa
             posts = eventPostRepository.findAll().stream()
-                    .filter(p -> !p.isDeleted())
+                    .filter(p -> p.getIsDeleted() == null || !p.getIsDeleted())
                     .sorted(Comparator.comparing(EventPost::getCreatedAt).reversed())
                     .collect(Collectors.toList());
         } else {

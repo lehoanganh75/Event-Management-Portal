@@ -13,7 +13,7 @@ import java.util.List;
 
 public interface EventPostService {
     // 1. Tìm kiếm và Lọc (Search & Filter)
-    List<EventPostDetailResponse> getAllPosts(String title, PostStatus status);
+    Page<EventPostDetailResponse> getAllPosts(String title, PostStatus status, Pageable pageable);
 
 
     List<EventPostDetailResponse> getPostsByEvent(String eventId);

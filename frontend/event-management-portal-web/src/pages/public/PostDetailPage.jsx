@@ -20,6 +20,13 @@ const updateCommentInTree = (list, commentId, updateFn) => {
   });
 };
 
+const removeCommentFromTree = (list, commentId) => {
+  return list.filter(item => String(item.id) !== String(commentId)).map(item => {
+    if (item.replies?.length > 0) return { ...item, replies: removeCommentFromTree(item.replies, commentId) };
+    return item;
+  });
+};
+
 export default function PostDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -136,7 +143,8 @@ export default function PostDetailPage() {
     }
     setIsSubmittingComment(true);
     try {
-      const res = await eventService.createComment(id, { content });
+      const payload = content instanceof FormData ? content : (typeof content === 'object' ? content : { content });
+      const res = await eventService.createComment(id, payload);
       const newComment = res.data;
       setComments(prev => {
         if (prev.some(c => String(c.id) === String(newComment.id))) return prev;
@@ -157,7 +165,8 @@ export default function PostDetailPage() {
     }
     setIsSubmittingComment(true);
     try {
-      const res = await eventService.createComment(id, { content, parentId });
+      const payload = content instanceof FormData ? content : (typeof content === 'object' ? { ...content, parentId } : { content, parentId });
+      const res = await eventService.createComment(id, payload);
       const newReply = res.data;
       setComments(prev => updateCommentInTree(prev, parentId, (parent) => {
         const existingReplies = parent.replies || [];
@@ -171,6 +180,26 @@ export default function PostDetailPage() {
       toast.error("Không thể gửi phản hồi");
     } finally {
       setIsSubmittingComment(false);
+    }
+  };
+
+  const handleDeleteComment = async (commentId) => {
+    // Optimistic update
+    setComments(prev => removeCommentFromTree(prev, commentId));
+    
+    try {
+      await eventService.deleteComment(commentId);
+    } catch (err) {
+      toast.error("Không thể xóa bình luận");
+    }
+  };
+
+  const handleHideComment = async (commentId) => {
+    try {
+      setComments(prev => removeCommentFromTree(prev, commentId));
+      toast.success("Đã ẩn bình luận");
+    } catch (err) {
+      toast.error("Không thể ẩn bình luận");
     }
   };
 
@@ -238,6 +267,8 @@ export default function PostDetailPage() {
             handleReactComment={handleReactComment}
             handleSubmitComment={handleSubmitComment}
             handleSubmitReply={handleSubmitReply}
+            handleDeleteComment={handleDeleteComment}
+            handleHideComment={handleHideComment}
             isSubmittingComment={isSubmittingComment}
             onRefresh={loadPost}
             backPath="/news"

@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Bell, ChevronDown, LogOut, User, Settings, CheckCircle, Calendar, Clock, X, Check, Info, XCircle, Mail, FileText, Send } from 'lucide-react';
+import { Bell, ChevronDown, LogOut, User, Settings, CheckCircle, Calendar, Clock, X, Check, Info, XCircle, Mail, FileText, Send, QrCode, Globe } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from "../../context/AuthContext";
 import { useNotification } from "../../context/NotificationContext";
+import { useLanguage } from "../../context/LanguageContext";
 import { showToast } from "../../utils/toast.jsx";
 
 const roleMap = {
@@ -23,6 +24,7 @@ const DashboardHeader = () => {
   const [isNotificationOpen, setIsNotificationOpen] = useState(false);
 
   const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
+  const { language, setLanguage, t } = useLanguage();
   const notificationRef = useRef(null);
   const menuRef = useRef(null);
 
@@ -95,14 +97,42 @@ const DashboardHeader = () => {
       <header className="h-20 bg-white border-b border-slate-200 flex items-center justify-between px-8 sticky top-0 z-10 shadow-sm">
       <div className="flex items-center gap-6">
         <h2 className="text-sm font-black text-slate-800/40 uppercase tracking-[0.2em] hidden md:block border-l-4 border-indigo-500 pl-4 py-1">
-          Bảng điều khiển hệ thống
+          {t('admin_dashboard_title') || "Bảng điều khiển hệ thống"}
         </h2>
       </div>
 
       <div className="flex items-center gap-4 h-full">
+        <div className="flex items-center gap-2 mr-4 bg-slate-50 px-3 py-1.5 rounded-xl border border-slate-100">
+          <Globe size={14} className="text-slate-400" />
+          <div 
+            onClick={() => setLanguage("VI")}
+            className={`text-[11px] cursor-pointer font-bold transition-all ${language === "VI" ? "text-indigo-600" : "text-slate-400 hover:text-slate-600"}`}
+          >
+            VI
+          </div>
+          <div className="w-px h-2.5 bg-slate-200" />
+          <div 
+            onClick={() => setLanguage("EN")}
+            className={`text-[11px] cursor-pointer font-bold transition-all ${language === "EN" ? "text-indigo-600" : "text-slate-400 hover:text-slate-600"}`}
+          >
+            EN
+          </div>
+        </div>
+
         <div className="h-8 w-px bg-slate-200 mx-2 hidden lg:block" />
 
+
         <div className="flex items-center gap-4">
+          {/* Quick Access QR Scanner */}
+          <button
+            onClick={() => navigate("/attendance")}
+            className="p-2.5 text-slate-500 hover:bg-indigo-50 hover:text-indigo-600 rounded-xl transition-all group relative"
+            title={t('qr_scan')}
+          >
+            <QrCode size={20} strokeWidth={2.5} />
+            <span className="absolute -bottom-1 -right-1 w-2.5 h-2.5 bg-indigo-500 border-2 border-white rounded-full shadow-sm" />
+          </button>
+
           {/* Notification Bell */}
           <div className="relative" ref={notificationRef}>
             <button
@@ -129,10 +159,10 @@ const DashboardHeader = () => {
                   className="absolute right-0 mt-3 w-96 bg-white rounded-2xl shadow-2xl border border-slate-100 overflow-hidden z-50 origin-top-right"
                 >
                   <div className="flex items-center justify-between px-6 py-4 border-b border-slate-50 bg-slate-50/50">
-                    <h3 className="font-extrabold text-slate-800 text-sm">Thông báo gần đây</h3>
+                    <h3 className="font-extrabold text-slate-800 text-sm">{t('recent_notifications') || "Thông báo gần đây"}</h3>
                     {unreadCount > 0 && (
                       <button onClick={markAllAsRead} className="text-[10px] font-black text-indigo-600 uppercase tracking-wider hover:text-indigo-800 transition-colors">
-                        Đánh dấu đã đọc
+                        {t('mark_all_read')}
                       </button>
                     )}
                   </div>
@@ -167,7 +197,7 @@ const DashboardHeader = () => {
                         <div className="w-12 h-12 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-3 text-slate-300">
                           <Bell size={24} />
                         </div>
-                        <p className="text-slate-400 text-xs font-bold">Không có thông báo mới</p>
+                        <p className="text-slate-400 text-xs font-bold">{t('no_notifications')}</p>
                       </div>
                     )}
                   </div>
@@ -175,7 +205,7 @@ const DashboardHeader = () => {
                     onClick={handleViewAll}
                     className="w-full py-4 text-[11px] font-black text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 transition-all uppercase tracking-[0.2em] border-t border-slate-50 bg-white"
                   >
-                    Xem tất cả thông báo
+                    {t('view_all_notifications')}
                   </button>
                 </motion.div>
               )}
@@ -231,7 +261,7 @@ const DashboardHeader = () => {
                     <div className="w-8 h-8 rounded-lg bg-slate-50 flex items-center justify-center text-slate-400 group-hover:bg-white group-hover:text-indigo-600 transition-all">
                       <User size={16} />
                     </div>
-                    Hồ sơ cá nhân
+                    {t('profile')}
                   </button>
 
                   {(user?.role === 'SUPER_ADMIN' || user?.role === 'ADMIN') && (
@@ -258,7 +288,7 @@ const DashboardHeader = () => {
                     <div className="w-8 h-8 rounded-lg bg-rose-50 flex items-center justify-center text-rose-500">
                       <LogOut size={16} />
                     </div>
-                    Đăng xuất
+                    {t('logout')}
                   </button>
                 </motion.div>
               )}
@@ -283,9 +313,9 @@ const DashboardHeader = () => {
                 <LogOut size={32} strokeWidth={2.5} />
               </div>
 
-              <h3 className="text-2xl font-black text-slate-800 mb-3 uppercase tracking-tight">Đăng xuất?</h3>
+              <h3 className="text-2xl font-black text-slate-800 mb-3 uppercase tracking-tight">{t('logout')}?</h3>
               <p className="text-slate-500 text-sm font-medium leading-relaxed mb-8">
-                Bạn có chắc chắn muốn đăng xuất khỏi tài khoản?
+                {t('confirm_logout')}
               </p>
 
               <div className="flex flex-col w-full gap-3">
@@ -293,13 +323,13 @@ const DashboardHeader = () => {
                   onClick={handleLogout}
                   className="w-full py-4 bg-rose-500 text-white rounded-2xl font-black text-sm uppercase tracking-widest hover:bg-rose-600 hover:shadow-lg hover:shadow-rose-100 active:scale-[0.98] transition-all cursor-pointer"
                 >
-                  Đăng xuất
+                  {t('logout')}
                 </button>
                 <button
                   onClick={() => setIsLogoutModalOpen(false)}
                   className="w-full py-4 bg-white text-slate-400 rounded-2xl font-black text-sm uppercase tracking-widest hover:text-slate-600 hover:bg-slate-50 transition-all cursor-pointer"
                 >
-                  Hủy
+                  {t('cancel')}
                 </button>
               </div>
             </div>

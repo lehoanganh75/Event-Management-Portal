@@ -24,12 +24,29 @@ public class PostCommentServiceImpl implements PostCommentService {
     private final EventPostRepository eventPostRepository;
     private final IdentityServiceClient identityServiceClient;
     private final SimpMessagingTemplate messagingTemplate;
+    private final com.eventservice.service.S3Service s3Service;
+    private final com.eventservice.kafka.NotificationProducer notificationProducer;
+    private final GeminiAIService geminiAIService;
 
     @Override
     @Transactional
-    public PostComment createComment(String postId, String accountId, String content, String parentId) {
+    public PostComment createComment(String postId, String accountId, String content, String parentId, List<org.springframework.web.multipart.MultipartFile> images, boolean isAnonymous, String anonymousIdentity) {
+        System.out.println("DEBUG: Creating comment - isAnonymous: " + isAnonymous + ", identity: " + anonymousIdentity);
+        
+        // AI Content Moderation
+        if (content != null && !content.trim().isEmpty() && geminiAIService.isContentOffensive(content)) {
+            throw new RuntimeException("Nội dung bình luận vi phạm chuẩn mực cộng đồng (chứa từ ngữ khiếm nhã/tiêu cực).");
+        }
+
         EventPost post = eventPostRepository.findById(postId)
                 .orElseThrow(() -> new RuntimeException("Bài viết không tồn tại!"));
+
+        List<String> imageUrls = new ArrayList<>();
+        if (images != null && !images.isEmpty()) {
+            imageUrls = images.stream()
+                    .map(s3Service::uploadFile)
+                    .collect(Collectors.toList());
+        }
 
         PostComment comment = PostComment.builder()
                 .post(post)
@@ -37,6 +54,9 @@ public class PostCommentServiceImpl implements PostCommentService {
                 .content(content)
                 .isDeleted(false)
                 .isEdited(false)
+                .anonymous(isAnonymous)
+                .anonymousIdentity(anonymousIdentity)
+                .imageUrls(imageUrls)
                 .build();
 
         if (parentId != null) {
@@ -55,17 +75,90 @@ public class PostCommentServiceImpl implements PostCommentService {
                 PostInteractionEvent.builder()
                         .postId(postId)
                         .type(PostInteractionEvent.Type.COMMENT)
-                        .data(saved)
+                        .data(createSafeBroadcastComment(saved))
                         .build());
+
+        // --- Notification Logic ---
+        try {
+            String senderName = isAnonymous ? (anonymousIdentity != null ? anonymousIdentity : "Người dùng ẩn danh") 
+                                           : (saved.getAuthor() != null ? saved.getAuthor().getFullName() : "Ai đó");
+            String recipientId = null;
+            String message = "";
+            String title = "Bình luận mới";
+
+            if (parentId == null) {
+                // New parent comment -> Notify post author
+                recipientId = post.getAuthorAccountId();
+                message = senderName + " đã bình luận về bài viết của bạn: \"" + post.getTitle() + "\"";
+            } else {
+                // New reply -> Notify parent comment author
+                PostComment parent = postCommentRepository.findById(parentId).orElse(null);
+                if (parent != null) {
+                    recipientId = parent.getCommenterAccountId();
+                    message = senderName + " đã phản hồi bình luận của bạn trong bài viết \"" + post.getTitle() + "\"";
+                    title = "Phản hồi mới";
+                }
+            }
+
+            // Only send if recipient is not the sender
+            if (recipientId != null && !recipientId.equals(accountId)) {
+                notificationProducer.sendNotification(com.eventservice.dto.engagement.NotificationEventDto.builder()
+                        .recipientId(recipientId)
+                        .senderId(isAnonymous ? null : accountId)
+                        .title(title)
+                        .message(message)
+                        .type("COMMENT")
+                        .relatedEntityId(postId)
+                        .actionUrl("/posts/" + postId)
+                        .build());
+            }
+        } catch (Exception e) {
+            // Log error but don't fail comment creation
+        }
 
         return saved;
     }
 
     @Override
-    public List<PostComment> getCommentsByPost(String postId) {
+    public List<PostComment> getCommentsByPost(String postId, String accountId) {
         List<PostComment> comments = postCommentRepository.findByPostIdAndParentCommentIsNullAndIsDeletedFalseOrderByCreatedAtDesc(postId);
         enrichComments(comments);
+        scrubAnonymousIdentities(comments, accountId);
         return comments;
+    }
+
+    private void scrubAnonymousIdentities(List<PostComment> comments, String currentAccountId) {
+        if (comments == null) return;
+        for (PostComment c : comments) {
+            if (c.isAnonymous() && (currentAccountId == null || !currentAccountId.equals(c.getCommenterAccountId()))) {
+                c.setCommenterAccountId(null);
+                c.setAuthor(null);
+            }
+            if (c.getReplies() != null) {
+                scrubAnonymousIdentities(c.getReplies(), currentAccountId);
+            }
+        }
+    }
+
+    private PostComment createSafeBroadcastComment(PostComment original) {
+        PostComment safe = new PostComment();
+        safe.setId(original.getId());
+        safe.setContent(original.getContent());
+        safe.setAnonymous(original.isAnonymous());
+        safe.setAnonymousIdentity(original.getAnonymousIdentity());
+        safe.setImageUrls(original.getImageUrls());
+        safe.setReactions(original.getReactions());
+        safe.setIsEdited(original.getIsEdited());
+        safe.setIsDeleted(original.getIsDeleted());
+        safe.setCreatedAt(original.getCreatedAt());
+        safe.setUpdatedAt(original.getUpdatedAt());
+        safe.setParentId(original.getParentId());
+        
+        if (!original.isAnonymous()) {
+            safe.setCommenterAccountId(original.getCommenterAccountId());
+            safe.setAuthor(original.getAuthor());
+        }
+        return safe;
     }
 
     private void enrichComments(List<PostComment> comments) {
@@ -118,8 +211,16 @@ public class PostCommentServiceImpl implements PostCommentService {
     public void deleteComment(String commentId) {
         PostComment comment = postCommentRepository.findById(commentId)
                 .orElseThrow(() -> new RuntimeException("Bình luận không tồn tại!"));
-        comment.setDeleted(true);
-        postCommentRepository.save(comment);
+        comment.setIsDeleted(true);
+        PostComment saved = postCommentRepository.save(comment);
+
+        // Broadcast deletion
+        messagingTemplate.convertAndSend("/topic/posts/" + comment.getPost().getId(),
+                PostInteractionEvent.builder()
+                        .postId(comment.getPost().getId())
+                        .type(PostInteractionEvent.Type.COMMENT_DELETE)
+                        .data(commentId) // Send the ID to be removed
+                        .build());
     }
     @Override
     @Transactional
@@ -146,7 +247,7 @@ public class PostCommentServiceImpl implements PostCommentService {
                 PostInteractionEvent.builder()
                         .postId(saved.getPost().getId())
                         .type(PostInteractionEvent.Type.COMMENT_LIKE)
-                        .data(saved)
+                        .data(createSafeBroadcastComment(saved))
                         .build());
 
         return saved;

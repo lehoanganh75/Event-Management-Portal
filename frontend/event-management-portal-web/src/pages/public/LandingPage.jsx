@@ -3,31 +3,32 @@ import React, { useEffect, useMemo, useRef } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import {
   Users, MapPin, Loader2, Gift, ChevronLeft, ChevronRight,
-  User, Clock, Sparkles, Calendar, LayoutGrid, BarChart3, QrCode
+  User, Clock, Sparkles, Calendar, LayoutGrid, BarChart3, QrCode, MessageCircle
 } from "lucide-react";
 
 import Layout from "../../components/layout/Layout";
 import AIChatBot from "../../components/chat/AIChatBot";
 import { useEvents } from "../../context/EventContext";
+import { useLanguage } from "../../context/LanguageContext";
 
-const formatDate = (dateString) => {
+const formatDate = (dateString, lang = 'VI') => {
   if (!dateString) return "";
-  return new Intl.DateTimeFormat('vi-VN', {
+  return new Intl.DateTimeFormat(lang === 'VI' ? 'vi-VN' : 'en-US', {
     day: '2-digit',
     month: '2-digit',
     year: 'numeric'
   }).format(new Date(dateString));
 };
 
-const formatTime = (dateString) => {
+const formatTime = (dateString, lang = 'VI') => {
   if (!dateString) return "";
-  return new Intl.DateTimeFormat('vi-VN', {
+  return new Intl.DateTimeFormat(lang === 'VI' ? 'vi-VN' : 'en-US', {
     hour: '2-digit',
     minute: '2-digit'
   }).format(new Date(dateString));
 };
 
-const EventCard = ({ event, onClick }) => {
+const EventCard = ({ event, onClick, t, language }) => {
   return (
     <div
       onClick={() => onClick(event.id)}
@@ -36,7 +37,7 @@ const EventCard = ({ event, onClick }) => {
       {/* Image Container */}
       <div className="relative h-56">
         <img
-          src={event.coverImage || "https://via.placeholder.com/400x250/1a479a/ffffff?text=IUH+Event"}
+          src={event.coverImage || "https://images.unsplash.com/photo-1501281668745-f7f57925c3b4?q=80&w=2070&auto=format&fit=crop"}
           alt={event.title}
           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
         />
@@ -45,14 +46,14 @@ const EventCard = ({ event, onClick }) => {
           <span className={`text-[10px] font-black uppercase px-3 py-1 rounded-full shadow-sm ${
             event.status === 'ONGOING' ? 'bg-emerald-100 text-emerald-600' : 'bg-blue-100 text-blue-600'
           }`}>
-            {event.status === 'ONGOING' ? 'Đang diễn ra' : 'Sắp diễn ra'}
+            {event.status === 'ONGOING' ? t('ongoing') : t('upcoming')}
           </span>
         </div>
 
         {/* Category Badge overlay */}
         <div className="absolute bottom-4 left-4">
           <span className="bg-amber-500 text-white text-[10px] font-bold px-3 py-1 rounded-md shadow-md uppercase">
-            {event.type || "Sự kiện"}
+            {event.type || t('event_type')}
           </span>
         </div>
       </div>
@@ -64,12 +65,12 @@ const EventCard = ({ event, onClick }) => {
           <div className="flex items-center gap-3 text-slate-400 text-xs font-medium">
             <div className="flex items-center gap-1">
               <Calendar size={14} />
-              <span>{formatDate(event.startTime)}</span>
+              <span>{formatDate(event.startTime, language)}</span>
             </div>
             <div className="w-1 h-1 bg-slate-300 rounded-full" />
             <div className="flex items-center gap-1">
               <Clock size={14} />
-              <span>{formatTime(event.startTime)} - {formatTime(event.endTime)}</span>
+              <span>{formatTime(event.startTime, language)} - {formatTime(event.endTime, language)}</span>
             </div>
           </div>
 
@@ -89,30 +90,30 @@ const EventCard = ({ event, onClick }) => {
           {/* Participants */}
           <div className="flex items-center gap-2 text-slate-500 text-sm">
             <Users size={16} className="text-amber-500 flex-shrink-0" />
-            <span>{event.registeredCount || 0} / {event.maxParticipants || "∞"} tham gia</span>
+            <span>{event.registeredCount || 0} / {event.maxParticipants || "∞"} {t('participants')}</span>
           </div>
         </div>
 
         {/* Action Button */}
         <button className="mt-auto w-full py-2.5 border-2 border-blue-600 text-blue-600 rounded-xl font-bold text-sm hover:bg-blue-600 hover:text-white transition-all duration-300">
-          Chi tiết
+          {t('details')}
         </button>
       </div>
     </div>
   );
 };
 
-const SectionHeader = ({ title, viewAllLink }) => (
+const SectionHeader = ({ title, viewAllLink, t }) => (
   <div className="flex items-center justify-between mb-8">
     <div className="space-y-1">
       <h2 className="text-3xl font-black text-slate-900 tracking-tight">{title}</h2>
-      <p className="text-slate-500 text-sm">Đừng bỏ lỡ những hoạt động hấp dẫn tại IUH</p>
+      <p className="text-slate-500 text-sm">{t('featured_events_subtitle')}</p>
     </div>
     <Link
       to={viewAllLink}
       className="text-blue-600 font-bold text-xs uppercase tracking-widest hover:text-blue-700 transition-colors"
     >
-      Xem tất cả
+      {t('view_all')}
     </Link>
   </div>
 );
@@ -137,17 +138,21 @@ const LandingPage = () => {
     featured,
     ongoing,
     upcoming,
+    posts,
     fetchFeatured,
     fetchUpcoming,
     fetchOngoing,
+    fetchAllPosts,
     loading: eventLoading
   } = useEvents();
+  const { language, t } = useLanguage();
 
   useEffect(() => {
     fetchFeatured();
     fetchUpcoming();
     fetchOngoing();
-  }, [fetchFeatured, fetchUpcoming, fetchOngoing]);
+    fetchAllPosts({ size: 3 }); // Lấy 3 bài viết mới nhất cho landing page
+  }, [fetchFeatured, fetchUpcoming, fetchOngoing, fetchAllPosts]);
 
   const handleEventClick = (eventId) => {
     navigate(`/events/${eventId}`);
@@ -181,18 +186,18 @@ const LandingPage = () => {
                   <div className="inline-flex items-center gap-2 bg-white/10 px-4 py-1.5 rounded-full border border-white/20 backdrop-blur-sm">
                     <span className="w-2 h-2 bg-orange-400 rounded-full animate-pulse"></span>
                     <span className="text-[11px] font-semibold uppercase tracking-[0.2em] text-white/90">
-                      Hệ thống quản lý sự kiện 4.0
+                      {t('hero_badge')}
                     </span>
                   </div>
 
                   {/* TITLE */}
                   <div className="space-y-2">
                     <h2 className="text-2xl md:text-3xl font-medium text-white/80">
-                      Chào mừng đến với
+                      {t('welcome')}
                     </h2>
 
                     <h1 className="text-4xl md:text-5xl lg:text-5xl font-extrabold leading-tight tracking-[-0.02em] text-white">
-                      Sự Kiện IUH{" "}
+                      {t('event_iuh')}{" "}
                       <span className="text-[#ffcc00] drop-shadow-md">
                         {new Date().getFullYear()}
                       </span>
@@ -201,8 +206,7 @@ const LandingPage = () => {
 
                   {/* DESCRIPTION */}
                   <p className="text-base md:text-lg text-blue-100/90 max-w-xl leading-relaxed font-light">
-                    Nền tảng tích hợp hỗ trợ tổ chức sự kiện, điểm danh QR Code và vòng quay may mắn.
-                    Kết nối sinh viên và giảng viên trong một hệ sinh thái số hiện đại.
+                    {t('hero_desc')}
                   </p>
 
                   {/* BUTTON */}
@@ -217,7 +221,7 @@ const LandingPage = () => {
                               hover:scale-[1.04] active:scale-[0.97]
                               transition-all duration-300 overflow-hidden"
                   >
-                    <span className="relative z-10">Khám phá sự kiện</span>
+                    <span className="relative z-10">{t('explore_events')}</span>
                     <span className="absolute inset-0 bg-white/20 opacity-0 group-hover:opacity-100 transition"></span>
                   </button>
 
@@ -242,10 +246,10 @@ const LandingPage = () => {
                     </button>
 
                     <div className="flex items-center justify-between mb-6 px-2 text-white">
-                      <h3 className="text-xl font-black tracking-tight uppercase">Sự kiện tiêu biểu</h3>
+                      <h3 className="text-xl font-black tracking-tight uppercase">{t('featured_events')}</h3>
                       <div className="bg-white/20 backdrop-blur-md px-4 py-2 rounded-2xl flex items-center gap-2 font-bold text-xs">
                         <Sparkles size={14} className="text-amber-300" />
-                        <span>Nổi bật</span>
+                        <span>{t('highlight')}</span>
                       </div>
                     </div>
 
@@ -264,13 +268,13 @@ const LandingPage = () => {
                           >
                             <div className="relative h-40">
                               <img
-                                src={event.coverImage || "https://via.placeholder.com/400x250"}
+                                src={event.coverImage || "https://images.unsplash.com/photo-1492684223066-81342ee5ff30?q=80&w=2070&auto=format&fit=crop"}
                                 alt={event.title}
                                 className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                               />
                               <div className="absolute top-3 left-3">
                                 <span className="bg-[#245bb5] text-white text-[10px] font-bold px-3 py-1 rounded-full shadow">
-                                  {event.type || "EVENT"}
+                                  {event.type || t('event_type')}
                                 </span>
                               </div>
                             </div>
@@ -281,7 +285,7 @@ const LandingPage = () => {
                               <div className="mt-auto space-y-1.5">
                                 <div className="text-[#245bb5] font-bold text-[10px] flex items-center gap-1">
                                   <Clock size={12} />
-                                  {formatDate(event.startTime)}
+                                  {formatDate(event.startTime, language)}
                                 </div>
                                 <div className="flex items-center gap-1.5 text-slate-500 text-[10px]">
                                   <MapPin size={12} className="flex-shrink-0" />
@@ -293,7 +297,7 @@ const LandingPage = () => {
                         ))
                       ) : (
                         <div className="w-full py-10 text-center text-white/70 text-sm italic">
-                          Hiện chưa có sự kiện tiêu biểu
+                          {t('no_featured')}
                         </div>
                       )}
                     </div>
@@ -308,7 +312,7 @@ const LandingPage = () => {
 
           {/* SỰ KIỆN ĐANG DIỄN RA */}
           <section className="mb-20">
-            <SectionHeader title="Sự Kiện đang Diễn Ra" viewAllLink="/events" />
+            <SectionHeader title={t('ongoing_events')} viewAllLink="/events" t={t} />
 
             <div className="relative group/scroll">
               <div
@@ -319,10 +323,10 @@ const LandingPage = () => {
                   <div className="w-full py-20 flex justify-center"><Loader2 className="animate-spin text-blue-600" size={48} /></div>
                 ) : ongoing && ongoing.length > 0 ? (
                   ongoing.map(event => (
-                    <EventCard key={event.id} event={{...event, status: 'ONGOING'}} onClick={handleEventClick} />
+                    <EventCard key={event.id} event={{...event, status: 'ONGOING'}} onClick={handleEventClick} t={t} language={language} />
                   ))
                 ) : (
-                  <div className="w-full py-20 text-center text-slate-400 font-medium bg-white rounded-3xl border border-dashed border-slate-200">Hiện không có sự kiện nào đang diễn ra</div>
+                  <div className="w-full py-20 text-center text-slate-400 font-medium bg-white rounded-3xl border border-dashed border-slate-200">{t('no_ongoing')}</div>
                 )}
               </div>
 
@@ -347,7 +351,7 @@ const LandingPage = () => {
 
           {/* SỰ KIỆN SẮP DIỄN RA (Second Section) */}
           <section className="mb-20">
-            <SectionHeader title="Sự kiện sắp diễn ra" viewAllLink="/events" />
+            <SectionHeader title={t('upcoming_events')} viewAllLink="/events" t={t} />
 
             <div className="relative group/scroll">
               <div
@@ -358,10 +362,10 @@ const LandingPage = () => {
                   <div className="w-full py-20 flex justify-center"><Loader2 className="animate-spin text-blue-600" size={48} /></div>
                 ) : upcoming && upcoming.length > 0 ? (
                   upcoming.map(event => (
-                    <EventCard key={event.id} event={{...event, status: 'UPCOMING'}} onClick={handleEventClick} />
+                    <EventCard key={event.id} event={{...event, status: 'UPCOMING'}} onClick={handleEventClick} t={t} language={language} />
                   ))
                 ) : (
-                  <div className="w-full py-20 text-center text-slate-400 font-medium bg-white rounded-3xl border border-dashed border-slate-200">Chưa có sự kiện sắp tới</div>
+                  <div className="w-full py-20 text-center text-slate-400 font-medium bg-white rounded-3xl border border-dashed border-slate-200">{t('no_upcoming')}</div>
                 )}
               </div>
 
@@ -384,38 +388,136 @@ const LandingPage = () => {
             </div>
           </section>
 
+          {/* BẢN TIN / TIN TỨC MỚI NHẤT */}
+          <section className="mb-32">
+            <div className="flex items-center justify-between mb-10">
+              <div className="space-y-1">
+                <h2 className="text-3xl font-black text-slate-900 tracking-tight uppercase italic">
+                  {language === 'VI' ? 'Bản tin mới nhất' : 'Latest Bulletin'}
+                </h2>
+                <div className="h-1.5 w-20 bg-blue-600 rounded-full"></div>
+              </div>
+              <Link
+                to="/news"
+                className="group flex items-center gap-2 text-blue-600 font-bold text-xs uppercase tracking-widest hover:gap-3 transition-all"
+              >
+                {t('view_all')} <ChevronRight size={16} />
+              </Link>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+              {eventLoading ? (
+                Array(3).fill(0).map((_, i) => (
+                  <div key={i} className="bg-white rounded-3xl p-6 h-64 animate-pulse border border-slate-100 shadow-sm" />
+                ))
+              ) : posts && posts.length > 0 ? (
+                posts.slice(0, 3).map((post) => (
+                  <Link
+                    key={post.id}
+                    to={`/posts/${post.id}`}
+                    className="group bg-white rounded-[2rem] border border-slate-100 shadow-sm hover:shadow-2xl hover:shadow-blue-500/10 transition-all duration-500 overflow-hidden flex flex-col"
+                  >
+                    {/* Media Preview */}
+                    <div className="h-48 overflow-hidden relative bg-slate-100">
+                      {post.mediaUrls && post.mediaUrls.length > 0 ? (
+                        <img
+                          src={post.mediaUrls[0]}
+                          alt={post.title}
+                          className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
+                        />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center text-slate-300">
+                          <LayoutGrid size={40} strokeWidth={1} />
+                        </div>
+                      )}
+                      <div className="absolute top-4 left-4">
+                        <span className="bg-white/90 backdrop-blur-md text-blue-600 text-[10px] font-black px-3 py-1.5 rounded-xl shadow-sm uppercase">
+                          {post.postType === 'NEWS' ? t('news') : (post.postType || 'POST')}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="p-7 flex flex-col flex-1">
+                      <div className="flex items-center gap-3 mb-4">
+                        <img
+                          src={post.author?.avatarUrl || `https://api.dicebear.com/7.x/initials/svg?seed=${post.author?.fullName}`}
+                          className="w-6 h-6 rounded-lg object-cover"
+                          alt="author"
+                        />
+                        <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider truncate">
+                          {post.author?.fullName || 'IUH Admin'}
+                        </span>
+                        <div className="w-1 h-1 bg-slate-300 rounded-full ml-auto" />
+                        <span className="text-[10px] font-medium text-slate-400">
+                          {new Date(post.createdAt).toLocaleDateString(language === 'VI' ? 'vi-VN' : 'en-US')}
+                        </span>
+                      </div>
+
+                      <h3 className="text-lg font-bold text-slate-800 line-clamp-2 mb-4 group-hover:text-blue-600 transition-colors leading-tight">
+                        {post.title}
+                      </h3>
+
+                      <p className="text-slate-500 text-[13px] line-clamp-3 mb-6 leading-relaxed">
+                        {post.content}
+                      </p>
+
+                      <div className="mt-auto flex items-center gap-4 pt-4 border-t border-slate-50">
+                        <div className="flex items-center gap-1.5 text-slate-400 text-xs font-bold">
+                          <Sparkles size={14} className="text-amber-400" />
+                          {post.reactions?.length || 0}
+                        </div>
+                        <div className="flex items-center gap-1.5 text-slate-400 text-xs font-bold">
+                          <MessageCircle size={14} className="text-blue-400" />
+                          {post.commentCount || 0}
+                        </div>
+                        <div className="ml-auto text-[10px] font-black text-blue-600 uppercase tracking-widest opacity-0 group-hover:opacity-100 transition-all translate-x-2 group-hover:translate-x-0">
+                          {language === 'VI' ? 'Đọc thêm' : 'Read more'}
+                        </div>
+                      </div>
+                    </div>
+                  </Link>
+                ))
+              ) : (
+                <div className="col-span-3 py-20 text-center bg-white rounded-[2rem] border border-dashed border-slate-200">
+                   <LayoutGrid size={48} className="mx-auto text-slate-200 mb-4" />
+                   <p className="text-slate-400 font-medium">{language === 'VI' ? 'Chưa có bản tin nào' : 'No bulletins yet'}</p>
+                </div>
+              )}
+            </div>
+          </section>
+
           {/* TÍNH NĂNG NỔI BẬT */}
-          <section className="mt-32">
+          <section className="mt-10">
             <div className="text-center mb-16 space-y-4">
-              <h2 className="text-4xl font-black text-slate-900 tracking-tight">Tính Năng Nổi Bật</h2>
+              <h2 className="text-4xl font-black text-slate-900 tracking-tight">{t('features_title')}</h2>
               <p className="text-slate-500 text-sm max-w-2xl mx-auto leading-relaxed">
-                Hệ thống cung cấp bộ công cụ toàn diện giúp tối ưu hóa quy trình tổ chức và nâng cao trải nghiệm người tham gia.
+                {t('features_desc')}
               </p>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
               <FeatureCard
                 icon={Sparkles}
-                title="AI Hỗ Trợ Toàn Diện"
-                description="Tự động hóa quy trình từ lập kế hoạch, viết nội dung truyền thông đến phân tích phản hồi sau sự kiện."
+                title={t('ai_feature')}
+                description={t('ai_feature_desc')}
                 colorClass="bg-blue-50 text-blue-600"
               />
               <FeatureCard
                 icon={QrCode}
-                title="Check-in QR Code"
-                description="Điểm danh nhanh chóng chỉ với 1 giây. Hệ thống tự động ghi nhận thời gian và xác thực người tham gia."
+                title={t('qr_feature')}
+                description={t('qr_feature_desc')}
                 colorClass="bg-purple-50 text-purple-600"
               />
               <FeatureCard
                 icon={Gift}
-                title="Vòng Quay May Mắn"
-                description="Tăng tương tác với minigame vòng quay tích hợp. Tự động chọn người trúng thưởng minh bạch."
+                title={t('lucky_feature')}
+                description={t('lucky_feature_desc')}
                 colorClass="bg-amber-50 text-amber-600"
               />
               <FeatureCard
                 icon={BarChart3}
-                title="Thống Kê Real-time"
-                description="Theo dõi số lượng đăng ký, tỉ lệ tham gia và hiệu quả sự kiện qua các biểu đồ trực quan thời gian thực."
+                title={t('stat_feature')}
+                description={t('stat_feature_desc')}
                 colorClass="bg-emerald-50 text-emerald-600"
               />
             </div>

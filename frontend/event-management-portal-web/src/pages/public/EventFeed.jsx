@@ -17,6 +17,7 @@ import { motion, AnimatePresence } from "framer-motion";
 
 import { useEvents } from "../../context/EventContext";
 import Preloader from "../../components/common/Preloader";
+import { useLanguage } from "../../context/LanguageContext";
 
 const tabs = [
   { id: "all", label: "Tất cả" },
@@ -27,18 +28,19 @@ const tabs = [
 function LeftSidebar({ onSearchChange }) {
   const [keyword, setKeyword] = useState("");
   const navigate = useNavigate();
+  const { t } = useLanguage();
 
   return (
     <aside className="w-72 shrink-0 space-y-6 hidden lg:block">
       <div>
         <label className="text-sm font-medium text-gray-700 mb-2 block">
-          Tìm theo tên sự kiện
+          {t('search_by_name')}
         </label>
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
           <input
             type="text"
-            placeholder="Nhập tên sự kiện..."
+            placeholder={t('enter_event_name')}
             value={keyword}
             onChange={(e) => {
               setKeyword(e.target.value);
@@ -53,7 +55,7 @@ function LeftSidebar({ onSearchChange }) {
       <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
         <div className="bg-blue-600 text-white px-5 py-4 font-semibold flex items-center gap-2">
           <Zap className="w-5 h-5" />
-          TRUY CẬP NHANH
+          {t('quick_access')}
         </div>
         <div className="p-4 space-y-1">
           <button
@@ -61,14 +63,14 @@ function LeftSidebar({ onSearchChange }) {
             className="w-full flex items-center gap-3 px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 rounded-xl transition"
           >
             <Bell className="w-5 h-5 text-blue-600" />
-            Thông báo mới
+            {t('new_notifications')}
           </button>
           <button
             onClick={() => navigate("/my-events")}
             className="w-full flex items-center gap-3 px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 rounded-xl transition"
           >
             <Calendar className="w-5 h-5 text-blue-600" />
-            Sự kiện của tôi
+            {t('my_events_label')}
           </button>
         </div>
       </div>
@@ -77,6 +79,7 @@ function LeftSidebar({ onSearchChange }) {
 }
 
 function EventCard({ item, onClick }) {
+  const { language, t } = useLanguage();
   const percent = item.maxParticipants
     ? Math.min(100, (item.registeredCount / item.maxParticipants) * 100)
     : 0;
@@ -102,7 +105,7 @@ function EventCard({ item, onClick }) {
 
         {/* Status */}
         <div className="absolute top-4 right-4 bg-white/90 text-xs font-medium px-3 py-1 rounded-full text-gray-700">
-          {item.status || "PUBLISHED"}
+          {item.status === 'ONGOING' ? t('ongoing') : item.status === 'UPCOMING' ? t('upcoming') : item.status}
         </div>
 
         {/* Title on image */}
@@ -117,7 +120,7 @@ function EventCard({ item, onClick }) {
         <div className="flex items-center gap-4 text-sm text-gray-600">
           <div className="flex items-center gap-1.5">
             <Calendar className="w-4 h-4" />
-            {new Intl.DateTimeFormat("vi-VN", {
+            {new Intl.DateTimeFormat(language === 'VI' ? "vi-VN" : "en-US", {
               day: "2-digit",
               month: "2-digit",
               year: "numeric"
@@ -132,7 +135,7 @@ function EventCard({ item, onClick }) {
         {item.registrationDeadline && (
           <div className="text-xs text-red-500 flex items-center gap-1">
             <Clock className="w-4 h-4" />
-            Hạn đăng ký: {new Intl.DateTimeFormat("vi-VN", {
+            {t('reg_deadline_label')}: {new Intl.DateTimeFormat(language === 'VI' ? "vi-VN" : "en-US", {
               day: "2-digit",
               month: "2-digit",
               year: "numeric"
@@ -144,7 +147,7 @@ function EventCard({ item, onClick }) {
         {item.maxParticipants && (
           <div>
             <div className="flex justify-between text-xs mb-1.5 text-gray-500">
-              <span>Tham gia</span>
+              <span>{t('participants')}</span>
               <span>{item.registeredCount} / {item.maxParticipants}</span>
             </div>
             <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
@@ -163,6 +166,7 @@ function EventCard({ item, onClick }) {
 export default function EventListPage() {
   const navigate = useNavigate();
   const { userAll, ongoing, upcoming, fetchAllEvents, fetchOngoing, fetchUpcoming, loading: eventLoading } = useEvents();
+  const { t } = useLanguage();
 
   const [searchKeyword, setSearchKeyword] = useState("");
   const [activeTab, setActiveTab] = useState("all");
@@ -221,18 +225,22 @@ export default function EventListPage() {
             <div className="flex items-center gap-3 mb-2">
               <Sparkles className="w-6 h-6 text-blue-600" />
               <span className="uppercase text-blue-600 font-medium tracking-widest text-sm">
-                KHÁM PHÁ HOẠT ĐỘNG
+                {t('explore_activities')}
               </span>
             </div>
             <h1 className="text-4xl font-bold text-slate-900 tracking-tight">
-              HỆ SINH THÁI SỰ KIỆN IUH
+              {t('iuh_ecosystem')}
             </h1>
           </div>
 
           {/* Toolbar */}
           <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 flex flex-col lg:flex-row gap-4 items-center mb-8">
             <div className="flex bg-gray-100 p-1 rounded-xl w-full lg:w-auto">
-              {tabs.map((tab) => (
+              {[
+                { id: "all", label: t('all_tab') },
+                { id: "upcoming", label: t('upcoming') },
+                { id: "ongoing", label: t('ongoing') },
+              ].map((tab) => (
                 <button
                   key={tab.id}
                   onClick={() => handleTabChange(tab.id)}
@@ -250,7 +258,7 @@ export default function EventListPage() {
               <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
               <input
                 type="text"
-                placeholder="Tìm sự kiện..."
+                placeholder={t('search_events_placeholder')}
                 value={searchKeyword}
                 onChange={(e) => handleSearchChange(e.target.value)}
                 className="w-full pl-11 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-2xl focus:outline-none focus:border-blue-400 text-sm"
@@ -275,7 +283,7 @@ export default function EventListPage() {
                 </div>
               ) : (
                 <div className="text-center py-20 bg-white rounded-3xl border border-dashed">
-                  <p className="text-gray-400 text-lg">Không tìm thấy sự kiện nào</p>
+                  <p className="text-gray-400 text-lg">{t('no_events_match')}</p>
                 </div>
               )}
             </AnimatePresence>
@@ -292,7 +300,7 @@ export default function EventListPage() {
                 <ChevronLeft size={20} />
               </button>
               <span className="text-sm text-gray-600">
-                Trang {currentPage} / {totalPages}
+                {t('page_count_label')} {currentPage} / {totalPages}
               </span>
               <button
                 onClick={() => setCurrentPage(p => Math.min(p + 1, totalPages))}

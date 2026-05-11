@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { NavLink } from 'react-router-dom';
 import { useNotification } from '../../context/NotificationContext';
 import { useAuth } from '../../context/AuthContext';
+import { useLanguage } from '../../context/LanguageContext';
 import {
     Home,
     LayoutDashboard,
@@ -29,6 +30,7 @@ const Sidebar = ({ isCollapsed, onToggle }) => {
     const [showLogoutModal, setShowLogoutModal] = useState(false);
     const { unreadCount } = useNotification();
     const { user, logout } = useAuth();
+    const { t } = useLanguage();
     const role = user?.role?.toUpperCase() || 'GUEST';
 
     const handleLogout = async () => {
@@ -47,55 +49,55 @@ const Sidebar = ({ isCollapsed, onToggle }) => {
             { name: 'Tổng quan', icon: LayoutDashboard, path: '/admin/dashboard' },
             { name: 'Duyệt kế hoạch', icon: ClipboardList, path: '/admin/plans' },
             { name: 'Quản lý sự kiện', icon: Calendar, path: '/admin/events' },
-            { name: 'Bài viết truyền thông', icon: Share2, path: '/admin/posts' },
+            { name: t('posts'), icon: Share2, path: '/admin/posts' },
             { name: 'Quản lý tài khoản', icon: Users, path: '/admin/accounts' },
             { name: 'Cơ cấu tổ chức', icon: GraduationCap, path: '/admin/departments' },
             { name: 'Phân quyền hệ thống', icon: ShieldCheck, path: '/admin/roles' },
             { name: 'Kho mẫu sự kiện', icon: Layout, path: '/admin/templates' },
             { name: 'Trò chơi & Vòng quay', icon: RotateCw, path: '/admin/spinner' },
-            { name: 'Hệ thống thông báo', icon: Bell, path: '/admin/notifications' },
-            { name: 'Hồ sơ cá nhân', icon: UserCircle, path: '/admin/profile' },
-            { name: 'Đăng xuất', icon: LogOut, action: 'logout' },
+            { name: t('notifications'), icon: Bell, path: '/admin/notifications' },
+            { name: t('profile'), icon: UserCircle, path: '/admin/profile' },
+            { name: t('logout'), icon: LogOut, action: 'logout' },
         ],
         ADMIN: [
-            { name: 'Tổng quan', icon: LayoutDashboard, path: '/admin/dashboard' },
-            { name: 'Phê duyệt kế hoạch', icon: ClipboardList, path: '/admin/plans' },
-            { name: 'Quản lý sự kiện', icon: Calendar, path: '/admin/events' },
-            { name: 'Bài viết truyền thông', icon: Share2, path: '/admin/posts' },
-            { name: 'Quản lý mẫu', icon: Layout, path: '/admin/templates' },
-            { name: 'Quản lý tài khoản', icon: Users, path: '/admin/accounts' },
-            { name: 'Cơ cấu tổ chức', icon: GraduationCap, path: '/admin/departments' },
-            { name: 'Phân quyền hệ thống', icon: ShieldCheck, path: '/admin/roles' },
-            { name: 'Trò chơi & Vòng quay', icon: RotateCw, path: '/admin/spinner' },
-            { name: 'Thông báo', icon: Bell, path: '/admin/notifications' },
-            { name: 'Hồ sơ cá nhân', icon: UserCircle, path: '/admin/profile' },
-            { name: 'Đăng xuất', icon: LogOut, action: 'logout' },
+            { name: t('overview'), icon: LayoutDashboard, path: '/admin/dashboard' },
+            { name: t('approve_plans'), icon: ClipboardList, path: '/admin/plans' },
+            { name: t('manage_events'), icon: Calendar, path: '/admin/events' },
+            { name: t('posts'), icon: Share2, path: '/admin/posts' },
+            { name: t('templates'), icon: Layout, path: '/admin/templates' },
+            { name: t('manage_accounts'), icon: Users, path: '/admin/accounts' },
+            { name: t('organization'), icon: GraduationCap, path: '/admin/departments' },
+            { name: t('permissions'), icon: ShieldCheck, path: '/admin/roles' },
+            { name: t('games'), icon: RotateCw, path: '/admin/spinner' },
+            { name: t('notifications'), icon: Bell, path: '/admin/notifications' },
+            { name: t('profile'), icon: UserCircle, path: '/admin/profile' },
+            { name: t('logout'), icon: LogOut, action: 'logout' },
         ],
         LECTURER: [
-            { name: 'Bảng điều khiển', icon: LayoutDashboard, path: '/lecturer/dashboard' },
-            { name: 'Đề xuất kế hoạch', icon: ClipboardList, path: '/lecturer/plans' },
-            { name: 'Sự kiện của tôi', icon: Calendar, path: '/lecturer/events' },
-            { name: 'Bài viết của tôi', icon: FileText, path: '/lecturer/posts' },
-            { name: 'Mẫu sự kiện', icon: Layout, path: '/lecturer/templates' },
-            { name: 'Vòng quay may mắn', icon: RotateCw, path: '/lecturer/spinner' },
-            { name: 'Thông báo', icon: Bell, path: '/lecturer/notifications' },
-            { name: 'Hồ sơ cá nhân', icon: UserCircle, path: '/lecturer/profile' },
-            { name: 'Đăng xuất', icon: LogOut, action: 'logout' },
+            { name: t('dashboard'), icon: LayoutDashboard, path: '/lecturer/dashboard' },
+            { name: t('propose_plans') || "Đề xuất kế hoạch", icon: ClipboardList, path: '/lecturer/plans' },
+            { name: t('my_events'), icon: Calendar, path: '/lecturer/events' },
+            { name: t('posts'), icon: FileText, path: '/lecturer/posts' },
+            { name: t('templates'), icon: Layout, path: '/lecturer/templates' },
+            { name: t('games'), icon: RotateCw, path: '/lecturer/spinner' },
+            { name: t('notifications'), icon: Bell, path: '/lecturer/notifications' },
+            { name: t('profile'), icon: UserCircle, path: '/lecturer/profile' },
+            { name: t('logout'), icon: LogOut, action: 'logout' },
         ],
         STUDENT: [
-            { name: 'Tổng quan', icon: LayoutDashboard, path: '/student/dashboard' },
-            { name: 'Sự kiện tham gia', icon: Calendar, path: '/student/events' },
-            { name: 'Bài viết quan tâm', icon: Share2, path: '/student/posts' },
-            { name: 'Kho mẫu sự kiện', icon: Layout, path: '/student/templates' },
-            { name: 'Vòng quay may mắn', icon: RotateCw, path: '/student/spinner' },
-            { name: 'Thông báo', icon: Bell, path: '/student/notifications' },
-            { name: 'Hồ sơ cá nhân', icon: UserCircle, path: '/student/profile' },
-            { name: 'Đăng xuất', icon: LogOut, action: 'logout' },
+            { name: t('overview'), icon: LayoutDashboard, path: '/student/dashboard' },
+            { name: t('enrolled_events') || "Sự kiện tham gia", icon: Calendar, path: '/student/events' },
+            { name: t('favorite_posts') || "Bài viết quan tâm", icon: Share2, path: '/student/posts' },
+            { name: t('templates'), icon: Layout, path: '/student/templates' },
+            { name: t('games'), icon: RotateCw, path: '/student/spinner' },
+            { name: t('notifications'), icon: Bell, path: '/student/notifications' },
+            { name: t('profile'), icon: UserCircle, path: '/student/profile' },
+            { name: t('logout'), icon: LogOut, action: 'logout' },
         ],
         GUEST: [
-            { name: 'Hồ sơ cá nhân', icon: UserCircle, path: '/profile' },
-            { name: 'Sự kiện của tôi', icon: Calendar, path: '/guest-events' },
-            { name: 'Đăng xuất', icon: LogOut, action: 'logout' },
+            { name: t('profile'), icon: UserCircle, path: '/profile' },
+            { name: t('my_events'), icon: Calendar, path: '/guest-events' },
+            { name: t('logout'), icon: LogOut, action: 'logout' },
         ]
     };
 
@@ -139,7 +141,7 @@ const Sidebar = ({ isCollapsed, onToggle }) => {
 
             {!isCollapsed && (
                 <div className="px-8 pt-8 pb-3">
-                    <span className="text-[11px] font-bold text-slate-400 uppercase tracking-[0.12em]">Menu chính</span>
+                    <span className="text-[11px] font-bold text-slate-400 uppercase tracking-[0.12em]">{t('main_menu') || "Menu chính"}</span>
                 </div>
             )}
 
@@ -244,7 +246,7 @@ const Sidebar = ({ isCollapsed, onToggle }) => {
             `}>
                             <Home size={18} strokeWidth={2.5} />
                         </div>
-                        {!isCollapsed && <span>Trang chủ chính</span>}
+                        {!isCollapsed && <span>{t('home_main') || "Trang chủ chính"}</span>}
 
                         {isCollapsed && (
                             <div className="absolute left-full ml-4 px-2 py-1 bg-slate-800 text-white text-xs rounded opacity-0 group-hover:opacity-100 pointer-events-none transition-all whitespace-nowrap z-50">
@@ -264,9 +266,9 @@ const Sidebar = ({ isCollapsed, onToggle }) => {
                             <LogOut size={32} strokeWidth={2.5} />
                         </div>
 
-                        <h3 className="text-2xl font-black text-slate-800 mb-3 uppercase tracking-tight">Đăng xuất?</h3>
+                        <h3 className="text-2xl font-black text-slate-800 mb-3 uppercase tracking-tight">{t('logout')}?</h3>
                         <p className="text-slate-500 text-sm font-medium leading-relaxed mb-8">
-                            Bạn có chắc chắn muốn đăng xuất khỏi tài khoản?
+                            {t('confirm_logout')}
                         </p>
 
                         <div className="flex flex-col w-full gap-3">
@@ -274,13 +276,13 @@ const Sidebar = ({ isCollapsed, onToggle }) => {
                                 onClick={handleLogout}
                                 className="w-full py-4 bg-rose-500 text-white rounded-2xl font-black text-sm uppercase tracking-widest hover:bg-rose-600 hover:shadow-lg hover:shadow-rose-100 active:scale-[0.98] transition-all cursor-pointer"
                             >
-                                Đăng xuất
+                                {t('logout')}
                             </button>
                             <button
                                 onClick={() => setShowLogoutModal(false)}
                                 className="w-full py-4 bg-white text-slate-400 rounded-2xl font-black text-sm uppercase tracking-widest hover:text-slate-600 hover:bg-slate-50 transition-all cursor-pointer"
                             >
-                                Hủy
+                                {t('cancel')}
                             </button>
                         </div>
                     </div>

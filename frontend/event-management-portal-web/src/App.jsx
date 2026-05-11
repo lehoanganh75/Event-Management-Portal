@@ -5,12 +5,16 @@ import 'react-toastify/dist/ReactToastify.css';
 import './styles/toast.css';
 import './App.css';
 
+import { LanguageProvider } from './context/LanguageContext';
+
 function App() {
   return (
-    <BrowserRouter>
-      <AppRouter />
-      <ToastContainer position="top-right" autoClose={2000} />
-    </BrowserRouter>
+    <LanguageProvider>
+      <BrowserRouter>
+        <AppRouter />
+        <ToastContainer position="top-right" autoClose={2000} />
+      </BrowserRouter>
+    </LanguageProvider>
   );
 }
 

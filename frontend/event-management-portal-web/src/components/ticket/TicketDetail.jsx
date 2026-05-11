@@ -1,10 +1,12 @@
 import React, { useCallback, useEffect, useState } from "react";
-import { RefreshCw, AlertCircle, Clock, MapPin, QrCode, Download, Printer, Calendar } from "lucide-react";
+import { RefreshCw, AlertCircle, Clock, MapPin, QrCode, Download, Printer, Calendar, Camera } from "lucide-react";
 import { motion } from "framer-motion";
 import eventService from "../../services/eventService";
 import QRCode from "react-qr-code";
 import { useAuth } from "../../context/AuthContext";
 import { User, Mail, Building2, Tag } from "lucide-react";
+import QRScannerModal from "../common/management/QRScannerModal";
+import { toast } from "react-toastify";
 
 export default function TicketDetail({ eventId }) {
   const { user: authUser } = useAuth();
@@ -12,6 +14,7 @@ export default function TicketDetail({ eventId }) {
   const [registration, setRegistration] = useState();
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [showScanner, setShowScanner] = useState(false);
 
   const fetchData = useCallback(async () => {
     try {
@@ -33,6 +36,21 @@ export default function TicketDetail({ eventId }) {
   useEffect(() => {
     fetchData();
   }, [fetchData]);
+
+  const handleScanSuccess = async (token) => {
+    setShowScanner(false);
+    try {
+      const res = await eventService.checkInByEventToken(token, authUser?.id);
+      if (res.data.success) {
+        toast.success("Điểm danh thành công!");
+        fetchData();
+      } else {
+        toast.error(res.data.message || "Mã QR không hợp lệ");
+      }
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Lỗi khi điểm danh");
+    }
+  };
 
   if (loading) {
     return <div className="py-10 text-center text-xs text-slate-500 italic">Đang tải vé điện tử...</div>;
@@ -115,18 +133,22 @@ export default function TicketDetail({ eventId }) {
         {/* Stub Section - QR & Code */}
         <div className="px-8 pb-10 pt-4 bg-white text-center space-y-6">
           <div className="flex flex-col items-center gap-4">
-            {registration.qrToken ? (
-              <div className="p-4 bg-slate-50 rounded-3xl border border-slate-100 shadow-sm hover:shadow-md transition-shadow">
-                <QRCode
-                  value={registration.qrToken}
-                  size={140}
-                  level="H"
-                  style={{ height: "auto", maxWidth: "100%", width: "100%" }}
-                />
-              </div>
+            {!registration.checkedIn ? (
+              <button
+                onClick={() => setShowScanner(true)}
+                className="w-40 h-40 bg-indigo-50 rounded-[2.5rem] flex flex-col items-center justify-center border-2 border-dashed border-indigo-200 hover:bg-indigo-100 hover:border-indigo-400 transition-all group"
+              >
+                <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center shadow-sm group-hover:scale-110 transition-transform mb-3">
+                  <Camera className="text-indigo-600" size={32} />
+                </div>
+                <span className="text-[10px] font-black text-indigo-600 uppercase tracking-widest">Quét mã BTC</span>
+              </button>
             ) : (
-              <div className="w-32 h-32 bg-slate-50 rounded-3xl flex items-center justify-center border border-dashed border-slate-200">
-                <QrCode size={48} className="text-slate-200" />
+              <div className="w-40 h-40 bg-emerald-50 rounded-[2.5rem] flex flex-col items-center justify-center border-2 border-emerald-100 shadow-inner">
+                <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center shadow-sm mb-3">
+                  <QrCode className="text-emerald-500" size={32} />
+                </div>
+                <span className="text-[10px] font-black text-emerald-600 uppercase tracking-widest">Đã điểm danh</span>
               </div>
             )}
           </div>
@@ -154,12 +176,18 @@ export default function TicketDetail({ eventId }) {
       </div>
 
       {/* Security Tip */}
-      <div className="mt-6 flex items-start gap-3 px-4 py-4 bg-amber-50 rounded-2xl border border-amber-100/50">
-        <AlertCircle className="text-amber-500 shrink-0 mt-0.5" size={16} />
-        <p className="text-[11px] text-amber-700 font-medium leading-relaxed">
-          {event.notes || "Vui lòng không chia sẻ mã QR này cho bất kỳ ai. Nhân viên sẽ quét mã này tại cổng vào để xác nhận tư cách tham dự của bạn."}
+      <div className="mt-6 flex items-start gap-3 px-4 py-4 bg-blue-50 rounded-2xl border border-blue-100/50">
+        <AlertCircle className="text-blue-500 shrink-0 mt-0.5" size={16} />
+        <p className="text-[11px] text-blue-700 font-medium leading-relaxed">
+          Vui lòng quét mã QR do Ban tổ chức cung cấp tại cổng vào hoặc trên màn hình sân khấu để xác nhận sự hiện diện của bạn.
         </p>
       </div>
+
+      <QRScannerModal
+        isOpen={showScanner}
+        onClose={() => setShowScanner(false)}
+        onScanSuccess={handleScanSuccess}
+      />
     </div>
   );
 }

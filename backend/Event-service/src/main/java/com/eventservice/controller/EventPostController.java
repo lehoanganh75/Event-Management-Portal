@@ -26,13 +26,14 @@ import java.util.Map;
 public class EventPostController {
     private final EventPostService eventPostService;
 
-    // Lấy tất cả bài đăng với tùy chọn tìm kiếm và lọc theo trạng thái
+    // Lấy tất cả bài đăng với tùy chọn tìm kiếm và lọc theo trạng thái (Hỗ trợ phân trang)
     @GetMapping
-    public ResponseEntity<List<EventPostDetailResponse>> getAllPosts(
+    public ResponseEntity<Page<EventPostDetailResponse>> getAllPosts(
             @RequestParam(required = false) String searchTerm,
-            @RequestParam(required = false) PostStatus status) {
+            @RequestParam(required = false) PostStatus status,
+            @PageableDefault(size = 10, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable) {
 
-        return ResponseEntity.ok(eventPostService.getAllPosts(searchTerm, status));
+        return ResponseEntity.ok(eventPostService.getAllPosts(searchTerm, status, pageable));
     }
 
     // Lấy bài đăng theo ID

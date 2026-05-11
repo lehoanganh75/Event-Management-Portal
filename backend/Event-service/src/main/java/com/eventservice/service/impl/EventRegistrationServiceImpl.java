@@ -469,6 +469,14 @@ public class EventRegistrationServiceImpl implements EventRegistrationService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Không thể hủy vì bạn đã thực hiện check-in rồi");
         }
 
+        Event event = registration.getEvent();
+        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime cancelDeadline = event.getStartTime().minusMinutes(30);
+
+        if (now.isAfter(cancelDeadline)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Đã quá hạn hủy đăng ký (Hạn cuối là 30 phút trước khi sự kiện diễn ra)");
+        }
+
         if (registration.getStatus() == RegistrationStatus.CANCELLED) {
             return registration;
         }
@@ -478,7 +486,6 @@ public class EventRegistrationServiceImpl implements EventRegistrationService {
         registrationRepository.flush();
 
         // Update event count - Synchronize with actual registrations
-        Event event = registration.getEvent();
         long actualCount = registrationRepository.countByEventIdAndStatusIn(event.getId(), 
             List.of(RegistrationStatus.REGISTERED, RegistrationStatus.ATTENDED));
         event.setRegisteredCount((int) actualCount);

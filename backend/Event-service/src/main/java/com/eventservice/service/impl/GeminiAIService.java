@@ -105,8 +105,45 @@ public class GeminiAIService {
         return callGemini(prompt);
     }
 
+    /**
+     * Kiểm tra nội dung bình luận xem có khiếm nhã/tiêu cực không
+     */
+    public boolean isContentOffensive(String content) {
+        if (content == null || content.trim().isEmpty()) return false;
+        
+        // --- Layer 1: Fast local filter for extreme profanities ---
+        String lowerContent = content.toLowerCase();
+        List<String> blackList = Arrays.asList("con cặc", "đụ má", "vãi lồn", "đéo", "chửi thề", "clm", "vcl");
+        for (String word : blackList) {
+            if (lowerContent.contains(word)) {
+                log.info("Local filter blocked offensive content: '{}'", content);
+                return true;
+            }
+        }
+
+        // --- Layer 2: AI Moderation ---
+        String prompt = String.format("""
+            Hãy đóng vai trò là một hệ thống kiểm duyệt nội dung tiếng Việt nghiêm ngặt.
+            Phân tích bình luận sau đây và quyết định xem nó có chứa ngôn từ khiếm nhã, chửi bậy, tục tĩu, xúc phạm cá nhân, thù ghét, đe dọa, hoặc vi phạm chuẩn mực cộng đồng không.
+            Nếu nội dung vi phạm, chỉ trả về đúng một từ duy nhất: REJECT
+            Nếu nội dung an toàn và bình thường, chỉ trả về đúng một từ duy nhất: APPROVE
+            
+            BÌNH LUẬN CẦN KIỂM TRA:
+            "%s"
+            """, content);
+
+        String result = callGemini(prompt);
+        log.info("AI Moderation result for '{}': {}", content, result);
+        
+        if (result == null) return false;
+        String normalized = result.trim().toUpperCase();
+        
+        // Nếu AI trả về REJECT hoặc chứa REJECT thì chặn
+        return normalized.contains("REJECT");
+    }
+
     private String callGemini(String prompt) {
-        String url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=" + geminiApiKey;
+        String url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=" + geminiApiKey;
 
         try {
             Map<String, Object> part = Map.of("text", prompt);

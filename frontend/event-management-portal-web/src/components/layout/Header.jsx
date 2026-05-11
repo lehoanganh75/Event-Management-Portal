@@ -24,6 +24,10 @@ import {
   LayoutDashboard,
   FileText,
   Send,
+  QrCode,
+  Menu,
+  Home,
+  MessageSquare,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Client } from "@stomp/stompjs";
@@ -31,19 +35,20 @@ import SockJS from "sockjs-client";
 
 import logo_iuh from "../../assets/images/logo_iuh.png";
 import { useAuth } from "../../context/AuthContext";
+import { useLanguage } from "../../context/LanguageContext";
 import notificationService from "../../services/notificationService";
 
-const roleMap = {
-  SUPER_ADMIN: "Quản trị viên cấp cao",
-  ADMIN: "Quản trị viên",
-  LECTURER: "Giảng viên / Tổ chức",
-  STUDENT: "Sinh viên",
-  MEMBER: "Sinh viên",
-  LEADER: "Trưởng nhóm / Leader",
-  SUB_LEADER: "Phó nhóm / Sub-leader",
-  SECRETARY: "Thư ký",
-  MEMBER_ORG: "Thành viên",
-  GUEST: "Người dùng",
+const roleKeyMap = {
+  SUPER_ADMIN: "role_super_admin",
+  ADMIN: "role_admin",
+  LECTURER: "role_lecturer",
+  STUDENT: "role_student",
+  MEMBER: "role_student",
+  LEADER: "role_leader",
+  SUB_LEADER: "role_sub_leader",
+  SECRETARY: "role_secretary",
+  MEMBER_ORG: "role_member_org",
+  GUEST: "role_guest",
 };
 
 const Header = () => {
@@ -57,8 +62,9 @@ const Header = () => {
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [isMarkingAll, setIsMarkingAll] = useState(false);
-  const [logoutToastVisible, setLogoutToastVisible] = useState(false);
   const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const { language, setLanguage, t } = useLanguage();
   // Navigation state (Scroll Spy)
   const [activeSection, setActiveSection] = useState("home");
 
@@ -178,6 +184,11 @@ const Header = () => {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
+  // Close mobile menu on route change
+  useEffect(() => {
+    setIsMobileMenuOpen(false);
+  }, [location.pathname]);
+
   // Set active section based on current path
   useEffect(() => {
     if (location.pathname === "/") {
@@ -200,17 +211,17 @@ const Header = () => {
 
     // 1. Ưu tiên các vai trò quản trị hệ thống (SUPER_ADMIN, ADMIN)
     if (systemRole === "SUPER_ADMIN" || systemRole === "ADMIN") {
-      return roleMap[systemRole] || (systemRole === "ADMIN" ? "Quản trị viên" : "Quản trị viên cấp cao");
+      return t(roleKeyMap[systemRole]) || (systemRole === "ADMIN" ? t('role_admin') : t('role_super_admin'));
     }
 
     // 2. Tiếp theo là vai trò trong sự kiện (LEADER, SECRETARY...) dành cho MEMBER/LECTURER
     if (user?.eventRoles && user.eventRoles.length > 0) {
       const eRole = user.eventRoles[0];
-      return roleMap[eRole] || eRole;
+      return t(roleKeyMap[eRole]) || eRole;
     }
 
     // 3. Cuối cùng hiển thị vai trò hệ thống khác (LECTURER, MEMBER)
-    return roleMap[systemRole] || roleMap[rawRole] || "Sinh viên";
+    return t(roleKeyMap[systemRole]) || t(roleKeyMap[rawRole]) || t('role_student');
   };
 
   const getNotificationIcon = (type) => {
@@ -230,20 +241,26 @@ const Header = () => {
   };
 
   const formatTime = (dateString) => {
-    if (!dateString) return "Không xác định";
+    if (!dateString) return language === 'VI' ? "Không xác định" : "Unknown";
     try {
-      const date = new Date(dateString);
+      let date;
+      if (typeof dateString === 'string' && !dateString.includes('Z') && !dateString.includes('+')) {
+        date = new Date(dateString.replace(' ', 'T') + 'Z');
+      } else {
+        date = new Date(dateString);
+      }
+      
       const now = new Date();
       const diffInMs = now - date;
-      if (diffInMs < 60000) return "Vừa xong";
-      if (diffInMs < 3600000) return `${Math.floor(diffInMs / 60000)} phút trước`;
-      if (diffInMs < 86400000) return `${Math.floor(diffInMs / 3600000)} giờ trước`;
-      return date.toLocaleDateString("vi-VN", {
+      if (diffInMs < 60000) return t('time_now');
+      if (diffInMs < 3600000) return `${Math.floor(diffInMs / 60000)} ${t('time_min')}`;
+      if (diffInMs < 86400000) return `${Math.floor(diffInMs / 3600000)} ${t('time_hour')}`;
+      return date.toLocaleDateString(language === 'VI' ? "vi-VN" : "en-US", {
         day: "2-digit",
         month: "2-digit",
         year: "numeric"
       });
-    } catch { return "Vừa xong"; }
+    } catch { return t('time_now'); }
   };
 
   const isSuperAdmin = () => {
@@ -302,25 +319,45 @@ const Header = () => {
         <div className="bg-gradient-to-r from-[#1a479a] to-[#2563eb] text-white py-1.5 px-4 md:px-10 text-xs flex justify-between items-center">
           <div className="hidden md:flex items-center gap-2">
             <span className="w-1.5 h-1.5 bg-green-400 rounded-full animate-pulse" />
-            Hệ thống Quản lý Sự kiện IUH
+            {t('system_name')}
           </div>
           <div className="flex items-center gap-4 ml-auto">
-            <a href="mailto:support@iuh.edu.vn" className="hover:text-orange-200 flex items-center gap-1">
-              <Mail size={13} /> Hỗ trợ kỹ thuật
+            <a href="https://www.facebook.com/sviuh/?locale=vi_VN" className="hover:text-orange-200 flex items-center gap-1">
+              <Mail size={13} /> {t('support')}
             </a>
             <div className="h-3 w-px bg-white/30" />
-            <div className="flex items-center gap-1 cursor-pointer">
-              <Globe size={13} /> Tiếng Việt
+            <div className="flex items-center gap-2">
+              <div 
+                onClick={() => setLanguage("VI")}
+                className={`cursor-pointer transition-all ${language === "VI" ? "font-bold text-orange-300" : "opacity-60 hover:opacity-100"}`}
+              >
+                VI
+              </div>
+              <div className="w-px h-2 bg-white/20" />
+              <div 
+                onClick={() => setLanguage("EN")}
+                className={`cursor-pointer transition-all ${language === "EN" ? "font-bold text-orange-300" : "opacity-60 hover:opacity-100"}`}
+              >
+                EN
+              </div>
             </div>
           </div>
         </div>
 
         {!isLoginPage && (
-          <div className="max-w-7xl mx-auto px-4 md:px-6 py-4 flex items-center justify-between">
-            {/* Logo */}
-            <Link to="/" className="hover:opacity-90 transition">
-              <img src={logo_iuh} alt="IUH Logo" className="h-11 md:h-12 object-contain" />
-            </Link>
+          <div className="max-w-7xl mx-auto px-4 md:px-6 py-3 md:py-4 flex items-center justify-between">
+            {/* Left: Logo & Hamburger */}
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => setIsMobileMenuOpen(true)}
+                className="lg:hidden p-2 -ml-2 hover:bg-slate-100 rounded-xl transition-colors text-slate-600"
+              >
+                <Menu size={24} />
+              </button>
+              <Link to="/" className="hover:opacity-90 transition">
+                <img src={logo_iuh} alt="IUH Logo" className="h-10 md:h-12 object-contain" />
+              </Link>
+            </div>
 
             {/* Navigation */}
             <nav className="hidden lg:flex items-center gap-1">
@@ -333,7 +370,7 @@ const Header = () => {
                 className={`px-5 py-2.5 rounded-xl text-sm font-medium transition-all ${activeSection === "home" ? "bg-blue-600 text-white shadow-md" : "hover:bg-slate-100 text-slate-700"
                   }`}
               >
-                Trang chủ
+                {t('home')}
               </Link>
 
               <Link
@@ -342,7 +379,7 @@ const Header = () => {
                 className={`px-5 py-2.5 rounded-xl text-sm font-medium transition-all ${activeSection === "events" ? "bg-blue-600 text-white shadow-md" : "hover:bg-slate-100 text-slate-700"
                   }`}
               >
-                Sự kiện
+                {t('events')}
               </Link>
 
               <Link
@@ -350,39 +387,40 @@ const Header = () => {
                 className={`px-5 py-2.5 rounded-xl text-sm font-medium transition-all ${activeSection === "calendar" ? "bg-blue-600 text-white shadow-md" : "hover:bg-slate-100 text-slate-700"
                   }`}
               >
-                Lịch sự kiện
+                {t('calendar')}
               </Link>
               <Link
                 to="/news"
                 className={`px-5 py-2.5 rounded-xl text-sm font-medium transition-all ${activeSection === "news" ? "bg-blue-600 text-white shadow-md" : "hover:bg-slate-100 text-slate-700"
                   }`}
               >
-                Tin tức
+                {t('news')}
               </Link>
 
-
-
-              {isAdminOnly() && (
+              {/* Organizer Link next to News */}
+              {(isEventStaff() || isAdminOnly() || isSuperAdmin()) && (
                 <Link
-                  to="/lecturer"
-                  className="ml-4 px-5 py-2.5 rounded-xl text-sm font-medium bg-blue-50 text-blue-600 hover:bg-blue-100 transition-all border border-blue-100 shadow-sm"
+                  to={isSuperAdmin() || isAdminOnly() ? "/admin/dashboard" : (isLeaderRole() ? "/lecturer/dashboard" : "/lecturer/events")}
+                  className="ml-2 px-5 py-2.5 rounded-xl text-sm font-bold bg-indigo-600 text-white hover:bg-indigo-700 transition-all shadow-md shadow-indigo-100 flex items-center gap-2"
                 >
-                  Quản lý
-                </Link>
-              )}
-
-              {isEventStaff() && !isAdminOnly() && !isSuperAdmin() && (
-                <Link
-                  to={isLeaderRole() ? "/lecturer" : "/lecturer/events"}
-                  className="ml-4 px-5 py-2.5 rounded-xl text-sm font-medium bg-indigo-50 text-indigo-600 hover:bg-indigo-100 transition-all border border-indigo-100 shadow-sm"
-                >
-                  Ban tổ chức
+                  <LayoutDashboard size={16} />
+                  {isAdminOnly() || isSuperAdmin() ? t('admin_dashboard') : t('org_dashboard')}
                 </Link>
               )}
             </nav>
 
             {/* Right Side */}
             <div className="flex items-center gap-4">
+              {/* QR Scanner Button */}
+              <button
+                onClick={() => navigate("/attendance")}
+                className="p-3 hover:bg-slate-100 rounded-2xl transition-colors text-slate-600 flex items-center gap-2 group"
+                title={t('qr_scan')}
+              >
+                <QrCode size={22} className="group-hover:text-blue-600 transition-colors" />
+                <span className="text-[11px] font-bold uppercase tracking-tighter hidden md:block group-hover:text-blue-600 transition-colors">{t('qr_scan')}</span>
+              </button>
+
               {/* Notification Bell */}
               {isAuthenticated && user && (
                 <div className="relative" ref={notificationRef}>
@@ -416,10 +454,10 @@ const Header = () => {
                               <Bell size={20} className="text-white" />
                             </div>
                             <div>
-                              <h3 className="font-semibold text-slate-800">Thông báo</h3>
+                              <h3 className="font-semibold text-slate-800">{t('notifications')}</h3>
                               {unreadCount > 0 && (
                                 <p className="text-xs text-red-500 font-medium">
-                                  {unreadCount} thông báo chưa đọc
+                                  {unreadCount} {t('unread_notifications') || (language === 'VI' ? 'thông báo chưa đọc' : 'unread notifications')}
                                 </p>
                               )}
                             </div>
@@ -436,7 +474,7 @@ const Header = () => {
                               ) : (
                                 <Check size={14} />
                               )}
-                              Đánh dấu đã đọc
+                              {t('mark_all_read')}
                             </button>
                           )}
                         </div>
@@ -493,7 +531,7 @@ const Header = () => {
                               <div className="mx-auto w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center">
                                 <Bell size={32} className="text-slate-300" />
                               </div>
-                              <p className="mt-4 text-slate-500 font-medium">Không có thông báo mới</p>
+                              <p className="mt-4 text-slate-500 font-medium">{t('no_notifications')}</p>
                               <p className="text-xs text-slate-400 mt-1">Bạn sẽ nhận được thông báo khi có cập nhật</p>
                             </div>
                           )}
@@ -506,7 +544,7 @@ const Header = () => {
                               onClick={handleViewAllNotifications}
                               className="w-full py-3 text-blue-600 hover:text-blue-700 font-medium text-sm flex items-center justify-center gap-2 hover:bg-white rounded-2xl transition"
                             >
-                              Xem tất cả thông báo
+                              {t('view_all_notifications')}
                               <ChevronRight size={18} />
                             </button>
                           </div>
@@ -587,14 +625,14 @@ const Header = () => {
                         {/* Menu Items */}
                         <div className="p-2">
                           <Link
-                            to={hasRole('ADMIN') || hasRole('SUPER_ADMIN') ? "/admin/profile" :
-                              hasRole('LECTURER') ? "/lecturer/profile" :
-                                hasRole('GUEST') ? "/profile" : "/student/profile"}
+                            to={isSuperAdmin() || isAdminOnly() || hasRole('LECTURER') || isEventStaff() ? 
+                              (hasRole('ADMIN') || hasRole('SUPER_ADMIN') ? "/admin/profile" : "/lecturer/profile") 
+                              : "/profile"}
                             onClick={() => setIsMenuOpen(false)}
                             className="flex items-center gap-4 px-5 py-3.5 text-[15px] font-medium text-slate-700 hover:bg-slate-100 rounded-2xl transition-all active:bg-slate-200"
                           >
                             <User size={20} className="text-slate-500" />
-                            Hồ sơ cá nhân
+                            {t('profile')}
                           </Link>
 
                           {/* Dashboard Link based on Role */}
@@ -605,7 +643,7 @@ const Header = () => {
                               className="flex items-center gap-4 px-5 py-3.5 text-[15px] font-medium text-orange-600 hover:bg-orange-50 rounded-2xl transition-all active:bg-orange-100"
                             >
                               <LayoutDashboard size={20} className="text-orange-500" />
-                              Bảng điều khiển Admin
+                              {t('admin_dashboard')}
                             </Link>
                           )}
 
@@ -616,7 +654,7 @@ const Header = () => {
                               className="flex items-center gap-4 px-5 py-3.5 text-[15px] font-medium text-blue-600 hover:bg-blue-50 rounded-2xl transition-all active:bg-blue-100"
                             >
                               <LayoutDashboard size={20} className="text-blue-500" />
-                              Bảng điều khiển Admin
+                              {t('admin_dashboard')}
                             </Link>
                           )}
 
@@ -627,30 +665,19 @@ const Header = () => {
                               className="flex items-center gap-4 px-5 py-3.5 text-[15px] font-medium text-indigo-600 hover:bg-indigo-50 rounded-2xl transition-all active:bg-indigo-100"
                             >
                               <LayoutDashboard size={20} className="text-indigo-500" />
-                              Bảng điều khiển BTC
+                              {t('org_dashboard')}
                             </Link>
                           )}
 
-                          {/* Student Dashboard for regular students/guests */}
-                          {!isSuperAdmin() && !isAdminOnly() && !hasRole('LECTURER') && !isEventStaff() && !hasRole('GUEST') && (
-                            <Link
-                              to="/student/dashboard"
-                              onClick={() => setIsMenuOpen(false)}
-                              className="flex items-center gap-4 px-5 py-3.5 text-[15px] font-medium text-emerald-600 hover:bg-emerald-50 rounded-2xl transition-all active:bg-emerald-100"
-                            >
-                              <LayoutDashboard size={20} className="text-emerald-500" />
-                              Bảng điều khiển cá nhân
-                            </Link>
-                          )}
-
-                          {hasRole('GUEST') && (
+                          {/* Student 'My Events' for regular students/guests */}
+                          {!isSuperAdmin() && !isAdminOnly() && !hasRole('LECTURER') && !isEventStaff() && (
                             <Link
                               to="/guest-events"
                               onClick={() => setIsMenuOpen(false)}
-                              className="flex items-center gap-4 px-5 py-3.5 text-[15px] font-medium text-slate-700 hover:bg-slate-100 rounded-2xl transition-all active:bg-slate-200"
+                              className="flex items-center gap-4 px-5 py-3.5 text-[15px] font-medium text-emerald-600 hover:bg-emerald-50 rounded-2xl transition-all active:bg-emerald-100"
                             >
-                              <Calendar size={20} className="text-slate-500" />
-                              Sự kiện của tôi
+                              <Calendar size={20} className="text-emerald-500" />
+                              {t('my_events')}
                             </Link>
                           )}
 
@@ -670,7 +697,7 @@ const Header = () => {
                             className="w-full flex items-center gap-4 px-5 py-3.5 text-[15px] font-medium text-red-600 hover:bg-red-50 rounded-2xl transition-all active:bg-red-100"
                           >
                             <LogOut size={20} className="text-red-500" />
-                            Đăng xuất
+                            {t('logout')}
                           </button>
                         </div>
                       </motion.div>
@@ -683,7 +710,7 @@ const Header = () => {
                   className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-6 py-2.5 rounded-2xl font-semibold text-sm transition shadow-sm"
                 >
                   <LogIn size={18} />
-                  Đăng nhập
+                  {t('login')}
                 </Link>
               )}
             </div>
@@ -705,21 +732,21 @@ const Header = () => {
                 <div className="w-20 h-20 mx-auto mb-6 bg-rose-50 text-rose-500 rounded-full flex items-center justify-center shadow-inner">
                   <LogOut size={32} strokeWidth={2.5} />
                 </div>
-                <h3 className="text-2xl font-black text-slate-800 mb-3 uppercase tracking-tight">Đăng xuất?</h3>
-                <p className="text-slate-500 text-sm font-medium leading-relaxed mb-8">Bạn có chắc chắn muốn đăng xuất khỏi tài khoản?</p>
+                <h3 className="text-2xl font-black text-slate-800 mb-3 uppercase tracking-tight">{t('logout')}?</h3>
+                <p className="text-slate-500 text-sm font-medium leading-relaxed mb-8">{t('confirm_logout')}</p>
 
                 <div className="flex flex-col w-full gap-3">
                   <button
                     onClick={handleLogout}
                     className="w-full py-4 bg-rose-500 text-white rounded-2xl font-black text-sm uppercase tracking-widest hover:bg-rose-600 hover:shadow-lg hover:shadow-rose-100 active:scale-[0.98] transition-all cursor-pointer"
                   >
-                    Đăng xuất
+                    {t('logout')}
                   </button>
                   <button
                     onClick={() => setIsLogoutModalOpen(false)}
                     className="w-full py-4 bg-white text-slate-400 rounded-2xl font-black text-sm uppercase tracking-widest hover:text-slate-600 hover:bg-slate-50 transition-all cursor-pointer"
                   >
-                    Hủy
+                    {t('cancel')}
                   </button>
                 </div>
               </div>
@@ -729,6 +756,106 @@ const Header = () => {
       </AnimatePresence>
 
       {/* Logout Success Toast removed in favor of global showToast */}
+
+      {/* Mobile Menu Drawer */}
+      <AnimatePresence>
+        {isMobileMenuOpen && (
+          <>
+            {/* Backdrop */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setIsMobileMenuOpen(false)}
+              className="fixed inset-0 z-[100] bg-slate-900/60 backdrop-blur-sm lg:hidden"
+            />
+            {/* Drawer */}
+            <motion.div
+              initial={{ x: "-100%" }}
+              animate={{ x: 0 }}
+              exit={{ x: "-100%" }}
+              transition={{ type: "spring", damping: 25, stiffness: 200 }}
+              className="fixed inset-y-0 left-0 z-[101] w-[280px] bg-white shadow-2xl lg:hidden flex flex-col"
+            >
+              <div className="p-6 border-b border-slate-100 flex items-center justify-between">
+                <img src={logo_iuh} alt="Logo" className="h-8 object-contain" />
+                <button
+                  onClick={() => setIsMobileMenuOpen(false)}
+                  className="p-2 hover:bg-slate-100 rounded-xl transition-colors"
+                >
+                  <X size={20} className="text-slate-500" />
+                </button>
+              </div>
+
+              <div className="flex-1 overflow-y-auto py-6 px-4 space-y-2">
+                <Link
+                  to="/"
+                  className={`flex items-center gap-4 px-4 py-3.5 rounded-2xl font-semibold transition-all ${
+                    activeSection === "home" ? "bg-blue-50 text-blue-600" : "text-slate-600 hover:bg-slate-50"
+                  }`}
+                >
+                  <Home size={20} />
+                  {t('home')}
+                </Link>
+
+                <Link
+                  to="/events"
+                  className={`flex items-center gap-4 px-4 py-3.5 rounded-2xl font-semibold transition-all ${
+                    activeSection === "events" ? "bg-blue-50 text-blue-600" : "text-slate-600 hover:bg-slate-50"
+                  }`}
+                >
+                  <Calendar size={20} />
+                  {t('events')}
+                </Link>
+
+                <Link
+                  to="/calendar"
+                  className={`flex items-center gap-4 px-4 py-3.5 rounded-2xl font-semibold transition-all ${
+                    activeSection === "calendar" ? "bg-blue-50 text-blue-600" : "text-slate-600 hover:bg-slate-50"
+                  }`}
+                >
+                  <Clock size={20} />
+                  {t('calendar')}
+                </Link>
+
+                <Link
+                  to="/news"
+                  className={`flex items-center gap-4 px-4 py-3.5 rounded-2xl font-semibold transition-all ${
+                    activeSection === "news" ? "bg-blue-50 text-blue-600" : "text-slate-600 hover:bg-slate-50"
+                  }`}
+                >
+                  <MessageSquare size={20} />
+                  {t('news')}
+                </Link>
+
+                {(isEventStaff() || isAdminOnly() || isSuperAdmin()) && (
+                  <div className="pt-4 mt-4 border-t border-slate-100">
+                    <p className="px-4 mb-2 text-[10px] font-bold text-slate-400 uppercase tracking-widest">{t('management') || (language === 'VI' ? 'QUẢN LÝ' : 'MANAGEMENT')}</p>
+                    <Link
+                      to={isSuperAdmin() || isAdminOnly() ? "/admin/dashboard" : (isLeaderRole() ? "/lecturer/dashboard" : "/lecturer/events")}
+                      className="flex items-center gap-4 px-4 py-3.5 rounded-2xl font-bold bg-indigo-50 text-indigo-600 transition-all"
+                    >
+                      <LayoutDashboard size={20} />
+                      {isAdminOnly() || isSuperAdmin() ? t('admin_dashboard') : t('org_dashboard')}
+                    </Link>
+                  </div>
+                )}
+              </div>
+
+              <div className="p-6 border-t border-slate-100 bg-slate-50/50">
+                <div className="flex items-center justify-between text-xs text-slate-500 font-medium">
+                  <span>{t('language') || (language === 'VI' ? 'Ngôn ngữ' : 'Language')}</span>
+                  <div className="flex items-center gap-3">
+                    <button onClick={() => setLanguage("VI")} className={language === "VI" ? "text-blue-600 font-bold" : ""}>VI</button>
+                    <div className="w-px h-3 bg-slate-300" />
+                    <button onClick={() => setLanguage("EN")} className={language === "EN" ? "text-blue-600 font-bold" : ""}>EN</button>
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
     </>
   );
 };

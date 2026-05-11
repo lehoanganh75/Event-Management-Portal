@@ -174,17 +174,17 @@ const eventService = {
     getAllPosts: (params) => {
         const token = localStorage.getItem('accessToken');
         const api = token ? privateApi : publicApi;
-        return api.get('/posts', { params });
+        return api.get('/posts', { params }).then(transformListResponse);
     },
     getPostById: (id) => {
         const token = localStorage.getItem('accessToken');
         const api = token ? privateApi : publicApi;
-        return api.get(`/posts/${id}`);
+        return api.get(`/posts/${id}`).then(res => ({ ...res, data: transformBaseData(res.data) }));
     },
     getEventPosts: (eventId) => {
         const token = localStorage.getItem('accessToken');
         const api = token ? privateApi : publicApi;
-        return api.get(`/posts/detail/${eventId}`);
+        return api.get(`/posts/detail/${eventId}`).then(transformListResponse);
     },
     getPostsByUser: (accountId) => privateApi.get(`/posts/user/${accountId}`),
     createPost: (postData) => privateApi.post('/posts', postData),
@@ -194,7 +194,14 @@ const eventService = {
     incrementPostView: (postId) => publicApi.post(`/posts/${postId}/view`),
 
     // --- Comments ---
-    createComment: (postId, data) => privateApi.post(`/posts/comments/${postId}`, data),
+    createComment: (postId, data) => {
+        if (data instanceof FormData) {
+            return privateApi.post(`/posts/comments/${postId}`, data, {
+                headers: { 'Content-Type': 'multipart/form-data' }
+            });
+        }
+        return privateApi.post(`/posts/comments/${postId}`, data);
+    },
     getComments: (postId) => privateApi.get(`/posts/comments/${postId}`),
     deleteComment: (commentId) => privateApi.delete(`/posts/comments/${commentId}`),
     reactToComment: (commentId, data) => privateApi.post(`/posts/comments/${commentId}/react`, data),

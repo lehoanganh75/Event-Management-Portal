@@ -14,25 +14,36 @@ const QRScannerModal = ({ isOpen, onClose, onScanSuccess }) => {
   const startCamera = async () => {
     try {
       stopCamera();
-      // Chờ một chút để trình duyệt giải phóng camera hoàn toàn
-      await new Promise(resolve => setTimeout(resolve, 500));
-
       setError(null);
+      setIsScanning(false);
+      
+      // Chờ React re-render để hiển thị lại thẻ video
+      await new Promise(resolve => setTimeout(resolve, 100));
+
       const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: 'environment' }
+        video: { 
+          facingMode: 'environment',
+          width: { ideal: 1280 },
+          height: { ideal: 720 }
+        }
       });
+      
       streamRef.current = stream;
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
+        // Đảm bảo video bắt đầu phát trước khi bật scan
+        await videoRef.current.play();
         setIsScanning(true);
       }
     } catch (err) {
-      if (err.name === 'NotReadableError') {
-        setError("Camera đang bận hoặc chưa sẵn sàng. Vui lòng thử lại sau giây lát.");
+      console.error("Camera error:", err);
+      if (err.name === 'NotReadableError' || err.name === 'TrackStartError') {
+        setError("Camera đang được ứng dụng khác sử dụng hoặc chưa sẵn sàng.");
+      } else if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
+        setError("Quyền truy cập camera bị từ chối. Vui lòng cấp quyền trong cài đặt trình duyệt.");
       } else {
-        setError("Không thể truy cập camera. Vui lòng thử lại.");
+        setError("Không thể khởi động camera. Vui lòng thử lại.");
       }
-      console.error(err);
     }
   };
 

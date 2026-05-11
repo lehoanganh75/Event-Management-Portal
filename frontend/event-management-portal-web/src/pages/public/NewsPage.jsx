@@ -13,6 +13,7 @@ import eventService from "../../services/eventService";
 import Layout from "../../components/layout/Layout";
 import PostDetailManagement from "../../components/common/management/PostDetailManagement";
 import { createStompClient } from "../../utils/socket";
+import { useLanguage } from "../../context/LanguageContext";
 
 const updateCommentInTree = (list, commentId, updateFn) => {
   return list.map(item => {
@@ -22,9 +23,17 @@ const updateCommentInTree = (list, commentId, updateFn) => {
   });
 };
 
+const removeCommentFromTree = (list, commentId) => {
+  return list.filter(item => String(item.id) !== String(commentId)).map(item => {
+    if (item.replies?.length > 0) return { ...item, replies: removeCommentFromTree(item.replies, commentId) };
+    return item;
+  });
+};
+
 export default function NewsPage() {
   const navigate = useNavigate();
   const { user: currentUser } = useAuth();
+  const { t } = useLanguage();
 
   const [posts, setPosts] = useState([]);
   const [events, setEvents] = useState([]);
@@ -216,7 +225,8 @@ export default function NewsPage() {
     }
     setSubmittingComments(prev => ({ ...prev, [postId]: true }));
     try {
-      const res = await eventService.createComment(postId, { content });
+      const payload = content instanceof FormData ? content : (typeof content === 'object' ? content : { content });
+      const res = await eventService.createComment(postId, payload);
       const newComment = res.data;
       setPostComments(prev => {
         const existing = prev[postId] || [];
@@ -241,7 +251,8 @@ export default function NewsPage() {
     }
     setSubmittingComments(prev => ({ ...prev, [postId]: true }));
     try {
-      const res = await eventService.createComment(postId, { content, parentId });
+      const payload = content instanceof FormData ? content : (typeof content === 'object' ? { ...content, parentId } : { content, parentId });
+      const res = await eventService.createComment(postId, payload);
       const newReply = res.data;
       setPostComments(prev => ({
         ...prev,
@@ -254,10 +265,34 @@ export default function NewsPage() {
           };
         })
       }));
-    } catch (err) {
-      toast.error("Không thể gửi phản hồi");
     } finally {
       setSubmittingComments(prev => ({ ...prev, [postId]: false }));
+    }
+  };
+
+  const handleDeleteComment = async (postId, commentId) => {
+    // Optimistic update
+    setPostComments(prev => ({
+      ...prev,
+      [postId]: removeCommentFromTree(prev[postId] || [], commentId)
+    }));
+
+    try {
+      await eventService.deleteComment(commentId);
+    } catch (err) {
+      toast.error(language === 'VI' ? "Không thể xóa bình luận" : "Cannot delete comment");
+    }
+  };
+
+  const handleHideComment = async (postId, commentId) => {
+    try {
+      setPostComments(prev => ({
+        ...prev,
+        [postId]: removeCommentFromTree(prev[postId] || [], commentId)
+      }));
+      toast.success(language === 'VI' ? "Đã ẩn bình luận" : "Comment hidden");
+    } catch (err) {
+      toast.error(language === 'VI' ? "Không thể ẩn bình luận" : "Cannot hide comment");
     }
   };
 
@@ -272,8 +307,8 @@ export default function NewsPage() {
                 <Newspaper size={32} />
               </div>
               <div>
-                <h1 className="text-4xl font-black tracking-tight uppercase">Bảng tin sự kiện</h1>
-                <p className="text-blue-100 font-medium opacity-80">Khám phá các câu chuyện và khoảnh khắc từ sự kiện của chúng tôi</p>
+                <h1 className="text-4xl font-black tracking-tight uppercase">{t('news_banner_title')}</h1>
+                <p className="text-blue-100 font-medium opacity-80">{t('news_banner_subtitle')}</p>
               </div>
             </div>
           </div>
@@ -292,7 +327,7 @@ export default function NewsPage() {
                 >
                   <div className="flex items-center gap-2">
                     <Filter size={18} className="text-indigo-600" />
-                    <h2 className="font-black text-slate-800 uppercase tracking-tighter">Lọc theo sự kiện</h2>
+                    <h2 className="font-black text-slate-800 uppercase tracking-tighter">{t('filter_by_event')}</h2>
                   </div>
                   <button className="text-slate-400 hover:text-indigo-600 transition-colors">
                     {isFilterExpanded ? <X size={16} /> : <Plus size={16} />}
@@ -306,7 +341,7 @@ export default function NewsPage() {
                       <Search size={14} className="absolute left-3 top-2.5 text-slate-400" />
                       <input
                         type="text"
-                        placeholder="Tìm sự kiện..."
+                        placeholder={t('search_event_placeholder')}
                         value={eventSearch}
                         onChange={(e) => setEventSearch(e.target.value)}
                         className="w-full bg-slate-50 border border-slate-100 rounded-xl pl-9 pr-3 py-2 text-[12px] focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all font-medium"
@@ -321,7 +356,7 @@ export default function NewsPage() {
                           : "text-slate-500 hover:bg-slate-50"
                           }`}
                       >
-                        <span>Tất cả tin tức</span>
+                        <span>{t('all_news')}</span>
                         <span className={`px-2 py-0.5 rounded-full text-[10px] ${activeEventId === "all" ? "bg-white/20" : "bg-slate-100"}`}>
                           {posts.length}
                         </span>
@@ -345,7 +380,7 @@ export default function NewsPage() {
 
                       {filteredEvents.length === 0 && eventSearch && (
                         <div className="py-8 text-center text-slate-400 text-[11px] font-medium italic">
-                          Không tìm thấy sự kiện nào khớp
+                          {t('no_events_found_match')}
                         </div>
                       )}
                     </div>
@@ -353,7 +388,7 @@ export default function NewsPage() {
                     {events.length === 0 && !loading && (
                       <div className="mt-4 p-4 bg-slate-50 rounded-2xl border border-dashed border-slate-200 text-center">
                         <Info size={20} className="mx-auto mb-2 text-slate-300" />
-                        <p className="text-[11px] text-slate-400 font-medium leading-relaxed">Chưa có sự kiện nào có bài viết công khai.</p>
+                        <p className="text-[11px] text-slate-400 font-medium leading-relaxed">{t('no_events_public_posts')}</p>
                       </div>
                     )}
                   </>
@@ -366,12 +401,12 @@ export default function NewsPage() {
               {loading ? (
                 <div className="bg-white rounded-[2rem] p-20 text-center border border-slate-100 shadow-sm">
                   <Loader2 size={48} className="animate-spin text-indigo-600 mx-auto mb-4" />
-                  <p className="font-black text-slate-400 uppercase tracking-widest text-xs">Đang tải bảng tin...</p>
+                  <p className="font-black text-slate-400 uppercase tracking-widest text-xs">{t('loading_news')}</p>
                 </div>
               ) : (
                 <div className="space-y-8">
                   {filteredPosts.map(post => (
-                    <div key={post.id} className="bg-white rounded-[2.5rem] shadow-sm border border-slate-100 overflow-hidden hover:shadow-xl hover:shadow-indigo-500/5 transition-all duration-500">
+                    <div key={post.id} className="bg-white rounded-[2.5rem] shadow-sm border border-slate-100 hover:shadow-xl hover:shadow-indigo-500/5 transition-all duration-500">
                       <PostDetailManagement
                         post={post}
                         comments={postComments[post.id] || []}
@@ -382,6 +417,8 @@ export default function NewsPage() {
                         handleReactComment={(commentId, emoji) => handleReactComment(post.id, commentId, emoji)}
                         handleSubmitComment={(content) => handleSubmitComment(post.id, content)}
                         handleSubmitReply={(parentId, content) => handleSubmitReply(post.id, parentId, content)}
+                        handleDeleteComment={(commentId) => handleDeleteComment(post.id, commentId)}
+                        handleHideComment={(commentId) => handleHideComment(post.id, commentId)}
                         isSubmittingComment={submittingComments[post.id]}
                         onRefresh={() => loadComments(post.id)}
                         backPath="/news"
@@ -393,8 +430,8 @@ export default function NewsPage() {
                   {filteredPosts.length === 0 && (
                     <div className="bg-white rounded-[2rem] p-20 text-center border border-slate-100 shadow-sm">
                       <Newspaper size={48} className="text-slate-200 mx-auto mb-4" />
-                      <h3 className="font-black text-slate-800 uppercase italic tracking-tight text-xl mb-2">Chưa có tin tức nào</h3>
-                      <p className="text-slate-400 text-sm font-medium">Vui lòng chọn bộ lọc khác hoặc quay lại sau.</p>
+                      <h3 className="font-black text-slate-800 uppercase italic tracking-tight text-xl mb-2">{t('no_news_yet')}</h3>
+                      <p className="text-slate-400 text-sm font-medium">{t('select_other_filter')}</p>
                     </div>
                   )}
                 </div>

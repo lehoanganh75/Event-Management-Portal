@@ -64,8 +64,8 @@ public class EventPost {
     private PostStatus status = PostStatus.DRAFT; // DRAFT, PUBLISHED
 
     // --- Settings & Metrics ---
-    private boolean isPinned = false; // Ghim bài viết
-    private boolean allowComments = true;
+    private Boolean isPinned = false; // Ghim bài viết
+    private Boolean allowComments = true;
     private int viewCount = 0;
 
     // --- Timestamps ---
@@ -78,7 +78,7 @@ public class EventPost {
     @UpdateTimestamp
     private LocalDateTime updatedAt;
 
-    private boolean isDeleted = false;
+    private Boolean isDeleted = false;
 
     @OneToMany(mappedBy = "post", cascade = CascadeType.ALL, orphanRemoval = true)
     @JsonManagedReference
