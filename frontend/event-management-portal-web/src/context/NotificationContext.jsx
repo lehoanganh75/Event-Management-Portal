@@ -62,11 +62,9 @@ export const NotificationProvider = ({ children }) => {
                 heartbeatIncoming: 4000,
                 heartbeatOutgoing: 4000,
                 onConnect: () => {
-                    console.log("✅ [Global WS] Connected for User ID:", userId);
                     stompClient.subscribe(`/topic/notifications.${userId}`, (message) => {
                         if (message.body) {
                             const newNotification = JSON.parse(message.body);
-                            console.log("📩 [Global WS] Received notification:", newNotification);
 
                             setNotifications(prev => [newNotification, ...prev].slice(0, 15));
                             setUnreadCount(prev => prev + 1);
@@ -76,16 +74,16 @@ export const NotificationProvider = ({ children }) => {
                                 showToast(
                                     <div className="flex flex-col gap-0.5 text-left">
                                         <p className="font-black text-rose-600 uppercase tracking-tight">Tài khoản đã bị khóa</p>
-                                        <p className="text-[11px] font-medium text-slate-600">Bạn sẽ bị đăng xuất ngay lập tức.</p>
+                                        <p className="text-[11px] font-medium text-slate-600">Bạn sẽ bị đăng xuất ngay lập tức để đảm bảo an toàn.</p>
                                     </div>,
                                     'error'
                                 );
 
-                                // Đợi 2s để user kịp nhìn thấy thông báo rồi logout
+                                // Đợi 2.5s để user kịp nhìn thấy thông báo rồi logout
                                 setTimeout(() => {
                                     localStorage.clear();
                                     window.location.href = '/login?reason=locked';
-                                }, 2000);
+                                }, 2500);
                                 return;
                             }
 

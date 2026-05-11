@@ -303,6 +303,9 @@ const eventService = {
         analyzeStats: (statsJson) => privateApi.post('/api/v1/chat/analyze-stats', statsJson, {
             headers: { 'Content-Type': 'text/plain' }
         }),
+        extractFromText: (text) => privateApi.post('/api/v1/chat/extract-from-text', text, {
+            headers: { 'Content-Type': 'text/plain' }
+        }),
     },
 
     // --- GROUP 10: UTILS ---

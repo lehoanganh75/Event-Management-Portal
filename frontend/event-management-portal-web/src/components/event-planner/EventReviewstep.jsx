@@ -69,7 +69,7 @@ const SectionHeader = ({ title, icon: Icon }) => (
   </div>
 );
 
-export const EventReviewStep = ({ formData, onBack, onSubmit, isSubmitting, isPlanMode = false, isEdit = false, onSaveDraft, onSaveTemplate, onExportWord, onReset }) => {
+export const EventReviewStep = ({ formData, onBack, onSubmit, isSubmitting, isPlanMode = false, isEdit = false, onSaveDraft, onSaveTemplate, onExportWord, onReset, isReadOnly = false }) => {
   const { user } = useAuth();
   const role = user?.role || "";
   const isSuperAdmin = role === "SUPER_ADMIN";
@@ -182,41 +182,43 @@ export const EventReviewStep = ({ formData, onBack, onSubmit, isSubmitting, isPl
               </div>
             </div>
 
-            {/* Modules Card */}
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
-              <div style={{ background: "#fff", border: "1px solid #f1f5f9", borderRadius: 16, padding: "14px 16px" }}>
-                <SectionHeader title="Giải thưởng" icon={Gift} />
-                {hasLuckyDraw && prizes.length > 0 ? (
-                  <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-                    {prizes.map((p, i) => (
-                      <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 12px", background: "#fdfaff", borderRadius: 8 }}>
-                        <span style={{ fontSize: 13, fontWeight: 600, color: "#6b21a8" }}>{p.name}</span>
-                        <span style={{ fontSize: 11, fontWeight: 800, color: "#a855f7" }}>x{p.quantity}</span>
+            {/* Modules Card (Hidden in Plan Mode) */}
+            {!isPlanMode && (
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+                <div style={{ background: "#fff", border: "1px solid #f1f5f9", borderRadius: 16, padding: "14px 16px" }}>
+                  <SectionHeader title="Giải thưởng" icon={Gift} />
+                  {hasLuckyDraw && prizes.length > 0 ? (
+                    <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                      {prizes.map((p, i) => (
+                        <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 12px", background: "#fdfaff", borderRadius: 8 }}>
+                          <span style={{ fontSize: 13, fontWeight: 600, color: "#6b21a8" }}>{p.name}</span>
+                          <span style={{ fontSize: 11, fontWeight: 800, color: "#a855f7" }}>x{p.quantity}</span>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p style={{ fontSize: 13, color: "#94a3b8", fontStyle: "italic", margin: 0 }}>Không kích hoạt</p>
+                  )}
+                </div>
+                <div style={{ background: "#fff", border: "1px solid #f1f5f9", borderRadius: 16, padding: "14px 16px" }}>
+                  <SectionHeader title="Tương tác" icon={MessageSquare} />
+                  {interactions.length > 0 ? (
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                      <div style={{ padding: "12px", background: "#f0f9ff", borderRadius: 10, textAlign: "center" }}>
+                        <div style={{ fontSize: 18, fontWeight: 800, color: "#0369a1" }}>{interactions.filter(i => i.type === 'question').length}</div>
+                        <div style={{ fontSize: 10, fontWeight: 700, color: "#0ea5e9", textTransform: "uppercase" }}>Câu hỏi</div>
                       </div>
-                    ))}
-                  </div>
-                ) : (
-                  <p style={{ fontSize: 13, color: "#94a3b8", fontStyle: "italic", margin: 0 }}>Không kích hoạt</p>
-                )}
-              </div>
-              <div style={{ background: "#fff", border: "1px solid #f1f5f9", borderRadius: 16, padding: "14px 16px" }}>
-                <SectionHeader title="Tương tác" icon={MessageSquare} />
-                {interactions.length > 0 ? (
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-                    <div style={{ padding: "12px", background: "#f0f9ff", borderRadius: 10, textAlign: "center" }}>
-                      <div style={{ fontSize: 18, fontWeight: 800, color: "#0369a1" }}>{interactions.filter(i => i.type === 'question').length}</div>
-                      <div style={{ fontSize: 10, fontWeight: 700, color: "#0ea5e9", textTransform: "uppercase" }}>Câu hỏi</div>
+                      <div style={{ padding: "12px", background: "#fdf4ff", borderRadius: 10, textAlign: "center" }}>
+                        <div style={{ fontSize: 18, fontWeight: 800, color: "#86198f" }}>{interactions.filter(i => i.type === 'poll').length}</div>
+                        <div style={{ fontSize: 10, fontWeight: 700, color: "#d946ef", textTransform: "uppercase" }}>Bình chọn</div>
+                      </div>
                     </div>
-                    <div style={{ padding: "12px", background: "#fdf4ff", borderRadius: 10, textAlign: "center" }}>
-                      <div style={{ fontSize: 18, fontWeight: 800, color: "#86198f" }}>{interactions.filter(i => i.type === 'poll').length}</div>
-                      <div style={{ fontSize: 10, fontWeight: 700, color: "#d946ef", textTransform: "uppercase" }}>Bình chọn</div>
-                    </div>
-                  </div>
-                ) : (
-                  <p style={{ fontSize: 13, color: "#94a3b8", fontStyle: "italic", margin: 0 }}>Không kích hoạt</p>
-                )}
+                  ) : (
+                    <p style={{ fontSize: 13, color: "#94a3b8", fontStyle: "italic", margin: 0 }}>Không kích hoạt</p>
+                  )}
+                </div>
               </div>
-            </div>
+            )}
           </div>
 
           <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
@@ -270,90 +272,67 @@ export const EventReviewStep = ({ formData, onBack, onSubmit, isSubmitting, isPl
                   </div>
                   <span style={{ fontSize: 15, fontWeight: 700 }}>{maxParticipants || 0}</span>
                 </div>
-                <div style={{ height: 1, background: "rgba(255,255,255,0.1)" }} />
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                    <Award size={16} />
-                    <span style={{ fontSize: 13 }}>Giải thưởng</span>
-                  </div>
-                  <span style={{ fontSize: 15, fontWeight: 700 }}>{prizes.length}</span>
-                </div>
+                {!isPlanMode && (
+                  <>
+                    <div style={{ height: 1, background: "rgba(255,255,255,0.1)" }} />
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                        <Award size={16} />
+                        <span style={{ fontSize: 13 }}>Giải thưởng</span>
+                      </div>
+                      <span style={{ fontSize: 15, fontWeight: 700 }}>{prizes.length}</span>
+                    </div>
+                  </>
+                )}
               </div>
             </div>
           </div>
         </div>
 
         {/* Action Bar - Sticky Bottom */}
-        {/* Unified Action Bar - Sticky Bottom */}
-        <div style={{ position: "fixed", bottom: 0, left: 288, right: 0, zIndex: 50, background: "#fff", borderTop: "1px solid #e2e8f0", padding: "12px 32px", boxShadow: "0 -4px 12px rgba(0,0,0,0.06)" }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 12 }}>
-            {/* Left: Back + Reset */}
-            <div style={{ display: "flex", gap: 10 }}>
-              <button
-                onClick={onBack}
-                disabled={isSubmitting || savingDraft || savingTemplate}
-                style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 18px", borderRadius: 10, border: "1px solid #e2e8f0", background: "#fff", color: "#64748b", fontSize: 13, fontWeight: 600, cursor: "pointer" }}
-              >
-                <ArrowLeft size={16} /> Quay lại
-              </button>
-              <button
-                onClick={onReset}
-                disabled={isSubmitting || savingDraft || savingTemplate}
-                style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 18px", borderRadius: 10, border: "1px solid #fecaca", background: "#fff5f5", color: "#ef4444", fontSize: 13, fontWeight: 600, cursor: "pointer" }}
-              >
-                <RefreshCw size={15} /> Làm mới
-              </button>
-            </div>
+        {!isReadOnly && (
+          <div style={{ position: "fixed", bottom: 0, left: 288, right: 0, zIndex: 50, background: "#fff", borderTop: "1px solid #e2e8f0", padding: "12px 32px", boxShadow: "0 -4px 12px rgba(0,0,0,0.06)" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 12 }}>
+              {/* Left: Back + Reset */}
+              <div style={{ display: "flex", gap: 10 }}>
+                <button
+                  onClick={onBack}
+                  disabled={isSubmitting || savingDraft || savingTemplate}
+                  style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 18px", borderRadius: 10, border: "1px solid #e2e8f0", background: "#fff", color: "#64748b", fontSize: 13, fontWeight: 600, cursor: "pointer" }}
+                >
+                  <ArrowLeft size={16} /> Quay lại
+                </button>
+                <button
+                  onClick={onReset}
+                  disabled={isSubmitting || savingDraft || savingTemplate}
+                  style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 18px", borderRadius: 10, border: "1px solid #fecaca", background: "#fff5f5", color: "#ef4444", fontSize: 13, fontWeight: 600, cursor: "pointer" }}
+                >
+                  <RefreshCw size={15} /> Làm mới
+                </button>
+              </div>
 
-            {/* Right: Action Buttons */}
-            <div style={{ display: "flex", gap: 10, flexWrap: "wrap", justifyContent: "flex-end" }}>
-              {/* Save Draft */}
-              <button
-                onClick={handleSaveDraft}
-                disabled={savingDraft || isSubmitting}
-                style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 20px", borderRadius: 10, border: "1px solid #e2e8f0", background: "#f8fafc", color: "#475569", fontSize: 13, fontWeight: 700, cursor: "pointer" }}
-              >
-                {savingDraft ? <Loader2 size={15} className="animate-spin" /> : <Save size={15} />}
-                Lưu nháp
-              </button>
+              {/* Right: Action Buttons */}
+              <div style={{ display: "flex", gap: 10, flexWrap: "wrap", justifyContent: "flex-end" }}>
 
-              {/* Save Template */}
-              <button
-                onClick={handleSaveTemplate}
-                disabled={savingTemplate || isSubmitting}
-                style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 20px", borderRadius: 10, border: "1px solid #ddd6fe", background: "#fdfaff", color: "#7c3aed", fontSize: 13, fontWeight: 700, cursor: "pointer" }}
-              >
-                {savingTemplate ? <Loader2 size={15} className="animate-spin" /> : <LayoutTemplate size={15} />}
-                Lưu bản mẫu
-              </button>
-
-              {/* Export Word */}
-              <button
-                onClick={() => onExportWord?.(formData)}
-                disabled={isSubmitting}
-                style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 20px", borderRadius: 10, border: "1px solid #bfdbfe", background: "#eff6ff", color: "#2563eb", fontSize: 13, fontWeight: 700, cursor: "pointer" }}
-              >
-                <Download size={15} /> Xuất Word
-              </button>
-
-              {/* Main Action Button (Submit or Publish) */}
-              <button
-                onClick={() => onSubmit(formData)}
-                disabled={isSubmitting || savingDraft || savingTemplate}
-                style={{ display: "flex", alignItems: "center", gap: 8, padding: "12px 28px", borderRadius: 10, border: "none", background: "#1e1b4b", color: "#fff", fontSize: 13, fontWeight: 700, cursor: "pointer", boxShadow: "0 4px 6px -1px rgba(30,27,75,0.2)" }}
-              >
-                {isSubmitting ? (
-                  <><Loader2 size={16} className="animate-spin" /> Đang gửi...</>
-                ) : (
-                  <>
-                    <Send size={15} />
-                    {isEdit ? "Cập nhật sự kiện" : (isAuthority && !isPlanMode ? "Xuất bản ngay" : "Gửi phê duyệt")}
-                  </>
-                )}
-              </button>
+                {/* Main Action Button (Submit or Publish) */}
+                <button
+                  onClick={() => onSubmit(formData)}
+                  disabled={isSubmitting || savingDraft || savingTemplate}
+                  style={{ display: "flex", alignItems: "center", gap: 8, padding: "12px 28px", borderRadius: 10, border: "none", background: "#1e1b4b", color: "#fff", fontSize: 13, fontWeight: 700, cursor: "pointer", boxShadow: "0 4px 6px -1px rgba(30,27,75,0.2)" }}
+                >
+                  {isSubmitting ? (
+                    <><Loader2 size={16} className="animate-spin" /> Đang gửi...</>
+                  ) : (
+                    <>
+                      <Send size={15} />
+                      {isEdit ? "Cập nhật sự kiện" : (isAuthority && !isPlanMode ? "Xuất bản ngay" : (isAuthority && isPlanMode ? "Lưu & Duyệt ngay" : "Gửi phê duyệt"))}
+                    </>
+                  )}
+                </button>
+              </div>
             </div>
           </div>
-        </div>
+        )}
       </div>
     </div>
   );

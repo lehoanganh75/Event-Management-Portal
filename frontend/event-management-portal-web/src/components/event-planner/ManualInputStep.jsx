@@ -28,8 +28,8 @@ import ImageUpload from "../common/ImageUpload.jsx";
 import eventService from "../../services/eventService";
 import authService from "../../services/authService";
 
-const Field = ({ label, icon: Icon, required, error, hint, action, children }) => (
-  <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+const Field = ({ id, label, icon: Icon, required, error, hint, action, children }) => (
+  <div id={id} style={{ display: "flex", flexDirection: "column", gap: 6 }}>
     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
       <label
         style={{
@@ -343,10 +343,79 @@ export default function ManualInputStep({
   const validate = () => {
     const e = {};
     if (isVisible('organization')) {
-      if (formData.orgSelectionMode === 'existing' && !formData.organizationId) {
+      const mode = formData.orgSelectionMode || 'existing';
+      if (mode === 'existing' && !formData.organizationId) {
         e.organizationId = "Vui lòng chọn ban tổ chức";
       }
-      if (formData.orgSelectionMode === 'new') {
+      if (mode === 'new') {
+        if (!formData.newOrg?.name) e.newOrgName = "Vui lòng nhập tên ban tổ chức";
+        if (!formData.newOrg?.email) e.newOrgEmail = "Vui lòng nhập email";
+      }
+    }
+    if (isVisible('basic')) {
+      if (!formData.eventTitle) e.eventTitle = `Vui lòng nhập tên ${term}`;
+      if (!formData.startTime) {
+        e.startTime = "Vui lòng chọn thời gian bắt đầu";
+      } else if (new Date(formData.startTime) < new Date()) {
+        e.startTime = "Thời gian bắt đầu không được ở quá khứ";
+      }
+
+      if (!formData.endTime) {
+        e.endTime = "Vui lòng chọn thời gian kết thúc";
+      } else if (formData.startTime && new Date(formData.startTime) >= new Date(formData.endTime)) {
+        e.endTime = "Thời gian kết thúc phải sau thời gian bắt đầu";
+      }
+
+      if (!formData.registrationDeadline) {
+        e.registrationDeadline = "Vui lòng chọn hạn đăng ký";
+      } else if (formData.startTime) {
+        const start = new Date(formData.startTime);
+        const deadline = new Date(formData.registrationDeadline);
+        // Kiểm tra deadline phải trước start ít nhất 24h
+        if (start.getTime() - deadline.getTime() < 24 * 60 * 60 * 1000) {
+          e.registrationDeadline = "Hạn đăng ký phải trước thời gian bắt đầu ít nhất 1 ngày";
+        }
+      }
+    }
+    if (isVisible('details') || isVisible('attendees')) {
+      if (!formData.location) e.location = "Vui lòng nhập địa điểm";
+      if (isVisible('attendees') && !formData.maxParticipants) e.maxParticipants = "Vui lòng nhập số lượng tối đa";
+    }
+    setErrors(e);
+    return Object.keys(e).length === 0;
+  };
+
+  const handleNext = () => {
+    const e = validateErrors();
+    if (Object.keys(e).length === 0) {
+      onNext(formData);
+    } else {
+      setErrors(e);
+      const firstErrorKey = Object.keys(e)[0];
+      const firstErrorMsg = e[firstErrorKey];
+
+      if (firstErrorMsg) {
+        import("react-toastify").then(({ toast }) => {
+          toast.error(firstErrorMsg);
+        });
+      }
+
+      // Scroll to the first error
+      setTimeout(() => {
+        const errorElement = document.getElementById(`field-${firstErrorKey}`);
+        if (errorElement) {
+          errorElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+      }, 100);
+    }
+  };
+
+  const validateErrors = () => {
+    const e = {};
+    if (isVisible('organization')) {
+      const m = formData.orgSelectionMode || 'existing';
+      if (m === 'existing' && !formData.organizationId) e.organizationId = "Vui lòng chọn ban tổ chức";
+      if (m === 'new') {
         if (!formData.newOrg?.name) e.newOrgName = "Vui lòng nhập tên ban tổ chức";
         if (!formData.newOrg?.email) e.newOrgEmail = "Vui lòng nhập email";
       }
@@ -361,30 +430,33 @@ export default function ManualInputStep({
       if (!formData.location) e.location = "Vui lòng nhập địa điểm";
       if (isVisible('attendees') && !formData.maxParticipants) e.maxParticipants = "Vui lòng nhập số lượng tối đa";
     }
-    setErrors(e);
-    return Object.keys(e).length === 0;
-  };
-
-  const handleNext = () => {
-    if (validate()) {
-      onNext(formData);
-    }
+    return e;
   };
 
   const addInvite = (user = null) => {
     const invites = formData.invitations || [];
     const newInvite = user ? {
+      inviteeAccountId: user.id,
       inviteeEmail: user.email || "",
       inviteeName: user.profile?.fullName || user.username || "",
       inviteePosition: user.profile?.position || "",
       targetRole: "MEMBER",
-      message: ""
-    } : { inviteeEmail: "", inviteeName: "", inviteePosition: "", targetRole: "MEMBER", message: "" };
+      message: "",
+      isConfirmed: true
+    } : { inviteeAccountId: null, inviteeEmail: "", inviteeName: "", inviteePosition: "", targetRole: "MEMBER", message: "", isConfirmed: false };
 
     setFormData({
       ...formData,
       invitations: [...invites, newInvite]
     });
+  };
+
+  const confirmInvite = (index) => {
+    const invites = [...(formData.invitations || [])];
+    const invite = invites[index];
+    if (!invite.inviteeEmail) return;
+    invites[index] = { ...invite, isConfirmed: true };
+    setFormData({ ...formData, invitations: invites });
   };
 
   const updateInvite = (index, field, value) => {
@@ -401,19 +473,28 @@ export default function ManualInputStep({
   const addPresenter = (user = null) => {
     const presenters = formData.presenters || [];
     const newPresenter = user ? {
+      presenterAccountId: user.id,
       email: user.email || "",
       fullName: user.profile?.fullName || user.username || "",
       position: user.profile?.position || "",
       department: user.profile?.department || "",
-      presenterAccountId: user.id,
       bio: "",
-      session: ""
-    } : { email: "", fullName: "", position: "", department: "", bio: "", session: "" };
+      session: "",
+      isConfirmed: true
+    } : { presenterAccountId: null, email: "", fullName: "", position: "", department: "", bio: "", session: "", isConfirmed: false };
 
     setFormData({
       ...formData,
       presenters: [...presenters, newPresenter]
     });
+  };
+
+  const confirmPresenter = (index) => {
+    const presenters = [...(formData.presenters || [])];
+    const presenter = presenters[index];
+    if (!presenter.email) return;
+    presenters[index] = { ...presenter, isConfirmed: true };
+    setFormData({ ...formData, presenters: presenters });
   };
 
   const updatePresenter = (index, field, value) => {
@@ -475,9 +556,42 @@ export default function ManualInputStep({
       startTime: formData.startTime || "",
       endTime: formData.endTime || "",
       maxParticipants: formData.maxParticipants || 0,
-      orderIndex: sessions.length + 1
+      orderIndex: sessions.length + 1,
+      isConfirmed: false
     };
     setFormData({ ...formData, sessions: [...sessions, newSession] });
+  };
+
+  const confirmSession = (index) => {
+    const sessions = [...(formData.sessions || [])];
+    const session = sessions[index];
+
+    if (!session.title) return;
+
+    let hasError = false;
+    const updatedSession = { ...session, startTimeError: null, endTimeError: null };
+
+    if (!session.startTime) {
+      updatedSession.startTimeError = "Vui lòng chọn thời gian";
+      hasError = true;
+    }
+    if (!session.endTime) {
+      updatedSession.endTimeError = "Vui lòng chọn thời gian";
+      hasError = true;
+    }
+    if (session.startTime && session.endTime && new Date(session.startTime) >= new Date(session.endTime)) {
+      updatedSession.endTimeError = "Kết thúc phải sau bắt đầu";
+      hasError = true;
+    }
+
+    if (hasError) {
+      sessions[index] = updatedSession;
+      setFormData({ ...formData, sessions });
+      return;
+    }
+
+    sessions[index] = { ...updatedSession, isConfirmed: true };
+    setFormData({ ...formData, sessions: sessions });
   };
 
   const updateSession = (index, field, value) => {
@@ -537,7 +651,7 @@ export default function ManualInputStep({
             </div>
 
             {formData.orgSelectionMode !== 'new' ? (
-              <Field label="Chọn đơn vị tổ chức" required error={errors.organizationId}>
+              <Field id="field-organizationId" label="Chọn đơn vị tổ chức" required error={errors.organizationId}>
                 <Select
                   value={formData.organizationId || ""}
                   onChange={(e) => setFormData({ ...formData, organizationId: e.target.value })}
@@ -576,14 +690,14 @@ export default function ManualInputStep({
                 )}
 
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
-                  <Field label="Tên ban tổ chức" required error={errors.newOrgName}>
+                  <Field id="field-newOrgName" label="Tên ban tổ chức" required error={errors.newOrgName}>
                     <Input
                       placeholder="VD: CLB Kỹ năng mềm"
                       value={formData.newOrg?.name || ""}
                       onChange={(e) => setFormData({ ...formData, newOrg: { ...formData.newOrg, name: e.target.value } })}
                     />
                   </Field>
-                  <Field label="Email liên hệ" required error={errors.newOrgEmail}>
+                  <Field id="field-newOrgEmail" label="Email liên hệ" required error={errors.newOrgEmail}>
                     <Input
                       type="email"
                       placeholder="vd@iuh.edu.vn"
@@ -703,34 +817,100 @@ export default function ManualInputStep({
 
               <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
                 {(formData.invitations || []).map((invite, idx) => (
-                  <div key={idx} style={{ background: "#fafafa", padding: 20, borderRadius: 14, border: "1px solid #f1f5f9", display: "flex", flexDirection: "column", gap: 16, position: "relative" }}>
-                    <button
-                      onClick={() => removeInvite(idx)}
-                      style={{ position: "absolute", top: 12, right: 12, background: "#fee2e2", border: "none", color: "#ef4444", padding: "6px", borderRadius: 8, cursor: "pointer" }}
-                    >
-                      <X size={14} />
-                    </button>
-
-                    <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: 16 }}>
-                      <Field label="Email người được mời" required>
-                        <Input type="email" value={invite.inviteeEmail} onChange={(e) => updateInvite(idx, 'inviteeEmail', e.target.value)} placeholder="Nhập email (ví dụ: email@iuh.edu.vn)" />
-                      </Field>
+                  invite.isConfirmed ? (
+                    <div key={idx} style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 12, padding: "12px 16px", display: "flex", alignItems: "center", gap: 12, animation: "fadeIn 0.3s ease" }}>
+                      <div style={{ width: 40, height: 40, borderRadius: "50%", background: "#f0fdf4", display: "flex", alignItems: "center", justifyContent: "center", color: "#22c55e" }}>
+                        <UserCheck size={20} />
+                      </div>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontSize: 14, fontWeight: 700, color: "#1e293b" }}>{invite.inviteeName || invite.inviteeEmail.split('@')[0]}</div>
+                        <div style={{ fontSize: 12, color: "#64748b" }}>
+                          <span style={{ background: "#f1f5f9", padding: "2px 6px", borderRadius: 4, fontWeight: 600, marginRight: 8 }}>
+                            {ORGANIZER_ROLES.find(r => r.value === invite.targetRole)?.label}
+                          </span>
+                          {invite.inviteeEmail}
+                        </div>
+                      </div>
+                      <div style={{ display: "flex", gap: 8 }}>
+                        <button
+                          onClick={() => updateInvite(idx, 'isConfirmed', false)}
+                          style={{ background: "none", border: "none", color: "#3b82f6", fontSize: 12, fontWeight: 700, cursor: "pointer", padding: "4px 8px" }}
+                        >
+                          Chỉnh sửa
+                        </button>
+                        <button
+                          onClick={() => removeInvite(idx)}
+                          style={{ background: "none", border: "none", color: "#ef4444", fontSize: 12, fontWeight: 700, cursor: "pointer", padding: "4px 8px" }}
+                        >
+                          Xóa
+                        </button>
+                      </div>
                     </div>
+                  ) : (
+                    <div key={idx} style={{ background: "#fafafa", padding: 20, borderRadius: 14, border: "2px solid #8b5cf6", display: "flex", flexDirection: "column", gap: 16, position: "relative", boxShadow: "0 4px 12px rgba(139, 92, 246, 0.08)" }}>
+                      <button
+                        onClick={() => removeInvite(idx)}
+                        style={{ position: "absolute", top: 12, right: 12, background: "#fee2e2", border: "none", color: "#ef4444", padding: "6px", borderRadius: 8, cursor: "pointer" }}
+                      >
+                        <X size={14} />
+                      </button>
 
-                    <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: 16 }}>
-                      <Field label="Vai trò dự kiến">
-                        <Select value={invite.targetRole} onChange={(e) => updateInvite(idx, 'targetRole', e.target.value)}>
-                          {ORGANIZER_ROLES.map(role => (
-                            <option key={role.value} value={role.value}>{role.label}</option>
-                          ))}
-                        </Select>
+                      <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: 16 }}>
+                        <Field label="Email người được mời" required>
+                          <Input
+                            type="email"
+                            value={invite.inviteeEmail}
+                            onChange={(e) => updateInvite(idx, 'inviteeEmail', e.target.value)}
+                            onKeyDown={(e) => e.key === 'Enter' && confirmInvite(idx)}
+                            placeholder="Nhập email (ví dụ: email@iuh.edu.vn)"
+                            autoFocus
+                          />
+                        </Field>
+                      </div>
+
+                      <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: 16 }}>
+                        <Field label="Vai trò dự kiến">
+                          <Select value={invite.targetRole} onChange={(e) => updateInvite(idx, 'targetRole', e.target.value)}>
+                            {ORGANIZER_ROLES.map(role => (
+                              <option key={role.value} value={role.value}>{role.label}</option>
+                            ))}
+                          </Select>
+                        </Field>
+                      </div>
+
+                      <Field label="Lời nhắn gửi kèm">
+                        <Input
+                          value={invite.message}
+                          onChange={(e) => updateInvite(idx, 'message', e.target.value)}
+                          onKeyDown={(e) => e.key === 'Enter' && confirmInvite(idx)}
+                          placeholder={`VD: Mời bạn làm truyền thông cho ${term} này...`}
+                        />
                       </Field>
-                    </div>
 
-                    <Field label="Lời nhắn gửi kèm">
-                      <Input value={invite.message} onChange={(e) => updateInvite(idx, 'message', e.target.value)} placeholder={`VD: Mời bạn làm truyền thông cho ${term} này...`} />
-                    </Field>
-                  </div>
+                      <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 4 }}>
+                        <button
+                          onClick={() => confirmInvite(idx)}
+                          disabled={!invite.inviteeEmail}
+                          style={{
+                            background: invite.inviteeEmail ? "#1e1b4b" : "#94a3b8",
+                            color: "#fff",
+                            border: "none",
+                            padding: "10px 20px",
+                            borderRadius: 8,
+                            fontSize: 13,
+                            fontWeight: 700,
+                            cursor: invite.inviteeEmail ? "pointer" : "not-allowed",
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 8,
+                            transition: "all 0.2s"
+                          }}
+                        >
+                          <Check size={16} /> Xác nhận thêm
+                        </button>
+                      </div>
+                    </div>
+                  )
                 ))}
                 {(!formData.invitations || formData.invitations.length === 0) && (
                   <div style={{ textAlign: "center", padding: "32px", border: "1px dashed #e2e8f0", borderRadius: 16, color: "#94a3b8", fontSize: 13, background: "#fcfcfc" }}>
@@ -802,50 +982,109 @@ export default function ManualInputStep({
 
               <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
                 {(formData.sessions || []).map((session, idx) => (
-                  <div key={idx} style={{ background: "#fafafa", padding: 20, borderRadius: 14, border: "1px solid #f1f5f9", display: "flex", flexDirection: "column", gap: 16, position: "relative" }}>
-                    <div style={{ position: "absolute", top: 12, right: 12, display: "flex", gap: 8 }}>
-                      <div style={{ background: "#e2e8f0", color: "#475569", padding: "4px 8px", borderRadius: 6, fontSize: 11, fontWeight: 700 }}>
-                        Thứ tự: {session.orderIndex}
+                  session.isConfirmed ? (
+                    <div key={idx} style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 12, padding: "12px 16px", display: "flex", alignItems: "center", gap: 12, animation: "fadeIn 0.3s ease" }}>
+                      <div style={{ width: 40, height: 40, borderRadius: 10, background: "#f5f3ff", display: "flex", alignItems: "center", justifyContent: "center", color: "#8b5cf6" }}>
+                        <span style={{ fontWeight: 800, fontSize: 14 }}>{session.orderIndex}</span>
                       </div>
-                      <button
-                        onClick={() => removeSession(idx)}
-                        style={{ background: "#fee2e2", border: "none", color: "#ef4444", padding: "6px", borderRadius: 8, cursor: "pointer" }}
-                      >
-                        <X size={14} />
-                      </button>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontSize: 14, fontWeight: 700, color: "#1e293b" }}>{session.title}</div>
+                        <div style={{ fontSize: 12, color: "#64748b" }}>
+                          <span style={{ background: "#f1f5f9", padding: "2px 6px", borderRadius: 4, fontWeight: 600, marginRight: 8 }}>
+                            {SESSION_TYPES.find(t => t.value === session.type)?.label}
+                          </span>
+                          {session.room || "Chưa chọn phòng"}
+                        </div>
+                      </div>
+                      <div style={{ display: "flex", gap: 8 }}>
+                        <button
+                          onClick={() => updateSession(idx, 'isConfirmed', false)}
+                          style={{ background: "none", border: "none", color: "#3b82f6", fontSize: 12, fontWeight: 700, cursor: "pointer", padding: "4px 8px" }}
+                        >
+                          Chỉnh sửa
+                        </button>
+                        <button
+                          onClick={() => removeSession(idx)}
+                          style={{ background: "none", border: "none", color: "#ef4444", fontSize: 12, fontWeight: 700, cursor: "pointer", padding: "4px 8px" }}
+                        >
+                          Xóa
+                        </button>
+                      </div>
                     </div>
+                  ) : (
+                    <div key={idx} style={{ background: "#fafafa", padding: 20, borderRadius: 14, border: "2px solid #8b5cf6", display: "flex", flexDirection: "column", gap: 16, position: "relative", boxShadow: "0 4px 12px rgba(139, 92, 246, 0.08)" }}>
+                      <div style={{ position: "absolute", top: 12, right: 12, display: "flex", gap: 8 }}>
+                        <div style={{ background: "#e2e8f0", color: "#475569", padding: "4px 8px", borderRadius: 6, fontSize: 11, fontWeight: 700 }}>
+                          Thứ tự: {session.orderIndex}
+                        </div>
+                        <button
+                          onClick={() => removeSession(idx)}
+                          style={{ background: "#fee2e2", border: "none", color: "#ef4444", padding: "6px", borderRadius: 8, cursor: "pointer" }}
+                        >
+                          <X size={14} />
+                        </button>
+                      </div>
 
-                    <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: 16 }}>
-                      <Field label="Tên phiên / Hoạt động" required>
-                        <Input value={session.title} onChange={(e) => updateSession(idx, 'title', e.target.value)} placeholder={`VD: Khai mạc ${term}`} />
-                      </Field>
-                      <Field label="Loại phiên">
-                        <Select value={session.type} onChange={(e) => updateSession(idx, 'type', e.target.value)}>
-                          {SESSION_TYPES.map(t => (
-                            <option key={t.value} value={t.value}>{t.label}</option>
-                          ))}
-                        </Select>
-                      </Field>
-                    </div>
+                      <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: 16 }}>
+                        <Field label="Tên phiên / Hoạt động" required>
+                          <Input
+                            value={session.title}
+                            onChange={(e) => updateSession(idx, 'title', e.target.value)}
+                            onKeyDown={(e) => e.key === 'Enter' && confirmSession(idx)}
+                            placeholder={`VD: Khai mạc ${term}`}
+                            autoFocus
+                          />
+                        </Field>
+                        <Field label="Loại phiên">
+                          <Select value={session.type} onChange={(e) => updateSession(idx, 'type', e.target.value)}>
+                            {SESSION_TYPES.map(t => (
+                              <option key={t.value} value={t.value}>{t.label}</option>
+                            ))}
+                          </Select>
+                        </Field>
+                      </div>
 
-                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 16 }}>
-                      <Field label="Thời gian bắt đầu">
-                        <Input type="datetime-local" value={session.startTime} onChange={(e) => updateSession(idx, 'startTime', e.target.value)} />
-                      </Field>
-                      <Field label="Thời gian kết thúc">
-                        <Input type="datetime-local" value={session.endTime} onChange={(e) => updateSession(idx, 'endTime', e.target.value)} />
-                      </Field>
-                      <Field label="Địa điểm / Phòng">
-                        <Input value={session.room} onChange={(e) => updateSession(idx, 'room', e.target.value)} placeholder="VD: Hội trường A" />
-                      </Field>
-                    </div>
+                      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 16 }}>
+                        <Field label="Thời gian bắt đầu" error={session.startTimeError}>
+                          <Input type="datetime-local" value={session.startTime} onChange={(e) => updateSession(idx, 'startTime', e.target.value)} onKeyDown={(e) => e.key === 'Enter' && confirmSession(idx)} />
+                        </Field>
+                        <Field label="Thời gian kết thúc" error={session.endTimeError}>
+                          <Input type="datetime-local" value={session.endTime} onChange={(e) => updateSession(idx, 'endTime', e.target.value)} onKeyDown={(e) => e.key === 'Enter' && confirmSession(idx)} />
+                        </Field>
+                        <Field label="Địa điểm / Phòng">
+                          <Input value={session.room} onChange={(e) => updateSession(idx, 'room', e.target.value)} onKeyDown={(e) => e.key === 'Enter' && confirmSession(idx)} placeholder="VD: Hội trường A" />
+                        </Field>
+                      </div>
 
-                    <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: 16 }}>
-                      <Field label="Mô tả nội dung phiên">
-                        <Textarea value={session.description} onChange={(e) => updateSession(idx, 'description', e.target.value)} placeholder="Chi tiết các hoạt động..." rows={2} />
-                      </Field>
+                      <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: 16 }}>
+                        <Field label="Mô tả nội dung phiên">
+                          <Textarea value={session.description} onChange={(e) => updateSession(idx, 'description', e.target.value)} placeholder="Chi tiết các hoạt động..." rows={2} />
+                        </Field>
+                      </div>
+
+                      <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 4 }}>
+                        <button
+                          onClick={() => confirmSession(idx)}
+                          disabled={!session.title}
+                          style={{
+                            background: session.title ? "#1e1b4b" : "#94a3b8",
+                            color: "#fff",
+                            border: "none",
+                            padding: "10px 20px",
+                            borderRadius: 8,
+                            fontSize: 13,
+                            fontWeight: 700,
+                            cursor: session.title ? "pointer" : "not-allowed",
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 8
+                          }}
+                        >
+                          <Check size={16} /> Xác nhận phiên
+                        </button>
+                      </div>
                     </div>
-                  </div>
+                  )
                 ))}
                 {(!formData.sessions || formData.sessions.length === 0) && (
                   <div style={{ textAlign: "center", padding: "32px", border: "1px dashed #e2e8f0", borderRadius: 16, color: "#94a3b8", fontSize: 13, background: "#fcfcfc" }}>
@@ -934,41 +1173,103 @@ export default function ManualInputStep({
 
               <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
                 {(formData.presenters || []).map((presenter, idx) => (
-                  <div key={idx} style={{ background: "#fafafa", padding: 20, borderRadius: 14, border: "1px solid #f1f5f9", display: "flex", flexDirection: "column", gap: 16, position: "relative" }}>
-                    <button
-                      onClick={() => removePresenter(idx)}
-                      style={{ position: "absolute", top: 12, right: 12, background: "#fee2e2", border: "none", color: "#ef4444", padding: "6px", borderRadius: 8, cursor: "pointer" }}
-                    >
-                      <X size={14} />
-                    </button>
-
-                    <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: 16 }}>
-                      <Field label="Email diễn giả" required>
-                        <Input type="email" value={presenter.email} onChange={(e) => updatePresenter(idx, 'email', e.target.value)} placeholder="Nhập email để hệ thống tự tìm thông tin" />
-                      </Field>
+                  presenter.isConfirmed ? (
+                    <div key={idx} style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 12, padding: "12px 16px", display: "flex", alignItems: "center", gap: 12, animation: "fadeIn 0.3s ease" }}>
+                      <div style={{ width: 40, height: 40, borderRadius: "50%", background: "#eef2ff", display: "flex", alignItems: "center", justifyContent: "center", color: "#6366f1" }}>
+                        <Briefcase size={20} />
+                      </div>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontSize: 14, fontWeight: 700, color: "#1e293b" }}>{presenter.fullName || presenter.email.split('@')[0]}</div>
+                        <div style={{ fontSize: 12, color: "#64748b" }}>
+                          {presenter.targetSessionName === 'ALL' ? 'Thuyết trình tất cả' : presenter.targetSessionName ? `Phiên: ${presenter.targetSessionName}` : 'Chưa gán phiên'} • {presenter.email}
+                        </div>
+                      </div>
+                      <div style={{ display: "flex", gap: 8 }}>
+                        <button
+                          onClick={() => updatePresenter(idx, 'isConfirmed', false)}
+                          style={{ background: "none", border: "none", color: "#3b82f6", fontSize: 12, fontWeight: 700, cursor: "pointer", padding: "4px 8px" }}
+                        >
+                          Chỉnh sửa
+                        </button>
+                        <button
+                          onClick={() => removePresenter(idx)}
+                          style={{ background: "none", border: "none", color: "#ef4444", fontSize: 12, fontWeight: 700, cursor: "pointer", padding: "4px 8px" }}
+                        >
+                          Xóa
+                        </button>
+                      </div>
                     </div>
-
-
-                    <Field label="Phạm vi thuyết trình">
-                      <Select
-                        value={presenter.targetSessionName || ""}
-                        onChange={(e) => updatePresenter(idx, 'targetSessionName', e.target.value)}
+                  ) : (
+                    <div key={idx} style={{ background: "#fafafa", padding: 20, borderRadius: 14, border: "2px solid #6366f1", display: "flex", flexDirection: "column", gap: 16, position: "relative", boxShadow: "0 4px 12px rgba(99, 102, 241, 0.08)" }}>
+                      <button
+                        onClick={() => removePresenter(idx)}
+                        style={{ position: "absolute", top: 12, right: 12, background: "#fee2e2", border: "none", color: "#ef4444", padding: "6px", borderRadius: 8, cursor: "pointer" }}
                       >
-                        <option value="">-- Chưa chỉ định --</option>
-                        <option value="ALL">Thuyết trình tất cả các phiên</option>
-                        {(formData.sessions || []).map((s, sIdx) => (
-                          <option key={sIdx} value={s.title}>{s.title}</option>
-                        ))}
-                      </Select>
-                      <p style={{ fontSize: 11, color: "#64748b", marginTop: 4 }}>
-                        * Chọn "ALL" hoặc tên một phiên cụ thể.
-                      </p>
-                    </Field>
+                        <X size={14} />
+                      </button>
 
-                    <Field label="Tiểu sử tóm tắt">
-                      <Textarea value={presenter.bio} onChange={(e) => updatePresenter(idx, 'bio', e.target.value)} placeholder="Giới thiệu ngắn gọn về diễn giả..." rows={2} />
-                    </Field>
-                  </div>
+                      <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: 16 }}>
+                        <Field label="Email diễn giả" required>
+                          <Input
+                            type="email"
+                            value={presenter.email}
+                            onChange={(e) => updatePresenter(idx, 'email', e.target.value)}
+                            onKeyDown={(e) => e.key === 'Enter' && confirmPresenter(idx)}
+                            placeholder="Nhập email để hệ thống tự tìm thông tin"
+                            autoFocus
+                          />
+                        </Field>
+                      </div>
+
+                      <Field label="Phạm vi thuyết trình">
+                        <Select
+                          value={presenter.targetSessionName || ""}
+                          onChange={(e) => updatePresenter(idx, 'targetSessionName', e.target.value)}
+                        >
+                          <option value="">-- Chưa chỉ định --</option>
+                          <option value="ALL">Thuyết trình tất cả các phiên</option>
+                          {(formData.sessions || []).map((s, sIdx) => (
+                            <option key={sIdx} value={s.title}>{s.title}</option>
+                          ))}
+                        </Select>
+                        <p style={{ fontSize: 11, color: "#64748b", marginTop: 4 }}>
+                          * Chọn "ALL" hoặc tên một phiên cụ thể.
+                        </p>
+                      </Field>
+
+                      <Field label="Tiểu sử tóm tắt">
+                        <Textarea
+                          value={presenter.bio}
+                          onChange={(e) => updatePresenter(idx, 'bio', e.target.value)}
+                          onKeyDown={(e) => e.key === 'Enter' && confirmPresenter(idx)}
+                          placeholder="Giới thiệu ngắn gọn về diễn giả..."
+                          rows={2}
+                        />
+                      </Field>
+
+                      <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 4 }}>
+                        <button
+                          onClick={() => confirmPresenter(idx)}
+                          disabled={!presenter.email}
+                          style={{
+                            background: presenter.email ? "#1e1b4b" : "#94a3b8",
+                            color: "#fff",
+                            border: "none",
+                            padding: "10px 20px",
+                            borderRadius: 8,
+                            fontSize: 13,
+                            fontWeight: 700,
+                            cursor: presenter.email ? "pointer" : "not-allowed",
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 8
+                          }}
+                        >
+                          <Check size={16} /> Xác nhận diễn giả
+                        </button>
+                      </div>
+                    </div>
+                  )
                 ))}
                 {(!formData.presenters || formData.presenters.length === 0) && (
                   <div style={{ textAlign: "center", padding: "32px", border: "1px dashed #e2e8f0", borderRadius: 16, color: "#94a3b8", fontSize: 13, background: "#fcfcfc" }}>
@@ -989,6 +1290,7 @@ export default function ManualInputStep({
             <h2 style={{ fontSize: 18, fontWeight: 800, color: "#1e293b", margin: 0 }}>Thông tin cơ bản</h2>
 
             <Field
+              id="field-eventTitle"
               label={`Tên ${term}`}
               required
               error={errors.eventTitle}
@@ -1023,7 +1325,7 @@ export default function ManualInputStep({
               )}
             </Field>
 
-            <Field label={`Danh mục ${term}`} required>
+            <Field id="field-eventType" label={`Danh mục ${term}`} required error={errors.eventType}>
               <Select value={formData.eventType || ""} onChange={(e) => setFormData({ ...formData, eventType: e.target.value })}>
                 <option value="">-- Chọn danh mục --</option>
                 {EVENT_TYPES.map(type => (
@@ -1039,32 +1341,30 @@ export default function ManualInputStep({
               </div>
 
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
-                <DateTimeField
-                  label="Thời gian bắt đầu"
-                  value={formData.startTime}
-                  onChange={(val) => setFormData({ ...formData, startTime: val })}
-                  error={errors.startTime}
-                  required
-                />
-                <DateTimeField
-                  label="Thời gian kết thúc"
-                  value={formData.endTime}
-                  onChange={(val) => setFormData({ ...formData, endTime: val })}
-                  error={errors.endTime}
-                  required
-                />
+                <Field id="field-startTime" label="Thời gian bắt đầu" required error={errors.startTime}>
+                  <DateTimeField
+                    value={formData.startTime}
+                    onChange={(val) => setFormData({ ...formData, startTime: val })}
+                  />
+                </Field>
+                <Field id="field-endTime" label="Thời gian kết thúc" required error={errors.endTime}>
+                  <DateTimeField
+                    value={formData.endTime}
+                    onChange={(val) => setFormData({ ...formData, endTime: val })}
+                  />
+                </Field>
               </div>
 
-              <DateTimeField
-                label="Hạn đăng ký tham gia"
-                value={formData.registrationDeadline}
-                onChange={(val) => setFormData({ ...formData, registrationDeadline: val })}
-                error={errors.registrationDeadline}
-                required
-              />
+              <Field id="field-registrationDeadline" label="Hạn đăng ký tham gia" required error={errors.registrationDeadline}>
+                <DateTimeField
+                  value={formData.registrationDeadline}
+                  onChange={(val) => setFormData({ ...formData, registrationDeadline: val })}
+                />
+              </Field>
             </div>
 
             <Field
+              id="field-location"
               label="Địa điểm tổ chức"
               required
               error={errors.location}
@@ -1108,6 +1408,7 @@ export default function ManualInputStep({
             <h2 style={{ fontSize: 18, fontWeight: 800, color: "#1e293b", margin: 0 }}>Mô tả & Cài đặt người tham gia</h2>
 
             <Field
+              id="field-eventPurpose"
               label={`Mô tả ${term}`}
               required
               error={errors.eventPurpose}
@@ -1145,6 +1446,7 @@ export default function ManualInputStep({
 
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
               <Field
+                id="field-maxParticipants"
                 label="Số lượng người tham gia tối đa"
                 required
                 error={errors.maxParticipants}

@@ -6,6 +6,7 @@ import {
 import ActivityChart from '../../components/common/ActivityChart';
 import eventService from '../../services/eventService';
 import authService from '../../services/authService';
+import { useAuth } from '../../context/AuthContext';
 import { exportDashboardToExcel } from '../../utils/exportDashboardExcel';
 
 const StatCard = ({ title, count, color, icon: Icon }) => (
@@ -58,7 +59,12 @@ const InfoListCard = ({ title, icon: Icon, items, iconColor = "text-blue-600" })
 );
 
 const Dashboard = () => {
+  const { user } = useAuth();
+  const isAdmin = user?.roles?.some(r => r.name === 'ADMIN') || user?.roles?.includes('ADMIN');
+  const isManager = isAdmin || user?.roles?.some(r => ['ORGANIZER', 'MANAGER'].includes(r.name || r));
+
   const [selectedKhoa, setSelectedKhoa] = useState('Tất cả khoa');
+  const [dataScope, setDataScope] = useState(isAdmin ? 'KHOA' : 'PERSONAL'); // KHOA or PERSONAL
   const [filterType, setFilterType] = useState('Month'); // Week, Month
   const [filterValue, setFilterValue] = useState(new Date().getMonth() + 1); // Month: 1-12, Week: "start|end"
   const [loading, setLoading] = useState(true);
@@ -145,15 +151,35 @@ const Dashboard = () => {
   const fetchData = async () => {
     try {
       setLoading(true);
-      const [eventsRes, postsRes, usersRes] = await Promise.all([
-        eventService.getAdminAllEvents(),
-        eventService.getAllPosts({ size: 1000 }),
-        authService.getAllAccounts()
-      ]);
+      
+      const requests = [];
+      
+      if (dataScope === 'KHOA' && isAdmin) {
+        requests.push(eventService.getAdminAllEvents());
+        requests.push(eventService.getAllPosts({ size: 1000 }));
+        requests.push(authService.getAllAccounts());
+      } else if (dataScope === 'KHOA' && !isAdmin) {
+        // Regular user viewing Khoa stats (only public events)
+        requests.push(eventService.getEventsForUser({ size: 1000 }));
+        requests.push(eventService.getAllPosts({ size: 1000 }));
+        requests.push(Promise.resolve({ data: [] }));
+      } else {
+        // Personal view
+        requests.push(eventService.getMyEvents());
+        requests.push(eventService.getAllPosts({ size: 1000 })); 
+        requests.push(Promise.resolve({ data: [] }));
+      }
 
-      const events = eventsRes.data || [];
-      const posts = postsRes.data?.content || postsRes.data || [];
+      const [eventsRes, postsRes, usersRes] = await Promise.all(requests);
+
+      let events = eventsRes.data || [];
+      let posts = postsRes.data?.content || postsRes.data || [];
       const users = usersRes.data || [];
+
+      // If personal view, filter posts by current user ID
+      if (dataScope === 'PERSONAL' && user?.id) {
+        posts = posts.filter(p => p.author?.id === user.id || p.authorId === user.id);
+      }
 
       setAllEvents(events);
 
@@ -185,31 +211,35 @@ const Dashboard = () => {
         }
       });
       const topU = Object.entries(userEventCount)
-        .map(([id, count]) => ({ name: userMap[id] || `User ${id.substring(0, 4)}`, events: count }))
+        .map(([id, count]) => ({ name: userMap[id] || `Thành viên ${id.substring(0, 4)}`, events: count }))
         .sort((a, b) => b.events - a.events)
         .slice(0, 4);
-      setTopUsers(topU.length > 0 ? topU : [{ name: "Nguyễn Văn An", events: 12 }]);
+      setTopUsers(topU.length > 0 ? topU : [
+        { name: "Lê Hoàng Anh", events: 8 },
+        { name: "Nguyễn Minh Khoa", events: 5 },
+        { name: "Trần Thị Bé", events: 3 }
+      ]);
 
       // 4. Hot Events (from filtered data)
       const topE = [...filteredEvents]
         .sort((a, b) => (b.registeredCount || 0) - (a.registeredCount || 0))
         .slice(0, 3)
         .map(e => ({ label: e.title || e.eventTopic }));
-      setHotEvents(topE.length > 0 ? topE : [{ label: "Chưa có dữ liệu" }]);
+      setHotEvents(topE);
 
       // 5. Top Liked (from filtered data)
       const topL = [...filteredPosts]
         .map(p => ({ label: p.title, value: `${Object.keys(p.reactions || {}).length} ♥` }))
         .sort((a, b) => parseInt(b.value) - parseInt(a.value))
         .slice(0, 3);
-      setTopLiked(topL.length > 0 ? topL : [{ label: "Chưa có dữ liệu", value: "0 ♥" }]);
+      setTopLiked(topL);
 
       // 6. Top Viewed
       const topV = [...filteredPosts]
         .sort((a, b) => (b.viewCount || 0) - (a.viewCount || 0))
         .slice(0, 3)
         .map(p => ({ label: p.title, value: p.viewCount || 0 }));
-      setTopViewed(topV.length > 0 ? topV : [{ label: "Chưa có dữ liệu", value: "0" }]);
+      setTopViewed(topV);
 
       // 7. Activity Chart (Always yearly)
       const currentYear = new Date().getFullYear();
@@ -244,7 +274,7 @@ const Dashboard = () => {
 
   useEffect(() => {
     fetchData();
-  }, [selectedKhoa, filterType, filterValue]);
+  }, [selectedKhoa, dataScope, filterType, filterValue]);
 
   const handleExport = () => {
     exportDashboardToExcel({ stats, topUsers, hotEvents, topLiked, topViewed }, 'Bao_cao_Dashboard_Khoa');
@@ -259,19 +289,39 @@ const Dashboard = () => {
         </div>
 
         <div className="flex flex-wrap gap-3">
+          {/* Data Scope Toggle (Only for Admin/Manager) */}
+          {isManager && (
+            <div className="flex bg-white p-1 rounded-lg border border-gray-200 shadow-sm">
+              <button
+                onClick={() => setDataScope('PERSONAL')}
+                className={`px-4 py-1.5 rounded-md text-sm font-medium transition ${dataScope === 'PERSONAL' ? 'bg-blue-600 text-white shadow-sm' : 'text-gray-600 hover:bg-gray-100'}`}
+              >
+                Cá nhân
+              </button>
+              <button
+                onClick={() => setDataScope('KHOA')}
+                className={`px-4 py-1.5 rounded-md text-sm font-medium transition ${dataScope === 'KHOA' ? 'bg-blue-600 text-white shadow-sm' : 'text-gray-600 hover:bg-gray-100'}`}
+              >
+                Khoa
+              </button>
+            </div>
+          )}
+
           {/* Khoa Selector */}
-          <div className="relative min-w-40">
-            <select
-              value={selectedKhoa}
-              onChange={e => setSelectedKhoa(e.target.value)}
-              className="w-full appearance-none bg-white border border-gray-300 rounded-lg px-4 py-2.5 pr-10 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400/50 shadow-sm transition"
-            >
-              <option>Tất cả khoa</option>
-              <option>CNTT</option>
-              <option>Cơ khí</option>
-            </select>
-            <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500 pointer-events-none" />
-          </div>
+          {dataScope === 'KHOA' && (
+            <div className="relative min-w-40">
+              <select
+                value={selectedKhoa}
+                onChange={e => setSelectedKhoa(e.target.value)}
+                className="w-full appearance-none bg-white border border-gray-300 rounded-lg px-4 py-2.5 pr-10 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400/50 shadow-sm transition"
+              >
+                <option>Tất cả khoa</option>
+                <option>CNTT</option>
+                <option>Cơ khí</option>
+              </select>
+              <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500 pointer-events-none" />
+            </div>
+          )}
 
           {/* Filter Type Selector */}
           <div className="relative min-w-32">
@@ -351,7 +401,7 @@ const Dashboard = () => {
         <div className="lg:col-span-2 bg-white rounded-xl border border-gray-200 shadow-sm p-6">
           <h3 className="text-xl font-bold text-gray-800 mb-5 flex items-center gap-3">
             <TrendingUp size={20} className="text-emerald-600" />
-            Hoạt động năm {new Date().getFullYear()} - Khoa
+            Hoạt động năm {new Date().getFullYear()} - {dataScope === 'KHOA' ? 'Khoa' : 'Cá nhân'}
           </h3>
           {chartData ? <ActivityChart data={chartData} /> : <ActivityChart />}
         </div>

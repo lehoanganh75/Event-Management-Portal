@@ -3,15 +3,17 @@ import { useAuth } from "../../context/AuthContext";
 import notificationService from "../../services/notificationService";
 import eventService from "../../services/eventService";
 import NotificationManagement from "../../components/common/management/NotificationManagement";
+import ConfirmModal from "../../components/common/ConfirmModal";
 import { toast } from "react-toastify";
 
 import { useNotification } from "../../context/NotificationContext";
 
 const LecturerNotificationsPage = () => {
   const { user } = useAuth();
-  const { notifications, loading: isLoading, refreshNotifications, markAsRead, markAllAsRead } = useNotification();
+  const { notifications, loading: isLoading, refreshNotifications, markAsRead, markAllAsRead, deleteNotification } = useNotification();
   const [userEvents, setUserEvents] = useState([]);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [confirmModal, setConfirmModal] = useState({ isOpen: false, message: "", onConfirm: null });
 
   const userId = useMemo(() => user?.id || user?.accountId, [user]);
 
@@ -53,14 +55,20 @@ const LecturerNotificationsPage = () => {
     toast.success("Đã đánh dấu tất cả là đã đọc");
   };
 
-  const handleDelete = async (id) => {
-    if (window.confirm("Bạn có chắc chắn muốn xóa thông báo này?")) {
-      try {
-        await notificationService.deleteNotification(id);
-        setNotifications(prev => prev.filter(n => n.id !== id));
-        toast.success("Đã xóa thông báo");
-      } catch (error) { console.error(error); }
-    }
+  const handleDelete = (id) => {
+    setConfirmModal({
+      isOpen: true,
+      message: "Bạn có chắc chắn muốn xóa thông báo này? Hành động này không thể hoàn tác.",
+      onConfirm: async () => {
+        try {
+          await deleteNotification(id);
+          toast.success("Đã xóa thông báo");
+        } catch (error) { 
+          console.error(error);
+          toast.error("Không thể xóa thông báo");
+        }
+      }
+    });
   };
 
   const handleSendNotification = async (formData) => {
@@ -95,20 +103,31 @@ const LecturerNotificationsPage = () => {
   };
 
   return (
-    <NotificationManagement
-      notifications={notifications}
-      loading={isLoading}
-      refreshing={isRefreshing}
-      onRefresh={fetchNotifications}
-      onMarkAsRead={handleMarkAsRead}
-      onMarkAllAsRead={handleMarkAllAsRead}
-      onDelete={handleDelete}
-      onSendNotification={handleSendNotification}
-      isAdmin={false}
-      userEvents={userEvents}
-      title="Thông báo của tôi"
-      subtitle="Cập nhật và quản lý truyền thông sự kiện"
-    />
+    <>
+      <NotificationManagement
+        notifications={notifications}
+        loading={isLoading}
+        refreshing={isRefreshing}
+        onRefresh={fetchNotifications}
+        onMarkAsRead={handleMarkAsRead}
+        onMarkAllAsRead={handleMarkAllAsRead}
+        onDelete={handleDelete}
+        onSendNotification={handleSendNotification}
+        isAdmin={false}
+        userEvents={userEvents}
+        title="Thông báo của tôi"
+        subtitle="Cập nhật và quản lý truyền thông sự kiện"
+      />
+      <ConfirmModal
+        isOpen={confirmModal.isOpen}
+        message={confirmModal.message}
+        onConfirm={confirmModal.onConfirm}
+        onClose={() => setConfirmModal({ ...confirmModal, isOpen: false })}
+        title="Xác nhận xóa"
+        confirmText="Xóa ngay"
+        type="danger"
+      />
+    </>
   );
 };
 

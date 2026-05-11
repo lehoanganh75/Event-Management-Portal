@@ -71,15 +71,15 @@ const LecturerPostManagement = () => {
     }
   };
 
-  const handleDelete = async () => {
+  const handleDelete = async (postId) => {
     setIsDeleting(true);
     try {
-      await eventService.deletePost(postToDelete.id);
-      toast.success("Xóa thành công!");
+      await eventService.deletePost(postId);
       fetchPosts();
       setPostToDelete(null);
     } catch (error) {
-      toast.error("Lỗi khi xóa");
+      console.error("Delete error:", error);
+      throw error; // Rethrow so parent can show error toast
     } finally {
       setIsDeleting(false);
     }

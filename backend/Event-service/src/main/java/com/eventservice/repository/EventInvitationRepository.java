@@ -19,6 +19,8 @@ public interface EventInvitationRepository extends JpaRepository<EventInvitation
 
     Optional<EventInvitation> findByEventIdAndInviteeEmail(String eventId, String inviteeEmail);
 
+    java.util.List<EventInvitation> findByEventIdAndStatusAndIsDeletedFalse(String eventId, com.eventservice.entity.enums.InvitationStatus status);
+
     @org.springframework.data.jpa.repository.Modifying(clearAutomatically = true)
     @org.springframework.transaction.annotation.Transactional
     @Query(value = "UPDATE event_invitations SET is_deleted = 1, status = 'EXPIRED' WHERE event_id = :eventId", nativeQuery = true)

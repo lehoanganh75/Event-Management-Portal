@@ -648,7 +648,11 @@ const PostDetailManagement = ({
         {post.imageUrls?.length > 0 && (
           <div className="bg-slate-50 border-y border-slate-100 overflow-hidden">
             <div className={`grid gap-1 ${post.imageUrls.length > 1 ? 'grid-cols-2' : 'grid-cols-1'}`}>
-              {post.imageUrls.map((url, idx) => <img key={idx} src={url} alt={`Post media ${idx}`} className="w-full h-auto max-h-[500px] object-cover mx-auto" />)}
+              {post.imageUrls.map((url, idx) => (
+                <div key={idx} className="cursor-zoom-in overflow-hidden group" onClick={() => setFullscreenImage(url)}>
+                  <img src={url} alt={`Post media ${idx}`} className="w-full h-auto max-h-[500px] object-cover mx-auto group-hover:scale-[1.03] transition-transform duration-500" />
+                </div>
+              ))}
             </div>
           </div>
         )}
@@ -912,7 +916,7 @@ const PostDetailManagement = ({
       {/* Confirmation Modal */}
       <AnimatePresence>
         {actionModal.show && (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-300">
+          <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-300">
             <motion.div
               initial={{ scale: 0.9, opacity: 0, y: 20 }}
               animate={{ scale: 1, opacity: 1, y: 0 }}

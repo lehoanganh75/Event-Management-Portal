@@ -66,12 +66,23 @@ const DashboardHeader = () => {
 
   const formatTime = (dateString) => {
     if (!dateString) return "";
-    const date = new Date(dateString);
+    
+    // Ensure dateString is treated as UTC if it doesn't have a timezone indicator
+    let normalizedDateString = dateString;
+    if (typeof dateString === 'string' && !dateString.includes('Z') && !dateString.includes('+')) {
+      normalizedDateString = dateString.includes('T') ? `${dateString}Z` : `${dateString.replace(' ', 'T')}Z`;
+    }
+
+    const date = new Date(normalizedDateString);
     const now = new Date();
     const diffInMinutes = Math.floor((now - date) / (1000 * 60));
+    
     if (diffInMinutes < 1) return "Vừa xong";
     if (diffInMinutes < 60) return `${diffInMinutes} phút trước`;
-    if (diffInMinutes < 1440) return `${Math.floor(diffInMinutes / 60)} giờ trước`;
+    if (diffInMinutes < 1440) {
+      const hours = Math.floor(diffInMinutes / 60);
+      return `${hours} giờ trước`;
+    }
     return date.toLocaleDateString("vi-VN");
   };
 
@@ -94,251 +105,253 @@ const DashboardHeader = () => {
 
   return (
     <>
-      <header className="h-20 bg-white border-b border-slate-200 flex items-center justify-between px-8 sticky top-0 z-10 shadow-sm">
-      <div className="flex items-center gap-6">
-        <h2 className="text-sm font-black text-slate-800/40 uppercase tracking-[0.2em] hidden md:block border-l-4 border-indigo-500 pl-4 py-1">
-          {t('admin_dashboard_title') || "Bảng điều khiển hệ thống"}
-        </h2>
-      </div>
-
-      <div className="flex items-center gap-4 h-full">
-        <div className="flex items-center gap-2 mr-4 bg-slate-50 px-3 py-1.5 rounded-xl border border-slate-100">
-          <Globe size={14} className="text-slate-400" />
-          <div 
-            onClick={() => setLanguage("VI")}
-            className={`text-[11px] cursor-pointer font-bold transition-all ${language === "VI" ? "text-indigo-600" : "text-slate-400 hover:text-slate-600"}`}
-          >
-            VI
-          </div>
-          <div className="w-px h-2.5 bg-slate-200" />
-          <div 
-            onClick={() => setLanguage("EN")}
-            className={`text-[11px] cursor-pointer font-bold transition-all ${language === "EN" ? "text-indigo-600" : "text-slate-400 hover:text-slate-600"}`}
-          >
-            EN
-          </div>
+      <header className="h-20 bg-white border-b border-slate-200 flex items-center justify-between px-8 sticky top-0 z-[100] shadow-sm">
+        <div className="flex items-center gap-6">
+          <h2 className="text-sm font-black text-slate-800/40 uppercase tracking-[0.2em] hidden md:block border-l-4 border-indigo-500 pl-4 py-1">
+            {t('ADMIN DASHBOARD') || "Bảng điều khiển hệ thống"}
+          </h2>
         </div>
 
-        <div className="h-8 w-px bg-slate-200 mx-2 hidden lg:block" />
+        <div className="flex items-center gap-4 h-full">
+          <div className="flex items-center gap-2 mr-4 bg-slate-50 px-3 py-1.5 rounded-xl border border-slate-100">
+            <Globe size={14} className="text-slate-400" />
+            <div
+              onClick={() => setLanguage("VI")}
+              className={`text-[11px] cursor-pointer font-bold transition-all ${language === "VI" ? "text-indigo-600" : "text-slate-400 hover:text-slate-600"}`}
+            >
+              VI
+            </div>
+            <div className="w-px h-2.5 bg-slate-200" />
+            <div
+              onClick={() => setLanguage("EN")}
+              className={`text-[11px] cursor-pointer font-bold transition-all ${language === "EN" ? "text-indigo-600" : "text-slate-400 hover:text-slate-600"}`}
+            >
+              EN
+            </div>
+          </div>
+
+          <div className="h-8 w-px bg-slate-200 mx-2 hidden lg:block" />
 
 
-        <div className="flex items-center gap-4">
-          {/* Quick Access QR Scanner */}
-          <button
-            onClick={() => navigate("/attendance")}
-            className="p-2.5 text-slate-500 hover:bg-indigo-50 hover:text-indigo-600 rounded-xl transition-all group relative"
-            title={t('qr_scan')}
-          >
-            <QrCode size={20} strokeWidth={2.5} />
-            <span className="absolute -bottom-1 -right-1 w-2.5 h-2.5 bg-indigo-500 border-2 border-white rounded-full shadow-sm" />
-          </button>
+          <div className="flex items-center gap-4">
+            {/* Quick Access QR Scanner - Hidden for Admins/SuperAdmins/Lecturers per request */}
+            {!(user?.role === 'SUPER_ADMIN' || user?.role === 'ADMIN' || user?.role === 'LECTURER') && (
+              <button
+                onClick={() => navigate("/attendance")}
+                className="p-2.5 text-slate-500 hover:bg-indigo-50 hover:text-indigo-600 rounded-xl transition-all group relative"
+                title={t('qr_scan')}
+              >
+                <QrCode size={20} strokeWidth={2.5} />
+                <span className="absolute -bottom-1 -right-1 w-2.5 h-2.5 bg-indigo-500 border-2 border-white rounded-full shadow-sm" />
+              </button>
+            )}
 
-          {/* Notification Bell */}
-          <div className="relative" ref={notificationRef}>
-            <button
-              onClick={() => setIsNotificationOpen(!isNotificationOpen)}
-              className={`
+            {/* Notification Bell */}
+            <div className="relative" ref={notificationRef}>
+              <button
+                onClick={() => setIsNotificationOpen(!isNotificationOpen)}
+                className={`
               relative p-2.5 text-slate-500 rounded-xl transition-all duration-200
               ${isNotificationOpen ? 'bg-indigo-50 text-indigo-600 shadow-inner' : 'hover:bg-slate-100 hover:text-slate-800'}
             `}
-            >
-              <Bell size={20} strokeWidth={2.5} />
-              {unreadCount > 0 && (
-                <span className="absolute top-1.5 right-1.5 min-w-[18px] h-[18px] bg-red-500 text-white text-[10px] font-black rounded-full flex items-center justify-center px-1 border-2 border-white shadow-sm">
-                  {unreadCount > 99 ? "99+" : unreadCount}
-                </span>
-              )}
-            </button>
+              >
+                <Bell size={20} strokeWidth={2.5} />
+                {unreadCount > 0 && (
+                  <span className="absolute top-1.5 right-1.5 min-w-[18px] h-[18px] bg-red-500 text-white text-[10px] font-black rounded-full flex items-center justify-center px-1 border-2 border-white shadow-sm">
+                    {unreadCount > 99 ? "99+" : unreadCount}
+                  </span>
+                )}
+              </button>
 
-            <AnimatePresence>
-              {isNotificationOpen && (
-                <motion.div
-                  initial={{ opacity: 0, y: 15, scale: 0.95 }}
-                  animate={{ opacity: 1, y: 0, scale: 1 }}
-                  exit={{ opacity: 0, y: 15, scale: 0.95 }}
-                  className="absolute right-0 mt-3 w-96 bg-white rounded-2xl shadow-2xl border border-slate-100 overflow-hidden z-50 origin-top-right"
-                >
-                  <div className="flex items-center justify-between px-6 py-4 border-b border-slate-50 bg-slate-50/50">
-                    <h3 className="font-extrabold text-slate-800 text-sm">{t('recent_notifications') || "Thông báo gần đây"}</h3>
-                    {unreadCount > 0 && (
-                      <button onClick={markAllAsRead} className="text-[10px] font-black text-indigo-600 uppercase tracking-wider hover:text-indigo-800 transition-colors">
-                        {t('mark_all_read')}
-                      </button>
-                    )}
-                  </div>
-                  <div className="max-h-[420px] overflow-y-auto custom-scrollbar">
-                    {notifications.length > 0 ? (
-                      notifications.map(n => (
-                        <div
-                          key={n.id}
-                          onClick={() => {
-                            if (!n.read) markAsRead(n.id);
-                            if (n.actionUrl) {
-                              setIsNotificationOpen(false);
-                              navigate(n.actionUrl);
-                            }
-                          }}
-                          className={`p-5 border-b border-slate-50 cursor-pointer transition-all ${!n.read ? 'bg-indigo-50/30' : 'hover:bg-slate-50'}`}
-                        >
-                          <div className="flex gap-4">
-                            <div className="shrink-0 mt-0.5">{getNotificationIcon(n.type)}</div>
-                            <div className="flex-1">
-                              <p className={`text-xs leading-relaxed ${!n.read ? 'font-black text-slate-900' : 'text-slate-600'}`}>{n.title}</p>
-                              <p className="text-[11px] text-slate-500 line-clamp-2 mt-1">{n.message}</p>
-                              <p className="text-[9px] text-slate-400 mt-2 font-bold uppercase tracking-wider flex items-center gap-1">
-                                <Clock size={10} /> {formatTime(n.createdAt)}
-                              </p>
+              <AnimatePresence>
+                {isNotificationOpen && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 15, scale: 0.95 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: 15, scale: 0.95 }}
+                    className="absolute right-0 mt-3 w-96 bg-white rounded-2xl shadow-2xl border border-slate-100 overflow-hidden z-50 origin-top-right"
+                  >
+                    <div className="flex items-center justify-between px-6 py-4 border-b border-slate-50 bg-slate-50/50">
+                      <h3 className="font-extrabold text-slate-800 text-sm">Thông báo</h3>
+                      {unreadCount > 0 && (
+                        <button onClick={markAllAsRead} className="text-[10px] font-black text-indigo-600 uppercase tracking-wider hover:text-indigo-800 transition-colors">
+                          {t('mark_all_read')}
+                        </button>
+                      )}
+                    </div>
+                    <div className="max-h-[420px] overflow-y-auto custom-scrollbar">
+                      {notifications.length > 0 ? (
+                        notifications.map(n => (
+                          <div
+                            key={n.id}
+                            onClick={() => {
+                              if (!n.read) markAsRead(n.id);
+                              if (n.actionUrl) {
+                                setIsNotificationOpen(false);
+                                navigate(n.actionUrl);
+                              }
+                            }}
+                            className={`p-5 border-b border-slate-50 cursor-pointer transition-all ${!n.read ? 'bg-indigo-50/30' : 'hover:bg-slate-50'}`}
+                          >
+                            <div className="flex gap-4">
+                              <div className="shrink-0 mt-0.5">{getNotificationIcon(n.type)}</div>
+                              <div className="flex-1">
+                                <p className={`text-xs leading-relaxed ${!n.read ? 'font-black text-slate-900' : 'text-slate-600'}`}>{n.title}</p>
+                                <p className="text-[11px] text-slate-500 line-clamp-2 mt-1">{n.message}</p>
+                                <p className="text-[9px] text-slate-400 mt-2 font-bold uppercase tracking-wider flex items-center gap-1">
+                                  <Clock size={10} /> {formatTime(n.createdAt)}
+                                </p>
+                              </div>
                             </div>
                           </div>
+                        ))
+                      ) : (
+                        <div className="py-12 px-6 text-center">
+                          <div className="w-12 h-12 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-3 text-slate-300">
+                            <Bell size={24} />
+                          </div>
+                          <p className="text-slate-400 text-xs font-bold">{t('no_notifications')}</p>
                         </div>
-                      ))
-                    ) : (
-                      <div className="py-12 px-6 text-center">
-                        <div className="w-12 h-12 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-3 text-slate-300">
-                          <Bell size={24} />
-                        </div>
-                        <p className="text-slate-400 text-xs font-bold">{t('no_notifications')}</p>
-                      </div>
-                    )}
-                  </div>
-                  <button
-                    onClick={handleViewAll}
-                    className="w-full py-4 text-[11px] font-black text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 transition-all uppercase tracking-[0.2em] border-t border-slate-50 bg-white"
-                  >
-                    {t('view_all_notifications')}
-                  </button>
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </div>
-
-          {/* User Menu */}
-          <div className="relative" ref={menuRef}>
-            <div
-              className="flex items-center gap-4 cursor-pointer group bg-slate-50/80 hover:bg-indigo-50/50 p-1.5 pr-4 rounded-2xl transition-all border border-transparent hover:border-indigo-100"
-              onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-            >
-              <div className="w-10 h-10 rounded-xl border-2 border-white shadow-sm overflow-hidden relative shrink-0">
-                {user?.avatarUrl ? (
-                  <img src={user.avatarUrl} className="w-full h-full object-cover" alt="avatar" />
-                ) : (
-                  <div className="w-full h-full flex items-center justify-center font-black text-white bg-indigo-600 uppercase shadow-inner">
-                    {user?.fullName?.[0] || user?.username?.[0] || "U"}
-                  </div>
+                      )}
+                    </div>
+                    <button
+                      onClick={handleViewAll}
+                      className="w-full py-4 text-[11px] font-black text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 transition-all uppercase tracking-[0.2em] border-t border-slate-50 bg-white"
+                    >
+                      {t('view_all_notifications')}
+                    </button>
+                  </motion.div>
                 )}
-                <span className="absolute bottom-0.5 right-0.5 w-2.5 h-2.5 bg-green-500 border-2 border-white rounded-full shadow-sm" />
-              </div>
-
-              <div className="text-left hidden lg:block">
-                <p className="text-xs font-black text-slate-800 leading-none truncate max-w-[120px]">{user?.fullName || user?.username}</p>
-                <p className="text-[10px] font-extrabold text-indigo-500 uppercase mt-1 tracking-wider">{getPrimaryRole()}</p>
-              </div>
-
-              <ChevronDown size={14} className={`text-slate-400 transition-transform duration-300 ${isDropdownOpen ? 'rotate-180 text-indigo-500' : 'group-hover:text-slate-600'}`} />
+              </AnimatePresence>
             </div>
 
-            <AnimatePresence>
-              {isDropdownOpen && (
-                <motion.div
-                  initial={{ opacity: 0, y: 15, scale: 0.95 }}
-                  animate={{ opacity: 1, y: 0, scale: 1 }}
-                  exit={{ opacity: 0, y: 15, scale: 0.95 }}
-                  className="absolute right-0 mt-3 w-60 bg-white rounded-2xl shadow-2xl border border-slate-100 py-2.5 z-50 overflow-hidden origin-top-right"
-                >
-                  <div className="px-4 py-3 mb-2 border-b border-slate-50">
-                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Tài khoản cá nhân</p>
-                    <p className="text-xs font-black text-slate-800 truncate">{user?.email || "Chưa cập nhật email"}</p>
-                  </div>
-
-                  <button
-                    onClick={() => {
-                      const rolePrefix = user?.role?.toLowerCase() === 'super_admin' || user?.role?.toLowerCase() === 'admin' ? 'admin' : 'lecturer';
-                      navigate(`/${rolePrefix}/profile`);
-                      setIsDropdownOpen(false);
-                    }}
-                    className="w-full px-4 py-2.5 text-left text-xs font-bold text-slate-600 hover:bg-indigo-50 hover:text-indigo-700 flex items-center gap-3.5 transition-all"
-                  >
-                    <div className="w-8 h-8 rounded-lg bg-slate-50 flex items-center justify-center text-slate-400 group-hover:bg-white group-hover:text-indigo-600 transition-all">
-                      <User size={16} />
+            {/* User Menu */}
+            <div className="relative" ref={menuRef}>
+              <div
+                className="flex items-center gap-4 cursor-pointer group bg-slate-50/80 hover:bg-indigo-50/50 p-1.5 pr-4 rounded-2xl transition-all border border-transparent hover:border-indigo-100"
+                onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+              >
+                <div className="w-10 h-10 rounded-xl border-2 border-white shadow-sm overflow-hidden relative shrink-0">
+                  {user?.avatarUrl ? (
+                    <img src={user.avatarUrl} className="w-full h-full object-cover" alt="avatar" />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center font-black text-white bg-indigo-600 uppercase shadow-inner">
+                      {user?.fullName?.[0] || user?.username?.[0] || "U"}
                     </div>
-                    {t('profile')}
-                  </button>
+                  )}
+                  <span className="absolute bottom-0.5 right-0.5 w-2.5 h-2.5 bg-green-500 border-2 border-white rounded-full shadow-sm" />
+                </div>
 
-                  {(user?.role === 'SUPER_ADMIN' || user?.role === 'ADMIN') && (
+                <div className="text-left hidden lg:block">
+                  <p className="text-xs font-black text-slate-800 leading-none truncate max-w-[120px]">{user?.fullName || user?.username}</p>
+                  <p className="text-[10px] font-extrabold text-indigo-500 uppercase mt-1 tracking-wider">{getPrimaryRole()}</p>
+                </div>
+
+                <ChevronDown size={14} className={`text-slate-400 transition-transform duration-300 ${isDropdownOpen ? 'rotate-180 text-indigo-500' : 'group-hover:text-slate-600'}`} />
+              </div>
+
+              <AnimatePresence>
+                {isDropdownOpen && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 15, scale: 0.95 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: 15, scale: 0.95 }}
+                    className="absolute right-0 mt-3 w-60 bg-white rounded-2xl shadow-2xl border border-slate-100 py-2.5 z-50 overflow-hidden origin-top-right"
+                  >
+                    <div className="px-4 py-3 mb-2 border-b border-slate-50">
+                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Tài khoản cá nhân</p>
+                      <p className="text-xs font-black text-slate-800 truncate">{user?.email || "Chưa cập nhật email"}</p>
+                    </div>
+
                     <button
-                      onClick={() => { navigate("/admin/settings"); setIsDropdownOpen(false); }}
+                      onClick={() => {
+                        const rolePrefix = user?.role?.toLowerCase() === 'super_admin' || user?.role?.toLowerCase() === 'admin' ? 'admin' : 'lecturer';
+                        navigate(`/${rolePrefix}/profile`);
+                        setIsDropdownOpen(false);
+                      }}
                       className="w-full px-4 py-2.5 text-left text-xs font-bold text-slate-600 hover:bg-indigo-50 hover:text-indigo-700 flex items-center gap-3.5 transition-all"
                     >
-                      <div className="w-8 h-8 rounded-lg bg-slate-50 flex items-center justify-center text-slate-400">
-                        <Settings size={16} />
+                      <div className="w-8 h-8 rounded-lg bg-slate-50 flex items-center justify-center text-slate-400 group-hover:bg-white group-hover:text-indigo-600 transition-all">
+                        <User size={16} />
                       </div>
-                      Cấu hình hệ thống
+                      {t('profile')}
                     </button>
-                  )}
 
-                  <div className="h-px bg-slate-50 my-2" />
+                    {(user?.role === 'SUPER_ADMIN' || user?.role === 'ADMIN') && (
+                      <button
+                        onClick={() => { navigate("/admin/settings"); setIsDropdownOpen(false); }}
+                        className="w-full px-4 py-2.5 text-left text-xs font-bold text-slate-600 hover:bg-indigo-50 hover:text-indigo-700 flex items-center gap-3.5 transition-all"
+                      >
+                        <div className="w-8 h-8 rounded-lg bg-slate-50 flex items-center justify-center text-slate-400">
+                          <Settings size={16} />
+                        </div>
+                        Cấu hình hệ thống
+                      </button>
+                    )}
 
-                  <button
-                    onClick={() => {
-                      setIsDropdownOpen(false);
-                      setIsLogoutModalOpen(true);
-                    }}
-                    className="w-full px-4 py-2.5 text-left text-xs font-bold text-rose-600 hover:bg-rose-50 flex items-center gap-3.5 transition-all"
-                  >
-                    <div className="w-8 h-8 rounded-lg bg-rose-50 flex items-center justify-center text-rose-500">
-                      <LogOut size={16} />
-                    </div>
-                    {t('logout')}
-                  </button>
-                </motion.div>
-              )}
-            </AnimatePresence>
+                    <div className="h-px bg-slate-50 my-2" />
+
+                    <button
+                      onClick={() => {
+                        setIsDropdownOpen(false);
+                        setIsLogoutModalOpen(true);
+                      }}
+                      className="w-full px-4 py-2.5 text-left text-xs font-bold text-rose-600 hover:bg-rose-50 flex items-center gap-3.5 transition-all"
+                    >
+                      <div className="w-8 h-8 rounded-lg bg-rose-50 flex items-center justify-center text-rose-500">
+                        <LogOut size={16} />
+                      </div>
+                      {t('logout')}
+                    </button>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
           </div>
         </div>
-      </div>
 
-    </header>
-    {/* Logout Confirmation Modal moved outside header */}
-    <AnimatePresence>
-      {isLogoutModalOpen && (
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm">
-          <motion.div
-            initial={{ opacity: 0, scale: 0.95, y: 20 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.95, y: 20 }}
-            className="bg-white rounded-[32px] p-10 max-w-sm w-full shadow-2xl border border-slate-100"
-          >
-            <div className="flex flex-col items-center text-center">
-              <div className="w-20 h-20 bg-rose-50 rounded-full flex items-center justify-center text-rose-500 mb-6 shadow-inner">
-                <LogOut size={32} strokeWidth={2.5} />
+      </header>
+      {/* Logout Confirmation Modal moved outside header */}
+      <AnimatePresence>
+        {isLogoutModalOpen && (
+          <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="bg-white rounded-[32px] p-10 max-w-sm w-full shadow-2xl border border-slate-100"
+            >
+              <div className="flex flex-col items-center text-center">
+                <div className="w-20 h-20 bg-rose-50 rounded-full flex items-center justify-center text-rose-500 mb-6 shadow-inner">
+                  <LogOut size={32} strokeWidth={2.5} />
+                </div>
+
+                <h3 className="text-2xl font-black text-slate-800 mb-3 uppercase tracking-tight">{t('logout')}?</h3>
+                <p className="text-slate-500 text-sm font-medium leading-relaxed mb-8">
+                  {t('confirm_logout')}
+                </p>
+
+                <div className="flex flex-col w-full gap-3">
+                  <button
+                    onClick={handleLogout}
+                    className="w-full py-4 bg-rose-500 text-white rounded-2xl font-black text-sm uppercase tracking-widest hover:bg-rose-600 hover:shadow-lg hover:shadow-rose-100 active:scale-[0.98] transition-all cursor-pointer"
+                  >
+                    {t('logout')}
+                  </button>
+                  <button
+                    onClick={() => setIsLogoutModalOpen(false)}
+                    className="w-full py-4 bg-white text-slate-400 rounded-2xl font-black text-sm uppercase tracking-widest hover:text-slate-600 hover:bg-slate-50 transition-all cursor-pointer"
+                  >
+                    {t('cancel')}
+                  </button>
+                </div>
               </div>
-
-              <h3 className="text-2xl font-black text-slate-800 mb-3 uppercase tracking-tight">{t('logout')}?</h3>
-              <p className="text-slate-500 text-sm font-medium leading-relaxed mb-8">
-                {t('confirm_logout')}
-              </p>
-
-              <div className="flex flex-col w-full gap-3">
-                <button
-                  onClick={handleLogout}
-                  className="w-full py-4 bg-rose-500 text-white rounded-2xl font-black text-sm uppercase tracking-widest hover:bg-rose-600 hover:shadow-lg hover:shadow-rose-100 active:scale-[0.98] transition-all cursor-pointer"
-                >
-                  {t('logout')}
-                </button>
-                <button
-                  onClick={() => setIsLogoutModalOpen(false)}
-                  className="w-full py-4 bg-white text-slate-400 rounded-2xl font-black text-sm uppercase tracking-widest hover:text-slate-600 hover:bg-slate-50 transition-all cursor-pointer"
-                >
-                  {t('cancel')}
-                </button>
-              </div>
-            </div>
-          </motion.div>
-        </div>
-      )}
-    </AnimatePresence>
-  </>
-);
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+    </>
+  );
 };
 
 export default DashboardHeader;

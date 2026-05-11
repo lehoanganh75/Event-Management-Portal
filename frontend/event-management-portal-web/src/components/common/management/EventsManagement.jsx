@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo, useCallback } from "react";
 import {
   Search, Eye, Edit2, Trash2, Send, Loader2, ChevronLeft, ChevronRight, Plus,
   Calendar, Clock, Users, PlayCircle, CheckCircle2, Download, AlertCircle, X,
-  XCircle, CheckCircle,
+  XCircle, CheckCircle, Check,
   FileText, LayoutDashboard, FileUp
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
@@ -13,9 +13,15 @@ import eventService from "../../../services/eventService";
 import notificationService from "../../../services/notificationService";
 import { exportEventsToExcel } from "../../../utils/exportExcel";
 import { useAuth } from "../../../context/AuthContext";
-import { EventCreator } from "../../event-planner/EventCreator";
+import { useNotification } from "../../../context/NotificationContext";
+import EventCreator from "../../event-planner/EventCreator";
 import CreateEventModal from "../../event-planner/CreateEventModal";
+import CreatePlanModal from "../../event-planner/CreatePlanModal";
 import { extractDataFromDocx } from "../../../services/docxImportService";
+import { exportToWord } from "../../event-planner/WordExporter";
+import ConfirmModal from "../../common/ConfirmModal";
+import PromptModal from "../../common/PromptModal";
+import EventReviewStep from "../../event-planner/EventReviewstep";
 
 /* ================= CONFIG ================= */
 const STATUS_LABELS = {
@@ -48,7 +54,7 @@ const STATUS_COLOR = {
 const EventsManagement = ({ type = "lecturer", mode = "all" }) => {
   const navigate = useNavigate();
   const { user } = useAuth();
-  console.log(user);
+  const { notifications } = useNotification();
 
   const isAdminMode = useMemo(() => {
     const role = user?.role;
@@ -59,6 +65,7 @@ const EventsManagement = ({ type = "lecturer", mode = "all" }) => {
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [submittingId, setSubmittingId] = useState(null);
+  const lastProcessedNotificationId = React.useRef(null);
 
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("ALL");
@@ -78,6 +85,11 @@ const EventsManagement = ({ type = "lecturer", mode = "all" }) => {
   const [showEventCreator, setShowEventCreator] = useState(false);
   const [creatorConfig, setCreatorConfig] = useState({ initialFormData: {}, fromPlan: false, forceEventMode: false });
   const [importedRawText, setImportedRawText] = useState("");
+
+  const [deleteModal, setDeleteModal] = useState({ isOpen: false, id: null });
+  const [cancelModal, setCancelModal] = useState({ isOpen: false, id: null });
+  const [promptModal, setPromptModal] = useState({ isOpen: false, title: "", message: "", onConfirm: null, defaultValue: "" });
+  const [previewModal, setPreviewModal] = useState({ isOpen: false, event: null });
 
   /* ===== FETCH ===== */
   const fetchData = useCallback(async () => {
@@ -118,6 +130,33 @@ const EventsManagement = ({ type = "lecturer", mode = "all" }) => {
   useEffect(() => {
     fetchData();
   }, [fetchData]);
+
+  // Real-time Update: Auto-refresh data when a relevant notification arrives
+  useEffect(() => {
+    if (notifications.length > 0) {
+      const latest = notifications[0];
+
+      // Only process if it's a new notification we haven't handled yet
+      if (latest.id !== lastProcessedNotificationId.current) {
+        lastProcessedNotificationId.current = latest.id;
+
+        const relevantTypes = [
+          "PLAN_SUBMITTED", "PLAN_APPROVED", "PLAN_REJECTED",
+          "EVENT_SUBMITTED", "EVENT_APPROVED", "EVENT_REJECTED",
+          "PLAN_CREATED", "EVENT_CREATED", "STATUS_UPDATED"
+        ];
+
+        if (relevantTypes.includes(latest.type)) {
+          console.log("Real-time Refresh: Relevant notification received", latest.type);
+          // Small delay to ensure DB transaction is fully committed on backend
+          const timer = setTimeout(() => {
+            fetchData();
+          }, 800);
+          return () => clearTimeout(timer);
+        }
+      }
+    }
+  }, [notifications, fetchData]);
 
   /* ===== STATISTICS ===== */
   const stats = useMemo(() => {
@@ -194,23 +233,49 @@ const EventsManagement = ({ type = "lecturer", mode = "all" }) => {
     }
   };
 
-  const handleDelete = async (id) => {
-    if (!window.confirm("Bạn có chắc chắn muốn xóa sự kiện này?")) return;
+  const handleDelete = async () => {
+    const { id } = deleteModal;
+    if (!id) return;
     try {
       await eventService.deleteEvent(id);
+      showToast("Đã xóa sự kiện thành công", "success");
+      fetchData();
     } catch (error) {
       showToast("Lỗi khi xóa sự kiện", "error");
     }
   };
 
-  const handleCancel = async (id) => {
-    if (!window.confirm("Bạn có chắc chắn muốn hủy sự kiện này?")) return;
+  const handleCancel = async () => {
+    const { id } = cancelModal;
+    if (!id) return;
     try {
       await eventService.cancelEvent(id);
-      // toast.success removed - handled by WebSocket notification
+      showToast("Đã hủy sự kiện thành công", "success");
       fetchData();
     } catch (error) {
       showToast("Lỗi khi hủy sự kiện", "error");
+    }
+  };
+
+  const handleExportWord = async (event) => {
+    try {
+      await exportToWord({
+        ...event,
+        eventTitle: event.title,
+        eventPurpose: event.description,
+        createdByName: user?.profile?.fullName || user?.username || "",
+      }, user?.accountId || user?.id);
+      showToast("✅ Đã xuất file Word!", "success");
+    } catch (err) {
+      showToast("Lỗi xuất Word: " + err.message, "error");
+    }
+  };
+
+  const handleView = (e) => {
+    if (mode === "plan" || e.status.includes("PLAN") || e.status === "DRAFT") {
+      setPreviewModal({ isOpen: true, event: e });
+    } else {
+      navigate(isAdminMode ? `/admin/events/${e.id}` : `/${type}/events/${e.id}`);
     }
   };
 
@@ -230,48 +295,68 @@ const EventsManagement = ({ type = "lecturer", mode = "all" }) => {
   const handleStatusUpdate = async (id, newStatus) => {
     if (!isAdminMode) return;
 
-    // Optimistic Update
     const oldEvents = [...events];
     const currentEvent = oldEvents.find(e => e.id === id);
     if (!currentEvent) return;
 
-    setEvents(prev => prev.map(e => e.id === id ? { ...e, status: newStatus } : e));
-
-    try {
-      // Sử dụng các API chuyên biệt nếu có để kích hoạt logic nghiệp vụ (thông báo, v.v.)
-      switch (newStatus) {
-        case "PLAN_APPROVED":
-          await eventService.approvePlan(id);
-          break;
-        case "PUBLISHED":
-          await eventService.approveEvent(id);
-          break;
-        case "REJECTED":
-          const rejectReason = prompt("Lý do từ chối:", "Cập nhật bởi Admin");
-          if (!rejectReason) {
-            setEvents(oldEvents);
-            return;
-          }
-          await eventService.rejectPlan(id, rejectReason);
-          break;
-        case "CANCELLED":
-          const cancelReason = prompt("Lý do hủy:", "Cập nhật bởi Admin");
-          if (!cancelReason) {
-            setEvents(oldEvents);
-            return;
-          }
-          await eventService.cancelEvent(id, cancelReason);
-          break;
-        default:
-          await eventService.updateEvent(id, { ...currentEvent, status: newStatus });
+    const performUpdate = async (reason = "") => {
+      setEvents(prev => prev.map(e => e.id === id ? { ...e, status: newStatus } : e));
+      try {
+        switch (newStatus) {
+          case "PLAN_APPROVED":
+            await eventService.approvePlan(id);
+            break;
+          case "PUBLISHED":
+            await eventService.approveEvent(id);
+            break;
+          case "REJECTED":
+            await eventService.rejectPlan(id, reason || "Cập nhật bởi Admin");
+            break;
+          case "CANCELLED":
+            await eventService.cancelEvent(id, reason || "Cập nhật bởi Admin");
+            break;
+          default:
+            await eventService.updateEvent(id, { ...currentEvent, status: newStatus });
+        }
+        showToast(`Cập nhật trạng thái thành công: ${STATUS_LABELS[newStatus]}`, "success");
+        fetchData();
+      } catch (err) {
+        setEvents(oldEvents);
+        showToast("Không thể cập nhật trạng thái", "error");
       }
+    };
 
-      showToast(`Cập nhật trạng thái thành công: ${STATUS_LABELS[newStatus]}`, "success");
-      fetchData();
-    } catch (err) {
-      setEvents(oldEvents); // Rollback
-      showToast("Không thể cập nhật trạng thái", "error");
+    if (newStatus === "REJECTED") {
+      setPromptModal({
+        isOpen: true,
+        title: "Từ chối kế hoạch",
+        message: "Vui lòng nhập lý do từ chối để thông báo cho người tạo.",
+        placeholder: "Nhập lý do tại đây...",
+        defaultValue: "Kế hoạch cần điều chỉnh thêm...",
+        onConfirm: (reason) => {
+          performUpdate(reason);
+          setPromptModal(prev => ({ ...prev, isOpen: false }));
+        }
+      });
+      return;
     }
+
+    if (newStatus === "CANCELLED") {
+      setPromptModal({
+        isOpen: true,
+        title: "Hủy sự kiện",
+        message: "Vui lòng nhập lý do hủy sự kiện để thông báo cho người tham gia.",
+        placeholder: "Nhập lý do tại đây...",
+        defaultValue: "Sự kiện bị hủy do lý do khách quan...",
+        onConfirm: (reason) => {
+          performUpdate(reason);
+          setPromptModal(prev => ({ ...prev, isOpen: false }));
+        }
+      });
+      return;
+    }
+
+    performUpdate();
   };
 
   const [isImporting, setIsImporting] = useState(false);
@@ -421,7 +506,7 @@ const EventsManagement = ({ type = "lecturer", mode = "all" }) => {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[100] flex flex-col items-center justify-center bg-slate-900/60 backdrop-blur-md"
+            className="fixed inset-0 z-[200] flex flex-col items-center justify-center bg-slate-900/60 backdrop-blur-md"
           >
             <div className="relative">
               <div className="w-24 h-24 border-4 border-indigo-500/20 border-t-indigo-500 rounded-full animate-spin"></div>
@@ -454,8 +539,8 @@ const EventsManagement = ({ type = "lecturer", mode = "all" }) => {
         </div>
 
         <div className="flex gap-3">
-          {/* Luôn hiển thị Import và Tạo mới đối với Admin, Student hoặc trong mode Plan */}
-          {(isAdminMode || type === "student" || mode === "plan" || mode === "all") && (
+          {/* Hiển thị Import và Tạo mới cho Admin, Student, Lecturer hoặc trong mode Plan */}
+          {(isAdminMode || type === "student" || type === "lecturer" || mode === "plan" || mode === "all") && (
             <>
               <label className={`flex items-center gap-2 bg-indigo-50 text-indigo-600 hover:bg-indigo-100 px-5 py-2.5 rounded-lg text-sm font-bold transition-all cursor-pointer border border-indigo-200 shadow-sm ${isImporting ? 'opacity-50 pointer-events-none' : ''}`}>
                 <input
@@ -673,6 +758,7 @@ const EventsManagement = ({ type = "lecturer", mode = "all" }) => {
                 <th className="p-4 text-left font-medium text-gray-600">{mode === "plan" ? "Tên kế hoạch" : "Tên sự kiện"}</th>
                 <th className="p-4 text-left font-medium text-gray-600">Địa điểm</th>
                 <th className="p-4 text-left font-medium text-gray-600">Thời gian</th>
+                <th className="p-4 text-left font-medium text-gray-600">{isAdminMode ? "Người tạo" : "Người duyệt"}</th>
                 <th className="p-4 text-left font-medium text-gray-600">Trạng thái</th>
                 <th className="p-4 text-center font-medium text-gray-600">Hành động</th>
               </tr>
@@ -687,91 +773,132 @@ const EventsManagement = ({ type = "lecturer", mode = "all" }) => {
                     <td className="p-4 text-gray-600">
                       {new Date(e.startTime).toLocaleDateString('vi-VN')}
                     </td>
+                    <td className="p-4 text-gray-600 font-medium">
+                      {isAdminMode ? (
+                        <div className="flex items-center gap-2">
+                          <div className="w-6 h-6 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center text-[10px]">
+                            {(e.createdByName || e.creator?.fullName || e.createdBy || "U").substring(0, 1).toUpperCase()}
+                          </div>
+                          <span>{e.createdByName || e.creator?.fullName || e.createdBy || "Hệ thống"}</span>
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-2 text-indigo-600">
+                          {(e.approvedByName || e.approver?.fullName) ? (
+                            <>
+                              <CheckCircle size={14} />
+                              <span>{e.approvedByName || e.approver?.fullName}</span>
+                            </>
+                          ) : (
+                            ["PLAN_APPROVED", "PUBLISHED", "ONGOING", "COMPLETED"].includes(e.status) ? (
+                              <>
+                                <CheckCircle size={14} />
+                                <span>Đã phê duyệt</span>
+                              </>
+                            ) : (
+                              <span className="text-gray-400 italic text-xs">Chưa duyệt</span>
+                            )
+                          )}
+                        </div>
+                      )}
+                    </td>
                     <td className="p-4">
                       <span className={`inline-block px-3 py-1 rounded-full text-[10px] font-black uppercase ${STATUS_COLOR[e.status] || "bg-gray-100 text-gray-600"}`}>
                         {STATUS_LABELS[e.status] || e.status}
                       </span>
                     </td>
-                    <td className="p-4">
-                      <div className="flex justify-center gap-1.5">
+                    <td className="p-4 text-center">
+                      <div className="flex justify-center gap-1">
+                        {/* 1. Xem chi tiết / Điều hướng Dashboard */}
                         <button
-                          onClick={() => navigate(isAdminMode ? `/admin/events/${e.id}` : `/${type}/events/${e.id}`)}
-                          className="p-2 hover:bg-gray-100 rounded-lg text-gray-600 hover:text-blue-600 transition-all"
-                          title="Bảng điều khiển"
+                          onClick={() => handleView(e)}
+                          className="p-1.5 hover:bg-blue-50 rounded-lg text-blue-600 transition-all cursor-pointer"
+                          title="Xem chi tiết / Bảng điều khiển"
                         >
-                          <LayoutDashboard size={18} />
+                          <Eye size={16} />
                         </button>
 
-                        {/* ACTIONS FOR ADMIN */}
-                        {isAdminMode && (
-                          <>
-                            {e.status === "PLAN_PENDING_APPROVAL" && (
-                              <>
-                                <button
-                                  onClick={() => handleStatusUpdate(e.id, "PLAN_APPROVED")}
-                                  className="p-2 hover:bg-green-100 rounded-lg text-green-600 transition-all"
-                                  title="Duyệt kế hoạch"
-                                >
-                                  <CheckCircle size={18} />
-                                </button>
-                                <button
-                                  onClick={() => handleStatusUpdate(e.id, "REJECTED")}
-                                  className="p-2 hover:bg-red-100 rounded-lg text-red-600 transition-all"
-                                  title="Từ chối"
-                                >
-                                  <XCircle size={18} />
-                                </button>
-                              </>
-                            )}
+                        {/* 2. Lưu Word (Chỉ cho Plan) */}
+                        {mode === "plan" && (
+                          <button
+                            onClick={() => handleExportWord(e)}
+                            className="p-1.5 hover:bg-indigo-50 rounded-lg text-indigo-600 transition-all cursor-pointer"
+                            title="Lưu file Word"
+                          >
+                            <Download size={16} />
+                          </button>
+                        )}
 
-                            {e.status === "EVENT_PENDING_APPROVAL" && (
-                              <button
-                                onClick={() => handleStatusUpdate(e.id, "PUBLISHED")}
-                                className="p-2 hover:bg-blue-100 rounded-lg text-blue-600 transition-all"
-                                title="Duyệt sự kiện"
-                              >
-                                <CheckCircle size={18} />
-                              </button>
-                            )}
+                        {/* 3. Chỉnh sửa (Nếu có quyền hoặc là bản nháp/bị từ chối của mình) */}
+                        {(e.currentUserRole?.canEditEvent || (!isAdminMode && (e.status === "DRAFT" || e.status === "REJECTED"))) && (
+                          <button
+                            onClick={() => handleEdit(e)}
+                            className="p-1.5 hover:bg-amber-50 rounded-lg text-amber-600 transition-all cursor-pointer"
+                            title="Chỉnh sửa"
+                          >
+                            <Edit2 size={16} />
+                          </button>
+                        )}
+
+                        {/* 4. Gửi phê duyệt (Cho Lecturer khi ở Draft/Rejected) */}
+                        {!isAdminMode && (e.status === "DRAFT" || e.status === "REJECTED") && (
+                          <button
+                            onClick={() => handleSubmitForApproval(e.id, e.title)}
+                            className="p-1.5 hover:bg-emerald-50 rounded-lg text-emerald-600 transition-all cursor-pointer disabled:cursor-not-allowed"
+                            title="Gửi phê duyệt"
+                            disabled={submittingId === e.id}
+                          >
+                            {submittingId === e.id ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
+                          </button>
+                        )}
+
+                        {/* 5. Xóa (Cho Admin hoặc Lecturer khi ở Draft) */}
+                        {(isAdminMode || (!isAdminMode && e.status === "DRAFT")) && (
+                          <button
+                            onClick={() => setDeleteModal({ isOpen: true, id: e.id })}
+                            className="p-1.5 hover:bg-red-50 rounded-lg text-red-600 transition-all cursor-pointer"
+                            title="Xóa"
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                        )}
+
+                        {/* 6. Admin Approval Actions (Quick) */}
+                        {isAdminMode && e.status === "PLAN_PENDING_APPROVAL" && (
+                          <>
+                            <button
+                              onClick={() => handleStatusUpdate(e.id, "PLAN_APPROVED")}
+                              className="p-1.5 hover:bg-green-50 rounded-lg text-green-600 transition-all cursor-pointer"
+                              title="Phê duyệt kế hoạch"
+                            >
+                              <Check size={16} />
+                            </button>
+                            <button
+                              onClick={() => handleStatusUpdate(e.id, "REJECTED")}
+                              className="p-1.5 hover:bg-red-50 rounded-lg text-red-600 transition-all cursor-pointer"
+                              title="Từ chối kế hoạch"
+                            >
+                              <X size={16} />
+                            </button>
                           </>
                         )}
 
-                        {/* ACTIONS FOR LECTURER */}
-                        {!isAdminMode && (
-                          <div className="flex gap-1.5">
-                            {e.currentUserRole?.canEditEvent && (
-                              <>
-                                <button
-                                  onClick={() => handleEdit(e)}
-                                  className="p-2 hover:bg-amber-100 rounded-lg text-amber-600 transition-all"
-                                  title="Chỉnh sửa"
-                                >
-                                  <Edit2 size={18} />
-                                </button>
-
-                                {(e.status === "DRAFT" || e.status === "REJECTED") && (
-                                  <button
-                                    onClick={() => handleSubmitForApproval(e.id, e.title)}
-                                    className="p-2 hover:bg-emerald-100 rounded-lg text-emerald-600 transition-all"
-                                    title="Gửi phê duyệt"
-                                    disabled={submittingId === e.id}
-                                  >
-                                    {submittingId === e.id ? <Loader2 size={18} className="animate-spin" /> : <Send size={18} />}
-                                  </button>
-                                )}
-
-                                {e.status === "DRAFT" && (
-                                  <button
-                                    onClick={() => handleDelete(e.id)}
-                                    className="p-2 hover:bg-red-100 rounded-lg text-red-600 transition-all"
-                                    title="Xóa"
-                                  >
-                                    <Trash2 size={18} />
-                                  </button>
-                                )}
-                              </>
-                            )}
-                          </div>
+                        {isAdminMode && e.status === "EVENT_PENDING_APPROVAL" && (
+                          <>
+                            <button
+                              onClick={() => handleStatusUpdate(e.id, "PUBLISHED")}
+                              className="p-1.5 hover:bg-green-50 rounded-lg text-green-600 transition-all cursor-pointer"
+                              title="Phê duyệt sự kiện"
+                            >
+                              <Check size={16} />
+                            </button>
+                            <button
+                              onClick={() => handleStatusUpdate(e.id, "REJECTED")}
+                              className="p-1.5 hover:bg-red-50 rounded-lg text-red-600 transition-all cursor-pointer"
+                              title="Từ chối sự kiện"
+                            >
+                              <X size={16} />
+                            </button>
+                          </>
                         )}
                       </div>
                     </td>
@@ -779,7 +906,7 @@ const EventsManagement = ({ type = "lecturer", mode = "all" }) => {
                 ))
               ) : (
                 <tr>
-                  <td colSpan={5} className="p-12 text-center text-gray-500">
+                  <td colSpan={6} className="p-12 text-center text-gray-500">
                     {mode === "plan" ? "Không tìm thấy kế hoạch nào" : "Không tìm thấy sự kiện nào"}
                   </td>
                 </tr>
@@ -824,13 +951,185 @@ const EventsManagement = ({ type = "lecturer", mode = "all" }) => {
       )}
 
       {/* MODALS */}
-      <CreateEventModal
-        isOpen={isCreateModalOpen}
-        onClose={() => { setIsCreateModalOpen(false); setImportedRawText(""); }}
-        onSelectPlan={handleSelectPlan}
-        onCreateNew={handleCreateNew}
-        initialAiText={importedRawText}
+      {mode === "plan" ? (
+        <CreatePlanModal
+          isOpen={isCreateModalOpen}
+          onClose={() => { setIsCreateModalOpen(false); setImportedRawText(""); }}
+          onSelectPlan={handleSelectPlan}
+          onCreateNew={handleCreateNew}
+          initialAiText={importedRawText}
+        />
+      ) : (
+        <CreateEventModal
+          isOpen={isCreateModalOpen}
+          onClose={() => { setIsCreateModalOpen(false); setImportedRawText(""); }}
+          onSelectPlan={handleSelectPlan}
+          onCreateNew={handleCreateNew}
+          initialAiText={importedRawText}
+        />
+      )}
+
+      <PromptModal
+        isOpen={promptModal.isOpen}
+        onClose={() => setPromptModal(prev => ({ ...prev, isOpen: false }))}
+        onConfirm={promptModal.onConfirm}
+        title={promptModal.title}
+        message={promptModal.message}
+        placeholder={promptModal.placeholder}
+        defaultValue={promptModal.defaultValue}
       />
+
+      <ConfirmModal
+        isOpen={deleteModal.isOpen}
+        onClose={() => setDeleteModal({ isOpen: false, id: null })}
+        onConfirm={handleDelete}
+        title="Xóa kế hoạch"
+        message="Bạn có chắc chắn muốn xóa kế hoạch này? Hành động này không thể hoàn tác."
+        confirmText="Xóa ngay"
+        type="danger"
+      />
+
+      <ConfirmModal
+        isOpen={cancelModal.isOpen}
+        onClose={() => setCancelModal({ isOpen: false, id: null })}
+        onConfirm={handleCancel}
+        title="Hủy sự kiện"
+        message="Bạn có chắc chắn muốn hủy sự kiện này? Hệ thống sẽ thông báo tới người tham gia."
+        confirmText="Xác nhận hủy"
+        type="warning"
+      />
+
+      {/* PLAN PREVIEW MODAL */}
+      <AnimatePresence>
+        {previewModal.isOpen && (
+          <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setPreviewModal({ isOpen: false, event: null })}
+              className="absolute inset-0 bg-slate-900/60 backdrop-blur-md"
+            />
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.9, opacity: 0, y: 20 }}
+              className="relative bg-white w-full max-w-5xl h-[90vh] rounded-[2rem] shadow-2xl overflow-hidden flex flex-col"
+            >
+              <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center text-white">
+                    <FileText size={20} />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-black text-slate-800 uppercase tracking-tight">Chi tiết kế hoạch</h3>
+                    <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Xem trước nội dung đề xuất</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setPreviewModal({ isOpen: false, event: null })}
+                  className="p-2 hover:bg-white rounded-xl text-slate-400 hover:text-slate-800 transition-all shadow-sm"
+                >
+                  <X size={24} />
+                </button>
+              </div>
+              <div className="flex-1 overflow-y-auto p-8 bg-white custom-scrollbar">
+                <EventReviewStep
+                  formData={{
+                    ...previewModal.event,
+                    eventTitle: previewModal.event.title,
+                    eventPurpose: previewModal.event.description,
+                    startTime: previewModal.event.startTime,
+                    endTime: previewModal.event.endTime,
+                    location: previewModal.event.location,
+                    maxParticipants: previewModal.event.maxParticipants,
+                    targetObjects: previewModal.event.targetObjects || [],
+                    sessions: previewModal.event.sessions || [],
+                    presenters: previewModal.event.presenters || [],
+                    organizationName: previewModal.event.organizationName,
+                    organizationEmail: previewModal.event.organizationEmail,
+                  }}
+                  isPlanMode={true}
+                  onBack={() => setPreviewModal({ isOpen: false, event: null })}
+                  // Pass empty handlers to disable buttons in preview mode
+                  onSubmit={() => { }}
+                  onSaveDraft={() => { }}
+                  onReset={() => { }}
+                  isReadOnly={true}
+                />
+              </div>
+              <div className="p-6 border-t border-slate-100 bg-slate-50 flex justify-end gap-3">
+                <button
+                  onClick={() => {
+                    handleExportWord(previewModal.event);
+                  }}
+                  className="flex items-center gap-2 px-6 py-3 bg-indigo-50 text-indigo-600 rounded-xl font-bold hover:bg-indigo-100 transition-all mr-auto"
+                >
+                  <Download size={18} />
+                  Xuất Word
+                </button>
+
+                {isAdminMode && previewModal.event.status === "PLAN_PENDING_APPROVAL" && (
+                  <>
+                    <button
+                      onClick={() => {
+                        handleStatusUpdate(previewModal.event.id, "REJECTED");
+                        setPreviewModal({ isOpen: false, event: null });
+                      }}
+                      className="px-6 py-3 bg-rose-50 text-rose-600 rounded-xl font-bold hover:bg-rose-100 transition-all flex items-center gap-2"
+                    >
+                      <XCircle size={18} />
+                      Từ chối
+                    </button>
+                    <button
+                      onClick={() => {
+                        handleStatusUpdate(previewModal.event.id, "PLAN_APPROVED");
+                        setPreviewModal({ isOpen: false, event: null });
+                      }}
+                      className="px-6 py-3 bg-emerald-600 text-white rounded-xl font-bold hover:bg-emerald-700 transition-all shadow-lg shadow-emerald-100 flex items-center gap-2"
+                    >
+                      <CheckCircle size={18} />
+                      Phê duyệt kế hoạch
+                    </button>
+                  </>
+                )}
+
+                {isAdminMode && previewModal.event.status === "EVENT_PENDING_APPROVAL" && (
+                  <>
+                    <button
+                      onClick={() => {
+                        handleStatusUpdate(previewModal.event.id, "REJECTED");
+                        setPreviewModal({ isOpen: false, event: null });
+                      }}
+                      className="px-6 py-3 bg-rose-50 text-rose-600 rounded-xl font-bold hover:bg-rose-100 transition-all flex items-center gap-2"
+                    >
+                      <XCircle size={18} />
+                      Từ chối
+                    </button>
+                    <button
+                      onClick={() => {
+                        handleStatusUpdate(previewModal.event.id, "PUBLISHED");
+                        setPreviewModal({ isOpen: false, event: null });
+                      }}
+                      className="px-6 py-3 bg-emerald-600 text-white rounded-xl font-bold hover:bg-emerald-700 transition-all shadow-lg shadow-emerald-100 flex items-center gap-2"
+                    >
+                      <CheckCircle size={18} />
+                      Duyệt & Đăng tải
+                    </button>
+                  </>
+                )}
+
+                <button
+                  onClick={() => setPreviewModal({ isOpen: false, event: null })}
+                  className="px-8 py-3 bg-slate-800 text-white rounded-xl font-bold hover:bg-slate-900 transition-all shadow-lg shadow-slate-100"
+                >
+                  Đóng
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };

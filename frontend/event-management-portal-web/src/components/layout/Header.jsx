@@ -360,14 +360,14 @@ const Header = () => {
             </div>
 
             {/* Navigation */}
-            <nav className="hidden lg:flex items-center gap-1">
+            <nav className="hidden lg:flex items-center gap-0.5">
               <Link
                 to="/"
                 onClick={() => {
                   window.scrollTo({ top: 0, behavior: "smooth" });
                   setActiveSection("home");
                 }}
-                className={`px-5 py-2.5 rounded-xl text-sm font-medium transition-all ${activeSection === "home" ? "bg-blue-600 text-white shadow-md" : "hover:bg-slate-100 text-slate-700"
+                className={`px-4 py-2 rounded-xl text-sm font-medium transition-all ${activeSection === "home" ? "bg-blue-600 text-white shadow-md" : "hover:bg-slate-100 text-slate-700"
                   }`}
               >
                 {t('home')}
@@ -376,7 +376,7 @@ const Header = () => {
               <Link
                 to="/events"
                 onClick={() => setActiveSection("events")}
-                className={`px-5 py-2.5 rounded-xl text-sm font-medium transition-all ${activeSection === "events" ? "bg-blue-600 text-white shadow-md" : "hover:bg-slate-100 text-slate-700"
+                className={`px-4 py-2 rounded-xl text-sm font-medium transition-all ${activeSection === "events" ? "bg-blue-600 text-white shadow-md" : "hover:bg-slate-100 text-slate-700"
                   }`}
               >
                 {t('events')}
@@ -384,14 +384,14 @@ const Header = () => {
 
               <Link
                 to="/calendar"
-                className={`px-5 py-2.5 rounded-xl text-sm font-medium transition-all ${activeSection === "calendar" ? "bg-blue-600 text-white shadow-md" : "hover:bg-slate-100 text-slate-700"
+                className={`px-4 py-2 rounded-xl text-sm font-medium transition-all ${activeSection === "calendar" ? "bg-blue-600 text-white shadow-md" : "hover:bg-slate-100 text-slate-700"
                   }`}
               >
                 {t('calendar')}
               </Link>
               <Link
                 to="/news"
-                className={`px-5 py-2.5 rounded-xl text-sm font-medium transition-all ${activeSection === "news" ? "bg-blue-600 text-white shadow-md" : "hover:bg-slate-100 text-slate-700"
+                className={`px-4 py-2 rounded-xl text-sm font-medium transition-all ${activeSection === "news" ? "bg-blue-600 text-white shadow-md" : "hover:bg-slate-100 text-slate-700"
                   }`}
               >
                 {t('news')}
@@ -401,9 +401,9 @@ const Header = () => {
               {(isEventStaff() || isAdminOnly() || isSuperAdmin()) && (
                 <Link
                   to={isSuperAdmin() || isAdminOnly() ? "/admin/dashboard" : (isLeaderRole() ? "/lecturer/dashboard" : "/lecturer/events")}
-                  className="ml-2 px-5 py-2.5 rounded-xl text-sm font-bold bg-indigo-600 text-white hover:bg-indigo-700 transition-all shadow-md shadow-indigo-100 flex items-center gap-2"
+                  className="ml-2 px-4 py-2 rounded-xl text-xs font-bold bg-indigo-600 text-white hover:bg-indigo-700 transition-all shadow-md shadow-indigo-100 flex items-center gap-1.5"
                 >
-                  <LayoutDashboard size={16} />
+                  <LayoutDashboard size={14} />
                   {isAdminOnly() || isSuperAdmin() ? t('admin_dashboard') : t('org_dashboard')}
                 </Link>
               )}
@@ -414,11 +414,11 @@ const Header = () => {
               {/* QR Scanner Button */}
               <button
                 onClick={() => navigate("/attendance")}
-                className="p-3 hover:bg-slate-100 rounded-2xl transition-colors text-slate-600 flex items-center gap-2 group"
+                className="p-2 hover:bg-slate-100 rounded-xl transition-colors text-slate-600 flex items-center gap-1.5 group"
                 title={t('qr_scan')}
               >
-                <QrCode size={22} className="group-hover:text-blue-600 transition-colors" />
-                <span className="text-[11px] font-bold uppercase tracking-tighter hidden md:block group-hover:text-blue-600 transition-colors">{t('qr_scan')}</span>
+                <QrCode size={20} className="group-hover:text-blue-600 transition-colors" />
+                <span className="text-[10px] font-bold uppercase tracking-tighter hidden xl:block group-hover:text-blue-600 transition-colors">{t('qr_scan')}</span>
               </button>
 
               {/* Notification Bell */}
@@ -426,9 +426,9 @@ const Header = () => {
                 <div className="relative" ref={notificationRef}>
                   <button
                     onClick={() => setIsNotificationOpen(!isNotificationOpen)}
-                    className="p-3 hover:bg-slate-100 rounded-2xl relative transition-colors"
+                    className="p-2.5 hover:bg-slate-100 rounded-xl relative transition-colors"
                   >
-                    <Bell size={22} className="text-slate-600" />
+                    <Bell size={20} className="text-slate-600" />
                     {unreadCount > 0 && (
                       <span className="absolute top-1 right-1 min-w-[18px] h-[18px] bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center px-1">
                         {unreadCount > 99 ? "99+" : unreadCount}

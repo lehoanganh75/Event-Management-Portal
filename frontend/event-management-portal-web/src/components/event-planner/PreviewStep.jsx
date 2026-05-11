@@ -142,7 +142,13 @@ export const PreviewStep = ({
               </button>
 
               <button
-                onClick={() => onSave && onSave(data, "PLAN_PENDING_APPROVAL")}
+                onClick={() => {
+                  const isAdmin = user?.role === 'SUPER_ADMIN' || user?.role === 'ADMIN';
+                  const status = mode === "plan" 
+                    ? (isAdmin ? "PLAN_APPROVED" : "PLAN_PENDING_APPROVAL")
+                    : (isAdmin ? "PUBLISHED" : "EVENT_PENDING_APPROVAL");
+                  onSave && onSave(data, status);
+                }}
                 disabled={isSubmitting}
                 className="w-full bg-indigo-600 text-white py-3 rounded-xl font-bold text-sm flex items-center justify-center gap-2 hover:bg-indigo-700 transition-all shadow-md shadow-indigo-100 disabled:opacity-60"
               >
@@ -154,7 +160,7 @@ export const PreviewStep = ({
                 ) : (
                   <>
                     <Send size={18} />
-                    Lưu & Gửi phê duyệt
+                    { (user?.role === 'SUPER_ADMIN' || user?.role === 'ADMIN') ? "Lưu & Duyệt ngay" : "Lưu & Gửi phê duyệt" }
                   </>
                 )}
               </button>
@@ -211,7 +217,7 @@ export const PreviewStep = ({
       </div>
 
       {isFullscreen && (
-        <div className="fixed inset-0 z-[100] bg-slate-900/95 backdrop-blur-md flex flex-col">
+        <div className="fixed inset-0 z-[200] bg-slate-900/95 backdrop-blur-md flex flex-col">
           <div className="flex justify-between items-center px-8 py-4 border-b border-white/10 text-white flex-shrink-0">
             <div className="flex items-center gap-3">
               <div className="p-2 bg-blue-500 rounded-lg">
@@ -259,8 +265,12 @@ export const PreviewStep = ({
             </button>
             <button
               onClick={() => {
+                const isAdmin = user?.role === 'SUPER_ADMIN' || user?.role === 'ADMIN';
+                const status = mode === "plan" 
+                  ? (isAdmin ? "PLAN_APPROVED" : "PLAN_PENDING_APPROVAL")
+                  : (isAdmin ? "PUBLISHED" : "EVENT_PENDING_APPROVAL");
                 setIsFullscreen(false);
-                onSave && onSave(data, "PLAN_PENDING_APPROVAL");
+                onSave && onSave(data, status);
               }}
               disabled={isSubmitting}
               className="px-10 py-3 bg-indigo-500 text-white rounded-xl font-black flex items-center gap-2 hover:bg-indigo-600 active:scale-95 transition-all disabled:opacity-60"
@@ -271,7 +281,7 @@ export const PreviewStep = ({
                 </>
               ) : (
                 <>
-                  <Send size={20} /> GỬI PHÊ DUYỆT
+                  <Send size={20} /> { (user?.role === 'SUPER_ADMIN' || user?.role === 'ADMIN') ? "DUYỆT NGAY" : "GỬI PHÊ DUYỆT" }
                 </>
               )}
             </button>

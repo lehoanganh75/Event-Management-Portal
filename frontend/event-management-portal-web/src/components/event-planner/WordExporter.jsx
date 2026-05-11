@@ -76,7 +76,16 @@ const buildDocumentXml = (data) => {
     createdByName = "Người lập kế hoạch",
   } = data;
 
-  const allRecipients = [...recipients, ...customRecipients];
+  const safeRecipients = Array.isArray(recipients) ? recipients : [];
+  const safeCustomRecipients = Array.isArray(customRecipients) ? customRecipients : [];
+  const allRecipients = [...safeRecipients, ...safeCustomRecipients];
+
+  const safeParticipants = Array.isArray(participants) ? participants : [];
+  const safeProgramItems = Array.isArray(programItems) ? programItems : [];
+  const safePresenters = Array.isArray(presenters) ? presenters : [];
+  const safeOrganizers = Array.isArray(organizers) ? organizers : [];
+  const safeAttendees = Array.isArray(attendees) ? attendees : [];
+
   const displayOrganizer = major
     ? `${faculty} – ${major}`
     : faculty;
@@ -213,8 +222,8 @@ const buildDocumentXml = (data) => {
 
   body += sectionTitle("3. ĐỐI TƯỢNG THAM GIA");
   body += indentedPara(
-    participants.length > 0
-      ? participants.join(", ")
+    safeParticipants.length > 0
+      ? safeParticipants.join(", ")
       : "Sinh viên, Giảng viên, Cán bộ và các đối tượng liên quan.",
   );
 
@@ -226,8 +235,8 @@ const buildDocumentXml = (data) => {
 
   body += sectionTitle("6. NỘI DUNG CHƯƠNG TRÌNH");
 
-  if (programItems.length > 0) {
-    programItems.forEach((item, idx) => {
+  if (safeProgramItems.length > 0) {
+    safeProgramItems.forEach((item, idx) => {
       body += indentedPara(
         `Phần ${idx + 1}. ${item.title || "Chương trình"}`,
         22,
@@ -248,24 +257,24 @@ const buildDocumentXml = (data) => {
   } else {
     body += indentedPara("Phần 1. Trình bày AI");
     body += indentedPara(
-      `Người chia sẻ: ${presenters[0]?.name || "Chưa xác định"} - Giảng viên - Khoa Công Nghệ Thông Tin`,
+      `Người chia sẻ: ${safePresenters[0]?.name || "Chưa xác định"} - Giảng viên - Khoa Công Nghệ Thông Tin`,
       22,
       500,
     );
   }
 
   let sectionNum = 7;
-  if (organizers.length > 0) {
+  if (safeOrganizers.length > 0) {
     body += sectionTitle(`${sectionNum}. BAN TỔ CHỨC`);
-    organizers.forEach((p) =>
+    safeOrganizers.forEach((p) =>
       body += indentedPara(`- ${formatPerson(p)}${p.email ? ` - ${p.email}` : ""}`)
     );
     sectionNum++;
   }
 
-  if (attendees.length > 0) {
+  if (safeAttendees.length > 0) {
     body += sectionTitle(`${sectionNum}. THÀNH PHẦN THAM DỰ`);
-    attendees.forEach((p) =>
+    safeAttendees.forEach((p) =>
       body += indentedPara(`- ${formatPerson(p)}${p.email ? ` - ${p.email}` : ""}`)
     );
     sectionNum++;

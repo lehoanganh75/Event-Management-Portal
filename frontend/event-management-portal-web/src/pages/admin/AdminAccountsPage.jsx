@@ -5,8 +5,10 @@ import {
   Loader2, UserCog, Lock, Unlock, Mail, Fingerprint, Users, ShieldCheck, ShieldAlert,
   CheckCircle2
 } from "lucide-react";
+import { showToast } from "../../utils/toast.jsx";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from '../../context/AuthContext';
+import ConfirmModal from "../../components/common/ConfirmModal";
 
 const ROLES = ["SUPER_ADMIN", "ADMIN", "MEMBER", "GUEST"];
 
@@ -38,7 +40,8 @@ const AdminAccountsPage = () => {
   const [selectedAccount, setSelectedAccount] = useState(null);
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const [accountToDelete, setAccountToDelete] = useState(null);
-  const [toast, setToast] = useState({ show: false, message: "", type: "success" });
+  const [isStatusConfirmOpen, setIsStatusConfirmOpen] = useState(false);
+  const [accountToUpdateStatus, setAccountToUpdateStatus] = useState(null);
 
   const [formData, setFormData] = useState({
     username: "",
@@ -52,11 +55,7 @@ const AdminAccountsPage = () => {
     fetchAccounts();
   }, [fetchAccounts]);
 
-  const showToast = (message, type = "success") => {
-    setToast({ show: true, message, type });
-    setTimeout(() => setToast((p) => ({ ...p, show: false })), 3000);
-  };
-
+  // Remapped to use global showToast imported above
   /* --- STATISTICS (Giống EventPage) --- */
   const stats = useMemo(() => ({
     total: accounts?.length || 0,
@@ -72,10 +71,10 @@ const AdminAccountsPage = () => {
     return list.filter((a) => {
       const s = searchTerm.toLowerCase();
       const matchSearch = (a.fullName || "").toLowerCase().includes(s) ||
-                          (a.username || "").toLowerCase().includes(s) ||
-                          (a.email || "").toLowerCase().includes(s);
+        (a.username || "").toLowerCase().includes(s) ||
+        (a.email || "").toLowerCase().includes(s);
       const matchRole = roleFilter === "All" || a.role === roleFilter;
-      
+
       let matchTab = true;
       if (activeTab === "Đang hoạt động") matchTab = a.status === "ACTIVE";
       if (activeTab === "Bị khóa") matchTab = a.status !== "ACTIVE";
@@ -113,19 +112,33 @@ const AdminAccountsPage = () => {
     }
   };
 
-  const handleDelete = async () => {
+  const handleConfirmDelete = async () => {
+    if (!accountToDelete) return;
     try {
       await deleteAccount(accountToDelete.id);
+      showToast("Xóa tài khoản thành công!", "success");
       setIsDeleteOpen(false);
-      showToast("Xóa tài khoản thành công!");
     } catch (error) {
-      showToast("Xóa thất bại!", "error");
+      showToast("Xóa thất bại: " + (error.response?.data?.message || error.message), "error");
+    }
+  };
+
+  const handleConfirmUpdateStatus = async () => {
+    if (!accountToUpdateStatus) return;
+    try {
+      const isLocking = accountToUpdateStatus.status === "ACTIVE";
+      await updateAccountStatus(accountToUpdateStatus.id);
+      showToast(isLocking ? "Đã khóa tài khoản thành công!" : "Đã mở khóa tài khoản thành công!", "success");
+      setIsStatusConfirmOpen(false);
+    } catch (error) {
+      const errorMsg = error.response?.data?.message || error.message;
+      showToast("Cập nhật trạng thái thất bại: " + errorMsg, "error");
     }
   };
 
   return (
     <div className="p-6 bg-slate-50 min-h-screen font-sans text-left">
-      
+
       {/* HEADER */}
       <div className="flex justify-between items-center mb-6">
         <div className="flex items-center gap-3">
@@ -213,17 +226,15 @@ const AdminAccountsPage = () => {
               setActiveTab(tab.id);
               setCurrentPage(1);
             }}
-            className={`flex items-center gap-2 px-6 py-3 text-sm font-medium whitespace-nowrap border-b-2 transition-all ${
-              activeTab === tab.id
+            className={`flex items-center gap-2 px-6 py-3 text-sm font-medium whitespace-nowrap border-b-2 transition-all ${activeTab === tab.id
                 ? "border-blue-600 text-blue-600"
                 : "border-transparent text-gray-500 hover:text-gray-900"
-            }`}
+              }`}
           >
             <tab.icon size={16} />
             {tab.label}
-            <span className={`ml-1.5 px-2 py-0.5 rounded-full text-[10px] font-bold ${
-              activeTab === tab.id ? "bg-blue-100 text-blue-600" : "bg-slate-100 text-slate-500"
-            }`}>
+            <span className={`ml-1.5 px-2 py-0.5 rounded-full text-[10px] font-bold ${activeTab === tab.id ? "bg-blue-100 text-blue-600" : "bg-slate-100 text-slate-500"
+              }`}>
               {tab.count}
             </span>
           </button>
@@ -251,7 +262,7 @@ const AdminAccountsPage = () => {
           {ROLES.map(r => <option key={r} value={r}>{ROLE_LABELS[r]}</option>)}
         </select>
 
-        <button 
+        <button
           onClick={() => { setSearchTerm(""); setRoleFilter("All"); setActiveTab("Tất cả"); }}
           className="px-5 py-3 bg-slate-800 hover:bg-slate-900 text-white rounded-xl text-sm font-medium transition-all active:scale-95"
         >
@@ -263,8 +274,8 @@ const AdminAccountsPage = () => {
       <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden shadow-sm">
         {!accounts ? (
           <div className="p-20 text-center flex flex-col items-center gap-3">
-             <Loader2 className="animate-spin text-blue-600" size={40} />
-             <p className="text-slate-500 font-medium italic">Đang tải danh sách người dùng...</p>
+            <Loader2 className="animate-spin text-blue-600" size={40} />
+            <p className="text-slate-500 font-medium italic">Đang tải danh sách người dùng...</p>
           </div>
         ) : (
           <table className="w-full text-sm">
@@ -296,7 +307,7 @@ const AdminAccountsPage = () => {
                       </div>
                     </td>
                     <td className="p-4 text-slate-600 font-medium">
-                      <div className="flex items-center gap-2"><Mail size={14} className="text-slate-300"/>{acc.email || "—"}</div>
+                      <div className="flex items-center gap-2"><Mail size={14} className="text-slate-300" />{acc.email || "—"}</div>
                     </td>
                     <td className="p-4">
                       <span className={`px-2.5 py-1 rounded-lg text-[10px] font-black uppercase border ${ROLE_COLORS[acc.role] || "bg-gray-100"}`}>
@@ -305,27 +316,30 @@ const AdminAccountsPage = () => {
                     </td>
                     <td className="p-4 text-center">
                       <span className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-[10px] font-black uppercase border ${acc.status === "ACTIVE" ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-rose-50 text-rose-700 border-rose-200'}`}>
-                        {acc.status === "ACTIVE" ? <CheckCircle size={10}/> : <XCircle size={10}/>}
+                        {acc.status === "ACTIVE" ? <CheckCircle size={10} /> : <XCircle size={10} />}
                         {acc.status === "ACTIVE" ? "Hoạt động" : "Bị khóa"}
                       </span>
                     </td>
                     <td className="p-4 text-center">
                       <div className="flex justify-center gap-1.5">
-                        <button 
-                          onClick={() => updateAccountStatus(acc.id)} 
+                        <button
+                          onClick={() => {
+                            setAccountToUpdateStatus(acc);
+                            setIsStatusConfirmOpen(true);
+                          }}
                           className={`p-2 rounded-lg transition-all ${acc.status === "ACTIVE" ? 'text-slate-400 hover:text-amber-500 hover:bg-amber-50' : 'text-amber-500 hover:text-emerald-600 hover:bg-emerald-50'}`}
                           title={acc.status === "ACTIVE" ? "Khóa tài khoản" : "Mở khóa"}
                         >
                           {acc.status === "ACTIVE" ? <Lock size={18} /> : <Unlock size={18} />}
                         </button>
-                        <button 
-                          onClick={() => openEdit(acc)} 
+                        <button
+                          onClick={() => openEdit(acc)}
                           className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all"
                         >
                           <Edit2 size={18} />
                         </button>
-                        <button 
-                          onClick={() => { setAccountToDelete(acc); setIsDeleteOpen(true); }} 
+                        <button
+                          onClick={() => { setAccountToDelete(acc); setIsDeleteOpen(true); }}
                           className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-all"
                         >
                           <Trash2 size={18} />
@@ -361,11 +375,10 @@ const AdminAccountsPage = () => {
             <button
               key={num}
               onClick={() => setCurrentPage(num)}
-              className={`w-10 h-10 rounded-xl flex items-center justify-center text-sm font-medium transition-all ${
-                currentPage === num 
-                  ? "bg-blue-600 text-white shadow-sm" 
+              className={`w-10 h-10 rounded-xl flex items-center justify-center text-sm font-medium transition-all ${currentPage === num
+                  ? "bg-blue-600 text-white shadow-sm"
                   : "border border-gray-200 hover:bg-gray-50"
-              }`}
+                }`}
             >
               {num}
             </button>
@@ -395,15 +408,15 @@ const AdminAccountsPage = () => {
               <div className="p-8 space-y-4">
                 <div>
                   <label className="text-[10px] font-black text-slate-400 uppercase ml-2 mb-1.5 block tracking-widest">Họ và tên</label>
-                  <input className="w-full px-5 py-3 bg-slate-50 border border-slate-100 rounded-2xl outline-none font-bold text-slate-700 focus:bg-white focus:border-blue-500 transition-all shadow-inner" value={formData.fullName} onChange={e => setFormData({...formData, fullName: e.target.value})} />
+                  <input className="w-full px-5 py-3 bg-slate-50 border border-slate-100 rounded-2xl outline-none font-bold text-slate-700 focus:bg-white focus:border-blue-500 transition-all shadow-inner" value={formData.fullName} onChange={e => setFormData({ ...formData, fullName: e.target.value })} />
                 </div>
                 <div>
                   <label className="text-[10px] font-black text-slate-400 uppercase ml-2 mb-1.5 block tracking-widest">Email liên hệ</label>
-                  <input className="w-full px-5 py-3 bg-slate-50 border border-slate-100 rounded-2xl outline-none font-bold text-slate-700 focus:bg-white focus:border-blue-500 transition-all shadow-inner" value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} />
+                  <input className="w-full px-5 py-3 bg-slate-50 border border-slate-100 rounded-2xl outline-none font-bold text-slate-700 focus:bg-white focus:border-blue-500 transition-all shadow-inner" value={formData.email} onChange={e => setFormData({ ...formData, email: e.target.value })} />
                 </div>
                 <div>
                   <label className="text-[10px] font-black text-slate-400 uppercase ml-2 mb-1.5 block tracking-widest">Vai trò hệ thống</label>
-                  <select className="w-full px-5 py-3 bg-slate-50 border border-slate-100 rounded-2xl outline-none font-bold text-slate-700 cursor-pointer" value={formData.role} onChange={e => setFormData({...formData, role: e.target.value})}>
+                  <select className="w-full px-5 py-3 bg-slate-50 border border-slate-100 rounded-2xl outline-none font-bold text-slate-700 cursor-pointer" value={formData.role} onChange={e => setFormData({ ...formData, role: e.target.value })}>
                     {ROLES.map(r => <option key={r} value={r}>{ROLE_LABELS[r]}</option>)}
                   </select>
                 </div>
@@ -416,22 +429,31 @@ const AdminAccountsPage = () => {
         )}
       </AnimatePresence>
 
-      {/* DELETE DIALOG (Giống EventPage) */}
-      <AnimatePresence>
-        {isDeleteOpen && (
-          <div className="fixed inset-0 z-[150] flex items-center justify-center bg-slate-900/40 backdrop-blur-md p-4">
-            <motion.div initial={{ scale: 0.9 }} animate={{ scale: 1 }} className="bg-white p-10 rounded-[2.5rem] max-w-sm w-full text-center shadow-2xl border-4 border-white">
-              <div className="w-20 h-20 bg-rose-50 rounded-3xl flex items-center justify-center mx-auto mb-6 shadow-inner"><AlertTriangle size={40} className="text-rose-500" /></div>
-              <h3 className="font-black text-slate-800 mb-2 italic text-xl uppercase tracking-tighter">Xác nhận xóa?</h3>
-              <p className="text-[10px] text-slate-400 font-bold mb-8 uppercase tracking-widest leading-relaxed">Tài khoản <span className="text-rose-500 italic">@{accountToDelete?.username}</span> sẽ bị gỡ bỏ vĩnh viễn khỏi hệ thống.</p>
-              <div className="flex gap-3">
-                <button onClick={() => setIsDeleteOpen(false)} className="flex-1 font-black text-slate-400 text-[10px] uppercase cursor-pointer hover:bg-slate-50 py-3 rounded-2xl transition-colors">Hủy bỏ</button>
-                <button onClick={handleDelete} className="flex-1 py-4 bg-rose-500 text-white rounded-2xl font-black text-[10px] uppercase shadow-xl shadow-rose-200 hover:bg-rose-600 transition-all">Xóa ngay</button>
-              </div>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
+      {/* DELETE CONFIRM MODAL */}
+      <ConfirmModal
+        isOpen={isDeleteOpen}
+        onClose={() => setIsDeleteOpen(false)}
+        onConfirm={handleConfirmDelete}
+        title="Xác nhận xóa tài khoản?"
+        message={`Tài khoản @${accountToDelete?.username} sẽ bị gỡ bỏ vĩnh viễn. Hành động này không thể hoàn tác.`}
+        confirmText="Xóa vĩnh viễn"
+        type="danger"
+      />
+
+      {/* STATUS CONFIRM MODAL */}
+      <ConfirmModal
+        isOpen={isStatusConfirmOpen}
+        onClose={() => setIsStatusConfirmOpen(false)}
+        onConfirm={handleConfirmUpdateStatus}
+        title={accountToUpdateStatus?.status === "ACTIVE" ? "Khóa tài khoản?" : "Mở khóa tài khoản?"}
+        message={
+          accountToUpdateStatus?.status === "ACTIVE"
+            ? `Bạn có chắc chắn muốn khóa tài khoản @${accountToUpdateStatus?.username}? Người dùng này sẽ bị đăng xuất ngay lập tức.`
+            : `Xác nhận mở khóa cho tài khoản @${accountToUpdateStatus?.username}?`
+        }
+        confirmText={accountToUpdateStatus?.status === "ACTIVE" ? "Khóa ngay" : "Mở khóa"}
+        type={accountToUpdateStatus?.status === "ACTIVE" ? "warning" : "info"}
+      />
     </div>
   );
 };

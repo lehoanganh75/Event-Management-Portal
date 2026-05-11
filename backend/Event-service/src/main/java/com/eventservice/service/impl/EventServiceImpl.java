@@ -647,15 +647,14 @@ public class EventServiceImpl implements EventService {
                             continue;
 
                         UserResponse user = userMap.get(accId);
-                        String name = user != null ? user.getFullName() : (String) pMap.get("fullName");
                         String email = user != null ? user.getEmail() : (String) pMap.get("email");
-                        String bio = (String) pMap.get("presenterBio");
                         String session = (String) pMap.get("presenterSession");
 
                         EventInvitation inv = EventInvitation.builder()
                                 .event(savedEvent)
                                 .inviterAccountId(savedEvent.getCreatedByAccountId())
                                 .inviteeEmail(email)
+                                .inviteeAccountId(accId) // Thêm ID tài khoản để gửi thông báo web
                                 .presenterSession(session)
                                 .type(InvitationType.PRESENTER)
                                 .status(InvitationStatus.PENDING)
@@ -665,19 +664,9 @@ public class EventServiceImpl implements EventService {
 
                         invitationRepository.save(inv);
 
-                        // Gửi email mời diễn giả
-                        String inviteUrl = String.format("%s/invitation/accept?token=%s&eventId=%s",
-                                appProperties.getFrontend().getBaseUrl(), inv.getToken(), savedEvent.getId());
-                        try {
-                            emailService.sendPresenterInviteEmailAsync(
-                                    email,
-                                    inviteUrl,
-                                    savedEvent.getTitle(),
-                                    name != null ? name : "Diễn giả",
-                                    savedEvent.getStartTime() != null ? savedEvent.getStartTime().toString() : "N/A",
-                                    session != null && !session.isBlank() ? session : "Chưa xác định");
-                        } catch (Exception e) {
-                            log.error("Failed to send presenter invite email for: {}", email, e);
+                        // Chỉ gửi email ngay nếu không phải bản nháp
+                        if (savedEvent.getStatus() != EventStatus.DRAFT) {
+                            sendSinglePresenterInvitation(inv);
                         }
                     }
                 } catch (Exception e) {
@@ -988,7 +977,14 @@ public class EventServiceImpl implements EventService {
         invitation.setStatus(InvitationStatus.REJECTED);
         invitation.setRejectionReason(reason);
         invitation.setRespondedAt(LocalDateTime.now());
+        invitation.setDeleted(true); // Đánh dấu xóa để không hiển thị trong kế hoạch nữa
         invitationRepository.save(invitation);
+
+        // Xóa các bản ghi Organizer/Presenter nếu có (để sạch dữ liệu trong kế hoạch)
+        if (invitation.getInviteeAccountId() != null) {
+            organizerRepository.deleteByEventIdAndAccountId(eventId, invitation.getInviteeAccountId());
+            presenterRepository.deleteByEventIdAndPresenterAccountId(eventId, invitation.getInviteeAccountId());
+        }
 
         Map<String, String> response = new HashMap<>();
         response.put("message", "Đã từ chối lời mời thành công");
@@ -1311,20 +1307,26 @@ public class EventServiceImpl implements EventService {
     @Override
     public Event submitPlanForApproval(String id) {
         Event plan = eventRepository.findById(id).orElseThrow();
-        if (plan.getStatus() != EventStatus.DRAFT)
-            throw new RuntimeException("Chỉ có thể gửi duyệt bản DRAFT");
+        if (plan.getStatus() != EventStatus.DRAFT && plan.getStatus() != EventStatus.REJECTED)
+            throw new RuntimeException("Chỉ có thể gửi duyệt bản DRAFT hoặc REJECTED");
+        
         plan.setStatus(EventStatus.PLAN_PENDING_APPROVAL);
         Event savedPlan = eventRepository.save(plan);
 
+        // --- GỬI LỜI MỜI CHO TẤT CẢ THÀNH VIÊN ĐANG CHỜ ---
+        log.info("#### [SUBMIT-PLAN] Triggering invitations for plan: {}", savedPlan.getId());
+        triggerAllPendingInvitations(savedPlan);
+
         // 1. Notify the submitter themselves (self notification)
         if (savedPlan.getCreatedByAccountId() != null) {
+            log.info("#### [SUBMIT-PLAN] Notifying submitter: {}", savedPlan.getCreatedByAccountId());
             NotificationEventDto selfNotification = NotificationEventDto.builder()
                     .recipientId(savedPlan.getCreatedByAccountId())
                     .title("Gửi phê duyệt thành công")
                     .message("Kế hoạch \"" + savedPlan.getTitle() + "\" đã được gửi tới Super Admin.")
-                    .type("SYSTEM") // Or appropriate type
+                    .type("SYSTEM") 
                     .relatedEntityId(savedPlan.getId())
-                    .actionUrl("/lecturer/events") // Or appropriate link
+                    .actionUrl("/lecturer/events") 
                     .build();
             notificationProducer.sendNotification(selfNotification);
         }
@@ -2045,9 +2047,8 @@ public class EventServiceImpl implements EventService {
             String rawEmail = (String) invMap.get("inviteeEmail");
             if (rawEmail == null)
                 continue;
-            final String email = rawEmail.trim(); // Trim and make final for lambda use
+            final String email = rawEmail.trim();
 
-            // Prevent duplicates: Check if already has a PENDING invitation
             Optional<EventInvitation> existing = invitationRepository.findByEventIdAndInviteeEmail(eventId, email);
             if (existing.isPresent() && existing.get().getStatus() == InvitationStatus.PENDING) {
                 continue;
@@ -2058,7 +2059,6 @@ public class EventServiceImpl implements EventService {
             invitation.setInviterAccountId(event.getCreatedByAccountId());
             invitation.setInviteeEmail(email);
 
-            // Fix: correctly read targetRole from payload
             String roleStr = (String) invMap.get("targetRole");
             if (roleStr == null || roleStr.isBlank()) {
                 roleStr = (String) invMap.get("role");
@@ -2067,14 +2067,10 @@ public class EventServiceImpl implements EventService {
             try {
                 targetRole = OrganizerRole.valueOf(roleStr != null ? roleStr.trim().toUpperCase() : "MEMBER");
             } catch (IllegalArgumentException e) {
-                log.warn("#### [INVITE] Invalid targetRole '{}', defaulting to MEMBER", roleStr);
                 targetRole = OrganizerRole.MEMBER;
             }
             invitation.setTargetRole(targetRole);
 
-
-
-            // Fix: correctly read message from payload
             String message = (String) invMap.get("message");
             if (message != null && !message.isBlank()) {
                 invitation.setMessage(message);
@@ -2088,68 +2084,97 @@ public class EventServiceImpl implements EventService {
             invitation.setSentAt(LocalDateTime.now());
             invitation.setExpiredAt(LocalDateTime.now().plusDays(7));
 
-            // 2. Resolve inviteeAccountId BEFORE saving to DB if not provided in payload
             String inviteeAccountId = (String) invMap.get("inviteeAccountId");
             if (inviteeAccountId == null || inviteeAccountId.isBlank()) {
                 try {
-                    log.info("#### [INVITE-DEBUG] Resolving account ID for email: [{}]", email);
                     List<UserResponse> users = identityClient.getUsersByEmails(List.of(email));
                     if (users != null && !users.isEmpty()) {
                         inviteeAccountId = users.get(0).getId();
-                        log.info("#### [INVITE-DEBUG] Identity Service MATCH: email={} -> userId={}", email,
-                                inviteeAccountId);
-                    } else {
-                        log.warn("#### [INVITE-DEBUG] Identity Service NO MATCH for email: [{}]", email);
                     }
-                } catch (Exception e) {
-                    log.error("#### [INVITE-DEBUG] Identity Service ERROR for email [{}]: {}", email, e.getMessage());
-                }
-            } else {
-                log.info("#### [INVITE-DEBUG] Using provided accountId from payload: {}", inviteeAccountId);
+                } catch (Exception e) {}
             }
-
-            log.info("#### [INVITE-DEBUG] FINAL PERSIST: email={} -> accountId={}", email, inviteeAccountId);
             invitation.setInviteeAccountId(inviteeAccountId);
             invitationRepository.save(invitation);
 
-            // 3. Cache in Redis for acceptance flow
             if (inviteeAccountId != null) {
                 try {
                     String redisKey = RedisConstant.EVENT_INVITE_PREFIX + invitation.getToken();
                     redisTemplate.opsForValue().set(redisKey, inviteeAccountId, 7, java.util.concurrent.TimeUnit.DAYS);
-                } catch (Exception e) {
-                    log.error("#### [INVITE] Failed to cache in Redis: {}", e.getMessage());
-                }
+                } catch (Exception e) {}
             }
 
-            // Send Email
-            String inviteUrl = appProperties.getFrontend().getBaseUrl() + "/invitation/accept?eventId=" + eventId
-                    + "&token="
-                    + invitation.getToken();
-            emailService.sendEventInviteEmailAsync(
-                    email, inviteUrl, event.getTitle(), "Người dùng",
-                    event.getStartTime().toString(), event.getEndTime().toString(),
-                    event.getLocation(), event.getDescription());
-
-            // Send Web Notification
-            try {
-                // TODO: Get recipient ID by email or from invitation context
-                if (false) {
-                    NotificationEventDto notification = NotificationEventDto.builder()
-                            .recipientId(null)
-                            .title("Lời mời tham gia Ban tổ chức")
-                            .message("Bạn được mời tham gia Ban tổ chức sự kiện: \"" + event.getTitle() + "\"")
-                            .type("INVITATION")
-                            .relatedEntityId(event.getId())
-                            .actionUrl("/invitation/accept?eventId=" + eventId + "&token=" + invitation.getToken())
-                            .build();
-                    notificationProducer.sendNotification(notification);
-                } else {
-                    log.warn("#### [INVITE] Skip web notification: No accountId for {}", email);
-                }
-            } catch (Exception e) {
-                log.error("#### [INVITE] Failed to send web notification: {}", e.getMessage());
+            // Chỉ gửi ngay nếu không phải bản nháp
+            if (event.getStatus() != EventStatus.DRAFT) {
+                sendSingleOrganizerInvitation(invitation);
             }
+        }
+    }
+
+    private void triggerAllPendingInvitations(Event event) {
+        List<EventInvitation> pending = invitationRepository.findByEventIdAndStatusAndIsDeletedFalse(event.getId(), InvitationStatus.PENDING);
+        log.info("#### [INVITE-TRIGGER] Found {} pending invitations for event: {}", pending.size(), event.getId());
+        for (EventInvitation inv : pending) {
+            if (inv.getType() == InvitationType.PRESENTER) {
+                sendSinglePresenterInvitation(inv);
+            } else {
+                sendSingleOrganizerInvitation(inv);
+            }
+        }
+    }
+
+    private void sendSingleOrganizerInvitation(EventInvitation invitation) {
+        Event event = invitation.getEvent();
+        log.info("#### [INVITE-SEND] Sending Organizer invite: email={}, accountId={}", invitation.getInviteeEmail(), invitation.getInviteeAccountId());
+        String inviteUrl = appProperties.getFrontend().getBaseUrl() + "/invitation/accept?eventId=" + event.getId()
+                + "&token=" + invitation.getToken();
+        
+        emailService.sendEventInviteEmailAsync(
+                invitation.getInviteeEmail(), inviteUrl, event.getTitle(), "Thành viên",
+                event.getStartTime().toString(), event.getEndTime().toString(),
+                event.getLocation(), event.getDescription());
+
+        if (invitation.getInviteeAccountId() != null) {
+            log.info("#### [INVITE-NOTIFY] Sending web notification to accountId: {}", invitation.getInviteeAccountId());
+            NotificationEventDto notification = NotificationEventDto.builder()
+                    .recipientId(invitation.getInviteeAccountId())
+                    .senderId(invitation.getInviterAccountId())
+                    .title("Lời mời tham gia Ban tổ chức")
+                    .message("Bạn được mời tham gia Ban tổ chức sự kiện: \"" + event.getTitle() + "\"")
+                    .type("INVITATION")
+                    .relatedEntityId(event.getId())
+                    .actionUrl("/invitation/accept?eventId=" + event.getId() + "&token=" + invitation.getToken())
+                    .build();
+            notificationProducer.sendNotification(notification);
+        } else {
+            log.warn("#### [INVITE-NOTIFY] Skip web notification: No accountId for {}", invitation.getInviteeEmail());
+        }
+    }
+
+    private void sendSinglePresenterInvitation(EventInvitation invitation) {
+        Event event = invitation.getEvent();
+        log.info("#### [INVITE-SEND] Sending Presenter invite: email={}, accountId={}", invitation.getInviteeEmail(), invitation.getInviteeAccountId());
+        String inviteUrl = appProperties.getFrontend().getBaseUrl() + "/invitation/accept?eventId=" + event.getId()
+                + "&token=" + invitation.getToken();
+        
+        emailService.sendPresenterInviteEmailAsync(
+                invitation.getInviteeEmail(), inviteUrl, event.getTitle(), "Diễn giả",
+                event.getStartTime().toString(),
+                invitation.getPresenterSession() != null ? invitation.getPresenterSession() : "Chưa xác định");
+
+        if (invitation.getInviteeAccountId() != null) {
+            log.info("#### [INVITE-NOTIFY] Sending web notification to accountId: {}", invitation.getInviteeAccountId());
+            NotificationEventDto notification = NotificationEventDto.builder()
+                    .recipientId(invitation.getInviteeAccountId())
+                    .senderId(invitation.getInviterAccountId())
+                    .title("Lời mời tham gia Diễn giả")
+                    .message("Bạn được mời tham gia Diễn giả tại sự kiện: \"" + event.getTitle() + "\"")
+                    .type("INVITATION")
+                    .relatedEntityId(event.getId())
+                    .actionUrl("/invitation/accept?eventId=" + event.getId() + "&token=" + invitation.getToken())
+                    .build();
+            notificationProducer.sendNotification(notification);
+        } else {
+            log.warn("#### [INVITE-NOTIFY] Skip web notification: No accountId for {}", invitation.getInviteeEmail());
         }
     }
 
@@ -2161,16 +2186,14 @@ public class EventServiceImpl implements EventService {
             String rawEmail = (String) invMap.get("inviteeEmail");
             if (rawEmail == null)
                 continue;
-            final String email = rawEmail.trim(); // Trim and make final
+            final String email = rawEmail.trim();
 
-            // Prevent duplicates: Check if already has a PENDING presenter invitation
             Optional<EventInvitation> existing = invitationRepository.findByEventIdAndInviteeEmail(eventId, email);
             if (existing.isPresent() && existing.get().getStatus() == InvitationStatus.PENDING
                     && existing.get().getType() == InvitationType.PRESENTER) {
                 continue;
             }
 
-            // 2. Create or Update Invitation
             EventInvitation invitation = existing.orElse(new EventInvitation());
             invitation.setEvent(event);
             invitation.setInviterAccountId(event.getCreatedByAccountId());
@@ -2183,7 +2206,6 @@ public class EventServiceImpl implements EventService {
             invitation.setSentAt(LocalDateTime.now());
             invitation.setExpiredAt(LocalDateTime.now().plusDays(7));
 
-            // Resolve inviteeAccountId BEFORE saving to DB
             Object rawAccountId = invMap.get("inviteeAccountId");
             String inviteeAccountId = null;
             if (rawAccountId != null && !rawAccountId.toString().isBlank()) {
@@ -2192,62 +2214,26 @@ public class EventServiceImpl implements EventService {
 
             if (inviteeAccountId == null) {
                 try {
-                    log.info("#### [INVITE-DEBUG] Resolving presenter ID for email: [{}]", email);
                     List<UserResponse> users = identityClient.getUsersByEmails(List.of(email));
                     if (users != null && !users.isEmpty()) {
                         inviteeAccountId = users.get(0).getId();
-                        log.info("#### [INVITE-DEBUG] Presenter MATCH: email={} -> userId={}", email, inviteeAccountId);
                     }
-                } catch (Exception e) {
-                    log.error("#### [INVITE-DEBUG] Presenter lookup ERROR for email [{}]: {}", email, e.getMessage());
-                }
+                } catch (Exception e) {}
             }
 
-            log.info("#### [INVITE-DEBUG] FINAL PERSIST (Presenter): email={} -> accountId={}", email,
-                    inviteeAccountId);
             invitation.setInviteeAccountId(inviteeAccountId);
             invitationRepository.save(invitation);
 
-            // Cache in Redis
             if (inviteeAccountId != null) {
                 try {
                     String redisKey = RedisConstant.EVENT_INVITE_PREFIX + invitation.getToken();
                     redisTemplate.opsForValue().set(redisKey, inviteeAccountId, 7, java.util.concurrent.TimeUnit.DAYS);
-                } catch (Exception e) {
-                }
+                } catch (Exception e) {}
             }
 
-            // 3. Send Email
-            String inviteUrl = appProperties.getFrontend().getBaseUrl() + "/invitation/accept?eventId=" + eventId
-                    + "&token="
-                    + invitation.getToken();
-            try {
-                emailService.sendPresenterInviteEmailAsync(
-                        email, inviteUrl, event.getTitle(), "Diễn giả",
-                        event.getStartTime().toString(),
-                        invitation.getPresenterSession() != null ? invitation.getPresenterSession() : "Chưa xác định");
-            } catch (Exception e) {
-                log.error("Failed to send presenter invite email to {}: {}", email, e.getMessage());
-            }
-
-            // 4. Send Web Notification
-            try {
-                // TODO: Get recipient ID by email or from invitation context
-                if (false) {
-                    NotificationEventDto notification = NotificationEventDto.builder()
-                            .recipientId(null)
-                            .title("Lời mời tham gia Diễn giả")
-                            .message("Bạn được mời tham gia Diễn giả tại sự kiện: \"" + event.getTitle() + "\"")
-                            .type("INVITATION")
-                            .relatedEntityId(event.getId())
-                            .actionUrl("/invitation/accept?eventId=" + eventId + "&token=" + invitation.getToken())
-                            .build();
-                    notificationProducer.sendNotification(notification);
-                } else {
-                    log.warn("#### [PRESENTER INVITE] Skip web notification: No accountId for {}", email);
-                }
-            } catch (Exception e) {
-                log.error("#### [PRESENTER INVITE] Failed to send web notification: {}", e.getMessage());
+            // Chỉ gửi ngay nếu không phải bản nháp
+            if (event.getStatus() != EventStatus.DRAFT) {
+                sendSinglePresenterInvitation(invitation);
             }
         }
     }

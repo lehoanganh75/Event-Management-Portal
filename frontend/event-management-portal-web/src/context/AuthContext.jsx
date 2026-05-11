@@ -34,14 +34,12 @@ export const AuthProvider = ({ children }) => {
                 const rolesRes = await eventService.getOrganizerRoles();
                 profileData.eventRoles = rolesRes || [];
             } catch (e) {
-                console.warn("Could not fetch organizer roles", e);
                 profileData.eventRoles = [];
             }
 
             setUser(profileData);
             setIsAuthenticated(true);
         } catch (error) {
-            console.warn("Phiên đăng nhập hết hạn, tiếp tục với tư cách khách.");
             localStorage.removeItem('accessToken');
             localStorage.removeItem('refreshToken');
             setUser(null);
@@ -96,7 +94,6 @@ export const AuthProvider = ({ children }) => {
             const refreshToken = localStorage.getItem('refreshToken');
             await authService.logout(refreshToken);
         } catch (e) {
-            console.warn("Server-side logout failed or not implemented");
         } finally {
             // Luôn xóa sạch dữ liệu ở Client bất kể API thành công hay thất bại
             localStorage.clear();
@@ -112,7 +109,6 @@ export const AuthProvider = ({ children }) => {
             const res = await authService.getAllAccounts();
             setAccounts(res.data || []);
         } catch (e) {
-            console.error("Lỗi fetch danh sách tài khoản:", e);
         }
     }, []);
 
@@ -131,11 +127,19 @@ export const AuthProvider = ({ children }) => {
         const target = accounts.find(a => a.id === id);
         if (!target) return;
 
-        const newStatus = target.status === "ACTIVE" ? "DISABLED" : "ACTIVE";
-        await authService.updateAccountStatus(id, newStatus);
-        setAccounts(prev => prev.map(acc =>
-            acc.id === id ? { ...acc, status: newStatus } : acc
-        ));
+        const newStatus = target.status === "ACTIVE" ? "LOCKED" : "ACTIVE";
+        
+        try {
+            const res = await authService.updateAccountStatus(id, newStatus);
+            
+            setAccounts(prev => prev.map(acc =>
+                acc.id === id ? { ...acc, ...res.data } : acc
+            ));
+
+            await fetchAccounts();
+        } catch (error) {
+            throw error;
+        }
     };
 
     const value = {

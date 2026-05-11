@@ -101,13 +101,29 @@ public class UserServiceImpl implements UserService {
     public UserResponse updateStatus(String userId, String status) {
         User user = userRepository.findByIdAndIsDeletedFalse(userId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found or deleted"));
-
+        
+        AccountStatus oldStatus = user.getStatus();
+        AccountStatus newStatus;
         try {
-            AccountStatus oldStatus = user.getStatus();
-            AccountStatus newStatus = AccountStatus.valueOf(status.toUpperCase());
-            user.setStatus(newStatus);
+            newStatus = AccountStatus.valueOf(status.toUpperCase());
+        } catch (IllegalArgumentException e) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid status: " + status);
+        }
 
-            if (newStatus != AccountStatus.ACTIVE && oldStatus == AccountStatus.ACTIVE) {
+        user.setStatus(newStatus);
+        User savedUser = userRepository.save(user);
+
+        // Gửi thông báo bất đồng bộ hoàn toàn
+        if (newStatus != AccountStatus.ACTIVE && oldStatus == AccountStatus.ACTIVE) {
+            sendLockNotification(userId);
+        }
+
+        return toUserResponse(savedUser);
+    }
+
+    private void sendLockNotification(String userId) {
+        java.util.concurrent.CompletableFuture.runAsync(() -> {
+            try {
                 NotificationEvent event = NotificationEvent.builder()
                         .recipientId(userId)
                         .title("Tài khoản bị khóa")
@@ -115,12 +131,10 @@ public class UserServiceImpl implements UserService {
                         .type("ACCOUNT_LOCKED")
                         .build();
                 kafkaTemplate.send("notification-topic", event);
+            } catch (Exception e) {
+                // Silent fail for notification to prevent blocking
             }
-        } catch (IllegalArgumentException e) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid status: " + status);
-        }
-
-        return toUserResponse(userRepository.save(user));
+        });
     }
 
     @Override

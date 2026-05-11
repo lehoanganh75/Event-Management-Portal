@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   X, PlusCircle, Search, Loader2, Star, TrendingUp, ChevronRight, FileText, CheckCircle2,
-  Calendar, MapPin, Users, Sparkles
+  Calendar, MapPin, Users, Sparkles, ClipboardCheck, ArrowRight, ArrowLeft, Check, Info
 } from "lucide-react";
 import eventService from "../../services/eventService";
 import PromptModal from "../common/PromptModal";
@@ -75,60 +75,75 @@ const mapTemplateToPrefill = (template) => {
 };
 
 const CreateEventModal = ({ isOpen, onClose, onSelectPlan, onCreateNew, initialAiText = "" }) => {
+  // Mode: 'choice' | 'from_plan' | 'new'
+  const [selectionMode, setSelectionMode] = useState('choice');
+  
   const [templates, setTemplates] = useState([]);
-  const [fetching, setFetching] = useState(true);
+  const [approvedPlans, setApprovedPlans] = useState([]);
+  const [fetching, setFetching] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
-  const [selected, setSelected] = useState(null);
+  const [selectedTemplate, setSelectedTemplate] = useState(null);
+  const [selectedPlan, setSelectedPlan] = useState(null);
   const [isRecommending, setIsRecommending] = useState(false);
 
+  // Reset state when modal opens
   useEffect(() => {
-    if (isOpen && initialAiText) {
-      setAiText(initialAiText);
-      setShowAiInput(true);
-      handleAIRecommend(initialAiText);
+    if (isOpen) {
+      setSelectionMode('choice');
+      setSelectedTemplate(null);
+      setSelectedPlan(null);
+      setSearchTerm("");
+      
+      if (initialAiText) {
+        setSelectionMode('new');
+        setAiText(initialAiText);
+        setShowAiInput(true);
+        handleAIRecommend(initialAiText);
+      }
     }
   }, [isOpen, initialAiText]);
 
-  const handleAIRecommend = async (text = aiText) => {
-    if (!text.trim()) return;
-    setIsRecommending(true);
-    try {
-      const recommended = await eventService.recommendTemplates(text);
-      if (recommended && recommended.length > 0) {
-        setTemplates(recommended);
-        // Toast success if needed
-      }
-    } catch (error) {
-      console.error("Lỗi khi AI gợi ý mẫu:", error);
-    } finally {
-      setIsRecommending(false);
-    }
-  };
-
   const fetchTemplates = async () => {
     setFetching(true);
+    const safetyTimeout = setTimeout(() => setFetching(false), 10000);
     try {
-      // getAllTemplatesGlobal returns paged result with isStarred per user
       const data = await eventService.getAllTemplates(null, '', { page: 0, size: 100, sortBy: 'usageCount', direction: 'desc' });
-      const list = Array.isArray(data?.content) ? data.content
-        : Array.isArray(data) ? data
-          : [];
+      const list = Array.isArray(data?.content) ? data.content : Array.isArray(data) ? data : [];
       setTemplates(list);
     } catch (error) {
       console.error("Lỗi lấy danh sách mẫu:", error);
       setTemplates([]);
     } finally {
+      clearTimeout(safetyTimeout);
+      setFetching(false);
+    }
+  };
+
+  const fetchApprovedPlans = async () => {
+    setFetching(true);
+    const safetyTimeout = setTimeout(() => setFetching(false), 10000);
+    try {
+      // Assuming getPlansByStatus or similar exists. Looking at eventService.js, 
+      // getPlansByStatus(statusName, accountId) exists (line 228)
+      // Or just filter from getMyPlans
+      const res = await eventService.getMyPlans();
+      const list = (res.data || []).filter(p => p.status === 'PLAN_APPROVED');
+      setApprovedPlans(list);
+    } catch (error) {
+      console.error("Lỗi lấy danh sách kế hoạch:", error);
+      setApprovedPlans([]);
+    } finally {
+      clearTimeout(safetyTimeout);
       setFetching(false);
     }
   };
 
   useEffect(() => {
     if (isOpen) {
-      fetchTemplates();
-      setSelected(null);
-      setSearchTerm("");
+      if (selectionMode === 'new') fetchTemplates();
+      if (selectionMode === 'from_plan') fetchApprovedPlans();
     }
-  }, [isOpen]);
+  }, [isOpen, selectionMode]);
 
   const handleToggleStar = async (e, t) => {
     e.stopPropagation();
@@ -145,7 +160,6 @@ const CreateEventModal = ({ isOpen, onClose, onSelectPlan, onCreateNew, initialA
       p.templateName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       p.defaultTitle?.toLowerCase().includes(searchTerm.toLowerCase())
     );
-    // Ưu tiên: isStarred -> usageCount giảm dần
     return filtered.sort((a, b) => {
       if (a.isStarred && !b.isStarred) return -1;
       if (!a.isStarred && b.isStarred) return 1;
@@ -153,403 +167,303 @@ const CreateEventModal = ({ isOpen, onClose, onSelectPlan, onCreateNew, initialA
     });
   }, [templates, searchTerm]);
 
-  const maxUsage = Math.max(...templates.map(t => t.usageCount || 0), 1); // Avoid 0
+  const filteredPlans = useMemo(() => {
+    return approvedPlans.filter(p => 
+      p.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      p.description?.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+  }, [approvedPlans, searchTerm]);
+
+  const maxUsage = useMemo(() => Math.max(...templates.map(t => t.usageCount || 0), 1), [templates]);
 
   const [isAIPlanning, setIsAIPlanning] = useState(false);
   const [aiText, setAiText] = useState("");
-  const [showAiInput, setShowAiInput] = useState(false); // For raw text planning
-  
-  // AI Prompt Modal state
+  const [showAiInput, setShowAiInput] = useState(false);
   const [showPromptModal, setShowPromptModal] = useState(false);
 
-  const handleNext = async () => {
-    if (selected) {
-      try {
-        await eventService.incrementTemplateUsage(selected.id);
-      } catch (err) {
-        console.error("Lỗi khi tăng lượt dùng mẫu:", err);
-      }
-      onSelectPlan({ fromPlan: false, initialFormData: mapTemplateToPrefill(selected) });
-    } else {
-      onCreateNew({ fromPlan: false, initialFormData: {} });
+  const handleAIGenerate = async () => {
+    if (!aiText.trim()) return;
+    setIsRecommending(true);
+    try {
+      const response = await eventService.chat.extractFromText(aiText);
+      const aiData = response.data || response;
+      
+      const mappedData = {
+        eventTitle: aiData.title || aiData.eventTitle || "",
+        eventPurpose: aiData.description || aiData.eventPurpose || aiText,
+        location: aiData.location || "",
+        maxParticipants: aiData.maxParticipants || 50,
+        eventTopic: aiData.topic || aiData.eventTopic || "OTHER",
+        // Backend có thể trả thêm các trường khác, form sẽ tự map nếu khớp key
+      };
+      
+      onCreateNew({ fromPlan: false, initialFormData: mappedData, startAtStep: 1 });
+      onClose();
+    } catch (error) {
+      console.error("Lỗi khi AI phân tích prompt:", error);
+      // Fallback: Nếu lỗi API, vẫn mở form tạo mới nhưng truyền raw prompt vào mô tả
+      onCreateNew({ fromPlan: false, initialFormData: { eventPurpose: aiText }, startAtStep: 1 });
+      onClose();
+    } finally {
+      setIsRecommending(false);
+    }
+  };
+
+  const handleConfirmChoice = () => {
+    if (selectionMode === 'from_plan' && selectedPlan) {
+      // Map plan data to prefill
+      const prefill = {
+        ...selectedPlan,
+        eventTitle: selectedPlan.title,
+        eventPurpose: selectedPlan.description,
+        startTime: selectedPlan.startTime ? new Date(selectedPlan.startTime).toISOString().slice(0, 16) : "",
+        endTime: selectedPlan.endTime ? new Date(selectedPlan.endTime).toISOString().slice(0, 16) : "",
+        fromPlan: true,
+        planId: selectedPlan.id
+      };
+      onSelectPlan({ fromPlan: true, initialFormData: prefill, startAtStep: 1 });
     }
     onClose();
-  };
-
-  const handleAIPlanFromTemplate = () => {
-    if (!selected) return;
-    setShowPromptModal(true);
-  };
-
-  const confirmAIPlanFromTemplate = async (userContext) => {
-    setShowPromptModal(false);
-    setIsAIPlanning(true);
-    try {
-      const res = await eventService.aiPlanning.generateFromTemplate(selected.id, userContext);
-      
-      if (res.data?.code === 1000) {
-        const suggestion = res.data.result;
-        // Map suggestion to form data
-        const mappedData = {
-          ...mapTemplateToPrefill(selected),
-          eventTitle: suggestion.title || selected.defaultTitle,
-          title: suggestion.title || selected.defaultTitle,
-          eventPurpose: suggestion.purpose || selected.description,
-          description: suggestion.description || selected.description,
-          eventTopic: suggestion.subject || "",
-          location: suggestion.suggestedLocation || selected.defaultLocation,
-          maxParticipants: suggestion.estimatedParticipants || selected.defaultMaxParticipants,
-          sessions: suggestion.programItems?.map((item, idx) => ({
-            title: item.title,
-            description: item.description,
-            durationMinutes: item.durationMinutes,
-            startTime: item.startTime,
-            endTime: item.endTime,
-            speaker: item.speaker,
-            room: item.location,
-            orderIndex: idx + 1
-          })) || [],
-          aiReasoning: suggestion.reasoning || ""
-        };
-
-        if (suggestion.suggestedStartTime) {
-          mappedData.startTime = new Date(suggestion.suggestedStartTime).toISOString().slice(0, 16);
-        }
-        if (suggestion.suggestedEndTime) {
-          mappedData.endTime = new Date(suggestion.suggestedEndTime).toISOString().slice(0, 16);
-        }
-
-        onSelectPlan({ fromPlan: false, initialFormData: mappedData, startAtStep: 1 });
-        onClose();
-      }
-    } catch (err) {
-      console.error("AI Planning Error:", err);
-    } finally {
-      setIsAIPlanning(false);
-    }
-  };
-
-  const handleAIPlanFromRaw = async () => {
-    if (!aiText.trim()) return;
-    setIsAIPlanning(true);
-    try {
-      const res = await eventService.aiPlanning.generateFromRawText(aiText);
-      if (res.data?.code === 1000 && res.data.result) {
-        const suggestion = res.data.result;
-        const mappedData = {
-          eventTitle: suggestion.title || "",
-          title: suggestion.title || "",
-          eventPurpose: suggestion.purpose || "",
-          description: suggestion.description || "",
-          eventTopic: suggestion.subject || "",
-          location: suggestion.suggestedLocation || "",
-          maxParticipants: suggestion.estimatedParticipants || 50,
-          eventType: "WORKSHOP",
-          eventMode: "OFFLINE",
-          orgSelectionMode: "existing",
-          sessions: suggestion.programItems?.map((item, idx) => ({
-            title: item.title || "Không tên",
-            description: item.description || "",
-            durationMinutes: item.durationMinutes || 0,
-            startTime: item.startTime || "",
-            endTime: item.endTime || "",
-            speaker: item.speaker || "",
-            room: item.location || "",
-            orderIndex: idx + 1
-          })) || [],
-          // Extract presenters from sessions
-          presenters: suggestion.programItems?.reduce((acc, item) => {
-            if (item.speaker && !acc.find(p => p.fullName === item.speaker)) {
-              acc.push({
-                fullName: item.speaker,
-                email: "",
-                position: "Diễn giả",
-                department: "",
-                bio: `Diễn giả tại phiên: ${item.title}`,
-                targetSessionName: item.title
-              });
-            }
-            return acc;
-          }, []) || [],
-          interactionSettings: suggestion.additionalData?.interactionSettings || {
-            enableQA: false,
-            enablePolls: false,
-            allowUserQuestions: false
-          },
-          hasLuckyDraw: suggestion.additionalData?.hasLuckyDraw || false,
-          aiReasoning: suggestion.reasoning || ""
-        };
-
-        if (suggestion.suggestedStartTime) {
-          mappedData.startTime = new Date(suggestion.suggestedStartTime).toISOString().slice(0, 16);
-        }
-        if (suggestion.suggestedEndTime) {
-          mappedData.endTime = new Date(suggestion.suggestedEndTime).toISOString().slice(0, 16);
-        }
-
-        onSelectPlan({ fromPlan: false, initialFormData: mappedData, startAtStep: 1 });
-        onClose();
-      } else {
-        throw new Error(res.data?.message || "AI không thể tạo kế hoạch từ văn bản này.");
-      }
-    } catch (err) {
-      console.error("AI Planning Raw Error:", err);
-      // Assuming showToast is available or use alert/toast from context
-      alert("❌ " + (err.message || "Lỗi khi AI phân tích dữ liệu"));
-    } finally {
-      setIsAIPlanning(false);
-    }
   };
 
   if (!isOpen) return null;
 
   return (
     <AnimatePresence>
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          onClick={onClose}
-          className="absolute inset-0 bg-slate-900/50 backdrop-blur-sm"
-        />
+      <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={onClose} className="absolute inset-0 bg-slate-900/50 backdrop-blur-sm" />
+        
         <motion.div
           initial={{ scale: 0.95, opacity: 0, y: 16 }}
           animate={{ scale: 1, opacity: 1, y: 0 }}
           exit={{ scale: 0.95, opacity: 0, y: 16 }}
-          transition={{ type: "spring", damping: 25, stiffness: 300 }}
-          className="relative bg-white w-full max-w-3xl rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]"
+          className="relative bg-white w-full max-w-3xl rounded-[2.5rem] shadow-2xl overflow-hidden flex flex-col max-h-[90vh]"
         >
-          <button
-            onClick={onClose}
-            className="absolute top-4 right-4 z-10 p-2 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-full transition-all"
-          >
-            <X size={18} />
-          </button>
-
-          <div className="p-8 pb-4 shrink-0 border-b border-gray-100">
-            <h2 className="text-2xl font-black text-slate-800 mb-1">Tạo kế hoạch mới</h2>
-            <p className="text-slate-500 text-sm mb-6">
-              Bắt đầu từ một mẫu có sẵn, tạo trống, hoặc để AI giúp bạn phác thảo.
-            </p>
-
-            <div className="flex flex-wrap gap-2 mb-6">
-              <button
-                onClick={() => { setSelected(null); setShowAiInput(false); handleNext(); }}
-                className="flex items-center gap-2 px-4 py-2 bg-slate-100 text-slate-600 hover:bg-slate-200 rounded-xl font-bold transition-all text-sm"
-              >
-                <PlusCircle size={16} /> Tạo trống
-              </button>
-              
-              <button
-                onClick={() => { setSelected(null); setShowAiInput(!showAiInput); }}
-                className={`flex items-center gap-2 px-4 py-2 rounded-xl font-bold transition-all text-sm ${
-                  showAiInput ? "bg-indigo-600 text-white" : "bg-indigo-50 text-indigo-600 hover:bg-indigo-100"
-                }`}
-              >
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <path d="M12 2L14.8 9.2L22 12L14.8 14.8L12 22L9.2 14.8L2 12L9.2 9.2L12 2Z" fill="url(#gemini_grad)" />
-                  <defs>
-                    <linearGradient id="gemini_grad" x1="2" y1="12" x2="22" y2="12" gradientUnits="userSpaceOnUse">
-                      <stop stopColor="#4E8AFF" />
-                      <stop offset="0.5" stopColor="#A06FFF" />
-                      <stop offset="1" stopColor="#FF7D9F" />
-                    </linearGradient>
-                  </defs>
-                </svg>
-                Phân tích AI
-              </button>
-
-              <div className="relative flex-1 min-w-[200px]">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-                <input
-                  type="text"
-                  placeholder="Tìm kiếm mẫu..."
-                  value={searchTerm}
-                  onChange={(e) => { setSearchTerm(e.target.value); setShowAiInput(false); }}
-                  className="w-full pl-9 pr-4 py-2 border-2 border-slate-200 rounded-xl text-sm font-medium outline-none focus:border-blue-500 transition-all"
-                />
-              </div>
+          {/* Header */}
+          <div className="p-8 pb-6 border-b border-gray-100 flex justify-between items-center bg-white shrink-0">
+            <div>
+              <h2 className="text-2xl font-black text-slate-800 mb-1">
+                {selectionMode === 'choice' ? 'Tạo sự kiện mới' : 
+                 selectionMode === 'from_plan' ? 'Chọn kế hoạch đã duyệt' : 'Bắt đầu sự kiện mới'}
+              </h2>
+              <p className="text-slate-500 text-sm">
+                {selectionMode === 'choice' ? 'Chọn phương thức khởi tạo sự kiện của bạn' : 
+                 selectionMode === 'from_plan' ? 'Sử dụng nội dung từ kế hoạch đã được phê duyệt' : 'Sử dụng mẫu hoặc AI để thiết lập nhanh'}
+              </p>
             </div>
-
-            {showAiInput && (
-              <motion.div 
-                initial={{ height: 0, opacity: 0 }}
-                animate={{ height: "auto", opacity: 1 }}
-                className="mb-6 overflow-hidden"
-              >
-                <div className="bg-indigo-50 p-4 rounded-2xl border border-indigo-100">
-                  <textarea 
-                    className="w-full p-3 rounded-xl border border-indigo-200 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                    placeholder="Mô tả ý tưởng sự kiện của bạn (ví dụ: Tổ chức workshop AI cho 200 sinh viên, có tea break, diễn giả từ Google...)"
-                    rows={3}
-                    value={aiText}
-                    onChange={(e) => setAiText(e.target.value)}
-                  />
-                  <div className="flex justify-end mt-2 gap-2">
-                    <button 
-                      onClick={() => handleAIRecommend()}
-                      disabled={!aiText.trim() || isRecommending}
-                      className="flex items-center gap-2 px-4 py-2 bg-emerald-50 text-emerald-600 rounded-lg font-bold text-xs hover:bg-emerald-100 disabled:opacity-50 transition-all border border-emerald-100"
-                    >
-                      {isRecommending ? <Loader2 size={14} className="animate-spin" /> : <Sparkles size={14} />}
-                      AI Gợi ý mẫu phù hợp
-                    </button>
-                    <button 
-                      onClick={handleAIPlanFromRaw}
-                      disabled={!aiText.trim() || isAIPlanning}
-                      className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg font-bold text-xs hover:bg-indigo-700 disabled:bg-indigo-300 transition-all shadow-md shadow-indigo-100"
-                    >
-                      {isAIPlanning ? <Loader2 size={14} className="animate-spin" /> : <TrendingUp size={14} />}
-                      AI Tự lập kế hoạch ngay
-                    </button>
-                  </div>
-                </div>
-              </motion.div>
-            )}
+            <button onClick={onClose} className="p-2 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-full transition-all">
+              <X size={20} />
+            </button>
           </div>
 
-          <div className="p-8 pt-4 overflow-y-auto custom-scrollbar bg-slate-50 relative">
-            {isAIPlanning && (
-              <div className="absolute inset-0 z-20 bg-white/90 backdrop-blur-md flex flex-col items-center justify-center">
-                <div className="relative mb-8">
-                  <div className="w-24 h-24 border-4 border-indigo-100 rounded-full"></div>
-                  <div className="absolute top-0 left-0 w-24 h-24 border-4 border-t-indigo-600 rounded-full animate-spin"></div>
-                  <div className="absolute inset-0 flex items-center justify-center">
-                    <Sparkles className="text-indigo-600 animate-pulse" size={32} />
+          <div className="flex-1 flex overflow-hidden min-h-[500px] relative">
+            {selectionMode === 'choice' ? (
+              <div className="flex-1 bg-slate-50 flex items-center justify-center p-8 md:p-12 overflow-y-auto custom-scrollbar">
+                <div className="w-full max-w-xl">
+                  <div className="text-center mb-8">
+                    <h2 className="text-2xl font-black text-slate-800 mb-2">Chọn phương thức khởi tạo</h2>
+                    <p className="text-slate-500 text-sm">Vui lòng chọn cách bạn muốn bắt đầu để tạo sự kiện mới</p>
                   </div>
-                  {/* Orbits */}
-                  <div className="absolute -inset-4 border border-indigo-200 rounded-full animate-[spin_10s_linear_infinite] opacity-30"></div>
-                  <div className="absolute -inset-8 border border-indigo-100 rounded-full animate-[spin_15s_linear_infinite] opacity-20"></div>
-                </div>
-                
-                <h4 className="text-xl font-black text-indigo-900 mb-2">AI Thiên tài đang làm việc</h4>
-                <div className="flex flex-col items-center">
-                  <motion.p 
-                    key={Math.floor(Date.now() / 2000)} // Force re-render for animation
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className="text-indigo-600 font-bold"
-                  >
-                    {(() => {
-                      const messages = [
-                        "Đang phân tích yêu cầu của bạn...",
-                        "Đang trích xuất dữ liệu từ mẫu...",
-                        "Đang kiến tạo chương trình sự kiện...",
-                        "Đang tối ưu hóa phân bổ thời gian...",
-                        "Đang chuẩn bị bản phác thảo hoàn hảo..."
-                      ];
-                      return messages[Math.floor((Date.now() / 2000) % messages.length)];
-                    })()}
-                  </motion.p>
-                  <div className="flex gap-1 mt-4">
-                    {[0, 1, 2].map(i => (
-                      <div key={i} className="w-1.5 h-1.5 bg-indigo-600 rounded-full animate-bounce" style={{ animationDelay: `${i * 0.2}s` }}></div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            )}
 
-            {fetching ? (
-              <div className="flex justify-center py-12">
-                <Loader2 className="animate-spin text-blue-600" size={32} />
-              </div>
-            ) : sortedTemplates.length === 0 ? (
-              <div className="text-center py-12 text-slate-400">
-                <FileText size={40} className="mx-auto mb-3 opacity-30" />
-                <p className="text-sm font-medium">Không tìm thấy mẫu phù hợp</p>
+                  <div className="space-y-4">
+                    {/* Option 1: From Plan */}
+                    <button
+                      onClick={() => setSelectionMode('from_plan')}
+                      className="w-full group flex items-center gap-5 p-5 rounded-2xl bg-white border border-slate-200 hover:border-emerald-500 hover:shadow-lg hover:shadow-emerald-100 transition-all text-left"
+                    >
+                      <div className="w-12 h-12 bg-emerald-50 text-emerald-600 rounded-xl flex items-center justify-center shrink-0 group-hover:bg-emerald-600 group-hover:text-white transition-all">
+                        <ClipboardCheck size={24} />
+                      </div>
+                      <div className="flex-1">
+                        <h3 className="font-bold text-slate-800 mb-0.5 flex items-center gap-2">
+                          Từ kế hoạch đã duyệt
+                          <span className="px-2 py-0.5 bg-emerald-100 text-emerald-700 text-[9px] font-black rounded-md uppercase">Khuyên dùng</span>
+                        </h3>
+                        <p className="text-slate-500 text-xs">Kế thừa toàn bộ dữ liệu từ bản thảo đã được Admin phê duyệt.</p>
+                      </div>
+                      <ChevronRight size={20} className="text-slate-300 group-hover:text-emerald-500 transition-colors" />
+                    </button>
+
+                    {/* Option 2: AI Assistant */}
+                    <button
+                      onClick={() => setSelectionMode('new')}
+                      className="w-full group flex items-center gap-5 p-5 rounded-2xl bg-white border border-slate-200 hover:border-indigo-500 hover:shadow-lg hover:shadow-indigo-100 transition-all text-left"
+                    >
+                      <div className="w-12 h-12 bg-indigo-50 text-indigo-600 rounded-xl flex items-center justify-center shrink-0 group-hover:bg-indigo-600 group-hover:text-white transition-all">
+                        <Sparkles size={24} />
+                      </div>
+                      <div className="flex-1">
+                        <h3 className="font-bold text-slate-800 mb-0.5 flex items-center gap-2">
+                          Trợ lý AI phác thảo
+                          <span className="px-2 py-0.5 bg-indigo-100 text-indigo-700 text-[9px] font-black rounded-md uppercase">Mới</span>
+                        </h3>
+                        <p className="text-slate-500 text-xs">Chỉ cần viết mô tả ý tưởng, AI sẽ tự động phân tích và điền form cho bạn.</p>
+                      </div>
+                      <ChevronRight size={20} className="text-slate-300 group-hover:text-indigo-500 transition-colors" />
+                    </button>
+
+                    {/* Option 3: New Event */}
+                    <button
+                      onClick={() => {
+                        onCreateNew({ fromPlan: false, initialFormData: {}, startAtStep: 1 });
+                        onClose();
+                      }}
+                      className="w-full group flex items-center gap-5 p-5 rounded-2xl bg-white border border-slate-200 hover:border-blue-500 hover:shadow-lg hover:shadow-blue-100 transition-all text-left"
+                    >
+                      <div className="w-12 h-12 bg-blue-50 text-blue-600 rounded-xl flex items-center justify-center shrink-0 group-hover:bg-blue-600 group-hover:text-white transition-all">
+                        <PlusCircle size={24} />
+                      </div>
+                      <div className="flex-1">
+                        <h3 className="font-bold text-slate-800 mb-0.5">Bắt đầu từ form trống</h3>
+                        <p className="text-slate-500 text-xs">Tự mình điền tay mọi chi tiết của sự kiện từ đầu.</p>
+                      </div>
+                      <ChevronRight size={20} className="text-slate-300 group-hover:text-blue-500 transition-colors" />
+                    </button>
+                  </div>
+                </div>
               </div>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {sortedTemplates.map((template, index) => {
-                  const isSelected = selected?.id === template.id;
-                  const isPopular = (template.usageCount || 0) === maxUsage && maxUsage > 0;
-
-                  return (
-                    <button
-                      key={template.id && template.id !== "" ? template.id : `tpl-${index}-${template.templateName || 'noid'}`}
-                      onClick={() => { setSelected(template); setShowAiInput(false); }}
-                      className={`relative w-full text-left p-5 rounded-2xl border-2 transition-all ${
-                        isSelected
-                          ? "border-blue-500 bg-blue-50 shadow-md shadow-blue-100"
-                          : "border-slate-200 bg-white hover:border-blue-300 hover:shadow-sm"
-                        }`}
-
-                    >
-                      {/* Star Toggle */}
-                      <div
-                        onClick={(e) => handleToggleStar(e, template)}
-                        className={`absolute top-4 right-4 p-1.5 rounded-full transition-all cursor-pointer z-10 ${template.isStarred ? "text-amber-400 bg-amber-50 hover:bg-amber-100" : "text-gray-300 hover:bg-gray-100 hover:text-amber-400"
-                          }`}
-                      >
-                        <Star size={18} fill={template.isStarred ? "currentColor" : "none"} />
+              <div className="flex-1 bg-slate-50 p-8 overflow-y-auto custom-scrollbar">
+                {selectionMode === 'from_plan' && (
+                  <div className="space-y-6">
+                    <div className="flex items-center gap-4 mb-2">
+                      <button onClick={() => setSelectionMode('choice')} className="p-2 hover:bg-white rounded-xl text-slate-500 transition-all">
+                        <ArrowLeft size={20} />
+                      </button>
+                      <div className="relative flex-1">
+                        <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+                        <input
+                          type="text"
+                          placeholder="Tìm kiếm kế hoạch..."
+                          value={searchTerm}
+                          onChange={(e) => setSearchTerm(e.target.value)}
+                          className="w-full pl-12 pr-4 py-3 bg-white border-2 border-slate-100 rounded-2xl outline-none focus:border-emerald-400 transition-all shadow-sm"
+                        />
                       </div>
+                    </div>
 
-                      <div className="flex items-start justify-between pr-8 mb-2">
-                        <span className={`font-black text-base line-clamp-2 ${isSelected ? "text-blue-700" : "text-slate-800"}`}>
-                          {template.templateName}
-                        </span>
+                    {fetching ? (
+                      <div className="flex flex-col items-center justify-center py-20">
+                        <Loader2 className="animate-spin text-emerald-500 mb-4" size={40} />
+                        <p className="text-slate-500 font-medium">Đang tải danh sách kế hoạch...</p>
                       </div>
-
-                      {isPopular && (
-                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-rose-100 text-rose-600 text-[10px] font-black uppercase tracking-wider mb-3">
-                          <TrendingUp size={10} /> Phổ biến nhất
-                        </span>
-                      )}
-
-                      <p className="text-xs text-slate-500 line-clamp-2 mb-4 leading-relaxed">
-                        {template.description || "Không có mô tả."}
-                      </p>
-
-                      <div className="flex flex-wrap gap-2 text-[11px] text-slate-500">
-                        <span className="flex items-center gap-1 bg-slate-100 px-2 py-1 rounded-md">
-                          <Users size={12} className="text-emerald-500" />
-                          {template.defaultMaxParticipants || 0} người
-                        </span>
-                        <span className="flex items-center gap-1 bg-slate-100 px-2 py-1 rounded-md">
-                          <CheckCircle2 size={12} className="text-blue-500" />
-                          {template.usageCount || 0} lượt dùng
-                        </span>
+                    ) : filteredPlans.length === 0 ? (
+                      <div className="text-center py-20 bg-white rounded-[2rem] border-2 border-dashed border-slate-200">
+                        <FileText className="mx-auto text-slate-200 mb-4" size={48} />
+                        <h4 className="text-slate-800 font-bold mb-1">Không tìm thấy kế hoạch nào</h4>
+                        <p className="text-slate-400 text-sm">Hãy chắc chắn bạn có kế hoạch đã được phê duyệt.</p>
                       </div>
-                    </button>
-                  );
-                })}
+                    ) : (
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {filteredPlans.map(plan => (
+                          <button
+                            key={plan.id}
+                            onClick={() => setSelectedPlan(plan)}
+                            className={`p-6 rounded-2xl border-2 transition-all text-left group ${
+                              selectedPlan?.id === plan.id ? 'border-emerald-500 bg-emerald-50 shadow-md' : 'border-white bg-white hover:border-emerald-200'
+                            }`}
+                          >
+                            <h4 className={`font-bold mb-2 ${selectedPlan?.id === plan.id ? 'text-emerald-700' : 'text-slate-800'}`}>{plan.title}</h4>
+                            <p className="text-xs text-slate-500 line-clamp-2 mb-4 leading-relaxed">{plan.description}</p>
+                            <div className="flex items-center gap-3 text-[10px] text-slate-400 font-bold uppercase tracking-wider">
+                              <span className="flex items-center gap-1"><Calendar size={12} /> {plan.startTime ? new Date(plan.startTime).toLocaleDateString() : 'Chưa set'}</span>
+                              <span className="flex items-center gap-1"><MapPin size={12} /> {plan.location || 'Chưa set'}</span>
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {selectionMode === 'new' && (
+                  <div className="space-y-6 flex flex-col h-full">
+                    <div className="flex items-center gap-4 mb-2 shrink-0">
+                      <button onClick={() => setSelectionMode('choice')} className="p-2 hover:bg-white rounded-xl text-slate-500 transition-all">
+                        <ArrowLeft size={20} />
+                      </button>
+                      <div>
+                        <h3 className="font-black text-slate-800 text-lg">Trợ lý AI phác thảo</h3>
+                        <p className="text-xs text-slate-500">Viết prompt thô để AI tự động điền các thông tin sự kiện</p>
+                      </div>
+                    </div>
+
+                    <div className="flex-1 bg-white p-6 rounded-[2rem] border-2 border-indigo-100 shadow-sm flex flex-col relative min-h-[250px]">
+                      <div className="absolute top-4 right-4 p-2 bg-indigo-50 text-indigo-600 rounded-xl">
+                        <Sparkles size={20} />
+                      </div>
+                      <textarea 
+                        className="w-full flex-1 p-2 bg-transparent text-slate-700 focus:outline-none resize-none custom-scrollbar text-sm leading-relaxed placeholder:text-slate-300"
+                        placeholder="Ví dụ: Tôi muốn tổ chức một buổi hội thảo về Trí tuệ nhân tạo vào thứ 6 tuần sau lúc 8h sáng tại hội trường A. Dự kiến có khoảng 200 sinh viên tham gia..."
+                        value={aiText}
+                        onChange={(e) => setAiText(e.target.value)}
+                        autoFocus
+                      />
+                      
+                      {/* Tips */}
+                      <div className="mt-4 pt-4 border-t border-slate-50 flex gap-2 overflow-x-auto custom-scrollbar pb-2 shrink-0">
+                        <button onClick={() => setAiText("Lễ tổng kết năm học kết hợp trao giải sinh viên 5 tốt cấp khoa...")} className="shrink-0 px-4 py-2 bg-slate-50 hover:bg-slate-100 text-slate-600 text-[11px] rounded-full font-medium transition-all">
+                          Lễ tổng kết
+                        </button>
+                        <button onClick={() => setAiText("Workshop hướng nghiệp ngành CNTT với sự tham gia của các chuyên gia đầu ngành...")} className="shrink-0 px-4 py-2 bg-slate-50 hover:bg-slate-100 text-slate-600 text-[11px] rounded-full font-medium transition-all">
+                          Workshop IT
+                        </button>
+                        <button onClick={() => setAiText("Cuộc thi lập trình Hackathon 24h với quy mô 50 đội thi dành cho sinh viên...")} className="shrink-0 px-4 py-2 bg-slate-50 hover:bg-slate-100 text-slate-600 text-[11px] rounded-full font-medium transition-all">
+                          Hackathon
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
           </div>
 
-          <div className="p-6 border-t border-gray-100 flex flex-wrap gap-3 items-center justify-between bg-white shrink-0">
+          {/* Footer */}
+          <div className="p-8 border-t border-gray-100 bg-white flex justify-between items-center shrink-0">
             <div className="flex-1">
-              <span className="text-sm font-bold text-slate-800 block">
-                {selected ? selected.templateName : "Hãy chọn một mẫu"}
-              </span>
-              <span className="text-[11px] text-slate-500">
-                {selected ? "Bạn có thể dùng mẫu này hoặc nhờ AI tối ưu" : "Hoặc dùng AI Thiên tài ở trên"}
-              </span>
+              {selectionMode === 'from_plan' && selectedPlan && (
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-emerald-50 text-emerald-600 rounded-lg"><ClipboardCheck size={20} /></div>
+                  <div>
+                    <span className="text-sm font-bold text-slate-800 block">Đã chọn: {selectedPlan.title}</span>
+                    <span className="text-[11px] text-emerald-600 font-bold">Kế hoạch này đã sẵn sàng để chuyển đổi</span>
+                  </div>
+                </div>
+              )}
+              {selectionMode === 'new' && (
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-indigo-50 text-indigo-600 rounded-lg"><Sparkles size={20} /></div>
+                  <div>
+                    <span className="text-sm font-bold text-slate-800 block">Sẵn sàng phân tích</span>
+                    <span className="text-[11px] text-indigo-600 font-bold">AI sẽ tự động tách thông tin và điền vào form cho bạn</span>
+                  </div>
+                </div>
+              )}
+              {!selectedPlan && selectionMode !== 'choice' && selectionMode !== 'new' && (
+                <span className="text-sm text-slate-400 italic">Vui lòng chọn một mục để tiếp tục</span>
+              )}
             </div>
-            
-            <div className="flex gap-2">
 
-              <button
-                disabled={!selected || isAIPlanning}
-                onClick={handleNext}
-                className="flex items-center gap-2 px-8 py-3 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 disabled:bg-slate-100 disabled:text-slate-400 transition-all shadow-lg shadow-blue-100 disabled:shadow-none"
-              >
-                Dùng mẫu gốc <ChevronRight size={16} />
-              </button>
+            <div className="flex gap-3">
+              {selectionMode === 'from_plan' && (
+                <button onClick={handleConfirmChoice} disabled={!selectedPlan} className="flex items-center gap-2 px-10 py-3 rounded-2xl font-bold transition-all shadow-lg bg-emerald-600 text-white hover:bg-emerald-700 shadow-emerald-100 disabled:bg-slate-100 disabled:text-slate-400 disabled:shadow-none">
+                  Tiếp tục <ArrowRight size={18} />
+                </button>
+              )}
+              {selectionMode === 'new' && (
+                <button onClick={handleAIGenerate} disabled={!aiText.trim() || isRecommending} className="flex items-center gap-2 px-10 py-3 rounded-2xl font-bold transition-all shadow-lg bg-indigo-600 text-white hover:bg-indigo-700 shadow-indigo-100 disabled:bg-slate-100 disabled:text-slate-400 disabled:shadow-none">
+                  {isRecommending ? <Loader2 size={18} className="animate-spin" /> : "Phân tích AI"} <ArrowRight size={18} />
+                </button>
+              )}
             </div>
           </div>
         </motion.div>
       </div>
 
       <PromptModal
-        isOpen={showPromptModal}
-        onClose={() => setShowPromptModal(false)}
-        onConfirm={confirmAIPlanFromTemplate}
-        title="Yêu cầu đặc biệt cho AI"
-        message="Hãy cho AI biết thêm chi tiết để kế hoạch được tối ưu nhất cho bạn (ví dụ: số lượng khách, phong cách trang trí, ngân sách...)"
-        placeholder="Nhập yêu cầu của bạn ở đây..."
+        isOpen={showPromptModal} onClose={() => setShowPromptModal(false)} onConfirm={() => {}} 
+        title="Yêu cầu đặc biệt cho AI" message="Hãy cho AI biết thêm chi tiết để kế hoạch được tối ưu nhất cho bạn." placeholder="Nhập yêu cầu của bạn ở đây..."
       />
     </AnimatePresence>
   );

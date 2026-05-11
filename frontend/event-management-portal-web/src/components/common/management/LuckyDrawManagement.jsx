@@ -263,7 +263,7 @@ const LuckyDrawManagement = ({
       {/* MODAL CONFIG */}
       <AnimatePresence>
         {isCreateModalOpen && (
-          <div className="fixed inset-0 z-[150] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
+          <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
             <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }} className="bg-white w-full max-w-2xl rounded-[2.5rem] shadow-2xl overflow-hidden border-4 border-white flex flex-col max-h-[90vh]">
               <div className="px-8 py-5 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
                 <div className="flex items-center gap-3">
@@ -325,7 +325,7 @@ const LuckyDrawManagement = ({
       {/* DELETE CONFIRMATION MODAL */}
       <AnimatePresence>
         {isDeleteModalOpen && (
-          <div className="fixed inset-0 z-[110] flex items-center justify-center p-4">
+          <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}

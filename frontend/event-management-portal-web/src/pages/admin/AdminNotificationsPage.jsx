@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from "react";
 import notificationService from "../../services/notificationService";
 import NotificationManagement from "../../components/common/management/NotificationManagement";
+import ConfirmModal from "../../components/common/ConfirmModal";
 import { toast } from "react-toastify";
 import { useAuth } from "../../context/AuthContext";
 import { useNotification } from "../../context/NotificationContext";
@@ -8,6 +9,7 @@ import { useNotification } from "../../context/NotificationContext";
 const AdminNotificationsPage = () => {
   const { notifications, loading: isLoading, refreshNotifications, markAsRead, markAllAsRead, deleteNotification } = useNotification();
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [confirmModal, setConfirmModal] = useState({ isOpen: false, message: "", onConfirm: null });
 
   const fetchNotifications = useCallback(async (isRefresh = false) => {
     isRefresh ? setIsRefreshing(true) : null;
@@ -27,24 +29,33 @@ const AdminNotificationsPage = () => {
     toast.success("Đã đánh dấu tất cả là đã đọc");
   };
 
-  const handleDelete = async (id) => {
-    if (window.confirm("Bạn có chắc chắn muốn xóa thông báo này?")) {
-      try {
-        await deleteNotification(id);
-        toast.success("Đã xóa thông báo");
-      } catch (error) { console.error(error); }
-    }
+  const handleDelete = (id) => {
+    setConfirmModal({
+      isOpen: true,
+      message: "Bạn có chắc chắn muốn xóa thông báo này? Hành động này không thể hoàn tác.",
+      onConfirm: async () => {
+        try {
+          await deleteNotification(id);
+          toast.success("Đã xóa thông báo");
+        } catch (error) { console.error(error); }
+      }
+    });
   };
 
-  const handleBulkDelete = async (selectedIds) => {
+  const handleBulkDelete = (selectedIds) => {
     if (selectedIds.length === 0) return toast.warning("Vui lòng chọn thông báo để xóa");
-    if (window.confirm(`Bạn có chắc chắn muốn xóa ${selectedIds.length} thông báo?`)) {
-      try {
-        await notificationService.deleteBatchNotifications(selectedIds);
-        setNotifications(prev => prev.filter(n => !selectedIds.includes(n.id)));
-        toast.success(`Đã xóa ${selectedIds.length} thông báo`);
-      } catch (error) { console.error(error); }
-    }
+    setConfirmModal({
+      isOpen: true,
+      message: `Bạn có chắc chắn muốn xóa ${selectedIds.length} thông báo đã chọn?`,
+      onConfirm: async () => {
+        try {
+          await notificationService.deleteBatchNotifications(selectedIds);
+          // refreshNotifications will be called automatically or we can manually refresh
+          await refreshNotifications();
+          toast.success(`Đã xóa ${selectedIds.length} thông báo`);
+        } catch (error) { console.error(error); }
+      }
+    });
   };
 
   const handleSendNotification = async (formData) => {
@@ -61,18 +72,29 @@ const AdminNotificationsPage = () => {
   };
 
   return (
-    <NotificationManagement
-      notifications={notifications}
-      loading={isLoading}
-      refreshing={isRefreshing}
-      onRefresh={fetchNotifications}
-      onMarkAsRead={handleMarkAsRead}
-      onMarkAllAsRead={handleMarkAllAsRead}
-      onDelete={handleDelete}
-      onBulkDelete={handleBulkDelete}
-      onSendNotification={handleSendNotification}
-      isAdmin={true}
-    />
+    <>
+      <NotificationManagement
+        notifications={notifications}
+        loading={isLoading}
+        refreshing={isRefreshing}
+        onRefresh={fetchNotifications}
+        onMarkAsRead={handleMarkAsRead}
+        onMarkAllAsRead={handleMarkAllAsRead}
+        onDelete={handleDelete}
+        onBulkDelete={handleBulkDelete}
+        onSendNotification={handleSendNotification}
+        isAdmin={true}
+      />
+      <ConfirmModal
+        isOpen={confirmModal.isOpen}
+        message={confirmModal.message}
+        onConfirm={confirmModal.onConfirm}
+        onClose={() => setConfirmModal({ ...confirmModal, isOpen: false })}
+        title="Xác nhận xóa"
+        confirmText="Xóa ngay"
+        type="danger"
+      />
+    </>
   );
 };
 

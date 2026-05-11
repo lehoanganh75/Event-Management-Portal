@@ -68,10 +68,10 @@ const AdminPostManagement = ({ eventId, eventTitle }) => {
   const handleDelete = async (postId) => {
     try {
       await eventService.deletePost(postId);
-      toast.success("Xóa thành công!");
       fetchPosts();
     } catch (error) {
-      toast.error("Lỗi khi xóa");
+      console.error("Delete error:", error);
+      throw error;
     }
   };
 

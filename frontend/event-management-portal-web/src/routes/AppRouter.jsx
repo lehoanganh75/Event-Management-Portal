@@ -113,6 +113,7 @@ const AppRouter = () => {
           <Route path="events">
             <Route index element={<StudentEventsPage />} />
             <Route path=":id" element={<StudentEventDetailPage />} />
+            <Route path="edit/:id" element={<AdminEventCreatorPage onBack={() => window.history.back()} />} />
           </Route>
           <Route path="posts" element={<StudentPostManagement />} />
           <Route path="posts/:id" element={<StudentPostDetailPage />} />
@@ -130,6 +131,7 @@ const AppRouter = () => {
           <Route path="events">
             <Route index element={<LecturerEventsPage />} />
             <Route path=":id" element={<LecturerEventDetailPage />} />
+            <Route path="edit/:id" element={<AdminEventCreatorPage onBack={() => window.history.back()} />} />
           </Route>
           <Route path="posts" element={<LecturerPostManagement />} />
           <Route path="posts/:id" element={<LecturerPostDetailPage />} />

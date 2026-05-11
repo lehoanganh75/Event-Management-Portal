@@ -502,7 +502,7 @@ public class EventController {
                         request.getInvitations(), null));
     }
 
-    @PostMapping("/upload-image")
+    @PostMapping(value = "/upload-image", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<Map<String, String>> uploadImage(@RequestParam("file") MultipartFile file) {
         String url = s3Service.uploadFile(file);
         return ResponseEntity.ok(Map.of("url", url));

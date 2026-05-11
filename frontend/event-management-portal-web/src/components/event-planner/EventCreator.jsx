@@ -10,6 +10,7 @@ import { exportToWord } from "./WordExporter";
 import eventService from "../../services/eventService";
 import luckyDrawService from "../../services/luckyDrawService";
 import notificationService from "../../services/notificationService";
+import authService from "../../services/authService";
 import { useAuth } from "../../context/AuthContext";
 import {
   ArrowLeft,
@@ -71,8 +72,11 @@ export const EventCreator = ({
   // Unified to 5 steps
   const { user } = useAuth();
   const isPlanMode = !forceEventMode && !fromPlan && !planId && !isEdit;
-  
-  const activeSteps = STEPS.map(s => {
+
+  const activeSteps = STEPS.filter(s => {
+    if (isPlanMode && (s.id === 3 || s.id === 4)) return false;
+    return true;
+  }).map(s => {
     if (s.id === 5) {
       const isAuthority = user?.role === 'SUPER_ADMIN' || user?.role === 'ADMIN';
       return { ...s, label: (isAuthority && !isPlanMode) ? "Xem trước & Xuất bản" : "Xem trước & Gửi duyệt" };
@@ -83,10 +87,78 @@ export const EventCreator = ({
   const [formData, setFormData] = useState(initialFormData);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
+  const [isAutoSaving, setIsAutoSaving] = useState(false);
+  const [lastSavedTime, setLastSavedTime] = useState(null);
 
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: "smooth" });
   }, [step]);
+
+  // --- AUTO SAVE LOGIC ---
+  useEffect(() => {
+    if (!isPlanMode || isEdit || isSubmitting) return;
+
+    // Chỉ tự động lưu nếu đã có tiêu đề
+    if (!formData.eventTitle || formData.eventTitle.trim().length < 3) return;
+
+    const timer = setTimeout(() => {
+      autoSaveDraft();
+    }, 15000); // Tự động lưu sau 15s không thao tác
+
+    return () => clearTimeout(timer);
+  }, [formData, isPlanMode]);
+
+  const autoSaveDraft = async () => {
+    if (isAutoSaving) return;
+
+    try {
+      setIsAutoSaving(true);
+      const accountId = user?.id || null;
+      const toISO = (d) => { if (!d) return null; const dt = new Date(d); return isNaN(dt) ? null : dt.toISOString(); };
+
+      const payload = {
+        title: (formData.eventTitle || formData.title || "").trim(),
+        description: (formData.eventPurpose || formData.description || "").trim(),
+        eventTopic: (formData.eventTopic || "").trim(),
+        location: (formData.location || "").trim(),
+        eventMode: (formData.eventMode || "OFFLINE").toUpperCase(),
+        type: formData.eventType || formData.type || "OTHER",
+        startTime: toISO(formData.startTime),
+        endTime: toISO(formData.endTime),
+        registrationDeadline: toISO(formData.registrationDeadline),
+        maxParticipants: Number(formData.maxParticipants) || 50,
+        hasLuckyDraw: false,
+        faculty: formData.faculty || "",
+        major: formData.major || "",
+        createdByAccountId: accountId,
+        status: 'DRAFT',
+        organization: formData.organizationId ? { id: formData.organizationId } : null,
+        invitations: formData.invitations || [],
+        presenters: formData.presenters || [],
+        sessions: formData.sessions || [],
+        targetObjects: Array.isArray(formData.targetObjects)
+          ? formData.targetObjects.map(obj => typeof obj === 'string' ? { type: 'CATEGORY', name: obj } : obj) : [],
+      };
+
+      let res;
+      if (formData.id) {
+        // Update existing draft
+        res = await eventService.updatePlan(formData.id, payload);
+      } else {
+        // Create new draft
+        res = await eventService.createPlan(payload);
+        if (res.data?.id) {
+          updateFormData({ id: res.data.id });
+        }
+      }
+
+      setLastSavedTime(new Date());
+    } catch (err) {
+      console.warn("Auto-save failed:", err);
+    } finally {
+      setIsAutoSaving(false);
+    }
+  };
 
   const updateFormData = (newData) => {
     setFormData((prev) => ({ ...prev, ...newData }));
@@ -196,10 +268,10 @@ export const EventCreator = ({
         };
 
         if (extracted.suggestedStartTime) {
-            mappedData.startTime = new Date(extracted.suggestedStartTime).toISOString().slice(0, 16);
+          mappedData.startTime = new Date(extracted.suggestedStartTime).toISOString().slice(0, 16);
         }
         if (extracted.suggestedEndTime) {
-            mappedData.endTime = new Date(extracted.suggestedEndTime).toISOString().slice(0, 16);
+          mappedData.endTime = new Date(extracted.suggestedEndTime).toISOString().slice(0, 16);
         }
 
         updateFormData(mappedData);
@@ -228,7 +300,7 @@ export const EventCreator = ({
     try {
       toast.info("⏳ Đang phân tích nội dung kế hoạch bằng AI...");
       const data = await extractDataFromDocx(file);
-      
+
       if (data && data.extracted) {
         const extracted = data.extracted;
 
@@ -302,16 +374,96 @@ export const EventCreator = ({
     try {
       if (!user) return;
 
+      // 1. Notify the creator
       await notificationService.sendNotification({
         userProfileId: user?.accountId || user?.id,
-        title: isPublished ? "Sự kiện đã được xuất bản" : "Sự kiện mới đang chờ duyệt",
+        title: isPublished ? "Sự kiện đã được xuất bản" : "Gửi yêu cầu phê duyệt thành công",
         message: isPublished
           ? `Chúc mừng! Sự kiện "${eventTitle}" của bạn đã được xuất bản thành công.`
-          : `Sự kiện "${eventTitle}" của bạn đã được gửi và đang chờ quản trị viên phê duyệt.`,
+          : `Kế hoạch/Sự kiện "${eventTitle}" đã được gửi và đang chờ quản trị viên phê duyệt.`,
         type: isPublished ? "EVENT_APPROVED" : "EVENT_SUBMITTED",
         relatedEntityId: eventId,
         relatedEntityType: "EVENT"
       });
+
+      // 2. Notify all admins if it's pending approval
+      if (!isPublished) {
+        try {
+          const accountsRes = await authService.getAllAccounts();
+          const allAccounts = Array.isArray(accountsRes.data) ? accountsRes.data : (accountsRes.data?.content || []);
+
+          const admins = allAccounts.filter(acc =>
+            acc.role === 'ADMIN' || acc.role === 'SUPER_ADMIN' ||
+            acc.roles?.includes('ADMIN') || acc.roles?.includes('SUPER_ADMIN')
+          );
+
+          if (admins.length > 0) {
+            const adminNotifications = admins.map(admin => ({
+              userProfileId: admin.id,
+              title: "Yêu cầu phê duyệt mới",
+              message: `${user?.fullName || user?.username} đã gửi một ${isPlanMode ? 'kế hoạch' : 'sự kiện'} mới: "${eventTitle}"`,
+              type: isPlanMode ? "PLAN_SUBMITTED" : "EVENT_SUBMITTED",
+              actionUrl: isPlanMode ? '/admin/plans' : '/admin/events'
+            }));
+
+            // Try bulk first, if not available or fails, send individually
+            try {
+              await notificationService.sendBulk(adminNotifications);
+            } catch (err) {
+              for (const n of adminNotifications) {
+                await notificationService.sendNotification(n).catch(() => { });
+              }
+            }
+          }
+        } catch (adminErr) {
+          console.error("Lỗi gửi thông báo cho Admin:", adminErr);
+        }
+      }
+
+      // 3. Notify all invited members (Organizers & Presenters) - ONLY for Events, not Plans
+      if (!isPlanMode) {
+        const memberNotifications = [];
+
+        // Organizers
+        if (formData.invitations && formData.invitations.length > 0) {
+          formData.invitations.forEach(inv => {
+            if (inv.inviteeAccountId) {
+              memberNotifications.push({
+                userProfileId: inv.inviteeAccountId,
+                title: "Lời mời tham gia ban tổ chức",
+                message: `Bạn được mời tham gia ban tổ chức cho sự kiện: "${eventTitle}"`,
+                type: "INVITATION",
+                actionUrl: `/events/invitations?id=${eventId}`
+              });
+            }
+          });
+        }
+
+        // Presenters
+        if (formData.presenters && formData.presenters.length > 0) {
+          formData.presenters.forEach(pres => {
+            if (pres.presenterAccountId) {
+              memberNotifications.push({
+                userProfileId: pres.presenterAccountId,
+                title: "Lời mời làm diễn giả",
+                message: `Bạn được mời làm diễn giả cho sự kiện: "${eventTitle}"`,
+                type: "INVITATION",
+                actionUrl: `/events/invitations?id=${eventId}`
+              });
+            }
+          });
+        }
+
+        if (memberNotifications.length > 0) {
+          try {
+            await notificationService.sendBulk(memberNotifications);
+          } catch (memErr) {
+            for (const n of memberNotifications) {
+              await notificationService.sendNotification(n).catch(() => { });
+            }
+          }
+        }
+      }
     } catch (err) {
       console.error("Lỗi gửi thông báo:", err);
     }
@@ -410,7 +562,26 @@ export const EventCreator = ({
       }
 
       if (response.data?.id) {
-        await sendNotifications(response.data.id, payload.title, isSuperAdmin);
+        const eventId = response.data.id;
+        await sendNotifications(eventId, payload.title, isSuperAdmin);
+
+        // Send Organizer Invitations
+        if (payload.invitations && payload.invitations.length > 0) {
+          try {
+            await eventService.sendOrganizerInvitations(eventId, payload.invitations);
+          } catch (invErr) {
+            console.error("Lỗi gửi lời mời ban tổ chức:", invErr);
+          }
+        }
+
+        // Send Presenter Invitations
+        if (payload.presenters && payload.presenters.length > 0) {
+          try {
+            await eventService.sendPresenterInvitations(eventId, payload.presenters);
+          } catch (presErr) {
+            console.error("Lỗi gửi lời mời diễn giả:", presErr);
+          }
+        }
 
         // Lưu dữ liệu Vòng quay may mắn nếu có (only for events, not plans)
         if (data.hasLuckyDraw && !isPlanMode) {
@@ -551,7 +722,7 @@ export const EventCreator = ({
 
   return (
     <div className="min-h-screen bg-[#f8fafc]">
-      <div className="fixed top-16 left-72 right-0 z-40 bg-white border-b border-slate-200">
+      <div className="fixed top-20 left-72 right-0 z-40 bg-white border-b border-slate-200">
         <div className="max-w-7xl mx-auto p-6">
           <div className="max-w-7xl mx-auto flex justify-between items-center">
             <div>
@@ -561,11 +732,26 @@ export const EventCreator = ({
                 </div>
                 {isEdit ? "Cập nhật sự kiện" : (isPlanMode ? "Tạo Kế Hoạch Mới" : "Tạo Sự Kiện Mới")}
               </h1>
-              {isPlanMode && formData._templateName && (
-                <span className="ml-3 px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-bold">
-                  📌 Từ mẫu: {formData._templateName}
-                </span>
-              )}
+              <div className="flex items-center gap-4 mt-1">
+                {isPlanMode && formData._templateName && (
+                  <span className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-bold">
+                    📌 Từ mẫu: {formData._templateName}
+                  </span>
+                )}
+                {isPlanMode && (
+                  <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest">
+                    {isAutoSaving ? (
+                      <span className="text-indigo-500 flex items-center gap-1.5">
+                        <Loader2 size={10} className="animate-spin" /> Đang tự động lưu...
+                      </span>
+                    ) : lastSavedTime ? (
+                      <span className="text-slate-400 flex items-center gap-1.5">
+                        <Check size={10} /> Đã lưu lúc {lastSavedTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+                      </span>
+                    ) : null}
+                  </div>
+                )}
+              </div>
             </div>
             <div className="flex items-center gap-3">
               {user?.role === 'SUPER_ADMIN' && (
@@ -652,7 +838,7 @@ export const EventCreator = ({
         </div>
       </div>
 
-      <div className="px-6 pt-[190px] pb-6 w-full">
+      <div className="px-6 pt-[210px] pb-6 w-full">
         <div className="min-h-[600px]">
           {step === 1 && (
             <ManualInputStep
@@ -675,7 +861,7 @@ export const EventCreator = ({
               onBack={() => setStep(1)}
               onNext={(data) => {
                 updateFormData(data);
-                setStep(isPlanMode ? 3 : 3);
+                setStep(isPlanMode ? 5 : 3);
               }}
               activeSections={['details', 'description', 'image', 'attendees']}
               isPlanMode={isPlanMode}
@@ -709,7 +895,7 @@ export const EventCreator = ({
           {step === 5 && (
             <EventReviewStep
               formData={formData}
-              onBack={() => setStep(4)}
+              onBack={() => setStep(isPlanMode ? 2 : 4)}
               onSubmit={handleSubmit}
               isSubmitting={isSubmitting}
               isEdit={isEdit}
@@ -724,8 +910,8 @@ export const EventCreator = ({
       </div>
       {/* Raw Text Input Modal */}
       {showRawTextInput && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm">
-          <motion.div 
+        <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm">
+          <motion.div
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
             className="bg-white w-full max-w-2xl rounded-3xl shadow-2xl overflow-hidden"

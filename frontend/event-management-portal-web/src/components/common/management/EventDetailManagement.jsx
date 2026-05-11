@@ -517,6 +517,8 @@ const EventDetailManagement = ({
     return [];
   }, [isAdmin, up]);
 
+  const isPlan = ['DRAFT', 'PLAN_PENDING_APPROVAL', 'PLAN_APPROVED', 'REJECTED'].includes(event?.status);
+
   const dynamicTabs = useMemo(() => {
     if (!event) return [];
 
@@ -534,12 +536,12 @@ const EventDetailManagement = ({
     // 4. Ban tổ chức (Giai đoạn chuẩn bị - Đội ngũ vận hành)
     tabs.push({ key: "Ban tổ chức", label: "Ban tổ chức", icon: Users });
 
-    // Nếu là Diễn giả (và không phải Core Team), CHỈ hiện 4 tab trên
-    if (isPresenter && !isCoreTeam) {
+    // Nếu là Kế hoạch hoặc Diễn giả (không phải Core Team), CHỈ hiện 4 tab trên
+    if (isPlan || (isPresenter && !isCoreTeam)) {
       return tabs;
     }
 
-    // --- Logic cho các vai trò quản lý/BTC ---
+    // --- Logic cho các vai trò quản lý/BTC sự kiện đã công bố ---
 
     // 5. Đăng ký (Giai đoạn vận hành - Trước sự kiện)
     if (canSeeAll || isMember) {
@@ -675,7 +677,14 @@ const EventDetailManagement = ({
             <div className="flex flex-col gap-1">
               <h1 className="text-3xl font-bold text-slate-900">{event.title}</h1>
             </div>
-            {/* Nút chỉnh sửa đã được di chuyển vào tab Cài đặt */}
+            {canEdit && (
+              <button
+                onClick={onEditInfo}
+                className="flex items-center gap-2 bg-amber-50 hover:bg-amber-100 text-amber-600 px-5 py-2.5 rounded-2xl text-sm font-bold transition-all border border-amber-200 shadow-sm"
+              >
+                <Edit3 size={18} /> Chỉnh sửa
+              </button>
+            )}
           </div>
           <p className="text-base text-gray-600 leading-relaxed">{event.description}</p>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-5 mt-3">
@@ -899,7 +908,7 @@ const EventDetailManagement = ({
                 setConfirmConfig={setConfirmConfig}
                 setShowConfirmModal={setShowConfirmModal}
                 canSeeAll={canSeeAll}
-                up={up}
+                userPerms={up}
                 canEdit={canEdit}
                 onEditInfo={onEditInfo}
                 isAdmin={isAdmin}

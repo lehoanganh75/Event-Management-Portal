@@ -200,6 +200,7 @@ const translations = {
     
     // Sidebar
     overview: "Tổng quan",
+    propose_plans: "Đề xuất kế hoạch",
     approve_plans: "Duyệt kế hoạch",
     manage_events: "Quản lý sự kiện",
     posts: "Bản tin & Truyền thông",
@@ -509,6 +510,7 @@ const translations = {
     
     // Sidebar
     overview: "Overview",
+    propose_plans: "Propose Plans",
     approve_plans: "Approve Plans",
     manage_events: "Manage Events",
     posts: "Media Posts",

@@ -362,7 +362,7 @@ const QuizModal = ({ isOpen, onClose, eventId, isOrganizer, quizId: propQuizId }
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-[150] overflow-hidden">
+    <div className="fixed inset-0 z-[200] overflow-hidden">
       {/* Close button - always visible */}
       <button onClick={onClose}
         className="absolute top-5 right-5 z-[200] p-3 bg-black/40 hover:bg-black/60 rounded-full text-white transition-all backdrop-blur-sm">

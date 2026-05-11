@@ -4,7 +4,7 @@ import { Settings, Edit3, Trash2, ShieldCheck, Mail, LogOut, Bot, Info, Trash } 
 const SettingsTab = ({ 
   event, 
   isAdmin, 
-  userPerms, 
+  userPerms = {}, 
   onEdit, 
   setShowDeleteConfirm, 
   onResetStatistics 
