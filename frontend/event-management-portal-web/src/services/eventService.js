@@ -308,7 +308,19 @@ const eventService = {
         }),
     },
 
-    // --- GROUP 10: UTILS ---
+    // --- GROUP 10: LOCAL AI ---
+    localAi: {
+        parseFile: (file) => {
+            const formData = new FormData();
+            formData.append('file', file);
+            return axios.post('http://localhost:3000/upload', formData, {
+                headers: { 'Content-Type': 'multipart/form-data' }
+            });
+        },
+        chat: (prompt) => axios.post('http://localhost:3000/chat', { prompt }),
+    },
+
+    // --- GROUP 11: UTILS ---
     uploadImage: (formData) => privateApi.post('/events/upload-image', formData, {
         headers: { 'Content-Type': 'multipart/form-data' }
     }),

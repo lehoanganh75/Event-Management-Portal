@@ -241,11 +241,11 @@ public class ChatServiceImpl implements ChatService {
                 
                 Dựa trên dữ liệu trên, hãy trả lời câu hỏi của người dùng: "%s"
                 
-                YÊU CẦU:
-                1. Trả lời bằng ngôn ngữ tự nhiên, thân thiện.
-                2. Nếu có sự kiện phù hợp, hãy liệt kê thông tin bằng văn bản TRƯỚC.
-                3. Chỉ cung cấp dữ liệu kỹ thuật ở CUỐI CÙNG trong khối [EVENT_CARDS_START] ... [EVENT_CARDS_END]. 
-                4. CỰC KỲ QUAN TRỌNG: Khi tạo JSON cho thẻ sự kiện, bạn PHẢI sử dụng đúng "Slug" và "ID" được cung cấp trong dữ liệu hệ thống ở trên. Tuyệt đối không tự bịa ra slug.
+                YÊU CẦU QUAN TRỌNG:
+                1. NGÔN NGỮ CON NGƯỜI: Trả lời bằng giọng văn tự nhiên, thân thiện như một trợ lý thực thụ. Tránh liệt kê danh sách khô khan kiểu máy móc.
+                2. KHÔNG TIẾT LỘ KỸ THUẬT: Tuyệt đối không nhắc đến các từ như "JSON", "Dữ liệu hệ thống", "Thẻ" hay các mã ID dài ngoằng trong phần trả lời văn bản.
+                3. XỬ LÝ DỮ LIỆU: Chỉ trích xuất thông tin thật từ phần [DỮ LIỆU SỰ KIỆN] ở trên. Nếu không có dữ liệu thật, hãy trả lời là "Hiện tại tôi chưa tìm thấy sự kiện phù hợp", tuyệt đối không dùng "Sự kiện 123".
+                4. ĐỊNH DẠNG THẺ: Toàn bộ mã JSON phục vụ hiển thị thẻ sự kiện PHẢI nằm gọn trong cặp thẻ [EVENT_CARDS_START] và [EVENT_CARDS_END] ở cuối cùng. Mã JSON phải là một mảng hợp lệ dạng [{}, {}].
                 """, eventContext, request.getContent());
         } else {
             enhancedUserMessage = userInfo + request.getContent();

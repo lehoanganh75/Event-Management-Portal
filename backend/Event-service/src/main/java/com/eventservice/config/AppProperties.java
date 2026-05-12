@@ -21,11 +21,19 @@ import org.springframework.context.annotation.Configuration;
 public class AppProperties {
 
     private Frontend frontend = new Frontend();
+    private Ai ai = new Ai();
 
     @Getter
     @Setter
     public static class Frontend {
         /** Base URL of the frontend application (e.g. http://localhost:5174 or https://yourdomain.com) */
         private String baseUrl = "http://localhost:5174";
+    }
+
+    @Getter
+    @Setter
+    public static class Ai {
+        /** URL of the local AI backend (fallback) */
+        private String localUrl = "http://localhost:3000";
     }
 }

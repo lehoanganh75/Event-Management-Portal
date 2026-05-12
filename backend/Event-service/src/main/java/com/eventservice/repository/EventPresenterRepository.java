@@ -47,4 +47,7 @@ public interface EventPresenterRepository extends JpaRepository<EventPresenter, 
     @org.springframework.transaction.annotation.Transactional
     @org.springframework.data.jpa.repository.Query(value = "UPDATE event_presenters SET is_deleted = 1, status = 'CANCELLED' WHERE event_id = :eventId", nativeQuery = true)
     void softDeleteByEventId(@org.springframework.data.repository.query.Param("eventId") String eventId);
+
+    @org.springframework.transaction.annotation.Transactional
+    void deleteByEventIdAndPresenterAccountId(String eventId, String accountId);
 }

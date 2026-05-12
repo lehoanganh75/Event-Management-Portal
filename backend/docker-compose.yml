@@ -101,12 +101,15 @@ services:
       SPRING_DATA_REDIS_PORT: 6379
       IDENTITY_SERVICE_URL: http://identity-service:8083
       LUCKY_DRAW_SERVICE_URL: http://lucky-draw-service:8084
+      LOCAL_AI_URL: http://host.docker.internal:3000
     depends_on:
       - mariadb
       - kafka
       - redis
     networks:
       - micro-network
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
 
   identity-service:
     build: ./Identity-service

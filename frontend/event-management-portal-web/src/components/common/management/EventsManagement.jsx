@@ -446,7 +446,7 @@ const EventsManagement = ({ type = "lecturer", mode = "all" }) => {
         initialFormData: mappedData,
         fromPlan: false,
         forceEventMode: mode === "event",
-        startAtStep: mode === "plan" ? 3 : 5
+        startAtStep: 1 // Luôn bắt đầu từ bước 1 để người dùng kiểm tra thông tin
       });
       setShowEventCreator(true);
 

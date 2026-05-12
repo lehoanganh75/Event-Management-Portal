@@ -43,4 +43,7 @@ public interface EventOrganizerRepository extends JpaRepository<EventOrganizer, 
     @org.springframework.transaction.annotation.Transactional
     @Query(value = "UPDATE event_organizers SET is_deleted = 1, status = 'INACTIVE' WHERE event_id = :eventId", nativeQuery = true)
     void softDeleteByEventId(@Param("eventId") String eventId);
+
+    @org.springframework.transaction.annotation.Transactional
+    void deleteByEventIdAndAccountId(String eventId, String accountId);
 }

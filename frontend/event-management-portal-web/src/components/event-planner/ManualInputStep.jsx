@@ -22,7 +22,8 @@ import {
   Clock,
   Timer,
   Search,
-  UserCheck
+  UserCheck,
+  Loader2
 } from "lucide-react";
 import ImageUpload from "../common/ImageUpload.jsx";
 import eventService from "../../services/eventService";
@@ -163,7 +164,7 @@ const AISuggestionBox = ({ title, suggestions, onSelect }) => (
     <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
       {suggestions.map((s, i) => (
         <div
-          key={i}
+          key={`${i}-${typeof s === 'string' ? s : s.label}`}
           onClick={() => onSelect(s)}
           style={{
             background: "#fff",
@@ -259,6 +260,10 @@ const DateTimeField = ({ label, value, onChange, error, required }) => {
     const hh = pad(value.getHours());
     const min = pad(value.getMinutes());
     stringValue = `${yyyy}-${mm}-${dd}T${hh}:${min}`;
+  } else if (typeof value === 'string' && value.match(/^\d{2}:\d{2}(:\d{2})?$/)) {
+    // NẾU CHỈ CÓ TIME -> GHÉP THÊM NGÀY HÔM NAY ĐỂ TRÁNH LỖI HTML5
+    const today = new Date().toISOString().split('T')[0];
+    stringValue = `${today}T${value.substring(0, 5)}`;
   }
 
   const dateVal = stringValue ? stringValue.split('T')[0] : "";
@@ -294,20 +299,148 @@ export default function ManualInputStep({
 }) {
   const term = isPlanMode ? "kế hoạch" : "sự kiện";
   const [errors, setErrors] = useState({});
-  const [showAISuggestions, setShowAISuggestions] = useState(false);
   const [showOrgAISuggestions, setShowOrgAISuggestions] = useState(false);
   const [showUserSuggestions, setShowUserSuggestions] = useState(false);
-  const [showLocationAISuggestions, setShowLocationAISuggestions] = useState(false);
-  const [showMaxParticipantsAISuggestions, setShowMaxParticipantsAISuggestions] = useState(false);
-  const [showGoalAISuggestions, setShowGoalAISuggestions] = useState(false);
-  const [showRequirementAISuggestions, setShowRequirementAISuggestions] = useState(false);
-  const [showDescriptionAISuggestions, setShowDescriptionAISuggestions] = useState(false);
 
   const [orgs, setOrgs] = useState([]);
   const [systemUsers, setSystemUsers] = useState([]);
   const [loadingOrgs, setLoadingOrgs] = useState(false);
   const [loadingUsers, setLoadingUsers] = useState(false);
   const [searchKey, setSearchKey] = useState("");
+  const [isAILoading, setIsAILoading] = useState(false);
+
+  // --- AI HANDLERS ---
+  const handleFileUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    setIsAILoading(true);
+    try {
+      // 1. Parse file text using local AI
+      const uploadRes = await eventService.localAi.parseFile(file);
+      const text = uploadRes.data.message; // Text extracted from file
+
+      // 2. Ask AI to extract structured data
+      const extractRes = await eventService.aiPlanning.generateFromRawText(text);
+      const data = extractRes.data.result;
+
+      if (data) {
+        setFormData(prev => ({
+          ...prev,
+          eventTitle: data.title || prev.eventTitle,
+          description: data.description || prev.description,
+          location: data.suggestedLocation || prev.location,
+          maxParticipants: data.estimatedParticipants || prev.maxParticipants,
+          startTime: data.suggestedStartTime || prev.startTime,
+          endTime: data.suggestedEndTime || prev.endTime,
+          sessions: data.programItems || prev.sessions
+        }));
+
+        import("react-toastify").then(({ toast }) => {
+          toast.success("Đã tự động điền dữ liệu từ tài liệu!");
+        });
+      }
+    } catch (err) {
+      console.error("AI Error:", err);
+      import("react-toastify").then(({ toast }) => {
+        toast.error("Lỗi khi xử lý tài liệu với AI.");
+      });
+    } finally {
+      setIsAILoading(false);
+    }
+  };
+
+  const handleSmartSuggestion = async () => {
+    if (!formData.eventTitle) {
+      import("react-toastify").then(({ toast }) => toast.warn("Vui lòng nhập tiêu đề để AI có cơ sở gợi ý"));
+      return;
+    }
+
+    setIsAILoading(true);
+    try {
+      const prompt = `Gợi ý mô tả và lịch trình cho sự kiện: "${formData.eventTitle}". 
+                     Dữ liệu đã có: Địa điểm ${formData.location || 'chưa rõ'}.
+                     Hãy trả về JSON gồm các trường: description, programItems (title, description, durationMinutes).`;
+
+      const res = await eventService.aiPlanning.generateFromRawText(prompt);
+      const data = res.data.result;
+
+      if (data) {
+        setFormData(prev => ({
+          ...prev,
+          description: data.description || prev.description,
+          sessions: data.programItems?.map((s, i) => ({
+            ...s,
+            orderIndex: i + 1,
+            isConfirmed: true,
+            startTime: prev.startTime, // Giữ nguyên time nếu đã có
+            endTime: prev.endTime
+          })) || prev.sessions
+        }));
+        import("react-toastify").then(({ toast }) => toast.success("AI đã hoàn thiện nội dung cho bạn!"));
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsAILoading(false);
+    }
+  };
+
+  const [aiLoadingFields, setAiLoadingFields] = useState({});
+  const [aiSuggestions, setAiSuggestions] = useState({});
+
+  const handleAIFieldSuggestion = async (fieldName, fieldLabel, customPrompt) => {
+    if (!formData.eventTitle && fieldName !== 'eventTitle') {
+      import("react-toastify").then(({ toast }) => toast.warn("Vui lòng nhập tiêu đề sự kiện để AI có cơ sở gợi ý!"));
+      return;
+    }
+
+    setAiLoadingFields(prev => ({ ...prev, [fieldName]: true }));
+    setAiSuggestions(prev => ({ ...prev, [fieldName]: { show: true, items: [] } }));
+
+    try {
+      let prompt = "";
+      if (customPrompt) {
+        prompt = customPrompt;
+      } else {
+        prompt = `Dựa trên tiêu đề sự kiện: "${formData.eventTitle}", hãy gợi ý 3 lựa chọn ngắn gọn cho trường "${fieldLabel}". 
+        Yêu cầu: Chỉ trả về 3 dòng, mỗi dòng là một lựa chọn, không có số thứ tự.`;
+      }
+
+      const res = await eventService.chat.extractFromText(prompt);
+      const aiContent = res.data;
+
+      if (aiContent) {
+        const suggestions = aiContent.split('\n')
+          .map(s => s.replace(/^[0-9\.\-\*\s]+/, '').trim())
+          .filter(s => s.length > 2)
+          .slice(0, 3);
+
+        setAiSuggestions(prev => ({
+          ...prev,
+          [fieldName]: { show: true, items: suggestions.length > 0 ? suggestions : ["AI chưa có ý tưởng, hãy thử lại!"] }
+        }));
+      }
+    } catch (err) {
+      console.error(`Lỗi gợi ý AI cho ${fieldName}:`, err);
+      setAiSuggestions(prev => ({ ...prev, [fieldName]: { show: true, items: ["Lỗi kết nối AI"] } }));
+    } finally {
+      setAiLoadingFields(prev => ({ ...prev, [fieldName]: false }));
+    }
+  };
+
+  const [aiDescriptionLoading, setAiDescriptionLoading] = useState(false);
+  const [dynamicDescriptionSuggestions, setDynamicDescriptionSuggestions] = useState([]);
+
+  const handleGenerateDescriptionWithAI = async () => {
+    handleAIFieldSuggestion('eventPurpose', 'Mô tả sự kiện', `Hãy đóng vai một chuyên gia tổ chức sự kiện chuyên nghiệp. 
+      Dựa trên tiêu đề sự kiện: "${formData.eventTitle}" ${formData.eventTopic ? `và chủ đề: "${formData.eventTopic}"` : ''},
+      hãy viết cho tôi 3 mẫu mô tả sự kiện (khoảng 3-5 câu mỗi mẫu) theo các phong cách khác nhau:
+      1. Trang trọng & Học thuật
+      2. Sôi nổi & Truyền cảm hứng cho sinh viên
+      3. Ngắn gọn & Súc tích tập trung vào lợi ích tham gia.
+      Vui lòng chỉ trả về 3 mẫu văn bản, ngăn cách nhau bởi xuống dòng.`);
+  };
 
   useEffect(() => {
     const fetchData = async () => {
@@ -429,6 +562,18 @@ export default function ManualInputStep({
     if (isVisible('details') || isVisible('attendees')) {
       if (!formData.location) e.location = "Vui lòng nhập địa điểm";
       if (isVisible('attendees') && !formData.maxParticipants) e.maxParticipants = "Vui lòng nhập số lượng tối đa";
+
+      // Kiểm tra các phiên hoạt động (sessions)
+      if (isVisible('details')) {
+        const sessions = formData.sessions || [];
+        for (let i = 0; i < sessions.length; i++) {
+          const s = sessions[i];
+          if (!s.isConfirmed) {
+            e.sessions = `Vui lòng xác nhận thông tin cho phiên: ${s.title || 'Phiên chưa có tên'}`;
+            break;
+          }
+        }
+      }
     }
     return e;
   };
@@ -566,10 +711,13 @@ export default function ManualInputStep({
     const sessions = [...(formData.sessions || [])];
     const session = sessions[index];
 
-    if (!session.title) return;
-
     let hasError = false;
-    const updatedSession = { ...session, startTimeError: null, endTimeError: null };
+    const updatedSession = { ...session, titleError: null, startTimeError: null, endTimeError: null };
+
+    if (!session.title || !session.title.trim()) {
+      updatedSession.titleError = "Tên phiên không được bỏ trống";
+      hasError = true;
+    }
 
     if (!session.startTime) {
       updatedSession.startTimeError = "Vui lòng chọn thời gian";
@@ -579,14 +727,39 @@ export default function ManualInputStep({
       updatedSession.endTimeError = "Vui lòng chọn thời gian";
       hasError = true;
     }
-    if (session.startTime && session.endTime && new Date(session.startTime) >= new Date(session.endTime)) {
-      updatedSession.endTimeError = "Kết thúc phải sau bắt đầu";
-      hasError = true;
+
+    if (session.startTime && session.endTime) {
+      const sStart = new Date(session.startTime);
+      const sEnd = new Date(session.endTime);
+
+      if (sStart >= sEnd) {
+        updatedSession.endTimeError = "Kết thúc phải sau bắt đầu";
+        hasError = true;
+      }
+
+      // Kiểm tra xem phiên có nằm trong thời gian sự kiện không
+      if (formData.startTime) {
+        const eStart = new Date(formData.startTime);
+        if (sStart < eStart) {
+          updatedSession.startTimeError = "Thời gian bắt đầu phải nằm trong thời gian sự kiện";
+          hasError = true;
+        }
+      }
+      if (formData.endTime) {
+        const eEnd = new Date(formData.endTime);
+        if (sEnd > eEnd) {
+          updatedSession.endTimeError = "Thời gian kết thúc phải nằm trong thời gian sự kiện";
+          hasError = true;
+        }
+      }
     }
 
     if (hasError) {
       sessions[index] = updatedSession;
       setFormData({ ...formData, sessions });
+      import("react-toastify").then(({ toast }) => {
+        toast.error("Vui lòng kiểm tra lại thông tin phiên");
+      });
       return;
     }
 
@@ -596,7 +769,14 @@ export default function ManualInputStep({
 
   const updateSession = (index, field, value) => {
     const sessions = [...(formData.sessions || [])];
-    sessions[index] = { ...sessions[index], [field]: value };
+    const updatedSession = { ...sessions[index], [field]: value };
+
+    // Xóa lỗi khi người dùng bắt đầu nhập lại
+    if (field === 'title') updatedSession.titleError = null;
+    if (field === 'startTime') updatedSession.startTimeError = null;
+    if (field === 'endTime') updatedSession.endTimeError = null;
+
+    sessions[index] = updatedSession;
     setFormData({ ...formData, sessions: sessions });
   };
 
@@ -618,6 +798,8 @@ export default function ManualInputStep({
   return (
     <div style={{ width: "100%", margin: "0 auto", padding: "20px 0" }}>
       <div style={{ background: "#fff", border: "1px solid #f1f5f9", borderRadius: 16, padding: "32px", display: "flex", flexDirection: "column", gap: 32 }}>
+
+
 
         {/* ORGANIZATION SELECTION */}
         {isVisible('organization') && (
@@ -980,7 +1162,7 @@ export default function ManualInputStep({
                 />
               )}
 
-              <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+              <div id="field-sessions" style={{ display: "flex", flexDirection: "column", gap: 16 }}>
                 {(formData.sessions || []).map((session, idx) => (
                   session.isConfirmed ? (
                     <div key={idx} style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 12, padding: "12px 16px", display: "flex", alignItems: "center", gap: 12, animation: "fadeIn 0.3s ease" }}>
@@ -1026,7 +1208,7 @@ export default function ManualInputStep({
                       </div>
 
                       <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: 16 }}>
-                        <Field label="Tên phiên / Hoạt động" required>
+                        <Field label="Tên phiên / Hoạt động" required error={session.titleError}>
                           <Input
                             value={session.title}
                             onChange={(e) => updateSession(idx, 'title', e.target.value)}
@@ -1065,16 +1247,15 @@ export default function ManualInputStep({
                       <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 4 }}>
                         <button
                           onClick={() => confirmSession(idx)}
-                          disabled={!session.title}
                           style={{
-                            background: session.title ? "#1e1b4b" : "#94a3b8",
+                            background: "#1e1b4b",
                             color: "#fff",
                             border: "none",
                             padding: "10px 20px",
                             borderRadius: 8,
                             fontSize: 13,
                             fontWeight: 700,
-                            cursor: session.title ? "pointer" : "not-allowed",
+                            cursor: "pointer",
                             display: "flex",
                             alignItems: "center",
                             gap: 8
@@ -1296,10 +1477,12 @@ export default function ManualInputStep({
               error={errors.eventTitle}
               action={
                 <button
-                  onClick={() => setShowAISuggestions(!showAISuggestions)}
+                  onClick={() => handleAIFieldSuggestion('eventTitle', 'Tên sự kiện', 'Hãy gợi ý 5 tên sự kiện hấp dẫn cho một hoạt động sinh viên tại trường đại học.')}
+                  disabled={aiLoadingFields['eventTitle']}
                   style={{ background: "none", border: "none", color: "#8b5cf6", fontSize: 12, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: 4 }}
                 >
-                  <Sparkles size={14} /> AI gợi ý
+                  {aiLoadingFields['eventTitle'] ? <Loader2 size={14} className="animate-spin" /> : <Sparkles size={14} />}
+                  AI gợi ý
                 </button>
               }
             >
@@ -1308,18 +1491,47 @@ export default function ManualInputStep({
                 value={formData.eventTitle || ""}
                 onChange={(e) => setFormData({ ...formData, eventTitle: e.target.value })}
               />
-              {showAISuggestions && (
+              {aiSuggestions['eventTitle']?.show && (
                 <AISuggestionBox
-                  title="Gợi ý từ AI"
-                  suggestions={[
-                    "Hội thảo Công nghệ AI và Tương lai 2026",
-                    "Workshop: Kỹ năng Lập trình Python cho Sinh viên",
-                    "Ngày hội Khởi nghiệp Sáng tạo IUH",
-                    "Seminar: Xu hướng Công nghệ Blockchain"
-                  ]}
+                  title={aiLoadingFields['eventTitle'] ? "AI đang suy nghĩ..." : "Gợi ý tên sự kiện"}
+                  suggestions={aiSuggestions['eventTitle'].items}
                   onSelect={(s) => {
                     setFormData({ ...formData, eventTitle: s });
-                    setShowAISuggestions(false);
+                    setAiSuggestions(prev => ({ ...prev, eventTitle: { ...prev.eventTitle, show: false } }));
+                  }}
+                />
+              )}
+            </Field>
+
+            <Field
+              id="field-eventTopic"
+              label="Chủ đề chuyên môn"
+              required
+              error={errors.eventTopic}
+              action={
+                <button
+                  onClick={() => handleAIFieldSuggestion('eventTopic', 'Chủ đề chuyên môn')}
+                  disabled={aiLoadingFields['eventTopic']}
+                  style={{ background: "none", border: "none", color: "#8b5cf6", fontSize: 12, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: 4 }}
+                >
+                  {aiLoadingFields['eventTopic'] ? <Loader2 size={14} className="animate-spin" /> : <Sparkles size={14} />}
+                  AI gợi ý
+                </button>
+              }
+            >
+              <Input
+                placeholder="VD: Trí tuệ nhân tạo, Kỹ năng mềm..."
+                value={formData.eventTopic || ""}
+                onChange={(e) => setFormData({ ...formData, eventTopic: e.target.value })}
+                error={errors.eventTopic}
+              />
+              {aiSuggestions['eventTopic']?.show && (
+                <AISuggestionBox
+                  title={aiLoadingFields['eventTopic'] ? "AI đang suy nghĩ..." : "Chủ đề gợi ý"}
+                  suggestions={aiSuggestions['eventTopic'].items}
+                  onSelect={(s) => {
+                    setFormData({ ...formData, eventTopic: s });
+                    setAiSuggestions(prev => ({ ...prev, eventTopic: { ...prev.eventTopic, show: false } }));
                   }}
                 />
               )}
@@ -1370,10 +1582,12 @@ export default function ManualInputStep({
               error={errors.location}
               action={
                 <button
-                  onClick={() => setShowLocationAISuggestions(!showLocationAISuggestions)}
+                  onClick={() => handleAIFieldSuggestion('location', 'Địa điểm tổ chức')}
+                  disabled={aiLoadingFields['location']}
                   style={{ background: "none", border: "none", color: "#8b5cf6", fontSize: 12, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: 4 }}
                 >
-                  <Sparkles size={14} /> AI gợi ý địa điểm
+                  {aiLoadingFields['location'] ? <Loader2 size={14} className="animate-spin" /> : <Sparkles size={14} />}
+                  AI gợi ý
                 </button>
               }
             >
@@ -1381,20 +1595,13 @@ export default function ManualInputStep({
                 <Input placeholder="VD: Hội trường A, Cơ sở Nguyễn Văn Bảo" value={formData.location || ""} onChange={(e) => setFormData({ ...formData, location: e.target.value })} />
                 <MapPin size={16} style={{ position: "absolute", right: 14, top: "50%", transform: "translateY(-50%)", color: "#94a3b8", pointerEvents: "none" }} />
               </div>
-              {showLocationAISuggestions && (
+              {aiSuggestions['location']?.show && (
                 <AISuggestionBox
-                  title="Gợi ý địa điểm phổ biến tại IUH"
-                  suggestions={[
-                    "Hội trường A, Cơ sở Nguyễn Văn Bảo",
-                    "Hội trường E4, Nhà E",
-                    "Phòng họp Nhà V",
-                    "Sân bóng đá IUH",
-                    "Thư viện tầng 1, Nhà B",
-                    "Phòng H3.1 (Phòng CLB)"
-                  ]}
+                  title={aiLoadingFields['location'] ? "AI đang suy nghĩ..." : "Địa điểm gợi ý"}
+                  suggestions={aiSuggestions['location'].items}
                   onSelect={(s) => {
                     setFormData({ ...formData, location: s });
-                    setShowLocationAISuggestions(false);
+                    setAiSuggestions(prev => ({ ...prev, location: { ...prev.location, show: false } }));
                   }}
                 />
               )}
@@ -1414,10 +1621,12 @@ export default function ManualInputStep({
               error={errors.eventPurpose}
               action={
                 <button
-                  onClick={() => setShowDescriptionAISuggestions(!showDescriptionAISuggestions)}
+                  onClick={handleGenerateDescriptionWithAI}
+                  disabled={aiLoadingFields['eventPurpose']}
                   style={{ background: "none", border: "none", color: "#8b5cf6", fontSize: 12, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: 4 }}
                 >
-                  <Sparkles size={14} /> AI gợi ý mô tả
+                  {aiLoadingFields['eventPurpose'] ? <Loader2 size={14} className="animate-spin" /> : <Sparkles size={14} />}
+                  AI gợi ý mô tả
                 </button>
               }
             >
@@ -1427,109 +1636,101 @@ export default function ManualInputStep({
                 value={formData.eventPurpose || ""}
                 onChange={(e) => setFormData({ ...formData, eventPurpose: e.target.value })}
               />
-              {showDescriptionAISuggestions && (
+              {aiSuggestions['eventPurpose']?.show && (
                 <AISuggestionBox
-                  title="Mẫu mô tả từ AI"
-                  suggestions={[
-                    "Hội thảo chuyên môn: Sự kiện quy tụ các chuyên gia hàng đầu trong lĩnh vực để chia sẻ kiến thức mới nhất và xu hướng tương lai.",
-                    "Workshop thực hành: Khóa học tập trung vào kỹ năng thực tế, người tham gia sẽ được hướng dẫn trực tiếp bởi các chuyên gia.",
-                    "Sự kiện networking: Buổi gặp gỡ thân mật giữa sinh viên và các nhà tuyển dụng, mở ra nhiều cơ hội thực tập và việc làm hấp dẫn.",
-                    "Ngày hội văn hóa: Không gian giao lưu văn hóa, nghệ thuật với nhiều hoạt động sôi nổi và giải thưởng hấp dẫn dành cho sinh viên."
-                  ]}
+                  title={aiLoadingFields['eventPurpose'] ? "AI đang suy nghĩ..." : "Mẫu mô tả từ AI dựa trên ngữ cảnh của bạn"}
+                  suggestions={aiSuggestions['eventPurpose'].items}
                   onSelect={(s) => {
                     setFormData({ ...formData, eventPurpose: s });
-                    setShowDescriptionAISuggestions(false);
+                    setAiSuggestions(prev => ({ ...prev, eventPurpose: { ...prev.eventPurpose, show: false } }));
                   }}
                 />
               )}
             </Field>
 
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
-              <Field
-                id="field-maxParticipants"
-                label="Số lượng người tham gia tối đa"
-                required
-                error={errors.maxParticipants}
-                action={
-                  <button
-                    onClick={() => setShowMaxParticipantsAISuggestions(!showMaxParticipantsAISuggestions)}
-                    style={{ background: "none", border: "none", color: "#8b5cf6", fontSize: 12, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: 4 }}
-                  >
-                    <Sparkles size={14} /> AI gợi ý
-                  </button>
-                }
-              >
-                <Input type="number" placeholder="VD: 500" value={formData.maxParticipants || ""} onChange={(e) => setFormData({ ...formData, maxParticipants: e.target.value })} />
-                {showMaxParticipantsAISuggestions && (
-                  <AISuggestionBox
-                    title="Gợi ý quy mô phổ biến"
-                    suggestions={["50 (Phòng học nhỏ)", "100 (Phòng học lớn)", "200 (Hội trường nhỏ)", "500 (Hội trường A)", "1000 (Sân bóng đá)"]}
-                    onSelect={(s) => {
-                      setFormData({ ...formData, maxParticipants: s.split(' ')[0] });
-                      setShowMaxParticipantsAISuggestions(false);
-                    }}
-                  />
-                )}
-              </Field>
-              <Field
-                label={`Mục tiêu ${term}`}
-                action={
-                  <button
-                    onClick={() => setShowGoalAISuggestions(!showGoalAISuggestions)}
-                    style={{ background: "none", border: "none", color: "#8b5cf6", fontSize: 12, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: 4 }}
-                  >
-                    <Sparkles size={14} /> AI gợi ý
-                  </button>
-                }
-              >
-                <Input placeholder="VD: Nâng cao kỹ năng, Kết nối doanh nghiệp..." value={formData.eventTopic || ""} onChange={(e) => setFormData({ ...formData, eventTopic: e.target.value })} />
-                {showGoalAISuggestions && (
-                  <AISuggestionBox
-                    title={`Gợi ý mục tiêu ${term}`}
-                    suggestions={[
-                      "Nâng cao kỹ năng chuyên môn cho sinh viên",
-                      "Kết nối doanh nghiệp và tạo cơ hội việc làm",
-                      "Chia sẻ kinh nghiệm thực tế từ chuyên gia",
-                      "Tạo sân chơi giao lưu, học hỏi giữa các câu lạc bộ"
-                    ]}
-                    onSelect={(s) => {
-                      setFormData({ ...formData, eventTopic: s });
-                      setShowGoalAISuggestions(false);
-                    }}
-                  />
-                )}
-              </Field>
-            </div>
+            <Field
+              id="field-maxParticipants"
+              label="Số lượng người tham gia tối đa"
+              required
+              error={errors.maxParticipants}
+              action={
+                <button
+                  onClick={() => handleAIFieldSuggestion('maxParticipants', 'Số lượng người tham gia')}
+                  disabled={aiLoadingFields['maxParticipants']}
+                  style={{ background: "none", border: "none", color: "#8b5cf6", fontSize: 12, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: 4 }}
+                >
+                  {aiLoadingFields['maxParticipants'] ? <Loader2 size={14} className="animate-spin" /> : <Sparkles size={14} />}
+                  AI gợi ý
+                </button>
+              }
+            >
+              <Input type="number" placeholder="VD: 500" value={formData.maxParticipants || ""} onChange={(e) => setFormData({ ...formData, maxParticipants: e.target.value })} />
+              {aiSuggestions['maxParticipants']?.show && (
+                <AISuggestionBox
+                  title={aiLoadingFields['maxParticipants'] ? "AI đang suy nghĩ..." : "Quy mô gợi ý"}
+                  suggestions={aiSuggestions['maxParticipants'].items}
+                  onSelect={(s) => {
+                    const num = s.match(/\d+/) ? s.match(/\d+/)[0] : "100";
+                    setFormData({ ...formData, maxParticipants: num });
+                    setAiSuggestions(prev => ({ ...prev, maxParticipants: { ...prev.maxParticipants, show: false } }));
+                  }}
+                />
+              )}
+            </Field>
 
             <Field
+              id="field-goal"
+              label={`Mục tiêu ${term}`}
+              action={
+                <button
+                  onClick={() => handleAIFieldSuggestion('goal', 'Mục tiêu sự kiện')}
+                  disabled={aiLoadingFields['goal']}
+                  style={{ background: "none", border: "none", color: "#8b5cf6", fontSize: 12, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: 4 }}
+                >
+                  {aiLoadingFields['goal'] ? <Loader2 size={14} className="animate-spin" /> : <Sparkles size={14} />}
+                  AI gợi ý
+                </button>
+              }
+            >
+              <Input placeholder="VD: Nâng cao kỹ năng, Kết nối doanh nghiệp..." value={formData.goal || ""} onChange={(e) => setFormData({ ...formData, goal: e.target.value })} />
+              {aiSuggestions['goal']?.show && (
+                <AISuggestionBox
+                  title={aiLoadingFields['goal'] ? "AI đang suy nghĩ..." : "Gợi ý mục tiêu"}
+                  suggestions={aiSuggestions['goal'].items}
+                  onSelect={(s) => {
+                    setFormData({ ...formData, goal: s });
+                    setAiSuggestions(prev => ({ ...prev, goal: { ...prev.goal, show: false } }));
+                  }}
+                />
+              )}
+            </Field>
+
+            <Field
+              id="field-requirement"
               label="Yêu cầu đối với người tham gia"
               action={
                 <button
-                  onClick={() => setShowRequirementAISuggestions(!showRequirementAISuggestions)}
+                  onClick={() => handleAIFieldSuggestion('requirement', 'Yêu cầu tham gia')}
+                  disabled={aiLoadingFields['requirement']}
                   style={{ background: "none", border: "none", color: "#8b5cf6", fontSize: 12, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: 4 }}
                 >
-                  <Sparkles size={14} /> AI gợi ý
+                  {aiLoadingFields['requirement'] ? <Loader2 size={14} className="animate-spin" /> : <Sparkles size={14} />}
+                  AI gợi ý
                 </button>
               }
             >
               <Textarea
                 placeholder="VD: Sinh viên năm 3, 4; Có kiến thức cơ bản về lập trình..."
-                value={formData.targetObjects?.join(', ') || ""}
-                onChange={(e) => setFormData({ ...formData, targetObjects: e.target.value.split(',').map(s => s.trim()) })}
+                value={formData.requirement || ""}
+                onChange={(e) => setFormData({ ...formData, requirement: e.target.value })}
               />
-              {showRequirementAISuggestions && (
+              {aiSuggestions['requirement']?.show && (
                 <AISuggestionBox
-                  title="Gợi ý yêu cầu tham gia"
-                  suggestions={[
-                    "Sinh viên năm 3, năm 4 chuyên ngành CNTT",
-                    "Mang theo laptop và cài đặt sẵn các phần mềm cần thiết",
-                    "Đã đăng ký và nhận được email xác nhận từ ban tổ chức",
-                    "Mặc trang phục lịch sự hoặc đồng phục trường"
-                  ]}
+                  title={aiLoadingFields['requirement'] ? "AI đang suy nghĩ..." : "Gợi ý yêu cầu"}
+                  suggestions={aiSuggestions['requirement'].items}
                   onSelect={(s) => {
-                    const current = formData.targetObjects || [];
-                    setFormData({ ...formData, targetObjects: [...new Set([...current, s])] });
-                    setShowRequirementAISuggestions(false);
+                    setFormData({ ...formData, requirement: s });
+                    setAiSuggestions(prev => ({ ...prev, requirement: { ...prev.requirement, show: false } }));
                   }}
                 />
               )}

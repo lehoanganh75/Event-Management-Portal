@@ -294,7 +294,6 @@ const translations = {
     hide_comment_confirm_title: "Ẩn bình luận?",
     hide_comment_confirm_desc: "Bình luận này sẽ bị ẩn khỏi mọi người nhưng vẫn lưu trong hệ thống.",
     delete: "Xóa",
-    cancel: "Hủy",
 
     // Roles
     role_super_admin: "Quản trị viên cấp cao",
@@ -604,7 +603,6 @@ const translations = {
     hide_comment_confirm_title: "Hide Comment?",
     hide_comment_confirm_desc: "This comment will be hidden from the public but kept in our records.",
     delete: "Delete",
-    cancel: "Cancel",
 
     // Roles
     role_super_admin: "Super Admin",

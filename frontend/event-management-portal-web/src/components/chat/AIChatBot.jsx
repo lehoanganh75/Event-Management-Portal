@@ -76,7 +76,19 @@ function MessageContent({ text }) {
   let eventCards = [];
   if (cardMatch) {
     try {
-      eventCards = JSON.parse(cardMatch[1]);
+      let content = cardMatch[1].trim();
+      
+      // Tìm khối JSON dạng mảng [...] bên trong thẻ
+      const jsonArrayMatch = content.match(/\[\s*\{[\s\S]*\}\s*\]/);
+      
+      if (jsonArrayMatch) {
+        let jsonStr = jsonArrayMatch[0];
+        eventCards = JSON.parse(jsonStr);
+      } else {
+        // Fallback: nếu không tìm thấy dạng mảng, thử dọn dẹp markdown như cũ
+        let jsonStr = content.replace(/^```json\s*/i, "").replace(/```\s*$/, "").trim();
+        eventCards = JSON.parse(jsonStr);
+      }
     } catch (e) {
       console.error("Failed to parse event cards JSON", e);
     }
@@ -220,7 +232,7 @@ export default function AIChatBot() {
         setSessionId(session.sessionId);
         localStorage.setItem("ai_chat_session_id", session.sessionId);
         
-        if (session.messages?.length > 0) {
+        if (session.messages && session.messages.length > 0) {
           const mapped = session.messages.map(m => ({
             id: m.id,
             role: m.role.toLowerCase(),
@@ -230,12 +242,14 @@ export default function AIChatBot() {
           }));
           setMessages(mapped);
         } else {
+          // Luôn hiển thị lời chào nếu chưa có tin nhắn nào
           setMessages([{
-            id: "welcome",
+            id: "welcome-" + Date.now(),
             role: "assistant",
-            content: "Xin chào! 👋 Tôi là trợ lý AI của hệ thống sự kiện IUH.\n\nTôi có thể giúp bạn tìm kiếm sự kiện, đăng ký tham gia, hoặc phân tích thông tin sự kiện.\n\nBạn cần hỗ trợ gì?",
-            quickReplies: ["Phân tích sự kiện gần nhất", "Cách đăng ký sự kiện", "Tổ chức sự kiện"],
+            content: "Xin chào! 👋 Tôi là trợ lý AI của hệ thống sự kiện IUH.\n\nTôi có thể giúp bạn tìm kiếm sự kiện, đăng ký tham gia, hoặc tư vấn tổ chức sự kiện chuyên nghiệp.\n\nBạn cần tôi hỗ trợ gì hôm nay?",
+            quickReplies: ["Tìm sự kiện nổi bật", "Phân tích sự kiện", "Hướng dẫn đăng ký"],
             ts: new Date().toISOString(),
+            type: "TEXT"
           }]);
         }
       }
@@ -245,8 +259,8 @@ export default function AIChatBot() {
   }, []);
 
   useEffect(() => {
-    if (isOpen && !sessionId) initChat();
-  }, [isOpen, sessionId, initChat]);
+    if (isOpen) initChat();
+  }, [isOpen, initChat]);
 
   const handleOpen = () => {
     setIsOpen(true);
@@ -390,13 +404,19 @@ export default function AIChatBot() {
               {retryInfo && <RetryBanner seconds={retryInfo.seconds} onRetry={() => send(retryInfo.pendingMsg)} />}
               
               {messages.length < 2 && !loading && (
-                <div className="mb-3 flex flex-col gap-1.5">
-                  <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider px-1">Gợi ý chủ đề</p>
-                  {SUGGESTED.map((q, i) => (
-                    <button key={i} onClick={() => send(q)} className="text-left text-xs bg-gray-50 hover:bg-gray-100 border border-gray-200 rounded-xl px-3 py-2 text-gray-600 transition-colors">
-                      {q}
-                    </button>
-                  ))}
+                <div className="mb-3">
+                  <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider px-1 mb-1.5">Gợi ý chủ đề</p>
+                  <div className="flex gap-2 overflow-x-auto pb-2 custom-scrollbar" style={{ scrollbarWidth: 'thin' }}>
+                    {SUGGESTED.map((q, i) => (
+                      <button 
+                        key={i} 
+                        onClick={() => send(q)} 
+                        className="whitespace-nowrap text-xs bg-gray-50 hover:bg-gray-100 border border-gray-200 rounded-xl px-4 py-2 text-gray-600 transition-colors shrink-0"
+                      >
+                        {q}
+                      </button>
+                    ))}
+                  </div>
                 </div>
               )}
 

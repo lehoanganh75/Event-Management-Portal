@@ -5,12 +5,14 @@ import com.eventservice.dto.ProgramItemSuggestion;
 import com.eventservice.entity.social.ChatMessage;
 import com.eventservice.entity.enums.ChatMessageRole;
 import com.eventservice.service.GeminiChatService;
+import com.eventservice.config.AppProperties;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.stereotype.Service;
+import org.springframework.web.client.RestTemplate;
 
 import java.time.LocalDateTime;
 import java.time.LocalTime;
@@ -26,6 +28,8 @@ public class GeminiChatServiceImpl implements GeminiChatService {
 
     private final ChatClient chatClient;
     private final ObjectMapper objectMapper;
+    private final RestTemplate restTemplate;
+    private final AppProperties appProperties;
 
     @Override
     public String generateChatResponse(String userMessage, List<ChatMessage> conversationHistory, String contextType) {
@@ -81,8 +85,8 @@ public class GeminiChatServiceImpl implements GeminiChatService {
                               "subject": "Chủ đề chính",
                               "purpose": "Mục đích chiến lược",
                               "description": "Mô tả chi tiết",
-                              "suggestedStartTime": "YYYY-MM-DDTHH:mm:ss",
-                              "suggestedEndTime": "YYYY-MM-DDTHH:mm:ss",
+                              "suggestedStartTime": "YYYY-MM-DDTHH:mm:ss (mặc định giờ là 08:00:00 nếu người dùng chỉ cung cấp ngày)",
+                              "suggestedEndTime": "YYYY-MM-DDTHH:mm:ss (mặc định giờ là 11:30:00 nếu người dùng chỉ cung cấp ngày)",
                               "suggestedLocation": "Địa điểm",
                               "estimatedParticipants": 100,
                               "programItems": [
@@ -225,10 +229,10 @@ public class GeminiChatServiceImpl implements GeminiChatService {
                      Lưu ý quan trọng:
                      1. Văn bản có thể chứa các tiêu đề hành chính (Cộng hòa xã hội chủ nghĩa, Độc lập tự do...), hãy bỏ qua chúng và tập trung vào nội dung kế hoạch bên dưới.
                      2. Tìm các tiêu đề như "KẾ HOẠCH V/v", "MỤC ĐÍCH", "THỜI GIAN", "NỘI DUNG" để trích xuất.
-                     3. Định dạng ngày tháng: Nếu văn bản ghi "16:16 ngày 20/4/2026", hãy chuyển đổi thành "2026-04-20T16:16:00".
-                     4. Đối với 'programItems': Trích xuất từng phần (Phần 1, Phần 2...) thành các đối tượng riêng biệt.
-                     5. QUAN TRỌNG (Sparse Input Handling): Nếu người dùng chỉ nhập một thông tin ngắn (ví dụ: chỉ tên trường, hoặc chỉ một ý tưởng sơ sài), bạn PHẢI đóng vai chuyên gia để TỰ KIẾN TẠO một kế hoạch hoàn chỉnh (gồm Tên, Mục đích, Mô tả và Lịch trình chi tiết) phù hợp với ngữ cảnh đó. Tuyệt đối không để trống các trường quan trọng.
-                     6. Trả về DUY NHẤT JSON.
+                     3. Định dạng ngày tháng: Nếu văn bản ghi "16:16 ngày 20/4/2026", hãy chuyển đổi thành "2026-04-20T16:16:00". Nếu chỉ có ngày (ví dụ: "ngày 25/05/2026") mà không có giờ, hãy tự động thêm giờ mặc định (bắt đầu 08:00:00, kết thúc 11:30:00) để tạo thành chuỗi ISO.
+                     4. Đối với 'programItems': Trích xuất từng phần (Phần 1, Phần 2...) hoặc từng gạch đầu dòng hoạt động thành các đối tượng riêng biệt. Nếu không có thời gian cụ thể cho từng hạng mục, hãy tự phân bổ thời gian hợp lý dựa trên tổng thời lượng sự kiện.
+                     5. QUAN TRỌNG (Sparse Input Handling): Nếu người dùng chỉ nhập một thông tin ngắn (ví dụ: chỉ tên sự kiện, hoặc một ý tưởng sơ sài), bạn PHẢI đóng vai chuyên gia để TỰ KIẾN TẠO một kế hoạch hoàn chỉnh (gồm Tên, Mục đích, Mô tả và Lịch trình chi tiết) phù hợp với ngữ cảnh đó. Tuyệt đối không để trống các trường quan trọng (title, suggestedStartTime, suggestedLocation).
+                     6. Trả về DUY NHẤT định dạng JSON, không có văn bản giải thích bên ngoài.
                      """;
 
             String prompt = promptTemplate.replace("{{USER_TEXT}}", naturalLanguageInput);
@@ -306,13 +310,50 @@ public class GeminiChatServiceImpl implements GeminiChatService {
 
     private String callGeminiAPI(String prompt) {
         try {
+            log.info("Calling Gemini AI API...");
             return chatClient.prompt()
                     .user(prompt)
                     .call()
                     .content();
         } catch (Exception e) {
-            log.error("AI service call failed: {}", e.getMessage());
-            return "ERROR_AI_OVERLOADED";
+            log.warn("Gemini AI service call failed or overloaded: {}. Switching to local AI fallback...", e.getMessage());
+            return callLocalAI(prompt);
+        }
+    }
+
+    private String callLocalAI(String prompt) {
+        try {
+            // Sử dụng URL từ cấu hình (AppProperties)
+            String localUrl = appProperties.getAi().getLocalUrl();
+            if (localUrl == null || localUrl.isEmpty()) {
+                localUrl = "http://host.docker.internal:3000/chat";
+            }
+            
+            // Đảm bảo có path /chat nếu chưa có
+            if (!localUrl.endsWith("/chat")) {
+                localUrl = localUrl.endsWith("/") ? localUrl + "chat" : localUrl + "/chat";
+            }
+
+            log.info("Calling Local AI Fallback at: {}", localUrl);
+            
+            Map<String, String> request = new HashMap<>();
+            request.put("prompt", prompt);
+
+            Map<String, Object> response = restTemplate.postForObject(
+                    localUrl,
+                    request,
+                    Map.class
+            );
+
+            if (response != null && response.containsKey("reply")) {
+                log.info("Local AI Fallback successful.");
+                return (String) response.get("reply");
+            }
+            
+            return "Dịch vụ AI hiện đang bảo trì. Vui lòng thử lại sau.";
+        } catch (Exception e) {
+            log.error("Local AI Fallback also failed: {}", e.getMessage());
+            return "Hệ thống AI (cả Gemini và Local) hiện không khả dụng. Vui lòng kiểm tra lại kết nối.";
         }
     }
 
@@ -565,6 +606,11 @@ public class GeminiChatServiceImpl implements GeminiChatService {
         } catch (Exception e) {
             log.error("Error analyzing event statistics: {}", e.getMessage());
             return "ERROR_AI_OVERLOADED";
+        }
+    }
+}       } catch (Exception e) {
+            log.error("Error getting raw AI response: {}", e.getMessage());
+            return "Lỗi kết nối AI hoặc dịch vụ đang bận.";
         }
     }
 }
