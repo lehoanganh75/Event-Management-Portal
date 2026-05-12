@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Bell, ChevronDown, LogOut, User, CheckCircle, Calendar, Clock, X, Check, Info, XCircle, Mail, FileText, Send, QrCode, Globe } from 'lucide-react';
+import { Bell, ChevronDown, LogOut, User, CheckCircle, Calendar, Clock, X, Check, Info, XCircle, Mail, FileText, Send, QrCode, Globe, Settings } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from "../../context/AuthContext";
@@ -60,8 +60,8 @@ const DashboardHeader = () => {
   };
 
   const getPrimaryRole = () => {
-    const systemRole = user?.role?.toUpperCase() || "";
-    return roleMap[systemRole] || "Sinh viên";
+    const systemRole = user?.role?.toLowerCase() || "";
+    return t(`role_${systemRole}`) || t('role_student');
   };
 
   const formatTime = (dateString) => {
@@ -77,13 +77,13 @@ const DashboardHeader = () => {
     const now = new Date();
     const diffInMinutes = Math.floor((now - date) / (1000 * 60));
     
-    if (diffInMinutes < 1) return "Vừa xong";
-    if (diffInMinutes < 60) return `${diffInMinutes} phút trước`;
+    if (diffInMinutes < 1) return t('time_now');
+    if (diffInMinutes < 60) return `${diffInMinutes} ${t('time_min')} ${language === 'VI' ? 'trước' : 'ago'}`;
     if (diffInMinutes < 1440) {
       const hours = Math.floor(diffInMinutes / 60);
-      return `${hours} giờ trước`;
+      return `${hours} ${t('time_hour')} ${language === 'VI' ? 'trước' : 'ago'}`;
     }
-    return date.toLocaleDateString("vi-VN");
+    return date.toLocaleDateString(language === "VI" ? "vi-VN" : "en-US");
   };
 
   const getNotificationIcon = (type) => {
@@ -108,7 +108,7 @@ const DashboardHeader = () => {
       <header className="h-20 bg-white border-b border-slate-200 flex items-center justify-between px-8 sticky top-0 z-[100] shadow-sm">
         <div className="flex items-center gap-6">
           <h2 className="text-sm font-black text-slate-800/40 uppercase tracking-[0.2em] hidden md:block border-l-4 border-indigo-500 pl-4 py-1">
-            {t('ADMIN DASHBOARD') || "Bảng điều khiển hệ thống"}
+            {t('admin_dashboard_title')}
           </h2>
         </div>
 
@@ -172,7 +172,7 @@ const DashboardHeader = () => {
                     className="absolute right-0 mt-3 w-96 bg-white rounded-2xl shadow-2xl border border-slate-100 overflow-hidden z-50 origin-top-right"
                   >
                     <div className="flex items-center justify-between px-6 py-4 border-b border-slate-50 bg-slate-50/50">
-                      <h3 className="font-extrabold text-slate-800 text-sm">Thông báo</h3>
+                      <h3 className="font-extrabold text-slate-800 text-sm">{t('notifications')}</h3>
                       {unreadCount > 0 && (
                         <button onClick={markAllAsRead} className="text-[10px] font-black text-indigo-600 uppercase tracking-wider hover:text-indigo-800 transition-colors">
                           {t('mark_all_read')}
@@ -259,8 +259,8 @@ const DashboardHeader = () => {
                     className="absolute right-0 mt-3 w-60 bg-white rounded-2xl shadow-2xl border border-slate-100 py-2.5 z-50 overflow-hidden origin-top-right"
                   >
                     <div className="px-4 py-3 mb-2 border-b border-slate-50">
-                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Tài khoản cá nhân</p>
-                      <p className="text-xs font-black text-slate-800 truncate">{user?.email || "Chưa cập nhật email"}</p>
+                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">{t('personal_account')}</p>
+                      <p className="text-xs font-black text-slate-800 truncate">{user?.email || t('no_email')}</p>
                     </div>
 
                     <button
@@ -277,7 +277,17 @@ const DashboardHeader = () => {
                       {t('profile')}
                     </button>
 
-
+                    {(user?.role === 'SUPER_ADMIN' || user?.role === 'ADMIN') && (
+                      <button
+                        onClick={() => { navigate("/admin/settings"); setIsDropdownOpen(false); }}
+                        className="w-full px-4 py-2.5 text-left text-xs font-bold text-slate-600 hover:bg-indigo-50 hover:text-indigo-700 flex items-center gap-3.5 transition-all"
+                      >
+                        <div className="w-8 h-8 rounded-lg bg-slate-50 flex items-center justify-center text-slate-400">
+                          <Settings size={16} />
+                        </div>
+                        {t('system_config')}
+                      </button>
+                    )}
 
                     <div className="h-px bg-slate-50 my-2" />
 
@@ -316,9 +326,9 @@ const DashboardHeader = () => {
                   <LogOut size={32} strokeWidth={2.5} />
                 </div>
 
-                <h3 className="text-2xl font-black text-slate-800 mb-3 uppercase tracking-tight">{t('logout')}?</h3>
+                <h3 className="text-2xl font-black text-slate-800 mb-3 uppercase tracking-tight">{t('confirm_logout_title')}</h3>
                 <p className="text-slate-500 text-sm font-medium leading-relaxed mb-8">
-                  {t('confirm_logout')}
+                  {t('confirm_logout_question')}
                 </p>
 
                 <div className="flex flex-col w-full gap-3">

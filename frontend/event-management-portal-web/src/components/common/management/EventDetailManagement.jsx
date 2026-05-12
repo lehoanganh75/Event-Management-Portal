@@ -36,7 +36,7 @@ import {
   Waves,
   Bot
 } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import authService from "../../../services/authService";
 import { motion, AnimatePresence } from "framer-motion";
 import QRScannerModal from "./QRScannerModal";
@@ -66,69 +66,7 @@ import OrganizerInvitation from "./EventManagement/OrganizerInvitation";
 
 
 
-const ORGANIZER_ROLES = [
-  { label: "Ban tổ chức", value: "LEADER" },
-  { label: "Điều phối viên", value: "COORDINATOR" },
-  { label: "Thành viên", value: "MEMBER" },
-  { label: "Cố vấn", value: "ADVISOR" },
-];
-
-const STATUS_CONFIG = {
-  DRAFT: { label: "Bản nháp", color: "bg-gray-100 text-gray-600" },
-  PLAN_PENDING_APPROVAL: { label: "Kế hoạch chờ duyệt", color: "bg-orange-100 text-orange-600" },
-  PLAN_APPROVED: { label: "Kế hoạch đã duyệt", color: "bg-emerald-100 text-emerald-600" },
-  EVENT_PENDING_APPROVAL: { label: "Sự kiện chờ duyệt", color: "bg-amber-100 text-amber-600" },
-  PUBLISHED: { label: "Đã công bố", color: "bg-blue-100 text-blue-600" },
-  ONGOING: { label: "Đang diễn ra", color: "bg-green-100 text-green-600" },
-  COMPLETED: { label: "Đã kết thúc", color: "bg-indigo-100 text-indigo-600" },
-  CANCELLED: { label: "Đã hủy", color: "bg-red-100 text-red-600" },
-  REJECTED: { label: "Đã từ chối", color: "bg-rose-100 text-rose-600" },
-  CONVERTED: { label: "Sự kiện đã bị hủy", color: "bg-slate-100 text-slate-600" },
-};
-
-const formatFullDateTime = (iso) => {
-  if (!iso) return "—";
-  return new Date(iso).toLocaleString('vi-VN', {
-    weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
-    hour: '2-digit', minute: '2-digit'
-  });
-};
-
-const formatDate = (iso) => {
-  if (!iso) return "—";
-  return new Date(iso).toLocaleDateString('vi-VN', {
-    weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
-  });
-};
-
-const formatDateTime = (iso) => {
-  if (!iso) return "—";
-  return new Date(iso).toLocaleString('vi-VN', {
-    year: 'numeric', month: '2-digit', day: '2-digit',
-    hour: '2-digit', minute: '2-digit'
-  });
-};
-
-const getRegistrationStatus = (status) => {
-  switch (status) {
-    case "REGISTERED": return { label: "Đã đăng ký", color: "bg-blue-100 text-blue-700" };
-    case "PENDING": return { label: "Chờ duyệt", color: "bg-amber-100 text-amber-700" };
-    case "ATTENDED": return { label: "Đã tham gia", color: "bg-emerald-100 text-emerald-700" };
-    case "CANCELLED": return { label: "Đã hủy", color: "bg-red-100 text-red-700" };
-    default: return { label: status || "Không xác định", color: "bg-gray-100 text-gray-600" };
-  }
-};
-
-const getOrganizerRole = (role) => {
-  switch (role) {
-    case "LEADER": return { label: "Ban tổ chức", color: "bg-purple-100 text-purple-700" };
-    case "COORDINATOR": return { label: "Điều phối viên", color: "bg-indigo-100 text-indigo-700" };
-    case "MEMBER": return { label: "Thành viên", color: "bg-blue-100 text-blue-700" };
-    case "ADVISOR": return { label: "Cố vấn", color: "bg-emerald-100 text-emerald-700" };
-    case "PARTICIPANT": return { label: "Người tham gia", color: "bg-slate-100 text-slate-600" };
-    default: return { label: role, color: "bg-gray-100 text-gray-600" };
-  }
-};
+import { useLanguage } from "../../../context/LanguageContext";
 
 const EventDetailManagement = ({
   event,
@@ -142,30 +80,6 @@ const EventDetailManagement = ({
   onEditInfo = () => { },
   onCancelEvent = () => { },
   onDeleteEvent = () => { },
-  // Invitations
-  isAddingMember,
-  setIsAddingMember,
-  showUserSuggestions,
-  setShowUserSuggestions,
-  searchKey,
-  setSearchKey,
-  loadingUsers,
-  filteredUsers,
-  invitations,
-  addInvite,
-  updateInvite,
-  removeInvite,
-  handleSendInvites,
-  isInviting,
-  // Presenters
-  isAddingPresenter,
-  setIsAddingPresenter,
-  presenterInvitations,
-  addPresenterInvite,
-  updatePresenterInvite,
-  removePresenterInvite,
-  handleSendPresenterInvites,
-  isInvitingPresenter,
   // Modals
   onOpenLuckyDrawModal = () => { },
   showCancelInput,
@@ -177,7 +91,6 @@ const EventDetailManagement = ({
   setShowDeleteConfirm,
   isDeleting,
   // Data actions
-  onFetchUsers = () => { },
   onRemoveMember = () => { },
   onLeaveTeam = () => { },
   onApproveLeave = () => { },
@@ -193,7 +106,216 @@ const EventDetailManagement = ({
   onRefresh = () => { },
 }) => {
   const navigate = useNavigate();
+  const { id } = useParams();
   const { user: authUser } = useAuth();
+  const { t, language } = useLanguage();
+
+  const STATUS_CONFIG = {
+    DRAFT: { label: t('status_draft'), color: "bg-gray-100 text-gray-600" },
+    PLAN_PENDING_APPROVAL: { label: t('status_plan_pending'), color: "bg-orange-100 text-orange-600" },
+    PLAN_APPROVED: { label: t('status_plan_approved'), color: "bg-emerald-100 text-emerald-600" },
+    EVENT_PENDING_APPROVAL: { label: t('status_event_pending'), color: "bg-amber-100 text-amber-600" },
+    PUBLISHED: { label: t('status_published'), color: "bg-blue-100 text-blue-600" },
+    ONGOING: { label: t('status_ongoing'), color: "bg-green-100 text-green-600" },
+    COMPLETED: { label: t('status_completed'), color: "bg-indigo-100 text-indigo-600" },
+    CANCELLED: { label: t('status_cancelled'), color: "bg-red-100 text-red-600" },
+    REJECTED: { label: t('status_rejected'), color: "bg-rose-100 text-rose-600" },
+    CONVERTED: { label: t('status_converted'), color: "bg-slate-100 text-slate-600" },
+  };
+
+  const ORGANIZER_ROLES = [
+    { label: t('organizer_team'), value: "LEADER" },
+    { label: t('role_lecturer'), value: "COORDINATOR" },
+    { label: t('role_member'), value: "MEMBER" },
+    { label: t('role_secretary'), value: "ADVISOR" },
+  ];
+
+  const formatFullDateTime = (iso) => {
+    if (!iso) return "—";
+    return new Date(iso).toLocaleString(language === 'VI' ? 'vi-VN' : 'en-US', {
+      weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
+      hour: '2-digit', minute: '2-digit'
+    });
+  };
+
+  const formatDate = (iso) => {
+    if (!iso) return "—";
+    return new Date(iso).toLocaleDateString(language === 'VI' ? 'vi-VN' : 'en-US', {
+      weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
+    });
+  };
+
+  const formatDateTime = (iso) => {
+    if (!iso) return "—";
+    return new Date(iso).toLocaleString(language === 'VI' ? 'vi-VN' : 'en-US', {
+      year: 'numeric', month: '2-digit', day: '2-digit',
+      hour: '2-digit', minute: '2-digit'
+    });
+  };
+
+  const getRegistrationStatus = (status) => {
+    switch (status) {
+      case "REGISTERED": return { label: t('registered_label'), color: "bg-blue-100 text-blue-700" };
+      case "PENDING": return { label: t('status_plan_pending'), color: "bg-amber-100 text-amber-700" };
+      case "ATTENDED": return { label: t('checked_in_status'), color: "bg-emerald-100 text-emerald-700" };
+      case "CANCELLED": return { label: t('status_cancelled'), color: "bg-red-100 text-red-700" };
+      default: return { label: status || "—", color: "bg-gray-100 text-gray-600" };
+    }
+  };
+
+  const getOrganizerRole = (role) => {
+    const roleKey = `role_${role?.toLowerCase()}`;
+    return { label: t(roleKey) || role, color: "bg-purple-100 text-purple-700" };
+  };
+
+  // --- INTERNAL INVITATION STATE (Moved from parent pages) ---
+  const [isAddingMember, setIsAddingMember] = useState(false);
+  const [invitations, setInvitations] = useState([]);
+  const [isInviting, setIsInviting] = useState(false);
+
+  const [isAddingPresenter, setIsAddingPresenter] = useState(false);
+  const [presenterInvitations, setPresenterInvitations] = useState([]);
+  const [isInvitingPresenter, setIsInvitingPresenter] = useState(false);
+
+  const [showUserSuggestions, setShowUserSuggestions] = useState(false);
+  const [searchKey, setSearchKey] = useState("");
+  const [systemUsers, setSystemUsers] = useState([]);
+  const [loadingUsers, setLoadingUsers] = useState(false);
+
+  const fetchUsers = async () => {
+    setLoadingUsers(true);
+    try {
+      const res = await authService.getAllAccounts();
+      setSystemUsers(res.data || []);
+    } catch (err) {
+      toast.error("Lỗi lấy danh sách người dùng");
+    } finally {
+      setLoadingUsers(false);
+    }
+  };
+
+  const filteredUsers = useMemo(() => {
+    return systemUsers.filter(u =>
+      (u.profile?.fullName || "").toLowerCase().includes(searchKey.toLowerCase()) ||
+      (u.email || "").toLowerCase().includes(searchKey.toLowerCase())
+    );
+  }, [systemUsers, searchKey]);
+
+  const addInvite = (user = null) => {
+    if (user) {
+      if (invitations.some(inv => inv.inviteeEmail === user.email || inv.inviteeAccountId === user.id)) {
+        toast.info("Người dùng này đã có trong danh sách chuẩn bị mời");
+        return;
+      }
+    }
+    const newInvite = user ? {
+      inviteeEmail: user.email || "",
+      inviteeAccountId: user.id || "",
+      fullName: user.fullName || user.profile?.fullName || user.username || "",
+      targetRole: "MEMBER",
+      message: ""
+    } : { inviteeEmail: "", inviteeAccountId: "", fullName: "", targetRole: "MEMBER", message: "" };
+
+    if (user) {
+      const emptyIdx = invitations.findIndex(inv => !inv.inviteeEmail);
+      if (emptyIdx !== -1) {
+        const newList = [...invitations];
+        newList[emptyIdx] = newInvite;
+        setInvitations(newList);
+        return;
+      }
+    }
+    setInvitations([...invitations, newInvite]);
+  };
+
+  const updateInvite = (idx, field, val) => {
+    const newList = [...invitations];
+    newList[idx][field] = val;
+    // Auto-fill if email matches a system user
+    if (field === 'inviteeEmail' && val) {
+      const matchedUser = systemUsers.find(u => u.email?.toLowerCase() === val.toLowerCase());
+      if (matchedUser) {
+        newList[idx].inviteeAccountId = matchedUser.id;
+        newList[idx].fullName = matchedUser.profile?.fullName || matchedUser.fullName || matchedUser.username;
+      }
+    }
+    setInvitations(newList);
+  };
+
+  const handleSendInvites = async () => {
+    try {
+      const validInvites = invitations.filter(inv => inv.inviteeEmail?.trim() !== "");
+      if (validInvites.length === 0) return;
+      setIsInviting(true);
+      await eventService.sendOrganizerInvitations(event.id, { invitations: validInvites });
+      toast.success("Đã gửi lời mời!");
+      setInvitations([]);
+      setIsAddingMember(false);
+      onRefresh();
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Lỗi gửi lời mời");
+    } finally {
+      setIsInviting(false);
+    }
+  };
+
+  const addPresenterInvite = (user = null) => {
+    if (user) {
+      if (presenterInvitations.some(inv => inv.inviteeEmail === user.email || inv.inviteeAccountId === user.id)) {
+        toast.info("Người dùng này đã có trong danh sách chuẩn bị mời");
+        return;
+      }
+    }
+    const newInvite = user ? {
+      inviteeEmail: user.email || "",
+      inviteeAccountId: user.id || "",
+      fullName: user.fullName || user.profile?.fullName || user.username || "",
+      session: "ALL",
+      bio: ""
+    } : { inviteeEmail: "", inviteeAccountId: "", fullName: "", session: "ALL", bio: "" };
+
+    if (user) {
+      const emptyIdx = presenterInvitations.findIndex(inv => !inv.inviteeEmail);
+      if (emptyIdx !== -1) {
+        const newList = [...presenterInvitations];
+        newList[emptyIdx] = newInvite;
+        setPresenterInvitations(newList);
+        return;
+      }
+    }
+    setPresenterInvitations([...presenterInvitations, newInvite]);
+  };
+
+  const updatePresenterInvite = (idx, field, val) => {
+    const newList = [...presenterInvitations];
+    newList[idx][field] = val;
+    if (field === 'inviteeEmail' && val) {
+      const matchedUser = systemUsers.find(u => u.email?.toLowerCase() === val.toLowerCase());
+      if (matchedUser) {
+        newList[idx].inviteeAccountId = matchedUser.id;
+        newList[idx].fullName = matchedUser.profile?.fullName || matchedUser.fullName || matchedUser.username;
+      }
+    }
+    setPresenterInvitations(newList);
+  };
+
+  const handleSendPresenterInvites = async () => {
+    try {
+      const validInvites = presenterInvitations.filter(inv => inv.inviteeEmail?.trim() !== "");
+      if (validInvites.length === 0) return;
+      setIsInvitingPresenter(true);
+      await eventService.sendPresenterInvitations(event.id, { invitations: validInvites });
+      toast.success("Đã gửi lời mời diễn giả!");
+      setPresenterInvitations([]);
+      setIsAddingPresenter(false);
+      onRefresh();
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Lỗi gửi lời mời");
+    } finally {
+      setIsInvitingPresenter(false);
+    }
+  };
+
   const [subTabOrganizer, setSubTabOrganizer] = React.useState("ALL");
   const [enrichedNames, setEnrichedNames] = useState({});
   const [showConfirmModal, setShowConfirmModal] = useState(false);
@@ -525,16 +647,16 @@ const EventDetailManagement = ({
     const tabs = [];
 
     // 1. Tổng quan (Giai đoạn chuẩn bị - Thông tin)
-    tabs.push({ key: "Tổng quan", label: "Tổng quan", icon: Info });
+    tabs.push({ key: t('overview'), label: t('overview'), icon: Info });
 
     // 2. Chương trình (Giai đoạn chuẩn bị - Nội dung)
-    tabs.push({ key: "Chương trình", label: "Chương trình", icon: List });
+    tabs.push({ key: t('program'), label: t('program'), icon: List });
 
     // 3. Diễn giả (Giai đoạn chuẩn bị - Nhân sự then chốt)
-    tabs.push({ key: "Diễn giả", label: "Diễn giả", icon: Star });
+    tabs.push({ key: t('presenters'), label: t('presenters'), icon: Star });
 
     // 4. Ban tổ chức (Giai đoạn chuẩn bị - Đội ngũ vận hành)
-    tabs.push({ key: "Ban tổ chức", label: "Ban tổ chức", icon: Users });
+    tabs.push({ key: t('organizer_team'), label: t('organizer_team'), icon: Users });
 
     // Nếu là Kế hoạch hoặc Diễn giả (không phải Core Team), CHỈ hiện 4 tab trên
     if (isPlan || (isPresenter && !isCoreTeam)) {
@@ -546,49 +668,49 @@ const EventDetailManagement = ({
     // 5. Đăng ký (Giai đoạn vận hành - Trước sự kiện)
     if (canSeeAll || isMember) {
       if (canSeeAll || up.canManageRegistrations) {
-        tabs.push({ key: "Đăng ký", label: "Đăng ký", icon: UserCheck });
+        tabs.push({ key: t('registrations_tab'), label: t('registrations_tab'), icon: UserCheck });
       }
     }
 
     // 6. Điểm danh (Giai đoạn vận hành - Trong sự kiện)
     if (canSeeAll || isMember) {
       if (canSeeAll || isMember || up.canCheckIn) {
-        tabs.push({ key: "Điểm danh", label: "Điểm danh", icon: CheckCircle });
+        tabs.push({ key: t('attendance_tab'), label: t('attendance_tab'), icon: CheckCircle });
       }
     }
 
     // 7. Thử thách (Giai đoạn tương tác)
     if (canSeeAll) {
-      tabs.push({ key: "Thử thách", label: "Thử thách", icon: Trophy });
+      tabs.push({ key: t('challenges'), label: t('challenges'), icon: Trophy });
     }
 
     // 8. Khảo sát (Giai đoạn tương tác/Phản hồi)
     if (canSeeAll) {
-      tabs.push({ key: "Khảo sát", label: "Khảo sát", icon: ClipboardCheck });
+      tabs.push({ key: t('survey'), label: t('survey'), icon: ClipboardCheck });
     }
 
     // Vòng quay may mắn (Giai đoạn tương tác - Nếu có)
     if (canSeeAll && event?.hasLuckyDraw) {
-      tabs.push({ key: "Vòng quay", label: "Vòng quay may mắn", icon: Gift });
+      tabs.push({ key: t('lucky_draw_tab'), label: t('lucky_draw_tab'), icon: Gift });
     }
 
     // 9. Thống kê (Giai đoạn kết thúc - Báo cáo)
     if (canSeeAll || isAdvisor || up.canViewAnalytics) {
-      tabs.push({ key: "Thống kê", label: "Thống kê", icon: TrendingUp });
+      tabs.push({ key: t('statistics'), label: t('statistics'), icon: TrendingUp });
     }
 
     // 10. Phân tích AI (Giai đoạn hậu sự kiện)
     if (canSeeAll || up.canViewAnalytics) {
-      tabs.push({ key: "Phân tích AI", label: "Phân tích AI", icon: Bot });
+      tabs.push({ key: t('ai_analysis'), label: t('ai_analysis'), icon: Bot });
     }
 
     // 11. Cài đặt (Hệ thống)
     if (canSeeAll || up.canEditEvent || event.currentUserRole?.organizerRole) {
-      tabs.push({ key: "Cài đặt", label: "Cài đặt", icon: Settings });
+      tabs.push({ key: t('settings'), label: t('settings'), icon: Settings });
     }
 
     return tabs;
-  }, [event, up, isCoreTeam, isPresenter, isMember, isAdvisor, canSeeAll, isAdmin]);
+  }, [event, up, isCoreTeam, isPresenter, isMember, isAdvisor, canSeeAll, isAdmin, t]);
 
   console.log("Event: ", event);
 
@@ -596,7 +718,7 @@ const EventDetailManagement = ({
     <div className="min-h-screen bg-gray-50 flex items-center justify-center">
       <div className="text-center">
         <div className="animate-spin w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full mx-auto"></div>
-        <p className="mt-4 text-gray-500">Đang tải thông tin sự kiện...</p>
+        <p className="mt-4 text-gray-500">{t('loading')}</p>
       </div>
     </div>
   );
@@ -604,8 +726,8 @@ const EventDetailManagement = ({
   if (!event) return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center">
       <div className="text-center text-red-500">
-        <p>Không tìm thấy sự kiện hoặc đã xảy ra lỗi.</p>
-        <button onClick={() => navigate(-1)} className="mt-4 px-6 py-2 bg-gray-800 text-white rounded-xl">Quay lại</button>
+        <p>{t('event_not_found')}</p>
+        <button onClick={() => navigate(-1)} className="mt-4 px-6 py-2 bg-gray-800 text-white rounded-xl">{t('back_btn')}</button>
       </div>
     </div>
   );
@@ -627,25 +749,25 @@ const EventDetailManagement = ({
     // 2. Kiểm tra vai trò Người tạo/Duyệt (Creator/Approver)
     // Jackson thường serialize 'isCreator' thành 'creator' hoặc 'isCreator'
     if (up.isCreator || up.creator) {
-      roles.push({ label: "Trưởng ban (Người tạo)", color: "bg-indigo-600 text-white" });
+      roles.push({ label: t('role_leader'), color: "bg-indigo-600 text-white" });
     }
     if (up.isApprover || up.approver) {
-      roles.push({ label: "Người duyệt sự kiện", color: "bg-emerald-600 text-white" });
+      roles.push({ label: t('role_approver'), color: "bg-emerald-600 text-white" });
     }
 
     // 3. Kiểm tra vai trò Diễn giả (Presenter)
     if (up.isPresented || up.presented || up.presenter) {
-      roles.push({ label: "Diễn giả", color: "bg-amber-500 text-white" });
+      roles.push({ label: t('presenter'), color: "bg-amber-500 text-white" });
     }
 
     // 4. Kiểm tra vai trò Người tham gia (Participant)
     if (up.isRegistered || up.registered || up.registration) {
-      roles.push({ label: "Người tham gia", color: "bg-blue-500 text-white" });
+      roles.push({ label: t('participants'), color: "bg-blue-500 text-white" });
     }
 
     // 5. Nếu chưa có vai trò cụ thể nào trong sự kiện nhưng là Admin hệ thống
     if (roles.length === 0 && isAdmin) {
-      roles.push({ label: "Quản trị viên hệ thống", color: "bg-slate-800 text-white" });
+      roles.push({ label: t('role_admin'), color: "bg-slate-800 text-white" });
     }
     return roles;
   };
@@ -663,7 +785,7 @@ const EventDetailManagement = ({
           onClick={() => onBack ? onBack() : navigate(-1)}
           className="absolute top-6 left-6 flex items-center gap-2 bg-white/90 hover:bg-white px-5 py-2.5 rounded-2xl text-sm font-medium shadow transition-all"
         >
-          <ArrowLeft size={18} /> Quay lại
+          <ArrowLeft size={18} /> {t('back_btn')}
         </button>
         <div className="absolute top-6 right-6 flex items-center gap-3">
           <span className={`px-5 py-2 rounded-2xl text-sm font-medium ${currentStatus.color}`}>{currentStatus.label}</span>
@@ -797,7 +919,7 @@ const EventDetailManagement = ({
                 <OrganizerInvitation
                   isAddingMember={isAddingMember}
                   setIsAddingMember={setIsAddingMember}
-                  onFetchUsers={onFetchUsers}
+                  onFetchUsers={fetchUsers}
                   showUserSuggestions={showUserSuggestions}
                   setShowUserSuggestions={setShowUserSuggestions}
                   searchKey={searchKey}
@@ -806,7 +928,7 @@ const EventDetailManagement = ({
                   filteredUsers={filteredUsers}
                   invitations={invitations}
                   addInvite={addInvite}
-                  removeInvite={removeInvite}
+                  removeInvite={(idx) => setInvitations(invitations.filter((_, i) => i !== idx))}
                   updateInvite={updateInvite}
                   handleSendInvites={handleSendInvites}
                   isInviting={isInviting}
@@ -842,7 +964,7 @@ const EventDetailManagement = ({
                 isAddingPresenter={isAddingPresenter}
                 setIsAddingPresenter={setIsAddingPresenter}
                 addPresenterInvite={addPresenterInvite}
-                onFetchUsers={onFetchUsers}
+                onFetchUsers={fetchUsers}
                 showUserSuggestions={showUserSuggestions}
                 setShowUserSuggestions={setShowUserSuggestions}
                 searchKey={searchKey}
@@ -850,7 +972,7 @@ const EventDetailManagement = ({
                 loadingUsers={loadingUsers}
                 filteredUsers={filteredUsers}
                 presenterInvitations={presenterInvitations}
-                removePresenterInvite={removePresenterInvite}
+                removePresenterInvite={(idx) => setPresenterInvitations(presenterInvitations.filter((_, i) => i !== idx))}
                 updatePresenterInvite={updatePresenterInvite}
                 handleSendPresenterInvites={handleSendPresenterInvites}
                 isInvitingPresenter={isInvitingPresenter}

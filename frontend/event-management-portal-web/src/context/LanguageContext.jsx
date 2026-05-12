@@ -20,13 +20,19 @@ const translations = {
     admin_dashboard: "Bảng điều khiển Admin",
     org_dashboard: "Bảng điều khiển BTC",
     my_events: "Sự kiện của tôi",
-    
+    admin_dashboard_title: "Bảng điều khiển hệ thống",
+    personal_account: "Tài khoản cá nhân",
+    system_config: "Cấu hình hệ thống",
+    no_email: "Chưa cập nhật email",
+    confirm_logout_title: "Đăng xuất?",
+    confirm_logout_question: "Bạn có chắc chắn muốn rời khỏi hệ thống ngay bây giờ không?",
+
     // Notifications
     notifications: "Thông báo",
     no_notifications: "Không có thông báo mới",
     mark_all_read: "Đánh dấu tất cả đã đọc",
     view_all_notifications: "Xem tất cả thông báo",
-    
+
     // Landing Page
     welcome: "Chào mừng đến với",
     event_iuh: "Sự Kiện IUH",
@@ -58,7 +64,7 @@ const translations = {
     ongoing: "Đang diễn ra",
     upcoming: "Sắp diễn ra",
     unread_notifications: "thông báo chưa đọc",
-    
+
     // Footer
     iuh_full_name: "Đại học Công nghiệp TP. Hồ Chí Minh",
     address_label: "Địa chỉ",
@@ -71,7 +77,7 @@ const translations = {
     online_count: "Đang online",
     copyright: "© 2026 Đại học Công nghiệp TP.HCM - IUH",
     back_to_home: "Quay về trang chủ",
-    
+
     // Campuses
     main_campus_addr: "Số 12 Nguyễn Văn Bảo, P. 4, Q. Gò Vấp, TP. Hồ Chí Minh",
     branch_nv_dung: "Nguyễn Văn Dung",
@@ -86,7 +92,7 @@ const translations = {
     branch_thanh_hoa_addr: "Phường Quảng Phú, tỉnh Thanh Hóa",
     branch_quang_ngai: "Phân hiệu Quảng Ngãi",
     branch_quang_ngai_addr: "Số 938 đường Quang Trung, phường Chánh Lộ, tỉnh Quảng Ngãi",
-    
+
     // Login
     login_title: "Đăng nhập",
     welcome_back: "Chào mừng bạn quay trở lại!",
@@ -118,7 +124,7 @@ const translations = {
     login_feat_users_desc: "Phân quyền linh hoạt theo vai trò",
     login_feat_stats: "Thống kê realtime",
     login_feat_stats_desc: "Báo cáo và phân tích dữ liệu tức thì",
-    
+
     // Event Feed
     search_by_name: "Tìm theo tên sự kiện",
     enter_event_name: "Nhập tên sự kiện...",
@@ -132,7 +138,7 @@ const translations = {
     no_events_match: "Không tìm thấy sự kiện nào",
     page_count_label: "Trang",
     reg_deadline_label: "Hạn đăng ký",
-    
+
     // Event Detail
     event_intro: "Giới thiệu sự kiện",
     target_audience: "Đối tượng tham gia",
@@ -146,7 +152,6 @@ const translations = {
     registered_label: "Đã đăng ký",
     deadline_label: "Thời hạn",
     seats_label: "Ghế",
-    register_now: "Đăng ký ngay",
     cancel_reg: "Hủy đăng ký tham gia",
     survey_label: "Khảo sát",
     q_and_a_label: "Hỏi đáp",
@@ -172,7 +177,7 @@ const translations = {
     view_ticket: "Xem vé tham gia",
     scan_checkin: "Quét mã điểm danh",
     reg_deadline_passed: "Hết hạn đăng ký",
-    
+
     // Attendance
     auto_checkin: "Check-in tự động",
     scanner_desc: "Đưa mã QR của sinh viên vào khung quét. Hệ thống sẽ đối soát với danh sách đăng ký và ghi nhận điểm danh ngay lập tức.",
@@ -186,7 +191,7 @@ const translations = {
     try_again_btn: "THỬ LẠI",
     camera_access_error: "Không thể truy cập camera. Vui lòng kiểm tra quyền truy cập.",
     checkin_success_toast: "Điểm danh thành công!",
-    
+
     // Register Modal
     login_required_title: "Yêu cầu đăng nhập",
     confirm_reg_title: "Xác nhận đăng ký",
@@ -197,7 +202,7 @@ const translations = {
     confirm_now: "Xác nhận ngay",
     guest_note: "Vui lòng đăng nhập để có thể tham gia các hoạt động của sự kiện.",
     member_note: "Bằng cách nhấn xác nhận, bạn đồng ý với các điều khoản tham gia của sự kiện này.",
-    
+
     // Sidebar
     overview: "Tổng quan",
     propose_plans: "Đề xuất kế hoạch",
@@ -209,7 +214,7 @@ const translations = {
     permissions: "Phân quyền hệ thống",
     templates: "Kho mẫu sự kiện",
     games: "Trò chơi & Vòng quay",
-    
+
     // Calendar
     mon: "Thứ 2",
     tue: "Thứ 3",
@@ -230,7 +235,55 @@ const translations = {
     more_events: "sự kiện khác",
     close_btn: "Đóng",
     registered_count: "người đã đăng ký",
+    program: "Chương trình",
+    presenters: "Diễn giả",
+    organizer_team: "Ban tổ chức",
+    registrations_tab: "Đăng ký",
+    attendance_tab: "Điểm danh",
+    challenges: "Thử thách",
+    survey: "Khảo sát",
+    lucky_draw_tab: "Vòng quay may mắn",
+    statistics: "Thống kê",
+    ai_analysis: "Phân tích AI",
+    settings: "Cài đặt",
     
+    // Statuses
+    status_draft: "Bản nháp",
+    status_plan_pending: "Kế hoạch chờ duyệt",
+    status_plan_approved: "Kế hoạch đã duyệt",
+    status_event_pending: "Sự kiện chờ duyệt",
+    status_published: "Đã công bố",
+    status_ongoing: "Đang diễn ra",
+    status_completed: "Đã kết thúc",
+    status_cancelled: "Đã hủy",
+    status_rejected: "Đã từ chối",
+    status_converted: "Sự kiện đã bị hủy",
+    event_timeline: "Lộ trình thời gian",
+    reg_deadline_short: "Hạn đăng ký",
+    start_short: "Bắt đầu",
+    end_short: "Kết thúc",
+    today: "HÔM NAY",
+    current_time: "Hiện tại",
+    your_permissions: "Quyền hạn của bạn",
+    current_position: "Vị trí hiện tại",
+    operation_capability: "Khả năng thao tác",
+    view_as_guest: "Bạn đang xem với tư cách khách",
+    general_info: "Thông tin chung",
+    event_topic: "Chủ đề",
+    event_type_label: "Loại sự kiện",
+    max_participants_label: "Số lượng tối đa",
+    target_audience_label: "Đối tượng & Đơn vị",
+    target_objects: "Đối tượng mục tiêu",
+    responsible_personnel: "Nhân sự phụ trách",
+    event_creator_label: "Người tạo sự kiện",
+    event_approver_label: "Người duyệt sự kiện",
+    unlimited: "Không giới hạn",
+    edit_event_perm: "Chỉnh sửa sự kiện",
+    manage_team_perm: "Quản lý nhân sự",
+    checkin_perm: "Thực hiện điểm danh",
+    view_stats_perm: "Xem báo cáo thống kê",
+    people: "người",
+
     // News / Posts
     news_banner_title: "Bảng tin sự kiện",
     news_banner_subtitle: "Khám phá các câu chuyện và khoảnh khắc từ sự kiện của chúng tôi",
@@ -274,7 +327,7 @@ const translations = {
     react_respect: "Trân trọng",
     react_perfect: "Tuyệt đối",
     react_useful: "Hữu ích",
-    
+
     // Comment Sorting & Interaction
     sort_relevant: "Phù hợp nhất",
     sort_newest: "Mới nhất",
@@ -306,7 +359,8 @@ const translations = {
     role_secretary: "Thư ký",
     role_member_org: "Thành viên tổ chức",
     role_guest: "Khách",
-    
+    role_approver: "Người duyệt sự kiện",
+
     // Common
     loading: "Đang tải...",
     cancel: "Hủy",
@@ -329,13 +383,19 @@ const translations = {
     admin_dashboard: "Admin Dashboard",
     org_dashboard: "Organizer Dashboard",
     my_events: "My Events",
-    
+    admin_dashboard_title: "System Control Panel",
+    personal_account: "Personal Account",
+    system_config: "System Configuration",
+    no_email: "No email updated",
+    confirm_logout_title: "Logout?",
+    confirm_logout_question: "Are you sure you want to leave the system now?",
+
     // Notifications
     notifications: "Notifications",
     no_notifications: "No new notifications",
     mark_all_read: "Mark all as read",
     view_all_notifications: "View all notifications",
-    
+
     // Landing Page
     welcome: "Welcome to",
     event_iuh: "IUH Events",
@@ -367,7 +427,7 @@ const translations = {
     ongoing: "Ongoing",
     upcoming: "Upcoming",
     unread_notifications: "unread notifications",
-    
+
     // Footer
     iuh_full_name: "Industrial University of Ho Chi Minh City",
     address_label: "Address",
@@ -380,7 +440,7 @@ const translations = {
     online_count: "Online",
     copyright: "© 2026 Industrial University of Ho Chi Minh City - IUH",
     back_to_home: "Back to home",
-    
+
     // Campuses
     main_campus_addr: "12 Nguyen Van Bao, Ward 4, Go Vap District, Ho Chi Minh City",
     branch_nv_dung: "Nguyen Van Dung Campus",
@@ -395,7 +455,7 @@ const translations = {
     branch_thanh_hoa_addr: "Quang Phu Ward, Thanh Hoa Province",
     branch_quang_ngai: "Quang Ngai Branch",
     branch_quang_ngai_addr: "938 Quang Trung Street, Chanh Lo Ward, Quang Ngai Province",
-    
+
     // Login
     login_title: "Login",
     welcome_back: "Welcome back!",
@@ -427,7 +487,7 @@ const translations = {
     login_feat_users_desc: "Flexible role-based access control",
     login_feat_stats: "Real-time Statistics",
     login_feat_stats_desc: "Instant data reporting and analysis",
-    
+
     // Event Feed
     search_by_name: "Search by event name",
     enter_event_name: "Enter event name...",
@@ -441,7 +501,7 @@ const translations = {
     no_events_match: "No events found",
     page_count_label: "Page",
     reg_deadline_label: "Registration deadline",
-    
+
     // Event Detail
     event_intro: "Event Introduction",
     target_audience: "Target Audience",
@@ -455,7 +515,6 @@ const translations = {
     registered_label: "Registered",
     deadline_label: "Deadline",
     seats_label: "Seats",
-    register_now: "Register Now",
     cancel_reg: "Cancel Registration",
     survey_label: "Survey",
     q_and_a_label: "Q&A",
@@ -481,7 +540,7 @@ const translations = {
     view_ticket: "View Ticket",
     scan_checkin: "Scan Check-in",
     reg_deadline_passed: "Registration deadline passed",
-    
+
     // Attendance
     auto_checkin: "Automatic Check-in",
     scanner_desc: "Place the student's QR code in the scanning frame. The system will match it with the registration list and record attendance instantly.",
@@ -495,7 +554,7 @@ const translations = {
     try_again_btn: "TRY AGAIN",
     camera_access_error: "Cannot access camera. Please check permissions.",
     checkin_success_toast: "Check-in successful!",
-    
+
     // Register Modal
     login_required_title: "Login Required",
     confirm_reg_title: "Confirm Registration",
@@ -506,7 +565,7 @@ const translations = {
     confirm_now: "Confirm Now",
     guest_note: "Please login to participate in event activities.",
     member_note: "By confirming, you agree to the event's terms and conditions.",
-    
+
     // Sidebar
     overview: "Overview",
     propose_plans: "Propose Plans",
@@ -539,6 +598,54 @@ const translations = {
     more_events: "more events",
     close_btn: "Close",
     registered_count: "registered",
+    program: "Program",
+    presenters: "Presenters",
+    organizer_team: "Organizer Team",
+    registrations_tab: "Registrations",
+    attendance_tab: "Attendance",
+    challenges: "Challenges",
+    survey: "Survey",
+    lucky_draw_tab: "Lucky Draw",
+    statistics: "Statistics",
+    ai_analysis: "AI Analysis",
+    settings: "Settings",
+
+    // Statuses
+    status_draft: "Draft",
+    status_plan_pending: "Plan Pending",
+    status_plan_approved: "Plan Approved",
+    status_event_pending: "Event Pending",
+    status_published: "Published",
+    status_ongoing: "Ongoing",
+    status_completed: "Completed",
+    status_cancelled: "Cancelled",
+    status_rejected: "Rejected",
+    status_converted: "Event Cancelled",
+    event_timeline: "Event Timeline",
+    reg_deadline_short: "Reg Deadline",
+    start_short: "Start",
+    end_short: "End",
+    today: "TODAY",
+    current_time: "Now",
+    your_permissions: "Your Permissions",
+    current_position: "Current Position",
+    operation_capability: "Capabilities",
+    view_as_guest: "You are viewing as guest",
+    general_info: "General Info",
+    event_topic: "Topic",
+    event_type_label: "Event Type",
+    max_participants_label: "Max Participants",
+    target_audience_label: "Audience & Units",
+    target_objects: "Target Audience",
+    responsible_personnel: "Responsible Personnel",
+    event_creator_label: "Event Creator",
+    event_approver_label: "Event Approver",
+    unlimited: "Unlimited",
+    edit_event_perm: "Edit Event",
+    manage_team_perm: "Manage Team",
+    checkin_perm: "Perform Check-in",
+    view_stats_perm: "View Statistics",
+    people: "people",
 
     // News / Posts
     news_banner_title: "Event Bulletin",
@@ -615,7 +722,8 @@ const translations = {
     role_secretary: "Secretary",
     role_member_org: "Org Member",
     role_guest: "Guest",
-    
+    role_approver: "Event Approver",
+
     // Common
     loading: "Loading...",
     cancel: "Cancel",

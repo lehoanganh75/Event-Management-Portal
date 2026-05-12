@@ -119,7 +119,7 @@ const PresenterTab = ({
                             className={`w-full h-full object-cover ${p.isPending ? "grayscale-[0.3]" : ""}`}
                           />
                         </div>
-                        {p.isPending && (
+                        {p.isPending && p.status === 'PENDING' && (
                           <div className="absolute -top-1 -right-1 w-5 h-5 bg-amber-500 border-2 border-white rounded-full flex items-center justify-center shadow-sm">
                             <Clock size={10} className="text-white animate-spin-slow" />
                           </div>
@@ -148,7 +148,7 @@ const PresenterTab = ({
                               <span className="text-[11px] font-semibold">{p.phone}</span>
                             </div>
                           )}
-                          {p.isPending && (
+                          {p.isPending && p.status === 'PENDING' && (
                             <div className="flex items-center gap-1.5 text-amber-600 border-l border-slate-200 pl-4">
                               <Clock size={12} className="text-amber-400" />
                               <span className="text-[10px] font-bold">Mời lúc: {formatDateTime(p.createdAt)}</span>

@@ -197,7 +197,7 @@ const OrganizerTab = ({
                               <div className="w-1.5 h-1.5 bg-white rounded-full animate-pulse" />
                             </div>
                           )}
-                          {org.isPending && (
+                          {org.isPending && org.status === 'PENDING' && (
                             <div className="absolute -top-1 -right-1 w-5 h-5 bg-amber-500 border-2 border-white rounded-full flex items-center justify-center shadow-sm">
                               <Clock size={10} className="text-white animate-spin-slow" />
                             </div>
@@ -209,12 +209,16 @@ const OrganizerTab = ({
                               {org.fullName}
                             </span>
                             {isMe && <span className="px-1.5 py-0.5 bg-indigo-600 text-white text-[8px] font-black rounded-md uppercase tracking-widest">TÔI</span>}
-                            {org.isPending && <span className="px-2 py-0.5 bg-amber-100 text-amber-700 text-[9px] font-black rounded-lg uppercase tracking-wider border border-amber-200">Đang mời</span>}
+                            {org.status === 'REJECTED' ? (
+                              <span className="px-2 py-0.5 bg-rose-100 text-rose-700 text-[9px] font-black rounded-lg uppercase tracking-wider border border-rose-200">Đã từ chối</span>
+                            ) : org.isPending && (
+                              <span className="px-2 py-0.5 bg-amber-100 text-amber-700 text-[9px] font-black rounded-lg uppercase tracking-wider border border-amber-200">Đang mời</span>
+                            )}
                           </div>
                           <p className="text-[10px] text-slate-400 font-bold leading-tight line-clamp-1 max-w-[200px]" title={org.bio}>
                             {org.bio || "Thành viên Ban tổ chức"}
                           </p>
-                          {org.isPending && (
+                          {org.isPending && org.status === 'PENDING' && (
                             <div className="flex items-center gap-1 text-[9px] text-amber-600 font-bold">
                               <Clock size={10} />
                               Mời lúc: {formatDateTime(org.createdAt)}
