@@ -229,46 +229,7 @@ const Sidebar = ({ isCollapsed, onToggle }) => {
                     </div>
                 </div>
 
-                {/* Footer / User Profile Section */}
-                <div className={`p-4 mt-auto border-t border-slate-50 bg-slate-50/30 transition-all duration-500 ${isCollapsed ? 'px-2 flex flex-col items-center' : ''}`}>
-                    <div className={`
-                        flex items-center transition-all duration-300
-                        ${isCollapsed ? 'justify-center w-full' : 'gap-3 p-2 bg-white shadow-sm border border-slate-100 rounded-2xl'}
-                    `}>
-                        <div className="relative shrink-0">
-                            <div className="w-10 h-10 rounded-xl bg-indigo-100 flex items-center justify-center text-indigo-600 font-black text-sm border-2 border-white shadow-sm">
-                                {user?.fullName?.charAt(0) || 'U'}
-                            </div>
-                            <div className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 bg-emerald-500 border-2 border-white rounded-full"></div>
-                        </div>
 
-                        {!isCollapsed && (
-                            <div className="flex-1 min-w-0">
-                                <p className="text-xs font-black text-slate-900 truncate uppercase tracking-tight">{user?.fullName || 'User'}</p>
-                                <p className="text-[10px] font-bold text-slate-400 truncate mt-0.5">{user?.email || 'user@example.com'}</p>
-                            </div>
-                        )}
-
-                        {!isCollapsed && (
-                            <button
-                                onClick={() => setShowLogoutModal(true)}
-                                className="p-2 text-slate-400 hover:text-rose-500 hover:bg-rose-50 rounded-lg transition-all"
-                                title={t('logout')}
-                            >
-                                <LogOut size={18} strokeWidth={2.5} />
-                            </button>
-                        )}
-                    </div>
-
-                    {isCollapsed && (
-                        <button
-                            onClick={() => setShowLogoutModal(true)}
-                            className="mt-4 w-10 h-10 flex items-center justify-center text-slate-400 hover:text-rose-500 hover:bg-rose-50 rounded-xl transition-all"
-                        >
-                            <LogOut size={20} strokeWidth={2.5} />
-                        </button>
-                    )}
-                </div>
             </aside>
 
             {/* Logout Confirmation Modal - Extra Premium */}
