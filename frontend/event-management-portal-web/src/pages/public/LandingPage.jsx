@@ -3,7 +3,7 @@ import React, { useEffect, useMemo, useRef } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import {
   Users, MapPin, Loader2, Gift, ChevronLeft, ChevronRight as ChevronRightIcon,
-  User, Clock, Sparkles, Calendar, BarChart3, QrCode, LayoutGrid, MessageCircle, ChevronRight
+  User, Clock, Sparkles, Calendar, BarChart3, QrCode
 } from "lucide-react";
 
 import Layout from "../../components/layout/Layout";
@@ -367,103 +367,7 @@ const LandingPage = () => {
             </div>
           </section>
 
-          {/* BẢN TIN / TIN TỨC MỚI NHẤT */}
-          <section className="mb-32">
-            <div className="flex items-center justify-between mb-10">
-              <div className="space-y-1">
-                <h2 className="text-3xl font-black text-slate-900 tracking-tight">
-                  {language === 'VI' ? 'Bản tin mới nhất' : 'Latest Bulletin'}
-                </h2>
-                <div className="h-1.5 w-20 bg-blue-600 rounded-full"></div>
-              </div>
-              <Link
-                to="/news"
-                className="group flex items-center gap-2 text-blue-600 font-bold text-xs uppercase tracking-widest hover:gap-3 transition-all"
-              >
-                {t('view_all')} <ChevronRight size={16} />
-              </Link>
-            </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-              {eventLoading ? (
-                Array(3).fill(0).map((_, i) => (
-                  <div key={i} className="bg-white rounded-3xl p-6 h-64 animate-pulse border border-slate-100 shadow-sm" />
-                ))
-              ) : posts && posts.length > 0 ? (
-                posts.slice(0, 3).map((post) => (
-                  <Link
-                    key={post.id}
-                    to={`/posts/${post.id}`}
-                    className="group bg-white rounded-[2rem] border border-slate-100 shadow-sm hover:shadow-2xl hover:shadow-blue-500/10 transition-all duration-500 overflow-hidden flex flex-col"
-                  >
-                    {/* Media Preview */}
-                    <div className="h-48 overflow-hidden relative bg-slate-100">
-                      {post.mediaUrls && post.mediaUrls.length > 0 ? (
-                        <img
-                          src={post.mediaUrls[0]}
-                          alt={post.title}
-                          className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
-                        />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center text-slate-300">
-                          <LayoutGrid size={40} strokeWidth={1} />
-                        </div>
-                      )}
-                      <div className="absolute top-4 left-4">
-                        <span className="bg-white/90 backdrop-blur-md text-blue-600 text-[10px] font-black px-3 py-1.5 rounded-xl shadow-sm uppercase">
-                          {post.postType === 'NEWS' ? t('news') : (post.postType || 'POST')}
-                        </span>
-                      </div>
-                    </div>
-
-                    <div className="p-7 flex flex-col flex-1">
-                      <div className="flex items-center gap-3 mb-4">
-                        <img
-                          src={post.author?.avatarUrl || `https://api.dicebear.com/7.x/initials/svg?seed=${post.author?.fullName}`}
-                          className="w-6 h-6 rounded-lg object-cover"
-                          alt="author"
-                        />
-                        <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider truncate">
-                          {post.author?.fullName || 'IUH Admin'}
-                        </span>
-                        <div className="w-1 h-1 bg-slate-300 rounded-full ml-auto" />
-                        <span className="text-[10px] font-medium text-slate-400">
-                          {new Date(post.createdAt).toLocaleDateString(language === 'VI' ? 'vi-VN' : 'en-US')}
-                        </span>
-                      </div>
-
-                      <h3 className="text-lg font-bold text-slate-800 line-clamp-2 mb-4 group-hover:text-blue-600 transition-colors leading-tight">
-                        {post.title}
-                      </h3>
-
-                      <p className="text-slate-500 text-[13px] line-clamp-3 mb-6 leading-relaxed">
-                        {post.content}
-                      </p>
-
-                      <div className="mt-auto flex items-center gap-4 pt-4 border-t border-slate-50">
-                        <div className="flex items-center gap-1.5 text-slate-400 text-xs font-bold">
-                          <Sparkles size={14} className="text-amber-400" />
-                          {post.reactions?.length || 0}
-                        </div>
-                        <div className="flex items-center gap-1.5 text-slate-400 text-xs font-bold">
-                          <MessageCircle size={14} className="text-blue-400" />
-                          {post.commentCount || 0}
-                        </div>
-                        <div className="ml-auto text-[10px] font-black text-blue-600 uppercase tracking-widest opacity-0 group-hover:opacity-100 transition-all translate-x-2 group-hover:translate-x-0">
-                          {language === 'VI' ? 'Đọc thêm' : 'Read more'}
-                        </div>
-                      </div>
-                    </div>
-                  </Link>
-                ))
-              ) : (
-                <div className="col-span-3 py-20 text-center bg-white rounded-[2rem] border border-dashed border-slate-200">
-                  <LayoutGrid size={48} className="mx-auto text-slate-200 mb-4" />
-                  <p className="text-slate-400 font-medium">{language === 'VI' ? 'Chưa có bản tin nào' : 'No bulletins yet'}</p>
-                </div>
-              )}
-            </div>
-          </section>
 
           {/* TÍNH NĂNG NỔI BẬT */}
           <section className="mt-10">

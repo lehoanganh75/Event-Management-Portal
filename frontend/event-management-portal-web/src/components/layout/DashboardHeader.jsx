@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Bell, ChevronDown, LogOut, User, CheckCircle, Calendar, Clock, X, Check, Info, XCircle, Mail, FileText, Send, QrCode, Globe, Settings } from 'lucide-react';
+import { Bell, ChevronDown, LogOut, User, CheckCircle, Calendar, Clock, X, Check, Info, XCircle, Mail, FileText, Send, QrCode, Globe } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from "../../context/AuthContext";
@@ -276,18 +276,6 @@ const DashboardHeader = () => {
                       </div>
                       {t('profile')}
                     </button>
-
-                    {(user?.role === 'SUPER_ADMIN' || user?.role === 'ADMIN') && (
-                      <button
-                        onClick={() => { navigate("/admin/settings"); setIsDropdownOpen(false); }}
-                        className="w-full px-4 py-2.5 text-left text-xs font-bold text-slate-600 hover:bg-indigo-50 hover:text-indigo-700 flex items-center gap-3.5 transition-all"
-                      >
-                        <div className="w-8 h-8 rounded-lg bg-slate-50 flex items-center justify-center text-slate-400">
-                          <Settings size={16} />
-                        </div>
-                        {t('system_config')}
-                      </button>
-                    )}
 
                     <div className="h-px bg-slate-50 my-2" />
 
