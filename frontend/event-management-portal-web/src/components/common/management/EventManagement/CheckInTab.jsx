@@ -31,41 +31,45 @@ const CheckInTab = ({
         </div>
 
         <div className="flex items-center gap-4">
-          {/* Toggle Switch */}
-          <div className="flex items-center gap-3 bg-white px-4 py-2 rounded-2xl border border-indigo-200 shadow-sm">
-            <span className="text-[11px] font-black uppercase text-slate-500 tracking-wider">Trạng thái</span>
-            <label className="relative inline-flex items-center cursor-pointer">
-              <input
-                type="checkbox"
-                className="sr-only peer"
-                checked={event.checkInEnabled}
-                onChange={(e) => handleToggleCheckIn(e.target.checked)}
-              />
-              <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600"></div>
-            </label>
-          </div>
+          {(isLeader || isAdmin) && (
+            <>
+              {/* Toggle Switch */}
+              <div className="flex items-center gap-3 bg-white px-4 py-2 rounded-2xl border border-indigo-200 shadow-sm">
+                <span className="text-[11px] font-black uppercase text-slate-500 tracking-wider">Trạng thái</span>
+                <label className="relative inline-flex items-center cursor-pointer">
+                  <input
+                    type="checkbox"
+                    className="sr-only peer"
+                    checked={event.checkInEnabled}
+                    onChange={(e) => handleToggleCheckIn(e.target.checked)}
+                  />
+                  <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600"></div>
+                </label>
+              </div>
 
-          {/* QR Type Switch */}
-          <div className="flex items-center gap-2 bg-white px-1 py-1 rounded-2xl border border-indigo-100 shadow-sm">
-            <button
-              onClick={() => handleUpdateQRType("DYNAMIC")}
-              className={`px-3 py-1.5 rounded-xl text-[10px] font-black transition-all ${event.qrType === "DYNAMIC"
-                ? "bg-indigo-600 text-white shadow-md"
-                : "text-slate-400 hover:text-slate-600"
-                }`}
-            >
-              QR ĐỘNG
-            </button>
-            <button
-              onClick={() => handleUpdateQRType("STATIC")}
-              className={`px-3 py-1.5 rounded-xl text-[10px] font-black transition-all ${event.qrType === "STATIC"
-                ? "bg-indigo-600 text-white shadow-md"
-                : "text-slate-400 hover:text-slate-600"
-                }`}
-            >
-              QR TĨNH
-            </button>
-          </div>
+              {/* QR Type Switch */}
+              <div className="flex items-center gap-2 bg-white px-1 py-1 rounded-2xl border border-indigo-100 shadow-sm">
+                <button
+                  onClick={() => handleUpdateQRType("DYNAMIC")}
+                  className={`px-3 py-1.5 rounded-xl text-[10px] font-black transition-all ${event.qrType === "DYNAMIC"
+                    ? "bg-indigo-600 text-white shadow-md"
+                    : "text-slate-400 hover:text-slate-600"
+                    }`}
+                >
+                  QR ĐỘNG
+                </button>
+                <button
+                  onClick={() => handleUpdateQRType("STATIC")}
+                  className={`px-3 py-1.5 rounded-xl text-[10px] font-black transition-all ${event.qrType === "STATIC"
+                    ? "bg-indigo-600 text-white shadow-md"
+                    : "text-slate-400 hover:text-slate-600"
+                    }`}
+                >
+                  QR TĨNH
+                </button>
+              </div>
+            </>
+          )}
 
           {(userPerms.canCheckIn || isMember || isCoreTeam || isAdmin) && (
             <button
