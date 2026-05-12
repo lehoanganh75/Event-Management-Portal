@@ -63,8 +63,6 @@ services:
     build: ./backend/Analytics-service
     container_name: analytics-service
     restart: always
-    env_file:
-      - ./backend/Analytics-service/.env
     environment: 
       SPRING_DATASOURCE_URL: jdbc:mariadb://mariadb:3306/analytics_db?createDatabaseIfNotExist=true
       SPRING_DATASOURCE_USERNAME: root
@@ -80,8 +78,6 @@ services:
     build: ./backend/Event-service
     container_name: event-service
     restart: always
-    env_file:
-      - ./backend/Event-service/.env
     environment:
       SPRING_DATASOURCE_URL: jdbc:mariadb://mariadb:3306/event_db?createDatabaseIfNotExist=true
       SPRING_DATASOURCE_USERNAME: root
@@ -102,8 +98,6 @@ services:
     build: ./backend/Identity-service
     container_name: identity-service
     restart: always
-    env_file:
-      - ./backend/Identity-service/.env
     environment:
       SPRING_DATASOURCE_URL: jdbc:mariadb://mariadb:3306/identity_db?createDatabaseIfNotExist=true
       SPRING_DATASOURCE_USERNAME: root
@@ -118,8 +112,6 @@ services:
     build: ./backend/Lucky-draw-service
     container_name: lucky-draw-service
     restart: always
-    env_file:
-      - ./backend/Lucky-draw-service/.env
     environment:
       SPRING_DATASOURCE_URL: jdbc:mariadb://mariadb:3306/lucky_draw_db?createDatabaseIfNotExist=true
       SPRING_DATASOURCE_USERNAME: root
@@ -133,8 +125,6 @@ services:
     build: ./backend/Notification-service
     container_name: notification-service
     restart: always
-    env_file:
-      - ./backend/Notification-service/.env
     environment:
       SPRING_DATASOURCE_URL: jdbc:mariadb://mariadb:3306/notification_db?createDatabaseIfNotExist=true
       SPRING_DATASOURCE_USERNAME: root
