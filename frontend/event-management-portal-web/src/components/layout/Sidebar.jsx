@@ -20,7 +20,8 @@ import {
     UserCircle,
     ChevronLeft,
     ChevronRight,
-    LogOut
+    LogOut,
+    QrCode
 } from 'lucide-react';
 import { showToast } from '../../utils/toast';
 import { useNavigate } from 'react-router-dom';
@@ -87,6 +88,13 @@ const Sidebar = ({ isCollapsed, onToggle }) => {
             { name: t('games'), icon: RotateCw, path: '/student/spinner' },
             { name: t('notifications'), icon: Bell, path: '/student/notifications' },
             { name: t('profile'), icon: UserCircle, path: '/student/profile' },
+        ],
+        MEMBER: [
+            { name: t('event_management') || "Quản lý sự kiện", icon: Calendar, path: '/member/events' },
+            { name: t('check_in') || "Điểm danh QR", icon: QrCode, path: '/member/checkin' },
+            { name: t('task_management') || "Nhiệm vụ của tôi", icon: ClipboardList, path: '/member/tasks' },
+            { name: t('notifications'), icon: Bell, path: '/member/notifications' },
+            { name: t('profile'), icon: UserCircle, path: '/member/profile' },
         ],
         GUEST: [
             { name: t('profile'), icon: UserCircle, path: '/profile' },
