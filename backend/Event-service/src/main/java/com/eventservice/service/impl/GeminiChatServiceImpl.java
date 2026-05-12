@@ -190,6 +190,21 @@ public class GeminiChatServiceImpl implements GeminiChatService {
     public EventPlanSuggestion extractEventDetails(String naturalLanguageInput) {
         log.info("Starting AI extraction for text (length: {})", naturalLanguageInput.length());
         try {
+            // Kiểm tra nếu đây là một prompt gợi ý trực tiếp từ Frontend
+            boolean isDirectPrompt = naturalLanguageInput.contains("gợi ý") || 
+                                   naturalLanguageInput.contains("tiêu đề") || 
+                                   naturalLanguageInput.length() < 500;
+
+            if (isDirectPrompt) {
+                log.info("Detected direct suggestion prompt, bypassing DOCX template");
+                String response = callGeminiAPI(naturalLanguageInput);
+                // Trả về một object tối giản chứa nội dung gợi ý trong phần reasoning hoặc description
+                return EventPlanSuggestion.builder()
+                        .title("AI Suggestion")
+                        .description(response) // Frontend sẽ đọc từ đây
+                        .build();
+            }
+
             String promptTemplate = """
                     Trích xuất thông tin sự kiện từ văn bản sau và trả về DUY NHẤT định dạng JSON.
 
@@ -199,19 +214,18 @@ public class GeminiChatServiceImpl implements GeminiChatService {
                     Cấu trúc JSON bắt buộc:
                     {
                       "title": "Tên sự kiện rõ ràng",
-                      "subject": "Chủ đề chính (Topic)",
-                      "purpose": "Mục đích tổ chức chi tiết",
-                      "description": "Mô tả chi tiết kế hoạch sự kiện (khoảng 100-200 từ)",
-                      "suggestedStartTime": "ISO 8601 datetime (YYYY-MM-DDTHH:mm:ss) hoặc null",
-                      "suggestedEndTime": "ISO 8601 datetime (YYYY-MM-DDTHH:mm:ss) hoặc null",
+                      "subject": "Chủ đề chính",
+                      "suggestedStartTime": "ISO 8601 datetime (YYYY-MM-DDTHH:mm:ss)",
+                      "suggestedEndTime": "ISO 8601 datetime (YYYY-MM-DDTHH:mm:ss)",
+                      "registrationDeadline": "ISO 8601 datetime (YYYY-MM-DDTHH:mm:ss)",
                       "suggestedLocation": "Địa điểm cụ thể",
                       "estimatedParticipants": số người dự kiến,
                       "programItems": [
                         {
                           "title": "Tên hạng mục",
                           "description": "Chi tiết hạng mục",
-                          "startTime": "HH:mm:ss",
-                          "endTime": "HH:mm:ss",
+                          "startTime": "ISO 8601 datetime (YYYY-MM-DDTHH:mm:ss)",
+                          "endTime": "ISO 8601 datetime (YYYY-MM-DDTHH:mm:ss)",
                           "durationMinutes": 30,
                           "speaker": "Người phụ trách/Diễn giả",
                           "location": "Vị trí cụ thể",
@@ -219,21 +233,22 @@ public class GeminiChatServiceImpl implements GeminiChatService {
                         }
                       ],
                       "interactionSettings": {
-                        "enableQA": true/false,
-                        "enablePolls": true/false
+                        "enableQA": true,
+                        "enablePolls": true
                       },
-                      "hasLuckyDraw": true/false,
-                      "confidenceScore": 0.0-1.0
+                      "hasLuckyDraw": false,
+                      "confidenceScore": 0.0
                     }
 
-                     Lưu ý quan trọng:
-                     1. Văn bản có thể chứa các tiêu đề hành chính (Cộng hòa xã hội chủ nghĩa, Độc lập tự do...), hãy bỏ qua chúng và tập trung vào nội dung kế hoạch bên dưới.
-                     2. Tìm các tiêu đề như "KẾ HOẠCH V/v", "MỤC ĐÍCH", "THỜI GIAN", "NỘI DUNG" để trích xuất.
-                     3. Định dạng ngày tháng: Nếu văn bản ghi "16:16 ngày 20/4/2026", hãy chuyển đổi thành "2026-04-20T16:16:00". Nếu chỉ có ngày (ví dụ: "ngày 25/05/2026") mà không có giờ, hãy tự động thêm giờ mặc định (bắt đầu 08:00:00, kết thúc 11:30:00) để tạo thành chuỗi ISO.
-                     4. Đối với 'programItems': Trích xuất từng phần (Phần 1, Phần 2...) hoặc từng gạch đầu dòng hoạt động thành các đối tượng riêng biệt. Nếu không có thời gian cụ thể cho từng hạng mục, hãy tự phân bổ thời gian hợp lý dựa trên tổng thời lượng sự kiện.
-                     5. QUAN TRỌNG (Sparse Input Handling): Nếu người dùng chỉ nhập một thông tin ngắn (ví dụ: chỉ tên sự kiện, hoặc một ý tưởng sơ sài), bạn PHẢI đóng vai chuyên gia để TỰ KIẾN TẠO một kế hoạch hoàn chỉnh (gồm Tên, Mục đích, Mô tả và Lịch trình chi tiết) phù hợp với ngữ cảnh đó. Tuyệt đối không để trống các trường quan trọng (title, suggestedStartTime, suggestedLocation).
-                     6. Trả về DUY NHẤT định dạng JSON, không có văn bản giải thích bên ngoài.
-                     """;
+                    Lưu ý quan trọng:
+                    1. TUYỆT ĐỐI KHÔNG lấy tên trường, tên bộ hoặc tiêu ngữ làm "title".
+                    2. TIÊU ĐỀ SỰ KIỆN (title) thường nằm ở dòng có chữ "KẾ HOẠCH" hoặc ngay sau cụm từ "V/v: ...".
+                    3. TỰ ĐỘNG PHÂN BỔ THỜI GIAN: Nếu "NỘI DUNG CHƯƠNG TRÌNH" không có giờ cụ thể, hãy tự chia tổng thời lượng sự kiện cho các programItems.
+                    4. HẠN ĐĂNG KÝ (registrationDeadline): Tìm kiếm ngày hạn chót đăng ký trong văn bản. Nếu không thấy, hãy mặc định là 1 ngày trước suggestedStartTime.
+                    5. ĐỊNH DẠNG THỜI GIAN: Tất cả startTime/endTime/registrationDeadline PHẢI là ISO 8601 đầy đủ (YYYY-MM-DDTHH:mm:ss).
+                    6. Tìm các mục "I. MỤC ĐÍCH", "II. THỜI GIAN, ĐỊA ĐIỂM", "III. NỘI DUNG CHƯƠNG TRÌNH" để trích xuất dữ liệu.
+                    7. Trả về DUY NHẤT định dạng JSON, không giải thích.
+                    """;
 
             String prompt = promptTemplate.replace("{{USER_TEXT}}", naturalLanguageInput);
 
@@ -403,8 +418,7 @@ public class GeminiChatServiceImpl implements GeminiChatService {
                     .purpose(root.path("purpose").asText(root.path("eventPurpose").asText(null)))
                     .description(root.path("description").asText(null))
                     .suggestedLocation(root.path("suggestedLocation").asText(root.path("location").asText(null)))
-                    .estimatedParticipants(
-                            root.path("estimatedParticipants").asInt(root.path("maxParticipants").asInt(0)))
+                    .estimatedParticipants(root.path("estimatedParticipants").asInt(root.path("maxParticipants").asInt(0)))
                     .confidenceScore(root.path("confidenceScore").asDouble(0.0))
                     .reasoning(root.path("reasoning").asText(null))
                     .additionalData(new HashMap<>())
@@ -417,35 +431,37 @@ public class GeminiChatServiceImpl implements GeminiChatService {
             if (root.has("suggestedEndTime") && !root.path("suggestedEndTime").isNull()) {
                 suggestion.setSuggestedEndTime(parseFlexibleDateTime(root.path("suggestedEndTime").asText()));
             }
+            if (root.has("registrationDeadline") && !root.path("registrationDeadline").isNull()) {
+                suggestion.setRegistrationDeadline(parseFlexibleDateTime(root.path("registrationDeadline").asText()));
+            }
 
             // Parse program items
             if (root.has("programItems")) {
                 List<ProgramItemSuggestion> items = new ArrayList<>();
-                root.path("programItems").forEach(item -> {
-                    ProgramItemSuggestion programItem = ProgramItemSuggestion.builder()
-                            .title(item.path("title").asText())
-                            .description(item.path("description").asText())
-                            .durationMinutes(item.path("durationMinutes").asInt())
-                            .speaker(item.path("speaker").asText(null))
-                            .location(item.path("location").asText(null))
-                            .notes(item.path("notes").asText(null))
-                            .build();
-
-                    try {
-                        if (item.has("startTime") && !item.path("startTime").isNull()
-                                && !item.path("startTime").asText().isEmpty()) {
-                            programItem.setStartTime(LocalTime.parse(item.path("startTime").asText()));
+                JsonNode programItemsNode = root.path("programItems");
+                if (programItemsNode.isArray()) {
+                    for (JsonNode item : programItemsNode) {
+                        try {
+                            String startTimeStr = item.path("startTime").asText(null);
+                            String endTimeStr = item.path("endTime").asText(null);
+                            
+                            ProgramItemSuggestion programItem = ProgramItemSuggestion.builder()
+                                    .title(item.path("title").asText("Không tên"))
+                                    .description(item.path("description").asText(""))
+                                    .speaker(item.path("speaker").asText(null))
+                                    .location(item.path("location").asText(null))
+                                    .notes(item.path("notes").asText(null))
+                                    .startTime(parseFlexibleDateTime(startTimeStr))
+                                    .endTime(parseFlexibleDateTime(endTimeStr))
+                                    .durationMinutes(item.path("durationMinutes").asInt(30))
+                                    .build();
+                            
+                            items.add(programItem);
+                        } catch (Exception e) {
+                            log.warn("Error parsing program item: {}", e.getMessage());
                         }
-                        if (item.has("endTime") && !item.path("endTime").isNull()
-                                && !item.path("endTime").asText().isEmpty()) {
-                            programItem.setEndTime(LocalTime.parse(item.path("endTime").asText()));
-                        }
-                    } catch (Exception e) {
-                        log.warn("Could not parse time for session: {}", item.path("title").asText());
                     }
-
-                    items.add(programItem);
-                });
+                }
                 suggestion.setProgramItems(items);
             }
 
@@ -606,11 +622,6 @@ public class GeminiChatServiceImpl implements GeminiChatService {
         } catch (Exception e) {
             log.error("Error analyzing event statistics: {}", e.getMessage());
             return "ERROR_AI_OVERLOADED";
-        }
-    }
-}       } catch (Exception e) {
-            log.error("Error getting raw AI response: {}", e.getMessage());
-            return "Lỗi kết nối AI hoặc dịch vụ đang bận.";
         }
     }
 }

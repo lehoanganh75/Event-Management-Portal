@@ -7,7 +7,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import java.util.List;
 import java.util.Map;
 
-@FeignClient(name = "Event-service", url = "${app.services.event-service.url}")
+@FeignClient(name = "Event-service", url = "${app.services.event-service.url}", configuration = com.analyticsservice.config.FeignConfig.class)
 public interface EventClient {
 
     @GetMapping("/events/{id}")

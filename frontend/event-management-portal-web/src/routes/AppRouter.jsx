@@ -20,6 +20,7 @@ import ForgotPassword from "../pages/auth/ForgotPassword";
 import PublicProfilePage from "../pages/public/PublicProfilePage";
 import PostDetailPage from "../pages/public/PostDetailPage";
 import GuestEventsPage from "../pages/public/GuestEventsPage";
+import GuestNotificationsPage from "../pages/public/GuestNotificationsPage";
 
 // Layouts
 import DashboardLayout from "../components/layout/DashboardLayout";
@@ -103,6 +104,7 @@ const AppRouter = () => {
         <Route path="/posts/:id" element={<PostDetailPage />} />
         <Route path="/profile" element={<PublicProfilePage />} />
         <Route path="/guest-events" element={<GuestEventsPage />} />
+        <Route path="/notifications" element={<GuestNotificationsPage />} />
 
         {/* --- ROLE BASED DASHBOARD ROUTES --- */}
 

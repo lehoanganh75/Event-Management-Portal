@@ -15,7 +15,7 @@ import {
   Check,
   X,
   Clock,
-  ChevronRight,
+  ChevronRight as ChevronRightIcon,
   Calendar,
   AlertCircle,
   CheckCircle,
@@ -249,7 +249,7 @@ const Header = () => {
       } else {
         date = new Date(dateString);
       }
-      
+
       const now = new Date();
       const diffInMs = now - date;
       if (diffInMs < 60000) return t('time_now');
@@ -327,14 +327,14 @@ const Header = () => {
             </a>
             <div className="h-3 w-px bg-white/30" />
             <div className="flex items-center gap-2">
-              <div 
+              <div
                 onClick={() => setLanguage("VI")}
                 className={`cursor-pointer transition-all ${language === "VI" ? "font-bold text-orange-300" : "opacity-60 hover:opacity-100"}`}
               >
                 VI
               </div>
               <div className="w-px h-2 bg-white/20" />
-              <div 
+              <div
                 onClick={() => setLanguage("EN")}
                 className={`cursor-pointer transition-all ${language === "EN" ? "font-bold text-orange-300" : "opacity-60 hover:opacity-100"}`}
               >
@@ -545,7 +545,7 @@ const Header = () => {
                               className="w-full py-3 text-blue-600 hover:text-blue-700 font-medium text-sm flex items-center justify-center gap-2 hover:bg-white rounded-2xl transition"
                             >
                               {t('view_all_notifications')}
-                              <ChevronRight size={18} />
+                              <ChevronRightIcon size={18} />
                             </button>
                           </div>
                         )}
@@ -625,8 +625,8 @@ const Header = () => {
                         {/* Menu Items */}
                         <div className="p-2">
                           <Link
-                            to={isSuperAdmin() || isAdminOnly() || hasRole('LECTURER') || isEventStaff() ? 
-                              (hasRole('ADMIN') || hasRole('SUPER_ADMIN') ? "/admin/profile" : "/lecturer/profile") 
+                            to={isSuperAdmin() || isAdminOnly() || hasRole('LECTURER') || isEventStaff() ?
+                              (hasRole('ADMIN') || hasRole('SUPER_ADMIN') ? "/admin/profile" : "/lecturer/profile")
                               : "/profile"}
                             onClick={() => setIsMenuOpen(false)}
                             className="flex items-center gap-4 px-5 py-3.5 text-[15px] font-medium text-slate-700 hover:bg-slate-100 rounded-2xl transition-all active:bg-slate-200"
@@ -790,9 +790,8 @@ const Header = () => {
               <div className="flex-1 overflow-y-auto py-6 px-4 space-y-2">
                 <Link
                   to="/"
-                  className={`flex items-center gap-4 px-4 py-3.5 rounded-2xl font-semibold transition-all ${
-                    activeSection === "home" ? "bg-blue-50 text-blue-600" : "text-slate-600 hover:bg-slate-50"
-                  }`}
+                  className={`flex items-center gap-4 px-4 py-3.5 rounded-2xl font-semibold transition-all ${activeSection === "home" ? "bg-blue-50 text-blue-600" : "text-slate-600 hover:bg-slate-50"
+                    }`}
                 >
                   <Home size={20} />
                   {t('home')}
@@ -800,9 +799,8 @@ const Header = () => {
 
                 <Link
                   to="/events"
-                  className={`flex items-center gap-4 px-4 py-3.5 rounded-2xl font-semibold transition-all ${
-                    activeSection === "events" ? "bg-blue-50 text-blue-600" : "text-slate-600 hover:bg-slate-50"
-                  }`}
+                  className={`flex items-center gap-4 px-4 py-3.5 rounded-2xl font-semibold transition-all ${activeSection === "events" ? "bg-blue-50 text-blue-600" : "text-slate-600 hover:bg-slate-50"
+                    }`}
                 >
                   <Calendar size={20} />
                   {t('events')}
@@ -810,9 +808,8 @@ const Header = () => {
 
                 <Link
                   to="/calendar"
-                  className={`flex items-center gap-4 px-4 py-3.5 rounded-2xl font-semibold transition-all ${
-                    activeSection === "calendar" ? "bg-blue-50 text-blue-600" : "text-slate-600 hover:bg-slate-50"
-                  }`}
+                  className={`flex items-center gap-4 px-4 py-3.5 rounded-2xl font-semibold transition-all ${activeSection === "calendar" ? "bg-blue-50 text-blue-600" : "text-slate-600 hover:bg-slate-50"
+                    }`}
                 >
                   <Clock size={20} />
                   {t('calendar')}
@@ -820,9 +817,8 @@ const Header = () => {
 
                 <Link
                   to="/news"
-                  className={`flex items-center gap-4 px-4 py-3.5 rounded-2xl font-semibold transition-all ${
-                    activeSection === "news" ? "bg-blue-50 text-blue-600" : "text-slate-600 hover:bg-slate-50"
-                  }`}
+                  className={`flex items-center gap-4 px-4 py-3.5 rounded-2xl font-semibold transition-all ${activeSection === "news" ? "bg-blue-50 text-blue-600" : "text-slate-600 hover:bg-slate-50"
+                    }`}
                 >
                   <MessageSquare size={20} />
                   {t('news')}

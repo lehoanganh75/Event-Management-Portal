@@ -305,12 +305,39 @@ const EventsManagement = ({ type = "lecturer", mode = "all" }) => {
         switch (newStatus) {
           case "PLAN_APPROVED":
             await eventService.approvePlan(id);
+            // Send notification to creator
+            if (currentEvent.createdByAccountId) {
+              await notificationService.sendNotification({
+                userProfileId: currentEvent.createdByAccountId,
+                title: "Kế hoạch đã được duyệt",
+                message: `Chúc mừng! Kế hoạch "${currentEvent.title}" của bạn đã được phê duyệt.`,
+                type: "SYSTEM"
+              }).catch(e => console.error("Notify fail", e));
+            }
             break;
           case "PUBLISHED":
             await eventService.approveEvent(id);
+             // Send notification to creator
+             if (currentEvent.createdByAccountId) {
+              await notificationService.sendNotification({
+                userProfileId: currentEvent.createdByAccountId,
+                title: "Sự kiện đã xuất bản",
+                message: `Sự kiện "${currentEvent.title}" của bạn đã chính thức được công khai.`,
+                type: "SYSTEM"
+              }).catch(e => console.error("Notify fail", e));
+            }
             break;
           case "REJECTED":
             await eventService.rejectPlan(id, reason || "Cập nhật bởi Admin");
+            // Send notification to creator with reason
+            if (currentEvent.createdByAccountId) {
+              await notificationService.sendNotification({
+                userProfileId: currentEvent.createdByAccountId,
+                title: "Kế hoạch bị từ chối",
+                message: `Kế hoạch "${currentEvent.title}" cần điều chỉnh thêm. Lý do: ${reason}`,
+                type: "SYSTEM"
+              }).catch(e => console.error("Notify fail", e));
+            }
             break;
           case "CANCELLED":
             await eventService.cancelEvent(id, reason || "Cập nhật bởi Admin");
@@ -399,7 +426,8 @@ const EventsManagement = ({ type = "lecturer", mode = "all" }) => {
           endTime: item.endTime || "",
           speaker: item.speaker || "",
           room: item.location || "",
-          orderIndex: idx + 1
+          orderIndex: idx + 1,
+          isConfirmed: true
         })) || [],
         // Extract unique presenters from sessions
         presenters: extracted.programItems?.reduce((acc, item) => {
@@ -423,7 +451,20 @@ const EventsManagement = ({ type = "lecturer", mode = "all" }) => {
         hasLuckyDraw: extracted.additionalData?.hasLuckyDraw || false,
         aiReasoning: extracted.reasoning || ""
       } : {
-        eventTitle: data.rawText?.split('\n')[0]?.substring(0, 50) || "Sự kiện mới từ Docx",
+        eventTitle: (function() {
+          const lines = data.rawText?.split('\n') || [];
+          // Tìm dòng có chứa V/v hoặc KẾ HOẠCH trước
+          const targetLine = lines.find(l => l.includes("V/v") || l.includes("KẾ HOẠCH"));
+          if (targetLine) return targetLine.replace(/V\/v:?\s*/i, "").trim().substring(0, 100);
+          // Nếu không thấy, tìm dòng dài nhưng không phải thông tin hành chính
+          return lines.find(l => 
+            l.trim().length > 10 && 
+            !l.includes("TRƯỜNG") && 
+            !l.includes("KHOA") && 
+            !l.includes("CỘNG HÒA") &&
+            !l.includes("Độc lập")
+          )?.trim().substring(0, 70) || "Kế hoạch sự kiện mới";
+        })(),
         eventPurpose: data.rawText || "",
         eventType: "WORKSHOP",
         eventMode: "OFFLINE",
@@ -433,11 +474,39 @@ const EventsManagement = ({ type = "lecturer", mode = "all" }) => {
       };
 
       // Handle datetimes
-      if (extracted?.suggestedStartTime) {
-        mappedData.startTime = new Date(extracted.suggestedStartTime).toISOString().slice(0, 16);
+      const formatForInput = (isoStr) => {
+        if (!isoStr) return "";
+        try {
+          if (typeof isoStr === 'string' && isoStr.includes('T')) {
+            return isoStr.substring(0, 16);
+          }
+          const date = new Date(isoStr);
+          if (isNaN(date)) return "";
+          
+          const year = date.getFullYear();
+          const month = String(date.getMonth() + 1).padStart(2, '0');
+          const day = String(date.getDate()).padStart(2, '0');
+          const hours = String(date.getHours()).padStart(2, '0');
+          const minutes = String(date.getMinutes()).padStart(2, '0');
+          return `${year}-${month}-${day}T${hours}:${minutes}`;
+        } catch (e) {
+          return "";
+        }
+      };
+
+      if (extracted) {
+        mappedData.startTime = formatForInput(extracted.suggestedStartTime);
+        mappedData.endTime = formatForInput(extracted.suggestedEndTime);
+        mappedData.registrationDeadline = formatForInput(extracted.registrationDeadline);
       }
-      if (extracted?.suggestedEndTime) {
-        mappedData.endTime = new Date(extracted.suggestedEndTime).toISOString().slice(0, 16);
+
+      // Update session times as well
+      if (mappedData.sessions) {
+        mappedData.sessions = mappedData.sessions.map(s => ({
+          ...s,
+          startTime: formatForInput(s.startTime),
+          endTime: formatForInput(s.endTime)
+        }));
       }
 
       setImportedRawText(data.rawText || "");
@@ -445,12 +514,19 @@ const EventsManagement = ({ type = "lecturer", mode = "all" }) => {
       setCreatorConfig({
         initialFormData: mappedData,
         fromPlan: false,
-        forceEventMode: mode === "event",
-        startAtStep: 1 // Luôn bắt đầu từ bước 1 để người dùng kiểm tra thông tin
+        isEdit: false,
+        startAtStep: 1,
+        forceEventMode: mode !== "plan" && activeTab !== "Kế hoạch"
       });
-      setShowEventCreator(true);
 
-      showToast("✨ Đã xử lý file thành công!", "success");
+      setShowEventCreator(true);
+      showToast("✨ Đã trích xuất thông tin thành công!", "success");
+      
+      // Force scroll fix
+      setTimeout(() => {
+        window.dispatchEvent(new Event('resize'));
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      }, 100);
     } catch (err) {
 
       console.error("Docx import error:", err);

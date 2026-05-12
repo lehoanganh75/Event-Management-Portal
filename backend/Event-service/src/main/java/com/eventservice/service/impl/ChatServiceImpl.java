@@ -460,6 +460,7 @@ public class ChatServiceImpl implements ChatService {
                 .description(suggestion.getDescription())
                 .suggestedStartTime(suggestion.getSuggestedStartTime())
                 .suggestedEndTime(suggestion.getSuggestedEndTime())
+                .registrationDeadline(suggestion.getRegistrationDeadline())
                 .suggestedLocation(suggestion.getSuggestedLocation())
                 .estimatedParticipants(suggestion.getEstimatedParticipants())
                 .programItems(items)

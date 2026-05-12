@@ -19,6 +19,7 @@ public class EventPlanSuggestionResponse {
     private String description;
     private LocalDateTime suggestedStartTime;
     private LocalDateTime suggestedEndTime;
+    private LocalDateTime registrationDeadline;
     private String suggestedLocation;
     private Integer estimatedParticipants;
     private List<EventProgramItemSuggestionResponse> programItems;

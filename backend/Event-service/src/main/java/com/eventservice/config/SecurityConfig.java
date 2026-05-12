@@ -72,6 +72,8 @@ public class SecurityConfig {
                                                                 "/events/news",
                                                                 "/events/plans",
                                                                 "/events/{id}",
+                                                                "/events/{id}/summary",
+                                                                "/registrations/event/**",
                                                                 "/events/{eventId}/invitations",
                                                                 "/events/{eventId}/accept-invite",
                                                                 "/events/{eventId}/reject-invite",

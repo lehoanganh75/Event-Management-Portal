@@ -238,13 +238,17 @@ export const EventReviewStep = ({ formData, onBack, onSubmit, isSubmitting, isPl
 
             {/* Status Card */}
             {isPlanMode ? (
-              <div style={{ background: "#eff6ff", border: "1px solid #bfdbfe", borderRadius: 16, padding: "14px 16px" }}>
+              <div style={{ background: isAuthority ? "#f0fdf4" : "#eff6ff", border: "1px solid", borderColor: isAuthority ? "#bbf7d0" : "#bfdbfe", borderRadius: 16, padding: "14px 16px" }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
-                  <div style={{ color: "#2563eb" }}><Info size={18} /></div>
-                  <h4 style={{ fontSize: 14, fontWeight: 700, color: "#1e40af", margin: 0 }}>Kế hoạch đang ở bản nháp</h4>
+                  <div style={{ color: isAuthority ? "#16a34a" : "#2563eb" }}><Info size={18} /></div>
+                  <h4 style={{ fontSize: 14, fontWeight: 700, color: isAuthority ? "#166534" : "#1e40af", margin: 0 }}>
+                    {isAuthority ? "Tự động phê duyệt" : "Kế hoạch đang ở bản nháp"}
+                  </h4>
                 </div>
-                <p style={{ fontSize: 13, color: "#1d4ed8", lineHeight: 1.5, margin: 0 }}>
-                  Chọn một hành động phía dưới: lưu nháp, gửi phê duyệt hoặc xuất file Word.
+                <p style={{ fontSize: 13, color: isAuthority ? "#15803d" : "#1d4ed8", lineHeight: 1.5, margin: 0 }}>
+                  {isAuthority 
+                    ? "Với quyền Quản trị, kế hoạch này sẽ được chuyển sang trạng thái 'Đã phê duyệt' ngay sau khi bạn xác nhận."
+                    : "Chọn một hành động phía dưới: lưu nháp, gửi phê duyệt hoặc xuất file Word."}
                 </p>
               </div>
             ) : (

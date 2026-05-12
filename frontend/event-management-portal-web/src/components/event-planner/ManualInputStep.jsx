@@ -408,7 +408,8 @@ export default function ManualInputStep({
       }
 
       const res = await eventService.chat.extractFromText(prompt);
-      const aiContent = res.data;
+      const result = res.data?.result;
+      const aiContent = result?.description || result?.purpose || "";
 
       if (aiContent) {
         const suggestions = aiContent.split('\n')

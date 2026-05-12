@@ -16,6 +16,7 @@ import {
 import { motion, AnimatePresence } from "framer-motion";
 
 import { useEvents } from "../../context/EventContext";
+import { useAuth } from "../../context/AuthContext";
 import Preloader from "../../components/common/Preloader";
 import { useLanguage } from "../../context/LanguageContext";
 
@@ -29,6 +30,32 @@ function LeftSidebar({ onSearchChange }) {
   const [keyword, setKeyword] = useState("");
   const navigate = useNavigate();
   const { t } = useLanguage();
+  const { user } = useAuth();
+
+  const handleNotificationsClick = () => {
+    // Kiểm tra nếu có user VÀ role không phải là guest
+    const role = user?.role?.toLowerCase();
+
+    if (user && role !== 'guest') {
+      // Nếu role bị trống nhưng có user, mặc định là student
+      const finalRole = role || 'student';
+      navigate(`/${finalRole}/notifications`);
+    } else {
+      // Dành cho user chưa đăng nhập HOẶC user có role là 'guest'
+      navigate("/notifications");
+    }
+  };
+
+  const handleMyEventsClick = () => {
+    const role = user?.role?.toLowerCase();
+
+    if (user && role !== 'guest') {
+      const finalRole = role || 'student';
+      navigate(`/${finalRole}/events`);
+    } else {
+      navigate("/guest-events");
+    }
+  };
 
   return (
     <aside className="w-72 shrink-0 space-y-6 hidden lg:block">
@@ -59,14 +86,14 @@ function LeftSidebar({ onSearchChange }) {
         </div>
         <div className="p-4 space-y-1">
           <button
-            onClick={() => navigate("/notifications")}
+            onClick={handleNotificationsClick}
             className="w-full flex items-center gap-3 px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 rounded-xl transition"
           >
             <Bell className="w-5 h-5 text-blue-600" />
             {t('new_notifications')}
           </button>
           <button
-            onClick={() => navigate("/my-events")}
+            onClick={handleMyEventsClick}
             className="w-full flex items-center gap-3 px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 rounded-xl transition"
           >
             <Calendar className="w-5 h-5 text-blue-600" />
@@ -245,8 +272,8 @@ export default function EventListPage() {
                   key={tab.id}
                   onClick={() => handleTabChange(tab.id)}
                   className={`flex-1 lg:flex-none px-6 py-2.5 rounded-xl text-sm font-medium transition-all ${activeTab === tab.id
-                      ? "bg-white shadow text-blue-600"
-                      : "text-gray-600 hover:text-gray-900"
+                    ? "bg-white shadow text-blue-600"
+                    : "text-gray-600 hover:text-gray-900"
                     }`}
                 >
                   {tab.label}

@@ -2,8 +2,8 @@
 import React, { useEffect, useMemo, useRef } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import {
-  Users, MapPin, Loader2, Gift, ChevronLeft, ChevronRight,
-  User, Clock, Sparkles, Calendar, LayoutGrid, BarChart3, QrCode, MessageCircle
+  Users, MapPin, Loader2, Gift, ChevronLeft, ChevronRight as ChevronRightIcon,
+  User, Clock, Sparkles, Calendar, BarChart3, QrCode
 } from "lucide-react";
 
 import Layout from "../../components/layout/Layout";
@@ -29,75 +29,56 @@ const formatTime = (dateString, lang = 'VI') => {
 };
 
 const EventCard = ({ event, onClick, t, language }) => {
+  const isOngoing = event.status === 'ONGOING';
+  
   return (
     <div
       onClick={() => onClick(event.id)}
-      className="min-w-[320px] md:min-w-[380px] bg-white rounded-2xl overflow-hidden shadow-sm border border-slate-100 hover:shadow-xl transition-all duration-300 cursor-pointer group flex flex-col"
+      className="min-w-[300px] md:min-w-[340px] bg-white rounded-2xl overflow-hidden shadow-sm border border-slate-200/60 hover:shadow-md transition-all duration-300 cursor-pointer group flex flex-col snap-start"
     >
       {/* Image Container */}
-      <div className="relative h-56">
+      <div className="relative h-48">
         <img
           src={event.coverImage || "https://images.unsplash.com/photo-1501281668745-f7f57925c3b4?q=80&w=2070&auto=format&fit=crop"}
           alt={event.title}
           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
         />
-        {/* Top Right Badge */}
-        <div className="absolute top-4 right-4">
-          <span className={`text-[10px] font-black uppercase px-3 py-1 rounded-full shadow-sm ${
-            event.status === 'ONGOING' ? 'bg-emerald-100 text-emerald-600' : 'bg-blue-100 text-blue-600'
+        <div className="absolute top-3 right-3">
+          <span className={`text-[9px] font-bold uppercase px-2 py-1 rounded-lg backdrop-blur-md border border-white/20 ${
+            isOngoing ? 'bg-emerald-500/90 text-white' : 'bg-blue-500/90 text-white'
           }`}>
-            {event.status === 'ONGOING' ? t('ongoing') : t('upcoming')}
-          </span>
-        </div>
-
-        {/* Category Badge overlay */}
-        <div className="absolute bottom-4 left-4">
-          <span className="bg-amber-500 text-white text-[10px] font-bold px-3 py-1 rounded-md shadow-md uppercase">
-            {event.type || t('event_type')}
+            {isOngoing ? t('ongoing') : t('upcoming')}
           </span>
         </div>
       </div>
 
       {/* Content */}
-      <div className="p-6 flex-1 flex flex-col gap-4">
-        <div className="flex flex-col gap-2">
-          {/* Time & Date */}
-          <div className="flex items-center gap-3 text-slate-400 text-xs font-medium">
-            <div className="flex items-center gap-1">
-              <Calendar size={14} />
-              <span>{formatDate(event.startTime, language)}</span>
-            </div>
-            <div className="w-1 h-1 bg-slate-300 rounded-full" />
-            <div className="flex items-center gap-1">
-              <Clock size={14} />
-              <span>{formatTime(event.startTime, language)} - {formatTime(event.endTime, language)}</span>
-            </div>
-          </div>
-
-          {/* Title */}
-          <h3 className="font-extrabold text-slate-800 text-lg leading-snug line-clamp-2 min-h-[3.5rem] group-hover:text-blue-600 transition-colors">
-            {event.title}
-          </h3>
+      <div className="p-5 flex-1 flex flex-col">
+        <div className="flex items-center gap-2 text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">
+          <span>{event.type || t('event_type')}</span>
+          <span>•</span>
+          <span>{formatDate(event.startTime, language)}</span>
         </div>
 
-        <div className="space-y-2">
-          {/* Location */}
-          <div className="flex items-center gap-2 text-slate-500 text-sm">
-            <MapPin size={16} className="text-amber-500 flex-shrink-0" />
+        <h3 className="font-bold text-slate-900 text-base leading-snug line-clamp-2 group-hover:text-blue-600 transition-colors mb-4">
+          {event.title}
+        </h3>
+
+        <div className="space-y-2 mb-6">
+          <div className="flex items-center gap-2 text-slate-500 text-xs">
+            <MapPin size={14} className="text-slate-400" />
             <span className="line-clamp-1">{event.location || "IUH Campus"}</span>
           </div>
-
-          {/* Participants */}
-          <div className="flex items-center gap-2 text-slate-500 text-sm">
-            <Users size={16} className="text-amber-500 flex-shrink-0" />
-            <span>{event.registeredCount || 0} / {event.maxParticipants || "∞"} {t('participants')}</span>
+          <div className="flex items-center gap-2 text-slate-500 text-xs">
+            <Users size={14} className="text-slate-400" />
+            <span>{event.registeredCount || 0} / {event.maxParticipants || "∞"}</span>
           </div>
         </div>
 
-        {/* Action Button */}
-        <button className="mt-auto w-full py-2.5 border-2 border-blue-600 text-blue-600 rounded-xl font-bold text-sm hover:bg-blue-600 hover:text-white transition-all duration-300">
-          {t('details')}
-        </button>
+        <div className="mt-auto pt-4 border-t border-slate-50 flex items-center justify-between text-xs font-bold text-blue-600">
+          <span>{t('details')}</span>
+          <ChevronRightIcon size={16} className="group-hover:translate-x-1 transition-transform" />
+        </div>
       </div>
     </div>
   );
@@ -151,8 +132,7 @@ const LandingPage = () => {
     fetchFeatured();
     fetchUpcoming();
     fetchOngoing();
-    fetchAllPosts({ size: 3 }); // Lấy 3 bài viết mới nhất cho landing page
-  }, [fetchFeatured, fetchUpcoming, fetchOngoing, fetchAllPosts]);
+  }, [fetchFeatured, fetchUpcoming, fetchOngoing]);
 
   const handleEventClick = (eventId) => {
     navigate(`/events/${eventId}`);
@@ -174,57 +154,49 @@ const LandingPage = () => {
         <section id="gioi-thieu" className="bg-white">
           <div className="relative bg-[#245bb5] text-white overflow-hidden py-16 md:py-24 px-6 md:px-20">
             <div className="absolute inset-0 opacity-10 pointer-events-none">
-              <div className="absolute right-[-5%] top-[-10%] w-150 h-150 rounded-full border-[60px] border-white"></div>
+              <div className="absolute right-[-5%] top-[-10%] w-[600px] h-[600px] rounded-full border-[40px] border-white"></div>
             </div>
 
             <div className="max-w-7xl mx-auto">
               <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-center relative">
                 {/* CỘT TRÁI */}
                 <div className="lg:col-span-5 space-y-6">
-
-                  {/* BADGE */}
-                  <div className="inline-flex items-center gap-2 bg-white/10 px-4 py-1.5 rounded-full border border-white/20 backdrop-blur-sm">
-                    <span className="w-2 h-2 bg-orange-400 rounded-full animate-pulse"></span>
-                    <span className="text-[11px] font-semibold uppercase tracking-[0.2em] text-white/90">
+                  <div className="inline-flex items-center gap-2 bg-white/10 px-3 py-1 rounded-lg border border-white/10 backdrop-blur-sm">
+                    <span className="w-1.5 h-1.5 bg-blue-400 rounded-full animate-pulse"></span>
+                    <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/80">
                       {t('hero_badge')}
                     </span>
                   </div>
 
-                  {/* TITLE */}
                   <div className="space-y-2">
-                    <h2 className="text-2xl md:text-3xl font-medium text-white/80">
-                      {t('welcome')}
-                    </h2>
-
-                    <h1 className="text-4xl md:text-5xl lg:text-5xl font-extrabold leading-tight tracking-[-0.02em] text-white">
+                    <h1 className="text-4xl md:text-5xl font-extrabold leading-tight tracking-tight text-white">
                       {t('event_iuh')}{" "}
                       <span className="text-[#ffcc00] drop-shadow-md">
                         {new Date().getFullYear()}
                       </span>
                     </h1>
+                    <p className="text-blue-100/90 text-base md:text-lg max-w-md font-medium leading-relaxed">
+                      {t('hero_desc')}
+                    </p>
                   </div>
 
-                  {/* DESCRIPTION */}
-                  <p className="text-base md:text-lg text-blue-100/90 max-w-xl leading-relaxed font-light">
-                    {t('hero_desc')}
-                  </p>
-
-                  {/* BUTTON */}
-                  <button
-                    onClick={() => {
-                      const el = document.getElementById("events-section");
-                      if (el) el.scrollIntoView({ behavior: "smooth" });
-                    }}
-                    className="group relative px-8 py-3.5 bg-[#ffcc00] text-[#1f4fa3]
-                              rounded-xl font-semibold uppercase tracking-wide text-sm
-                              shadow-lg hover:shadow-2xl
-                              hover:scale-[1.04] active:scale-[0.97]
-                              transition-all duration-300 overflow-hidden"
-                  >
-                    <span className="relative z-10">{t('explore_events')}</span>
-                    <span className="absolute inset-0 bg-white/20 opacity-0 group-hover:opacity-100 transition"></span>
-                  </button>
-
+                  <div className="flex flex-wrap gap-4 pt-4">
+                    <button
+                      onClick={() => {
+                        const el = document.getElementById("events-section");
+                        if (el) el.scrollIntoView({ behavior: "smooth" });
+                      }}
+                      className="group relative px-8 py-3.5 bg-[#ffcc00] text-[#1f4fa3] rounded-xl font-bold uppercase tracking-wide text-sm shadow-lg hover:shadow-xl hover:scale-[1.02] active:scale-[0.98] transition-all duration-300"
+                    >
+                      {t('explore_events')}
+                    </button>
+                    <Link
+                      to="/news"
+                      className="px-8 py-3.5 bg-white/10 text-white border border-white/20 rounded-xl font-bold uppercase tracking-wide text-sm hover:bg-white/20 transition-all duration-300"
+                    >
+                      {t('news')}
+                    </Link>
+                  </div>
                 </div>
 
                 {/* CỘT PHẢI - SLIDER SỰ KIỆN SẮP DIỄN RA */}
@@ -242,7 +214,7 @@ const LandingPage = () => {
                       onClick={() => scroll(heroScrollRef, "right")}
                       className="absolute -right-6 top-1/2 -translate-y-1/2 z-30 w-10 h-10 flex items-center justify-center bg-white/25 hover:bg-white/40 backdrop-blur-md text-white rounded-full shadow-xl transition-all hover:scale-110 active:scale-95 border border-white/30"
                     >
-                      <ChevronRight size={24} strokeWidth={3} />
+                      <ChevronRightIcon size={24} strokeWidth={3} />
                     </button>
 
                     <div className="flex items-center justify-between mb-6 px-2 text-white">
@@ -342,7 +314,7 @@ const LandingPage = () => {
                     onClick={() => scroll(upcomingScrollRef, "right")}
                     className="absolute -right-6 top-1/2 -translate-y-1/2 w-12 h-12 bg-white rounded-full shadow-lg flex items-center justify-center text-slate-600 hover:bg-blue-600 hover:text-white transition-all opacity-0 group-hover/scroll:opacity-100 z-10"
                   >
-                    <ChevronRight size={24} />
+                    <ChevronRightIcon size={24} />
                   </button>
                 </>
               )}
@@ -381,110 +353,14 @@ const LandingPage = () => {
                     onClick={() => scroll(featuredScrollRef, "right")}
                     className="absolute -right-6 top-1/2 -translate-y-1/2 w-12 h-12 bg-white rounded-full shadow-lg flex items-center justify-center text-slate-600 hover:bg-blue-600 hover:text-white transition-all opacity-0 group-hover/scroll:opacity-100 z-10"
                   >
-                    <ChevronRight size={24} />
+                    <ChevronRightIcon size={24} />
                   </button>
                 </>
               )}
             </div>
           </section>
 
-          {/* BẢN TIN / TIN TỨC MỚI NHẤT */}
-          <section className="mb-32">
-            <div className="flex items-center justify-between mb-10">
-              <div className="space-y-1">
-                <h2 className="text-3xl font-black text-slate-900 tracking-tight uppercase italic">
-                  {language === 'VI' ? 'Bản tin mới nhất' : 'Latest Bulletin'}
-                </h2>
-                <div className="h-1.5 w-20 bg-blue-600 rounded-full"></div>
-              </div>
-              <Link
-                to="/news"
-                className="group flex items-center gap-2 text-blue-600 font-bold text-xs uppercase tracking-widest hover:gap-3 transition-all"
-              >
-                {t('view_all')} <ChevronRight size={16} />
-              </Link>
-            </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-              {eventLoading ? (
-                Array(3).fill(0).map((_, i) => (
-                  <div key={i} className="bg-white rounded-3xl p-6 h-64 animate-pulse border border-slate-100 shadow-sm" />
-                ))
-              ) : posts && posts.length > 0 ? (
-                posts.slice(0, 3).map((post) => (
-                  <Link
-                    key={post.id}
-                    to={`/posts/${post.id}`}
-                    className="group bg-white rounded-[2rem] border border-slate-100 shadow-sm hover:shadow-2xl hover:shadow-blue-500/10 transition-all duration-500 overflow-hidden flex flex-col"
-                  >
-                    {/* Media Preview */}
-                    <div className="h-48 overflow-hidden relative bg-slate-100">
-                      {post.mediaUrls && post.mediaUrls.length > 0 ? (
-                        <img
-                          src={post.mediaUrls[0]}
-                          alt={post.title}
-                          className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
-                        />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center text-slate-300">
-                          <LayoutGrid size={40} strokeWidth={1} />
-                        </div>
-                      )}
-                      <div className="absolute top-4 left-4">
-                        <span className="bg-white/90 backdrop-blur-md text-blue-600 text-[10px] font-black px-3 py-1.5 rounded-xl shadow-sm uppercase">
-                          {post.postType === 'NEWS' ? t('news') : (post.postType || 'POST')}
-                        </span>
-                      </div>
-                    </div>
-
-                    <div className="p-7 flex flex-col flex-1">
-                      <div className="flex items-center gap-3 mb-4">
-                        <img
-                          src={post.author?.avatarUrl || `https://api.dicebear.com/7.x/initials/svg?seed=${post.author?.fullName}`}
-                          className="w-6 h-6 rounded-lg object-cover"
-                          alt="author"
-                        />
-                        <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider truncate">
-                          {post.author?.fullName || 'IUH Admin'}
-                        </span>
-                        <div className="w-1 h-1 bg-slate-300 rounded-full ml-auto" />
-                        <span className="text-[10px] font-medium text-slate-400">
-                          {new Date(post.createdAt).toLocaleDateString(language === 'VI' ? 'vi-VN' : 'en-US')}
-                        </span>
-                      </div>
-
-                      <h3 className="text-lg font-bold text-slate-800 line-clamp-2 mb-4 group-hover:text-blue-600 transition-colors leading-tight">
-                        {post.title}
-                      </h3>
-
-                      <p className="text-slate-500 text-[13px] line-clamp-3 mb-6 leading-relaxed">
-                        {post.content}
-                      </p>
-
-                      <div className="mt-auto flex items-center gap-4 pt-4 border-t border-slate-50">
-                        <div className="flex items-center gap-1.5 text-slate-400 text-xs font-bold">
-                          <Sparkles size={14} className="text-amber-400" />
-                          {post.reactions?.length || 0}
-                        </div>
-                        <div className="flex items-center gap-1.5 text-slate-400 text-xs font-bold">
-                          <MessageCircle size={14} className="text-blue-400" />
-                          {post.commentCount || 0}
-                        </div>
-                        <div className="ml-auto text-[10px] font-black text-blue-600 uppercase tracking-widest opacity-0 group-hover:opacity-100 transition-all translate-x-2 group-hover:translate-x-0">
-                          {language === 'VI' ? 'Đọc thêm' : 'Read more'}
-                        </div>
-                      </div>
-                    </div>
-                  </Link>
-                ))
-              ) : (
-                <div className="col-span-3 py-20 text-center bg-white rounded-[2rem] border border-dashed border-slate-200">
-                   <LayoutGrid size={48} className="mx-auto text-slate-200 mb-4" />
-                   <p className="text-slate-400 font-medium">{language === 'VI' ? 'Chưa có bản tin nào' : 'No bulletins yet'}</p>
-                </div>
-              )}
-            </div>
-          </section>
 
           {/* TÍNH NĂNG NỔI BẬT */}
           <section className="mt-10">

@@ -38,7 +38,14 @@ public class AISummaryServiceImpl implements AISummaryService {
             // 1. Lấy dữ liệu sự kiện, đăng ký và tương tác
             Map<String, Object> eventData = eventClient.getEventById(eventId);
             List<Map<String, Object>> registrations = eventClient.getRegistrationsByEvent(eventId);
-            Optional<Map<String, Object>> luckyDrawData = luckyDrawClient.getLuckyDrawByEventId(eventId);
+            
+            // Safe call to lucky draw service
+            Optional<Map<String, Object>> luckyDrawData = Optional.empty();
+            try {
+                luckyDrawData = luckyDrawClient.getLuckyDrawByEventId(eventId);
+            } catch (Exception e) {
+                log.warn("Không thể lấy dữ liệu Lucky Draw cho sự kiện {}: {}", eventId, e.getMessage());
+            }
             EventAnalytic analytic = analyticsRepository.findById(eventId).orElse(null);
 
             if (eventData == null || registrations == null) {
@@ -78,13 +85,23 @@ public class AISummaryServiceImpl implements AISummaryService {
             // 3. Tạo prompt yêu cầu AI phân tích chi tiết với nội dung rõ ràng, logic
             String prompt = buildDetailedPrompt(eventData, totalRegistrations, totalAttendances, attendanceRate, luckyDrawData, analytic);
 
-            // 4. Gọi AI để nhận xét, phân tích sâu
-            String aiResponseRaw = chatClient.prompt()
-                    .user(prompt)
-                    .call()
-                    .content();
+            // 4. Gọi AI local (Node.js) để nhận xét, phân tích sâu
+            org.springframework.web.client.RestTemplate restTemplate = new org.springframework.web.client.RestTemplate();
+            org.springframework.http.HttpHeaders headers = new org.springframework.http.HttpHeaders();
+            headers.setContentType(org.springframework.http.MediaType.APPLICATION_JSON);
+            
+            java.util.Map<String, String> body = new java.util.HashMap<>();
+            body.put("prompt", prompt);
+            
+            org.springframework.http.HttpEntity<java.util.Map<String, String>> request = new org.springframework.http.HttpEntity<>(body, headers);
+            
+            String aiUrl = "http://host.docker.internal:3000/chat";
+            log.info("Đang gọi Local AI tại: {}", aiUrl);
+            
+            java.util.Map<String, Object> response = restTemplate.postForObject(aiUrl, request, java.util.Map.class);
+            String aiResponseRaw = (String) response.get("reply");
 
-            log.info("Nhận được phản hồi từ AI");
+            log.info("Nhận được phản hồi từ AI Local");
 
             // 5. Phân tích và chuyển đổi kết quả AI thành báo cáo
             EventSummaryReport report = parseAI(aiResponseRaw, eventId);

@@ -71,7 +71,10 @@ export const EventCreator = ({
 }) => {
   // Unified to 5 steps
   const { user } = useAuth();
-  const isPlanMode = !forceEventMode && !fromPlan && !planId && !isEdit;
+  const isPlanMode = !forceEventMode && (
+    (initialFormData?.status?.startsWith('PLAN_')) || 
+    (!planId && !fromPlan && (!initialFormData?.id || initialFormData?.status?.startsWith('PLAN_')))
+  );
 
   const activeSteps = STEPS.filter(s => {
     if (isPlanMode && (s.id === 3 || s.id === 4)) return false;
@@ -79,7 +82,10 @@ export const EventCreator = ({
   }).map(s => {
     if (s.id === 5) {
       const isAuthority = user?.role === 'SUPER_ADMIN' || user?.role === 'ADMIN';
-      return { ...s, label: (isAuthority && !isPlanMode) ? "Xem trước & Xuất bản" : "Xem trước & Gửi duyệt" };
+      const label = isAuthority 
+        ? (isPlanMode ? "Xem trước & Phê duyệt" : "Xem trước & Xuất bản")
+        : "Xem trước & Gửi duyệt";
+      return { ...s, label };
     }
     return s;
   });
@@ -250,7 +256,8 @@ export const EventCreator = ({
             endTime: item.endTime || "",
             speaker: item.speaker || "",
             room: item.location || "",
-            orderIndex: idx + 1
+            orderIndex: idx + 1,
+            isConfirmed: true // Auto-confirm sessions from AI
           })) || [],
           presenters: extracted.programItems?.reduce((acc, item) => {
             if (item.speaker && !acc.find(p => p.fullName === item.speaker)) {
@@ -305,23 +312,49 @@ export const EventCreator = ({
         const extracted = data.extracted;
 
         // Map AI result to our form structure
+        const formatForInput = (isoStr) => {
+          if (!isoStr) return "";
+          try {
+            // Nếu AI trả về định dạng YYYY-MM-DDTHH:mm:ss, ta chỉ lấy phần cần thiết
+            if (typeof isoStr === 'string' && isoStr.includes('T')) {
+              return isoStr.substring(0, 16);
+            }
+            const date = new Date(isoStr);
+            if (isNaN(date)) return "";
+            
+            // Chuyển đổi sang giờ địa phương YYYY-MM-DDTHH:mm
+            const year = date.getFullYear();
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const day = String(date.getDate()).padStart(2, '0');
+            const hours = String(date.getHours()).padStart(2, '0');
+            const minutes = String(date.getMinutes()).padStart(2, '0');
+            return `${year}-${month}-${day}T${hours}:${minutes}`;
+          } catch (e) {
+            return "";
+          }
+        };
+
         const mappedData = {
           eventTitle: extracted.title || formData.eventTitle,
           eventTopic: extracted.subject || formData.eventTopic,
           eventPurpose: extracted.purpose || extracted.description || formData.eventPurpose,
           location: extracted.suggestedLocation || formData.location,
           maxParticipants: extracted.estimatedParticipants || formData.maxParticipants,
+          startTime: formatForInput(extracted.suggestedStartTime) || formData.startTime,
+          endTime: formatForInput(extracted.suggestedEndTime) || formData.endTime,
+          registrationDeadline: formatForInput(extracted.registrationDeadline) || formData.registrationDeadline,
           eventType: "WORKSHOP",
           eventMode: "OFFLINE",
           sessions: extracted.programItems?.map((item, idx) => ({
             title: item.title || "Không tên",
             description: item.description || "",
             durationMinutes: item.durationMinutes || 0,
-            startTime: item.startTime || "",
-            endTime: item.endTime || "",
+            startTime: formatForInput(item.startTime) || "",
+            endTime: formatForInput(item.endTime) || "",
             speaker: item.speaker || "",
             room: item.location || "",
-            orderIndex: idx + 1
+            orderIndex: idx + 1,
+            isConfirmed: true
           })) || [],
           // Extract unique presenters from sessions
           presenters: extracted.programItems?.reduce((acc, item) => {
@@ -341,22 +374,31 @@ export const EventCreator = ({
 
         // Fallback for Title and Purpose if empty
         if (!mappedData.eventTitle && data.rawText) {
-          mappedData.eventTitle = data.rawText.split('\n')[0].substring(0, 50) || "Sự kiện từ Docx";
+          const lines = data.rawText.split('\n') || [];
+          const targetLine = lines.find(l => l.includes("V/v") || l.includes("KẾ HOẠCH"));
+          if (targetLine) {
+            mappedData.eventTitle = targetLine.replace(/V\/v:?\s*/i, "").trim().substring(0, 100);
+          } else {
+            mappedData.eventTitle = lines.find(l => 
+              l.trim().length > 10 && 
+              !l.includes("TRƯỜNG") && 
+              !l.includes("KHOA") && 
+              !l.includes("CỘNG HÒA")
+            )?.trim().substring(0, 70) || "Kế hoạch sự kiện (Nhập từ file)";
+          }
         }
         if (!mappedData.eventPurpose && data.rawText) {
           mappedData.eventPurpose = data.rawText;
         }
 
-        // Handle datetimes if present
-        if (extracted.suggestedStartTime) {
-          mappedData.startTime = new Date(extracted.suggestedStartTime).toISOString().slice(0, 16);
-        }
-        if (extracted.suggestedEndTime) {
-          mappedData.endTime = new Date(extracted.suggestedEndTime).toISOString().slice(0, 16);
-        }
-
         updateFormData(mappedData);
         toast.success("✨ Đã trích xuất thông tin thành công!");
+        
+        // Force browser to recalculate height and scroll to top of content
+        setTimeout(() => {
+          window.dispatchEvent(new Event('resize'));
+          window.scrollTo({ top: 0, behavior: 'smooth' });
+        }, 100);
       } else if (data && data.rawText) {
         toast.warning("AI không thể trích xuất dữ liệu chi tiết, nhưng đã đọc được văn bản. Bạn có thể tự điền dựa trên nội dung.");
       }
@@ -502,6 +544,8 @@ export const EventCreator = ({
       }
 
       const data = finalData || formData;
+      const isAdmin = role === 'ADMIN' || role === 'SUPER_ADMIN';
+
       const payload = {
         title: (data.eventTitle || data.title || "").trim(),
         description: (data.eventPurpose || data.description || "").trim(),
@@ -521,9 +565,11 @@ export const EventCreator = ({
         additionalInfo: (data.additionalInfo || "").trim(),
         coverImage: data.coverImage || "",
         createdByAccountId: accountId,
-        // Plan mode: "Gửi phê duyệt" submits with PLAN_PENDING_APPROVAL
-        status: isPlanMode ? 'PLAN_PENDING_APPROVAL' : ((user?.role === 'SUPER_ADMIN') ? 'PUBLISHED' : 'EVENT_PENDING_APPROVAL'),
-        approvedByAccountId: (user?.role === 'SUPER_ADMIN' && !isPlanMode) ? accountId : null,
+        // Auto-approval logic for Admin/SuperAdmin
+        status: isPlanMode 
+          ? (isAdmin ? 'PLAN_APPROVED' : 'PLAN_PENDING_APPROVAL')
+          : (isAdmin ? 'PUBLISHED' : 'EVENT_PENDING_APPROVAL'),
+        approvedByAccountId: isAdmin ? accountId : null,
         targetObjects: Array.isArray(data.targetObjects)
           ? data.targetObjects.map(obj => typeof obj === 'string' ? { type: 'CATEGORY', name: obj } : obj)
           : [],

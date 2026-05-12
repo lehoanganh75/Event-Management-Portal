@@ -2,7 +2,7 @@ package com.eventservice.dto.plan.response;
 
 import lombok.*;
 
-import java.time.LocalTime;
+import java.time.LocalDateTime;
 
 @Getter
 @Setter
@@ -13,8 +13,8 @@ public class EventProgramItemSuggestionResponse {
 
     private String title;
     private String description;
-    private LocalTime startTime;
-    private LocalTime endTime;
+    private LocalDateTime startTime;
+    private LocalDateTime endTime;
     private Integer durationMinutes;
     private String speaker;
     private String location;

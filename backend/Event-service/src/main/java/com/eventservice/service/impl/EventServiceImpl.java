@@ -1736,6 +1736,7 @@ public class EventServiceImpl implements EventService {
                         .checkedIn(random.nextDouble() < 0.8)
                         .checkInTime(
                                 random.nextDouble() < 0.8 ? LocalDateTime.now().minusHours(random.nextInt(5)) : null)
+                        .registeredAt(regTime) // Added this
                         .isDeleted(false)
                         .build();
                 mockData.add(reg);

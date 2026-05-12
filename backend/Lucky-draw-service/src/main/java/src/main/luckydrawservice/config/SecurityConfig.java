@@ -40,6 +40,9 @@ public class SecurityConfig {
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(
+                                "/lucky-draws/events/**"
+                        ).permitAll()
+                        .requestMatchers(
                                 "/lucky-draws/**"
                         ).authenticated()
                         .anyRequest().authenticated()

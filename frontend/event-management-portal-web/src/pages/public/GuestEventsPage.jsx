@@ -237,37 +237,40 @@ const GuestEventsPage = () => {
 
   return (
     <Layout>
-      <div className="min-h-screen bg-slate-50/50 pb-20">
+      <div className="min-h-screen bg-[#f8fafc] pb-20">
         {/* HERO SECTION */}
-        <div className="bg-white border-b border-slate-200 pt-10 pb-16">
+        <div className="bg-white border-b border-slate-200/60 pt-10 pb-12">
           <div className="max-w-7xl mx-auto px-6">
             <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
-              <div className="space-y-2">
-                <div className="inline-flex items-center gap-2 bg-indigo-50 text-indigo-600 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider">
-                  <Ticket size={14} />
-                  Cổng thông tin người tham gia
+              <div className="space-y-1">
+                <div className="flex items-center gap-2 text-indigo-600 mb-1">
+                  <Ticket size={18} />
+                  <span className="text-[10px] font-bold uppercase tracking-[0.2em]">SỰ KIỆN CỦA TÔI</span>
                 </div>
-                <h1 className="text-4xl font-black text-slate-900 tracking-tight">Sự kiện của tôi</h1>
-                <p className="text-slate-500 max-w-md">Theo dõi và quản lý lịch trình tham gia sự kiện của bạn.</p>
+                <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight">Lịch trình Sự kiện</h1>
+                <p className="text-slate-500 text-sm font-medium">Theo dõi và quản lý các sự kiện bạn đã tham gia</p>
               </div>
 
-              <div className="flex flex-wrap gap-4 items-center">
-                <div className="flex bg-slate-100 p-1.5 rounded-2xl mr-4 shadow-inner">
+              <div className="flex items-center gap-4">
+                <div className="flex bg-slate-100 p-1 rounded-xl shadow-inner">
                   <button 
                     onClick={() => setViewMode("GRID")}
-                    className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-bold transition-all ${viewMode === "GRID" ? "bg-white text-indigo-600 shadow-md" : "text-slate-400 hover:text-slate-600"}`}
+                    className={`flex items-center gap-2 px-4 py-1.5 rounded-lg text-[11px] font-bold transition-all ${viewMode === "GRID" ? "bg-white text-indigo-600 shadow-sm" : "text-slate-500 hover:text-slate-700"}`}
                   >
                     <Search size={14} /> Dạng lưới
                   </button>
                   <button 
                     onClick={() => setViewMode("CALENDAR")}
-                    className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-bold transition-all ${viewMode === "CALENDAR" ? "bg-white text-indigo-600 shadow-md" : "text-slate-400 hover:text-slate-600"}`}
+                    className={`flex items-center gap-2 px-4 py-1.5 rounded-lg text-[11px] font-bold transition-all ${viewMode === "CALENDAR" ? "bg-white text-indigo-600 shadow-sm" : "text-slate-500 hover:text-slate-700"}`}
                   >
                     <CalendarIcon size={14} /> Dạng lịch
                   </button>
                 </div>
-                <StatCard label="Tổng sự kiện" value={stats.total} color="blue" />
-                <StatCard label="Đang diễn ra" value={stats.ongoing} color="emerald" />
+                <div className="h-10 w-px bg-slate-200 hidden md:block" />
+                <div className="hidden sm:flex items-center gap-3">
+                  <StatCard label="Tổng cộng" value={stats.total} color="blue" />
+                  <StatCard label="Đang diễn ra" value={stats.ongoing} color="emerald" />
+                </div>
               </div>
             </div>
           </div>
@@ -275,25 +278,23 @@ const GuestEventsPage = () => {
 
         <div className="max-w-7xl mx-auto px-6 -mt-8">
           {viewMode === "GRID" && (
-            <div className="bg-white rounded-3xl shadow-xl shadow-slate-200/50 border border-slate-100 p-4 mb-10">
-              <div className="flex flex-col lg:flex-row gap-4">
-                <div className="relative flex-1">
-                  <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
-                  <input
-                    type="text"
-                    placeholder="Tìm kiếm sự kiện theo tên..."
-                    className="w-full pl-12 pr-4 py-3.5 bg-slate-50 border-none rounded-2xl text-sm focus:ring-2 focus:ring-indigo-500/20 transition-all"
-                    value={search}
-                    onChange={(e) => setSearch(e.target.value)}
-                  />
-                </div>
+            <div className="bg-white rounded-2xl shadow-sm border border-slate-200/60 p-3 mb-8 flex flex-col md:flex-row gap-4 items-center">
+              <div className="relative flex-1 w-full">
+                <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+                <input
+                  type="text"
+                  placeholder="Tìm kiếm sự kiện..."
+                  className="w-full pl-11 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                />
+              </div>
 
-                <div className="flex items-center gap-2 overflow-x-auto pb-2 lg:pb-0 no-scrollbar">
-                  <FilterButton active={activeFilter === "ALL"} onClick={() => setActiveFilter("ALL")} label="Tất cả" />
-                  <FilterButton active={activeFilter === "ONGOING"} onClick={() => setActiveFilter("ONGOING")} label="Đang diễn ra" />
-                  <FilterButton active={activeFilter === "PUBLISHED"} onClick={() => setActiveFilter("PUBLISHED")} label="Sắp diễn ra" />
-                  <FilterButton active={activeFilter === "COMPLETED"} onClick={() => setActiveFilter("COMPLETED")} label="Đã kết thúc" />
-                </div>
+              <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl">
+                <FilterButton active={activeFilter === "ALL"} onClick={() => setActiveFilter("ALL")} label="Tất cả" />
+                <FilterButton active={activeFilter === "ONGOING"} onClick={() => setActiveFilter("ONGOING")} label="Đang diễn ra" />
+                <FilterButton active={activeFilter === "PUBLISHED"} onClick={() => setActiveFilter("PUBLISHED")} label="Sắp diễn ra" />
+                <FilterButton active={activeFilter === "COMPLETED"} onClick={() => setActiveFilter("COMPLETED")} label="Đã kết thúc" />
               </div>
             </div>
           )}
@@ -364,56 +365,46 @@ const EventTicketCard = ({ event, index, onClick }) => {
   return (
     <motion.div
       layout
-      initial={{ opacity: 0, scale: 0.9 }}
-      animate={{ opacity: 1, scale: 1 }}
-      exit={{ opacity: 0, scale: 0.9 }}
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, scale: 0.95 }}
       transition={{ delay: index * 0.05 }}
-      whileHover={{ y: -8 }}
       onClick={onClick}
-      className="group relative bg-white rounded-3xl overflow-hidden shadow-lg hover:shadow-2xl transition-all border border-slate-100 cursor-pointer flex flex-col h-full"
+      className="group bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-md transition-all border border-slate-200/60 cursor-pointer flex flex-col h-full"
     >
-      <div className="relative h-48 overflow-hidden">
+      <div className="relative h-44 overflow-hidden">
         <img
           src={event.coverImage || "https://images.unsplash.com/photo-1501281668745-f7f57925c3b4?auto=format&fit=crop&q=80"}
           alt={event.title}
-          className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
+          className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
         />
-        <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
-
-        <div className="absolute top-4 right-4">
-          <div className={`${status.bg} ${status.color} px-3 py-1.5 rounded-xl text-[10px] font-black uppercase flex items-center gap-1.5 backdrop-blur-md shadow-sm`}>
+        <div className="absolute top-3 right-3">
+          <div className={`${status.bg} ${status.color} px-2.5 py-1 rounded-lg text-[9px] font-bold uppercase flex items-center gap-1.5 backdrop-blur-md shadow-sm border border-white/20`}>
             <StatusIcon size={12} />
             {status.label}
           </div>
         </div>
-
-        <div className="absolute bottom-4 left-4">
-          <div className="flex items-center gap-2 text-white/90 text-xs font-medium">
-            <CalendarIcon size={14} className="text-orange-400" />
-            {new Date(event.startTime).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' })}
-          </div>
-        </div>
       </div>
 
-      <div className="p-6 flex-1 flex flex-col">
-        <div className="mb-4">
-          <h3 className="text-lg font-black text-slate-800 line-clamp-2 leading-tight group-hover:text-indigo-600 transition-colors">
-            {event.title}
-          </h3>
+      <div className="p-5 flex-1 flex flex-col">
+        <div className="flex items-center gap-2 text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">
+          <span>{event.type || 'Sự kiện'}</span>
+          <span>•</span>
+          <span>{new Date(event.startTime).toLocaleDateString('vi-VN')}</span>
         </div>
+        
+        <h3 className="text-base font-bold text-slate-900 line-clamp-2 leading-snug group-hover:text-indigo-600 transition-colors mb-4">
+          {event.title}
+        </h3>
 
-        <div className="space-y-3 mb-6">
-          <div className="flex items-center gap-3 text-slate-500 text-sm">
-            <div className="w-8 h-8 bg-slate-50 rounded-lg flex items-center justify-center shrink-0">
-              <MapPin size={16} className="text-indigo-500" />
-            </div>
+        <div className="space-y-2 mb-6">
+          <div className="flex items-center gap-2 text-slate-500 text-xs">
+            <MapPin size={14} className="text-slate-400" />
             <span className="line-clamp-1">{event.location || "IUH Campus"}</span>
           </div>
 
-          <div className="flex items-center gap-3 text-slate-500 text-sm">
-            <div className="w-8 h-8 bg-slate-50 rounded-lg flex items-center justify-center shrink-0">
-              <Clock size={16} className="text-indigo-500" />
-            </div>
+          <div className="flex items-center gap-2 text-slate-500 text-xs">
+            <Clock size={14} className="text-slate-400" />
             <span>
               {new Date(event.startTime).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}
               {" - "}
@@ -422,15 +413,9 @@ const EventTicketCard = ({ event, index, onClick }) => {
           </div>
         </div>
 
-        <div className="mt-auto pt-6 border-t border-slate-50 flex items-center justify-between">
-          <div className="flex items-center gap-2 text-indigo-600 font-bold text-sm">
-            Chi tiết sự kiện
-            <ChevronRight size={16} className="group-hover:translate-x-1 transition-transform" />
-          </div>
-
-          <div className="w-10 h-10 bg-indigo-50 text-indigo-600 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all">
-            <ChevronRight size={20} />
-          </div>
+        <div className="mt-auto pt-4 border-t border-slate-50 flex items-center justify-between text-xs font-bold text-indigo-600">
+          <span>Xem chi tiết</span>
+          <ChevronRight size={16} className="group-hover:translate-x-1 transition-transform" />
         </div>
       </div>
     </motion.div>
