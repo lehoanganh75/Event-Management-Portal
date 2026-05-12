@@ -132,14 +132,22 @@ const NotificationPage = () => {
     }
   }, [currentUserId]);
 
-  const fetchData = (isRefresh = false) => {
+  const fetchData = async (isRefresh = false) => {
     if (isRefresh) {
       setIsRefreshing(true);
     } else {
       setIsLoading(true);
     }
 
-    notificationService.getNotificationsByUser(currentUserId)
+    try {
+      const response = await notificationService.getNotificationsByUser(currentUserId);
+      setNotifications(response.data || []);
+    } catch (err) {
+      console.error("Error fetching notifications:", err);
+    } finally {
+      setIsLoading(false);
+      setIsRefreshing(false);
+    }
   };
 
   const handleMarkAsRead = async (id) => {
