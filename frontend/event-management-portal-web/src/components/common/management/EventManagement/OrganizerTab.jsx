@@ -41,14 +41,94 @@ const OrganizerTab = ({
   };
 
   const handleConfirmRoleChange = () => {
+    console.log("🔄 Confirming role change:", { id: selectedOrgForRole.id, newRole });
     if (selectedOrgForRole && newRole !== selectedOrgForRole.role) {
       onUpdateOrganizerRole(selectedOrgForRole.id, newRole);
+    } else {
+      console.warn("⚠️ No change detected or no member selected");
     }
     setSelectedOrgForRole(null);
   };
 
   return (
     <div className="space-y-6">
+      {/* Role Update Modal */}
+      {selectedOrgForRole && (
+        <div 
+          className="fixed inset-0 z-[10000] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-300"
+          onClick={() => setSelectedOrgForRole(null)}
+        >
+          <div 
+            className="bg-white rounded-[2rem] w-full max-w-md shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200 border border-white"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="p-8 border-b border-slate-50 flex items-center justify-between bg-slate-50/50">
+              <div>
+                <h3 className="font-black text-slate-800 text-lg uppercase tracking-tight">Thay đổi vai trò</h3>
+                <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-0.5">Update Member Role</p>
+              </div>
+              <button 
+                onClick={() => setSelectedOrgForRole(null)} 
+                className="p-2 hover:bg-white hover:shadow-sm rounded-xl transition-all text-slate-400 hover:text-slate-600"
+              >
+                <X size={20} />
+              </button>
+            </div>
+            
+            <div className="p-8 space-y-6">
+              <div className="flex items-center gap-4 p-4 bg-indigo-50/30 rounded-2xl border border-indigo-100/50">
+                <img 
+                  src={selectedOrgForRole.avatarUrl || "https://cdn-icons-png.flaticon.com/512/3135/3135715.png"} 
+                  className="w-12 h-12 rounded-xl object-cover border-2 border-white shadow-sm" 
+                />
+                <div>
+                  <div className="font-black text-slate-800 text-sm">{selectedOrgForRole.fullName}</div>
+                  <div className="text-[11px] text-slate-500 font-medium">{selectedOrgForRole.email}</div>
+                </div>
+              </div>
+
+              <div className="space-y-3">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-1">Chọn vai trò mới</label>
+                <div className="grid gap-2">
+                  {ORGANIZER_ROLES.map((role) => (
+                    <button
+                      key={role.value}
+                      onClick={() => setNewRole(role.value)}
+                      className={`w-full flex items-center justify-between px-5 py-4 rounded-2xl border-2 transition-all group ${newRole === role.value ? "border-indigo-600 bg-indigo-50/50 text-indigo-700 shadow-sm" : "border-slate-100 hover:border-slate-200 hover:bg-slate-50"}`}
+                    >
+                      <span className={`font-bold text-sm ${newRole === role.value ? "text-indigo-700" : "text-slate-600"}`}>{role.label}</span>
+                      {newRole === role.value ? (
+                        <div className="w-5 h-5 bg-indigo-600 rounded-full flex items-center justify-center shadow-lg shadow-indigo-200">
+                          <Check size={12} className="text-white" />
+                        </div>
+                      ) : (
+                        <div className="w-5 h-5 rounded-full border-2 border-slate-200 group-hover:border-slate-300" />
+                      )}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            <div className="p-8 bg-slate-50/50 border-t border-slate-50 flex gap-3">
+              <button 
+                onClick={() => setSelectedOrgForRole(null)} 
+                className="flex-1 py-4 text-xs font-black uppercase tracking-widest text-slate-400 hover:text-slate-600 transition-colors"
+              >
+                Hủy bỏ
+              </button>
+              <button 
+                onClick={handleConfirmRoleChange} 
+                disabled={newRole === selectedOrgForRole.role}
+                className="flex-1 py-4 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 disabled:grayscale text-white rounded-2xl text-xs font-black uppercase tracking-[0.2em] transition-all shadow-xl shadow-indigo-100 active:scale-95"
+              >
+                Xác nhận
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Basic Header */}
       {event.organization && (
         <div className="bg-white border border-slate-200 rounded-3xl p-6 shadow-sm flex flex-col md:flex-row items-center gap-6">
