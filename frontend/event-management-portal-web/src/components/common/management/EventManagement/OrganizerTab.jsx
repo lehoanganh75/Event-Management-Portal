@@ -279,7 +279,7 @@ const OrganizerTab = ({
                       </td>
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-2">
-                          <span className={`px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider ${roleData.color}`}>
+                          <span className={`px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider border ${roleData.color}`}>
                             {roleData.label}
                           </span>
                           {canManage && !org.isPending && (

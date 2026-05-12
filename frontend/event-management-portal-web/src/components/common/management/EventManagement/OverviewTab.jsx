@@ -20,16 +20,16 @@ const OverviewTab = ({
 
   return (
     <div className="space-y-8">
-      {/* TIMELINE SECTION (Simplified) */}
-      <div className="pb-16">
-        <h3 className="font-bold text-sm mb-16 flex items-center gap-2 text-slate-800 uppercase tracking-tight">
+      {/* TIMELINE SECTION (Polarized Staggered Layout) */}
+      <div className="pb-32 pt-20">
+        <h3 className="font-black text-xs mb-24 flex items-center gap-2 text-slate-800 uppercase tracking-[0.2em]">
           <Flag className="text-amber-500" size={18} /> {t('event_timeline')}
         </h3>
 
         <div className="relative px-4">
-          <div className="mx-20 relative">
+          <div className="mx-20 relative h-1">
             {/* Background Line */}
-            <div className="absolute top-1/2 left-0 w-full h-1 bg-slate-100 -translate-y-1/2 rounded-full" />
+            <div className="absolute top-0 left-0 w-full h-1 bg-slate-100 rounded-full" />
 
             {/* Calculation of positions */}
             {(() => {
@@ -57,54 +57,62 @@ const OverviewTab = ({
                 <>
                   {/* Progress Line */}
                   <div
-                    className="absolute top-1/2 left-0 h-1 bg-indigo-500 -translate-y-1/2 rounded-full transition-all duration-1000"
+                    className="absolute top-0 left-0 h-1 bg-indigo-500 rounded-full transition-all duration-1000 shadow-[0_0_15px_rgba(79,70,229,0.4)]"
                     style={{ width: `${nowPos}%` }}
                   />
 
-                  {/* MILESTONE: DEADLINE */}
-                  <div className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2" style={{ left: `${deadlinePos}%` }}>
-                    <div className={`w-3 h-3 rounded-full border-2 ${isPast(deadline) ? 'bg-indigo-500 border-indigo-100' : 'bg-white border-slate-300'} z-10`} />
-                    <div className="absolute top-1/2 left-1/2 w-px h-12 bg-slate-200 -translate-x-1/2" />
-                    <div className="absolute top-14 left-1/2 -translate-x-1/2 text-center w-28">
-                      <p className="text-[8px] font-black text-rose-500 uppercase tracking-tighter mb-0.5">{t('reg_deadline_short')}</p>
-                      <p className="text-[9px] font-bold text-slate-700 leading-tight">{formatFullDateTime(event.registrationDeadline)}</p>
+                  {/* MILESTONE 1: DEADLINE (Top - Low) */}
+                  <div className="absolute top-0 -translate-x-1/2" style={{ left: `${deadlinePos}%` }}>
+                    <div className={`w-4 h-4 rounded-full border-2 -mt-2 ${isPast(deadline) ? 'bg-indigo-500 border-indigo-100' : 'bg-white border-slate-300'} z-10 shadow-md`} />
+                    <div className="absolute bottom-0 left-1/2 w-px h-12 bg-slate-200 -translate-x-1/2" />
+                    <div className="absolute bottom-12 left-1/2 -translate-x-1/2 text-center w-32 pb-2">
+                      <p className="text-[9px] font-black text-rose-500 uppercase tracking-widest mb-1">{t('reg_deadline_short')}</p>
+                      <p className="text-[10px] font-bold text-slate-700 leading-tight bg-white/80 backdrop-blur-sm p-1 rounded-lg">{formatFullDateTime(event.registrationDeadline)}</p>
                     </div>
                   </div>
 
-                  {/* MILESTONE: START */}
-                  <div className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2" style={{ left: `${startPos}%` }}>
-                    <div className={`w-3 h-3 rounded-full border-2 ${isPast(start) ? 'bg-indigo-500 border-indigo-100' : 'bg-white border-slate-300'} z-10`} />
-                    <div className="absolute bottom-1/2 left-1/2 w-px h-12 bg-slate-200 -translate-x-1/2" />
-                    <div className="absolute bottom-14 left-1/2 -translate-x-1/2 text-center w-28">
-                      <p className="text-[8px] font-black text-blue-500 uppercase tracking-tighter mb-0.5">{t('start_short')}</p>
-                      <p className="text-[9px] font-bold text-slate-700 leading-tight">{formatFullDateTime(event.startTime)}</p>
+                  {/* MILESTONE 2: START (Top - High) */}
+                  <div className="absolute top-0 -translate-x-1/2" style={{ left: `${startPos}%` }}>
+                    <div className={`w-4 h-4 rounded-full border-2 -mt-2 ${isPast(start) ? 'bg-indigo-500 border-indigo-100' : 'bg-white border-slate-300'} z-10 shadow-md`} />
+                    <div className="absolute bottom-0 left-1/2 w-px h-24 bg-slate-200 -translate-x-1/2" />
+                    <div className="absolute bottom-24 left-1/2 -translate-x-1/2 text-center w-32 pb-2">
+                      <p className="text-[9px] font-black text-blue-500 uppercase tracking-widest mb-1">{t('start_short')}</p>
+                      <p className="text-[10px] font-bold text-slate-700 leading-tight bg-white/80 backdrop-blur-sm p-1 rounded-lg">{formatFullDateTime(event.startTime)}</p>
                     </div>
                   </div>
 
-                  {/* MILESTONE: END */}
-                  <div className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2" style={{ left: `${endPos}%` }}>
-                    <div className={`w-3 h-3 rounded-full border-2 ${isPast(end) ? 'bg-indigo-500 border-indigo-100' : 'bg-white border-slate-300'} z-10`} />
-                    <div className="absolute top-1/2 left-1/2 w-px h-12 bg-slate-200 -translate-x-1/2" />
-                    <div className="absolute top-14 left-1/2 -translate-x-1/2 text-center w-28">
-                      <p className="text-[8px] font-black text-emerald-500 uppercase tracking-tighter mb-0.5">{t('end_short')}</p>
-                      <p className="text-[9px] font-bold text-slate-700 leading-tight">{formatFullDateTime(event.endTime)}</p>
+                  {/* MILESTONE 3: END (Top - Low) */}
+                  <div className="absolute top-0 -translate-x-1/2" style={{ left: `${endPos}%` }}>
+                    <div className={`w-4 h-4 rounded-full border-2 -mt-2 ${isPast(end) ? 'bg-indigo-500 border-indigo-100' : 'bg-white border-slate-300'} z-10 shadow-md`} />
+                    <div className="absolute bottom-0 left-1/2 w-px h-12 bg-slate-200 -translate-x-1/2" />
+                    <div className="absolute bottom-12 left-1/2 -translate-x-1/2 text-center w-32 pb-2">
+                      <p className="text-[9px] font-black text-emerald-500 uppercase tracking-widest mb-1">{t('end_short')}</p>
+                      <p className="text-[10px] font-bold text-slate-700 leading-tight bg-white/80 backdrop-blur-sm p-1 rounded-lg">{formatFullDateTime(event.endTime)}</p>
                     </div>
                   </div>
 
-                  {/* CURRENT TIME INDICATOR */}
+                  {/* CURRENT TIME INDICATOR (Always Bottom) */}
                   <div
-                    className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 z-20"
+                    className="absolute top-0 -translate-x-1/2 z-20"
                     style={{ left: `${nowPos}%` }}
                   >
-                    <div className="w-5 h-5 bg-indigo-600 rounded-full flex items-center justify-center shadow-lg shadow-indigo-200 animate-pulse border-2 border-white">
-                      <div className="w-1.5 h-1.5 bg-white rounded-full" />
+                    <div className="w-6 h-6 bg-indigo-600 rounded-full flex items-center justify-center shadow-xl shadow-indigo-200 border-4 border-white -mt-2.5 group">
+                      <div className="w-1.5 h-1.5 bg-white rounded-full group-hover:scale-150 transition-transform" />
                     </div>
-                    <div className="absolute -top-12 left-1/2 -translate-x-1/2 bg-indigo-600 text-white text-[8px] font-black px-2 py-0.5 rounded-full shadow-lg whitespace-nowrap">
+                    
+                    {/* Floating Today Badge - Very High to be prominent */}
+                    <div className="absolute -top-36 left-1/2 -translate-x-1/2 bg-indigo-600 text-white text-[10px] font-black px-4 py-1.5 rounded-full shadow-2xl shadow-indigo-200 whitespace-nowrap animate-bounce z-30">
                       {t('today')}
                     </div>
-                    <div className="absolute top-10 left-1/2 -translate-x-1/2 text-center w-28">
-                      <p className="text-[9px] font-black text-indigo-600 uppercase tracking-tighter">{t('current_time')}</p>
-                      <p className="text-[10px] font-black text-slate-900">{formatFullDateTime(now)}</p>
+
+                    {/* Vertical guideline down */}
+                    <div className="absolute top-0 left-1/2 w-px h-20 border-l-2 border-dashed border-indigo-300 -translate-x-1/2" />
+                    
+                    <div className="absolute top-20 left-1/2 -translate-x-1/2 text-center w-44 pt-3">
+                      <div className="bg-indigo-600 rounded-2xl p-3 shadow-xl shadow-indigo-100 border border-white">
+                        <p className="text-[9px] font-black text-indigo-100 uppercase tracking-widest mb-1">{t('current_time')}</p>
+                        <p className="text-[11px] font-black text-white">{formatFullDateTime(now)}</p>
+                      </div>
                     </div>
                   </div>
                 </>

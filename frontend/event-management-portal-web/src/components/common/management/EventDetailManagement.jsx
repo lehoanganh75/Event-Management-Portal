@@ -165,8 +165,18 @@ const EventDetailManagement = ({
   };
 
   const getOrganizerRole = (role) => {
-    const roleKey = `role_${role?.toLowerCase()}`;
-    return { label: t(roleKey) || role, color: "bg-purple-100 text-purple-700" };
+    const normalizedRole = role?.replace('ROLE_', '')?.toUpperCase();
+    
+    const roleMap = {
+      'LEADER': { label: 'Trưởng ban tổ chức', color: 'bg-amber-100 text-amber-700 border-amber-200' },
+      'COORDINATOR': { label: 'Điều phối viên', color: 'bg-indigo-100 text-indigo-700 border-indigo-200' },
+      'MEMBER': { label: 'Thành viên', color: 'bg-slate-100 text-slate-700 border-slate-200' },
+      'ADVISOR': { label: 'Cố vấn', color: 'bg-purple-100 text-purple-700 border-purple-200' },
+      'HOST': { label: 'Chủ trì', color: 'bg-rose-100 text-rose-700 border-rose-200' }
+    };
+
+    const roleData = roleMap[normalizedRole] || { label: role, color: 'bg-gray-100 text-gray-600 border-gray-200' };
+    return roleData;
   };
 
   // --- INTERNAL INVITATION STATE (Moved from parent pages) ---

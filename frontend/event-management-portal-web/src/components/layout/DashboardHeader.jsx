@@ -60,8 +60,8 @@ const DashboardHeader = () => {
   };
 
   const getPrimaryRole = () => {
-    const systemRole = user?.role?.toLowerCase() || "";
-    return t(`role_${systemRole}`) || t('role_student');
+    const systemRole = user?.role?.toUpperCase() || "STUDENT";
+    return roleMap[systemRole] || t(`role_${systemRole.toLowerCase()}`) || "Sinh viên";
   };
 
   const formatTime = (dateString) => {
