@@ -5,6 +5,7 @@ import SockJS from "sockjs-client";
 export const useQuiz = (eventId) => {
     const [quizState, setQuizState] = useState({ type: 'WAITING', data: null });
     const [leaderboard, setLeaderboard] = useState([]);
+    const [participants, setParticipants] = useState([]);
     const [activeQuizId, setActiveQuizId] = useState(null);
     const stompClientRef = useRef(null);
 
@@ -12,21 +13,24 @@ export const useQuiz = (eventId) => {
         if (!eventId) return;
 
         const client = new Client({
-            webSocketFactory: () => new SockJS("http://localhost:8085/ws"),
+            webSocketFactory: () => new SockJS("http://localhost:8000/ws/chat"),
             reconnectDelay: 5000,
             onConnect: () => {
                 console.log("✅ [Quiz WS] Connected for Event:", eventId);
                 client.subscribe(`/topic/quiz.${eventId}`, (message) => {
                     if (message.body) {
                         const event = JSON.parse(message.body);
-                        console.log("📩 [Quiz WS] Received event:", event);
+                        console.log("📩 [Quiz WS] Event Type:", event.type);
+                        console.log("📩 [Quiz WS] Event Data:", event.data);
 
                         if (event.type === 'LEADERBOARD') {
                             setLeaderboard(event.data);
                             setQuizState({ type: 'LEADERBOARD', data: event.data });
                         } else if (event.type === 'START') {
-                            setActiveQuizId(event.data); // event.data = quizId
+                            setActiveQuizId(event.data);
                             setQuizState({ type: 'START', data: event.data });
+                        } else if (event.type === 'LOBBY_UPDATE') {
+                            setParticipants(event.data || []);
                         } else if (event.type === 'END') {
                             setQuizState({ type: 'END', data: null });
                         } else {
@@ -43,5 +47,16 @@ export const useQuiz = (eventId) => {
         return () => client.deactivate();
     }, [eventId]);
 
-    return { quizState, leaderboard, activeQuizId };
+    const joinQuiz = (quizId, nickname, avatar, userId) => {
+        if (stompClientRef.current && stompClientRef.current.connected) {
+            stompClientRef.current.publish({
+                destination: `/app/quiz.join/${quizId}`,
+                body: JSON.stringify({ nickname, avatar, userId })
+            });
+            return true;
+        }
+        return false;
+    };
+
+    return { quizState, leaderboard, participants, activeQuizId, joinQuiz };
 };

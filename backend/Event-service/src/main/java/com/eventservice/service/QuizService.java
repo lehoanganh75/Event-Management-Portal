@@ -13,6 +13,9 @@ public interface QuizService {
     void startQuiz(String quizId);
     void nextQuestion(String quizId, int questionIndex);
     void endQuiz(String quizId);
+    void resetQuiz(String quizId);
+    
+    void joinQuiz(String quizId, String nickname, String avatar, String userId);
     
     int submitAnswer(String userId, QuizSubmissionDto submission);
     

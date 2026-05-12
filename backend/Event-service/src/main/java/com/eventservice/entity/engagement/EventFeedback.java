@@ -35,6 +35,9 @@ public class EventFeedback {
     @Column(columnDefinition = "TEXT")
     private String comment;
 
+    @Column(columnDefinition = "TEXT")
+    private String ratingReason; // Lý do cho mức đánh giá này
+
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(columnDefinition = "JSON")
     private List<String> imageUrls;

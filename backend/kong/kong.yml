@@ -55,6 +55,14 @@ services:
         paths:
           - /ws
         strip_path: false
+      - name: qa-route
+        paths:
+          - /qa
+        strip_path: false
+      - name: feedbacks-route
+        paths:
+          - /api/v1/feedbacks
+        strip_path: false
 
 
   # 3. Identity Service

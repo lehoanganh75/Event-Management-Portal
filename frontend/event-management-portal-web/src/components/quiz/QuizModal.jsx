@@ -1,97 +1,282 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Trophy, Play, ArrowRight, Zap, CheckCircle2, XCircle, Clock } from 'lucide-react';
+import { X, Trophy, Play, ArrowRight, Zap, CheckCircle2, XCircle, Clock, QrCode, Eye, EyeOff, Maximize2, Lock, Unlock, Users } from 'lucide-react';
+import QRCode from 'react-qr-code';
 import { toast } from 'react-toastify';
 import eventService from '../../services/eventService';
 import { useQuiz } from '../../hooks/useQuiz';
+import { useAuth } from "../../context/AuthContext";
 import DuckRace from './DuckRace';
 
-// Kahoot shapes & colors
-const SHAPES = [
-  { bg: '#E21B3C', icon: '▲', label: 'A' },
-  { bg: '#1368CE', icon: '◆', label: 'B' },
-  { bg: '#D89E00', icon: '●', label: 'C' },
-  { bg: '#26890C', icon: '■', label: 'D' },
+// Animal Avatars for participants
+const ANIMALS = [
+  { emoji: '🐶', name: 'Chó con' }, { emoji: '🐱', name: 'Mèo con' }, { emoji: '🐭', name: 'Chuột nhắt' },
+  { emoji: '🐹', name: 'Hamster' }, { emoji: '🐰', name: 'Thỏ bông' }, { emoji: '🦊', name: 'Cáo nhỏ' },
+  { emoji: '🐻', name: 'Gấu béo' }, { emoji: '🐼', name: 'Panda' }, { emoji: '🐨', name: 'Koala' },
+  { emoji: '🐯', name: 'Hổ con' }, { emoji: '🦁', name: 'Sư tử' }, { emoji: '🐮', name: 'Bò sữa' },
+  { emoji: '🐷', name: 'Heo hồng' }, { emoji: '🐸', name: 'Ếch xanh' }, { emoji: '🐵', name: 'Khỉ con' },
+  { emoji: '🐧', name: 'Cánh cụt' }, { emoji: '🐦', name: 'Chim sẻ' }, { emoji: '🐤', name: 'Gà chíp' },
+  { emoji: '🦉', name: 'Cú mèo' }, { emoji: '🦄', name: 'Kỳ lân' }, { emoji: '🐝', name: 'Ong vàng' }
 ];
 
-// ─── Countdown 3-2-1 ─────────────────────────────────────
-const Countdown = ({ onDone }) => {
-  const [count, setCount] = useState(3);
-  useEffect(() => {
-    if (count <= 0) { onDone(); return; }
-    const t = setTimeout(() => setCount(c => c - 1), 900);
-    return () => clearTimeout(t);
-  }, [count]);
+// ─── Nickname Entry (For Students) ────────────────────────
+const NicknameEntry = ({ onJoin }) => {
+  const [nickname, setNickname] = useState('');
+  const [randomAnimal] = useState(ANIMALS[Math.floor(Math.random() * ANIMALS.length)]);
 
   return (
-    <div className="w-full h-full flex items-center justify-center bg-[#46178F]">
-      <AnimatePresence mode="wait">
-        <motion.div key={count}
-          initial={{ scale: 2, opacity: 0 }}
-          animate={{ scale: 1, opacity: 1 }}
-          exit={{ scale: 0.5, opacity: 0 }}
-          transition={{ duration: 0.3 }}
-          className="text-[200px] font-black text-white leading-none"
-        >
-          {count === 0 ? '🚀' : count}
-        </motion.div>
-      </AnimatePresence>
+    <div className="w-full h-full flex flex-col items-center justify-center bg-[#46178F] p-6 relative overflow-hidden">
+      {/* Decorative background elements */}
+      <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-white/5 rotate-45 rounded-3xl" />
+      <div className="absolute bottom-[-10%] right-[-10%] w-[30%] h-[30%] bg-white/5 rounded-full" />
+
+      {/* Stylized Logo */}
+      <motion.div
+        initial={{ y: -50, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        className="mb-12"
+      >
+        <h1 className="text-7xl font-black text-white tracking-tighter drop-shadow-[0_5px_0_rgba(0,0,0,0.2)]">
+          IUH<span className="text-amber-400">!</span>
+        </h1>
+      </motion.div>
+
+      {/* Kahoot-style White Box */}
+      <motion.div
+        initial={{ scale: 0.9, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        className="w-full max-w-sm bg-white p-4 rounded-lg shadow-[0_10px_30px_rgba(0,0,0,0.3)]"
+      >
+        <div className="space-y-4">
+          <div className="border-2 border-slate-200 rounded-md overflow-hidden focus-within:border-slate-400 transition-colors">
+            <input
+              autoFocus
+              type="text"
+              placeholder="Nickname"
+              className="w-full px-4 py-4 text-xl font-bold text-center text-slate-800 outline-none placeholder:text-slate-300"
+              value={nickname}
+              onChange={(e) => setNickname(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && nickname.trim() && onJoin(nickname, randomAnimal)}
+            />
+          </div>
+          <button
+            onClick={() => nickname.trim() && onJoin(nickname, randomAnimal)}
+            disabled={!nickname.trim()}
+            className="w-full py-4 bg-[#333333] text-white rounded-md font-bold text-lg hover:bg-black transition-all disabled:opacity-30 active:scale-95"
+          >
+            Ok, go
+          </button>
+        </div>
+      </motion.div>
+
+      {/* Secret Avatar Hint */}
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ delay: 0.5 }}
+        className="mt-12 flex flex-col items-center gap-2"
+      >
+        <div className="text-4xl">{randomAnimal.emoji}</div>
+        <p className="text-white/40 text-[10px] font-black uppercase tracking-widest">Bạn sẽ là {randomAnimal.name}</p>
+      </motion.div>
     </div>
   );
 };
 
 // ─── Lobby ────────────────────────────────────────────────
-const LobbyScreen = ({ isOrganizer, quizId, onFirstQuestion }) => (
-  <div className="w-full h-full flex flex-col items-center justify-center bg-[#46178F] relative overflow-hidden">
-    {/* Floating dots background */}
-    {[...Array(15)].map((_, i) => (
-      <motion.div key={i}
-        className="absolute rounded-full bg-white/10"
-        style={{ width: 8 + (i % 4) * 8, height: 8 + (i % 4) * 8, left: `${(i * 7) % 100}%`, top: `${(i * 11) % 100}%` }}
-        animate={{ y: [0, -30, 0], opacity: [0.3, 0.7, 0.3] }}
-        transition={{ duration: 3 + i * 0.3, repeat: Infinity }}
-      />
-    ))}
+const LobbyScreen = ({ isOrganizer, quizId, participants = [], onFirstQuestion }) => {
+  const [isLocked, setIsLocked] = useState(false);
+  const [showLargeQR, setShowLargeQR] = useState(false);
+  const joinCode = quizId?.substring(0, 6).toUpperCase();
+  const displayPin = joinCode ? `${joinCode.substring(0, 3)} ${joinCode.substring(3)}` : '000 000';
 
-    <motion.div animate={{ scale: [1, 1.05, 1] }} transition={{ duration: 2, repeat: Infinity }}
-      className="w-32 h-32 rounded-full bg-white/20 flex items-center justify-center mb-8 shadow-2xl border-4 border-white/30">
-      <Trophy size={64} className="text-amber-300" fill="currentColor" />
-    </motion.div>
+  return (
+    <div className="w-full h-full flex flex-col bg-[#46178F] relative overflow-hidden font-sans">
+      {/* Space Background Effects */}
+      <div className="absolute inset-0 opacity-20 pointer-events-none">
+        <div className="absolute top-20 left-20 w-64 h-64 bg-white/20 rounded-full blur-3xl animate-pulse" />
+        <div className="absolute bottom-40 right-20 w-96 h-96 bg-indigo-500/20 rounded-full blur-[100px]" />
+      </div>
 
-    <h1 className="text-4xl font-black text-white uppercase tracking-tighter mb-3">Phòng Chờ</h1>
-    <p className="text-white/70 text-lg mb-12">Đang chờ ban tổ chức bắt đầu...</p>
+      {/* TOP WHITE BAR (Kahoot Style) */}
+      <div className="relative z-50 w-full bg-white shadow-2xl flex items-stretch pr-20">
+        {/* Instructions */}
+        <div className="flex-1 flex flex-col justify-center px-10 py-4 border-r border-slate-100">
+          <p className="text-slate-500 text-sm font-bold">Tham gia tại <span className="text-slate-900">fitiuh-events.io.vn</span></p>
+          <p className="text-slate-400 text-xs font-medium">hoặc sử dụng ứng dụng IUH!</p>
+        </div>
 
-    <div className="flex gap-3 mb-16">
-      {[0, 1, 2].map(i => (
-        <motion.div key={i} className="w-5 h-5 bg-white rounded-full"
-          animate={{ y: [0, -18, 0] }}
-          transition={{ duration: 0.7, repeat: Infinity, delay: i * 0.15 }}
-        />
-      ))}
+        {/* PIN DISPLAY */}
+        <div className="px-12 py-4 flex flex-col items-center justify-center bg-white border-r border-slate-100">
+          <span className="text-slate-400 text-[10px] font-black uppercase tracking-widest mb-1">Mã PIN trò chơi:</span>
+          <h2 className="text-5xl font-black text-slate-900 tracking-tighter leading-none">{displayPin}</h2>
+        </div>
+
+        {/* QR CODE (Clickable to enlarge) */}
+        <div className="p-3 bg-white flex items-center justify-center">
+          <button
+            onClick={() => setShowLargeQR(true)}
+            className="p-1 border-2 border-slate-900 rounded-md hover:scale-110 transition-transform bg-white group relative"
+          >
+            <QRCode value={joinCode || ""} size={60} />
+            <div className="absolute inset-0 bg-black/5 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
+              <Maximize2 size={16} className="text-slate-900" />
+            </div>
+          </button>
+        </div>
+      </div>
+
+      {/* CENTER LOGO */}
+      <div className="flex-1 flex flex-col items-center justify-start pt-20 relative z-10">
+        <motion.h1
+          initial={{ scale: 0.5, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          className="text-8xl font-black text-white tracking-tighter drop-shadow-2xl mb-20"
+        >
+          IUH<span className="text-amber-400">!</span>
+        </motion.h1>
+
+        {/* PARTICIPANTS GRID */}
+        <div className="w-full px-12 pb-20">
+          <div className="flex flex-wrap justify-center gap-4">
+            <AnimatePresence>
+              {participants.map((p, i) => (
+                <motion.div
+                  key={p.participantAccountId || i}
+                  initial={{ scale: 0, opacity: 0, y: 20 }}
+                  animate={{ scale: 1, opacity: 1, y: 0 }}
+                  exit={{ scale: 0, opacity: 0 }}
+                  className="flex items-center bg-black/30 backdrop-blur-md rounded-lg overflow-hidden min-w-[200px] shadow-lg border border-white/5"
+                >
+                  <div className="w-16 h-16 bg-black/20 flex items-center justify-center text-4xl border-r border-white/5">
+                    {p.avatar?.emoji || '👤'}
+                  </div>
+                  <div className="flex-1 px-4 py-3">
+                    <span className="text-white font-black text-lg truncate block max-w-[150px]">
+                      {p.nickname || p.fullName}
+                    </span>
+                  </div>
+                </motion.div>
+              ))}
+            </AnimatePresence>
+
+            {participants.length === 0 && (
+              <div className="flex flex-col items-center gap-4 opacity-30 mt-20">
+                <div className="flex gap-3">
+                  {[0, 1, 2].map(i => (
+                    <motion.div key={i} className="w-4 h-4 bg-white rounded-full"
+                      animate={{ y: [0, -15, 0] }}
+                      transition={{ duration: 0.7, repeat: Infinity, delay: i * 0.15 }}
+                    />
+                  ))}
+                </div>
+                <p className="text-white font-black text-2xl uppercase tracking-widest">Đang đợi người chơi...</p>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* RIGHT SIDE CONTROLS (Floating) - ONLY FOR ORGANIZER */}
+      {isOrganizer && (
+        <div className="absolute right-8 top-1/2 -translate-y-1/2 z-50 flex flex-col gap-4">
+          <div className="bg-white rounded-lg shadow-2xl flex p-1">
+            <button
+              onClick={() => setIsLocked(!isLocked)}
+              className={`p-3 rounded-md transition-all ${isLocked ? 'bg-slate-900 text-white' : 'bg-transparent text-slate-400 hover:text-slate-900'}`}
+            >
+              {isLocked ? <Lock size={20} /> : <Unlock size={20} />}
+            </button>
+            <button
+              onClick={onFirstQuestion}
+              className="px-6 py-3 bg-white text-slate-900 font-black uppercase text-sm hover:bg-slate-50 transition-all border-l border-slate-100"
+            >
+              Bắt đầu
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* FOOTER PLAYER COUNT */}
+      <div className="absolute bottom-8 left-8 z-50 flex items-center gap-3">
+        <div className="w-12 h-12 rounded-full bg-black/40 flex items-center justify-center text-white">
+          <Users size={24} />
+        </div>
+        <span className="text-3xl font-black text-white">{participants.length}</span>
+      </div>
+
+      {/* LARGE QR OVERLAY */}
+      <AnimatePresence>
+        {showLargeQR && (
+          <motion.div
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            onClick={() => setShowLargeQR(false)}
+            className="fixed inset-0 z-[10000] bg-black/90 backdrop-blur-xl flex flex-col items-center justify-center p-10 cursor-zoom-out"
+          >
+            <motion.div
+              initial={{ scale: 0.5, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
+              className="bg-white p-12 rounded-[3rem] shadow-2xl flex flex-col items-center gap-8"
+              onClick={e => e.stopPropagation()}
+            >
+              <QRCode value={joinCode || ""} size={window.innerHeight * 0.6} />
+              <div className="text-center">
+                <p className="text-slate-400 font-black uppercase tracking-[0.5em] mb-2 text-xs">Mã PIN dự phòng</p>
+                <h2 className="text-6xl font-black text-slate-900 tracking-widest">{joinCode}</h2>
+              </div>
+              <button
+                onClick={() => setShowLargeQR(false)}
+                className="mt-4 px-10 py-4 bg-slate-900 text-white rounded-2xl font-black uppercase tracking-widest hover:bg-black transition-all"
+              >
+                Đóng
+              </button>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
+  );
+};
 
-    {isOrganizer && (
-      <motion.button whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}
-        onClick={onFirstQuestion}
-        className="px-16 py-5 bg-white text-[#46178F] rounded-2xl font-black text-xl uppercase tracking-widest shadow-2xl flex items-center gap-3">
-        <Zap size={26} fill="currentColor" /> Bắt đầu ngay!
-      </motion.button>
-    )}
-  </div>
-);
+// ─── Question Screen ──────────────────────────────────────
+// Kahoot-style shape/color definitions
+const SHAPES = [
+  { bg: '#E21B3C', icon: '▲', label: 'Tam giác', shadow: 'shadow-rose-900' },
+  { bg: '#1368CE', icon: '◆', label: 'Thoi',     shadow: 'shadow-blue-900' },
+  { bg: '#D89E00', icon: '●', label: 'Tròn',     shadow: 'shadow-yellow-900' },
+  { bg: '#26890C', icon: '■', label: 'Vuông',    shadow: 'shadow-green-900' },
+];
+
+// ─── Timer bar shared ───────────────────────────────────────
+const TimerBar = ({ timeLeft, totalTime }) => {
+  const pct = (timeLeft / totalTime) * 100;
+  const timerColor = timeLeft > 10 ? '#46178F' : timeLeft > 5 ? '#D89E00' : '#E21B3C';
+  return (
+    <div className="relative h-3 bg-white/10">
+      <div
+        className="h-full transition-all duration-1000 ease-linear"
+        style={{ width: `${pct}%`, backgroundColor: '#fff' }}
+      />
+    </div>
+  );
+};
 
 // ─── Question Screen ──────────────────────────────────────
 const QuestionScreen = ({ question, isOrganizer, onAnswer, onNext, timeLimit }) => {
-  const [timeLeft, setTimeLeft] = useState(timeLimit || 30);
+  const [timeLeft, setTimeLeft] = useState(question.timeLimit || 30);
   const [answered, setAnswered] = useState(null);
-  const [result, setResult] = useState(null); // {points, correct}
+  const [result, setResult] = useState(null);
   const [done, setDone] = useState(false);
   const timerRef = useRef(null);
   const startRef = useRef(Date.now());
+  const totalTime = question.timeLimit || 30;
 
   useEffect(() => {
     startRef.current = Date.now();
-    setTimeLeft(question.timeLimit || 30);
+    setTimeLeft(totalTime);
+    setAnswered(null);
+    setResult(null);
+    setDone(false);
     timerRef.current = setInterval(() => {
       setTimeLeft(prev => {
         if (prev <= 1) { clearInterval(timerRef.current); setDone(true); return 0; }
@@ -102,82 +287,151 @@ const QuestionScreen = ({ question, isOrganizer, onAnswer, onNext, timeLimit }) 
   }, [question]);
 
   const handleAnswer = async (optId) => {
-    if (answered || done) return;
+    if (answered || done || isOrganizer) return;
     clearInterval(timerRef.current);
     setAnswered(optId);
     const responseTime = (Date.now() - startRef.current) / 1000;
     try {
       const res = await onAnswer(optId, responseTime);
       setResult(res);
-    } catch { }
+    } catch {}
   };
 
-  const pct = ((question.timeLimit || 30) - timeLeft) / (question.timeLimit || 30);
-  const timerColor = timeLeft > 10 ? '#46178F' : timeLeft > 5 ? '#D89E00' : '#E21B3C';
+  const timerColor = timeLeft > 10 ? 'text-white' : timeLeft > 5 ? 'text-amber-300' : 'text-rose-400 animate-pulse';
 
-  return (
-    <div className="w-full h-full flex flex-col bg-[#46178F]">
-      {/* Timer + question number bar */}
-      <div className="flex items-center justify-between px-8 py-4 bg-black/30">
-        <span className="text-white/60 font-bold text-sm uppercase tracking-widest">
-          Câu {(question.orderIndex ?? 0) + 1}
-        </span>
-
-        {/* Circular timer */}
-        <div className="relative w-16 h-16">
-          <svg className="absolute inset-0 -rotate-90" viewBox="0 0 64 64">
-            <circle cx="32" cy="32" r="28" stroke="white" strokeOpacity="0.2" strokeWidth="6" fill="none" />
-            <circle cx="32" cy="32" r="28" stroke={timerColor} strokeWidth="6" fill="none"
-              strokeDasharray={`${2 * Math.PI * 28}`}
-              strokeDashoffset={`${2 * Math.PI * 28 * pct}`}
-              style={{ transition: 'stroke-dashoffset 1s linear, stroke 0.5s' }}
-            />
-          </svg>
-          <span className={`absolute inset-0 flex items-center justify-center font-black text-xl ${timeLeft <= 5 ? 'text-rose-400 animate-pulse' : 'text-white'}`}>
-            {timeLeft}
+  // ── ORGANIZER VIEW ──────────────────────────────────────
+  if (isOrganizer) {
+    return (
+      <div className="w-full h-full flex flex-col bg-[#46178F]">
+        {/* Header bar */}
+        <div className="flex items-center justify-between px-8 py-4 bg-black/30">
+          <span className="text-white/60 font-bold text-sm uppercase tracking-widest">
+            Câu {(question.orderIndex ?? 0) + 1}
           </span>
+          <div className={`text-4xl font-black ${timerColor}`}>{timeLeft}s</div>
+          <div className="w-20" />
         </div>
 
-        <div className="w-20" />
+        <TimerBar timeLeft={timeLeft} totalTime={totalTime} />
+
+        {/* Question */}
+        <div className="bg-white mx-6 mt-5 rounded-2xl px-8 py-5 text-center shadow-2xl">
+          <p className="text-2xl md:text-3xl font-black text-gray-900 leading-snug">{question.content}</p>
+          {question.hint && (
+            <p className="text-sm text-gray-400 mt-2 font-medium">💡 Gợi ý: {question.hint}</p>
+          )}
+        </div>
+
+        {/* Answer options – full text + correct indicator */}
+        <div className="flex-1 grid grid-cols-2 gap-4 p-6">
+          {question.type === 'MULTIPLE_CHOICE' && question.options?.map((opt, i) => {
+            const shape = SHAPES[i % 4];
+            return (
+              <div
+                key={opt.id}
+                style={{ backgroundColor: shape.bg }}
+                className={`rounded-2xl text-white font-black text-lg flex items-center gap-4 px-6 py-4 shadow-xl relative
+                  ${opt.isCorrect ? 'ring-4 ring-white scale-[1.02]' : 'opacity-90'}`}
+              >
+                {/* Shape icon */}
+                <span className="text-4xl opacity-70 shrink-0">{shape.icon}</span>
+                {/* Answer text */}
+                <span className="flex-1 leading-snug">{opt.content}</span>
+                {/* Correct/Wrong badge */}
+                {opt.isCorrect
+                  ? <CheckCircle2 size={28} className="shrink-0 text-white drop-shadow" />
+                  : <XCircle size={28} className="shrink-0 text-white/40" />
+                }
+              </div>
+            );
+          })}
+
+          {question.type === 'WORD_SCRAMBLE' && (
+            <div className="col-span-2 flex items-center justify-center">
+              <div className="bg-white/10 border-2 border-white/30 rounded-2xl px-8 py-4 text-center">
+                <p className="text-white/60 text-sm font-bold uppercase mb-2">Đáp án đúng:</p>
+                <p className="text-white font-black text-3xl tracking-widest">{question.correctData}</p>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Next question button */}
+        <div className="p-5 bg-black/20 flex justify-center">
+          <motion.button
+            whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}
+            onClick={onNext}
+            className="px-12 py-4 bg-white text-[#46178F] rounded-2xl font-black uppercase tracking-widest flex items-center gap-3 shadow-2xl text-sm"
+          >
+            Câu tiếp theo <ArrowRight size={22} />
+          </motion.button>
+        </div>
+      </div>
+    );
+  }
+
+  // ── PLAYER VIEW (Kahoot-style) ──────────────────────────
+  return (
+    <div className="w-full h-full flex flex-col bg-[#46178F] relative">
+      {/* Header */}
+      <div className="flex items-center justify-between px-6 py-4 bg-black/30">
+        <span className="text-white/60 font-bold text-xs uppercase tracking-widest">
+          Câu {(question.orderIndex ?? 0) + 1}
+        </span>
+        <div className={`text-4xl font-black ${timerColor}`}>{timeLeft}</div>
+        <div className="w-16" />
       </div>
 
-      {/* Timer progress bar */}
-      <div className="h-2 bg-white/10">
-        <motion.div className="h-full bg-white/80" style={{ width: `${(timeLeft / (question.timeLimit || 30)) * 100}%` }}
-          transition={{ duration: 1, ease: 'linear' }} />
-      </div>
+      <TimerBar timeLeft={timeLeft} totalTime={totalTime} />
 
-      {/* Question text */}
-      <div className="bg-white mx-6 mt-6 rounded-2xl px-8 py-6 text-center shadow-2xl">
-        <p className="text-2xl md:text-3xl font-black text-gray-900 leading-snug">{question.content}</p>
+      {/* Question box */}
+      <div className="bg-white mx-4 mt-4 rounded-2xl px-6 py-5 text-center shadow-2xl">
+        <p className="text-xl md:text-2xl font-black text-gray-900 leading-snug">{question.content}</p>
         {question.hint && (
-          <p className="text-sm text-gray-400 mt-2 font-medium">💡 Gợi ý: {question.hint}</p>
+          <p className="text-xs text-gray-400 mt-1 font-medium">💡 {question.hint}</p>
         )}
       </div>
 
-      {/* Answers */}
-      <div className="flex-1 grid grid-cols-2 gap-4 p-6">
+      {/* Big Kahoot-style buttons — shape only, no answer text */}
+      <div className="flex-1 grid grid-cols-2 gap-4 p-4 pb-6">
         {question.type === 'MULTIPLE_CHOICE' && question.options?.map((opt, i) => {
           const shape = SHAPES[i % 4];
           const isSelected = answered === opt.id;
           const isCorrect = opt.isCorrect;
-          let cls = 'opacity-100';
-          if (answered && !isSelected && !isCorrect) cls = 'opacity-40 scale-95';
-          if (answered && isCorrect) cls = 'ring-4 ring-white';
+
+          let extra = '';
+          if (answered) {
+            if (isCorrect) extra = 'ring-4 ring-white scale-105';
+            else if (!isSelected) extra = 'opacity-30 scale-95';
+          }
 
           return (
-            <motion.button key={opt.id}
-              whileHover={!answered ? { scale: 1.03 } : {}}
-              whileTap={!answered ? { scale: 0.97 } : {}}
+            <motion.button
+              key={opt.id}
+              whileHover={!answered ? { scale: 1.04 } : {}}
+              whileTap={!answered ? { scale: 0.96 } : {}}
               onClick={() => handleAnswer(opt.id)}
               disabled={!!answered || done}
               style={{ backgroundColor: shape.bg }}
-              className={`rounded-2xl text-white font-black text-lg flex flex-col items-center justify-center gap-2 p-4 shadow-xl relative transition-all ${cls}`}
+              className={`rounded-3xl text-white font-black flex flex-col items-center justify-center gap-3 shadow-2xl transition-all ${shape.shadow} ${extra}`}
             >
-              <span className="text-3xl opacity-50">{shape.icon}</span>
-              <span className="text-center leading-tight">{opt.content}</span>
-              {answered && isCorrect && <CheckCircle2 size={28} className="absolute top-3 right-3 text-white" />}
-              {answered && isSelected && !isCorrect && <XCircle size={28} className="absolute top-3 right-3 text-white" />}
+              {/* Giant shape icon */}
+              <span className="text-6xl md:text-7xl" style={{ lineHeight: 1 }}>{shape.icon}</span>
+
+              {/* After answering: reveal answer text */}
+              {answered && (
+                <motion.span
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="text-sm font-bold text-white/90 px-3 text-center leading-snug"
+                >
+                  {opt.content}
+                </motion.span>
+              )}
+
+              {/* Result icons */}
+              {answered && isCorrect && <CheckCircle2 size={32} className="text-white drop-shadow-lg" />}
+              {answered && isSelected && !isCorrect && <XCircle size={32} className="text-white drop-shadow-lg" />}
             </motion.button>
           );
         })}
@@ -187,32 +441,35 @@ const QuestionScreen = ({ question, isOrganizer, onAnswer, onNext, timeLimit }) 
         )}
       </div>
 
-      {/* Feedback overlay */}
+      {/* Result banner */}
       <AnimatePresence>
-        {answered && result !== null && !isOrganizer && (
-          <motion.div initial={{ y: 60, opacity: 0 }} animate={{ y: 0, opacity: 1 }}
-            className={`absolute bottom-0 left-0 right-0 p-6 text-center ${result?.points > 0 ? 'bg-emerald-600' : 'bg-rose-600'}`}>
+        {answered && result !== null && (
+          <motion.div
+            initial={{ y: 80, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            exit={{ y: 80, opacity: 0 }}
+            className={`absolute bottom-0 left-0 right-0 p-6 text-center ${result?.points > 0 ? 'bg-emerald-600' : 'bg-rose-600'}`}
+          >
             <p className="text-white font-black text-2xl">
               {result?.points > 0 ? `✅ Chính xác! +${result.points} điểm` : '❌ Sai rồi...'}
             </p>
-            <p className="text-white/80 text-sm mt-1">Chờ câu tiếp theo...</p>
+            <p className="text-white/70 text-sm mt-1">Chờ ban tổ chức chuyển câu tiếp theo...</p>
           </motion.div>
         )}
       </AnimatePresence>
 
-      {/* Organizer next button */}
-      {isOrganizer && (
-        <div className="p-4 flex justify-center bg-black/20">
-          <motion.button whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}
-            onClick={onNext}
-            className="px-10 py-3 bg-white text-[#46178F] rounded-xl font-black uppercase tracking-widest flex items-center gap-2 shadow-xl">
-            Câu tiếp theo <ArrowRight size={20} />
-          </motion.button>
-        </div>
+      {/* Waiting state (timer ended without answer) */}
+      {done && !answered && (
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}
+          className="absolute bottom-0 left-0 right-0 p-6 text-center bg-slate-800"
+        >
+          <p className="text-white font-black text-xl">⏰ Hết giờ!</p>
+        </motion.div>
       )}
     </div>
   );
 };
+
 
 // Simple word scramble inline for question screen
 const WordScrambleInline = ({ data, onAnswer, done }) => {
@@ -277,7 +534,7 @@ const LeaderboardScreen = ({ leaderboard, isOrganizer, onNext, onEnd }) => (
                 initial={{ y: 100, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: pos * 0.15 }}
                 className={`flex flex-col items-center justify-end w-28 ${heights[pos]} ${colors[pos]} rounded-t-2xl pb-3 shadow-xl`}>
                 <span className="text-3xl">{labels[pos]}</span>
-                <p className="text-white font-black text-xs text-center truncate w-full px-2">{entry.fullName}</p>
+                <p className="text-white font-black text-[10px] text-center truncate w-full px-2">{entry.nickname || entry.fullName}</p>
                 <p className="text-white/80 font-bold text-xs">{entry.totalScore} pts</p>
               </motion.div>
             );
@@ -288,14 +545,14 @@ const LeaderboardScreen = ({ leaderboard, isOrganizer, onNext, onEnd }) => (
       {/* Full list */}
       <div className="space-y-2">
         {leaderboard.slice(0, 10).map((entry, i) => (
-          <motion.div key={entry.participantAccountId}
+          <motion.div key={entry.participantAccountId || i}
             initial={{ x: -40, opacity: 0 }} animate={{ x: 0, opacity: 1 }} transition={{ delay: i * 0.05 }}
             className="flex items-center gap-4 bg-white/10 rounded-2xl px-5 py-3">
             <span className="text-white/50 font-black text-lg w-7">#{i + 1}</span>
-            <div className="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center font-black text-white text-lg">
-              {entry.fullName?.[0] || '?'}
+            <div className="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center font-black text-white text-lg overflow-hidden">
+              {entry.avatar?.emoji || (entry.nickname || entry.fullName)?.[0] || '?'}
             </div>
-            <span className="flex-1 text-white font-bold">{entry.fullName}</span>
+            <span className="flex-1 text-white font-bold">{entry.nickname || entry.fullName}</span>
             <span className="text-amber-300 font-black text-lg">{entry.totalScore}</span>
           </motion.div>
         ))}
@@ -319,22 +576,36 @@ const LeaderboardScreen = ({ leaderboard, isOrganizer, onNext, onEnd }) => (
 
 // ─── Main QuizModal ───────────────────────────────────────
 const QuizModal = ({ isOpen, onClose, eventId, isOrganizer, quizId: propQuizId }) => {
-  const { quizState, leaderboard, activeQuizId } = useQuiz(eventId);
+  const { user } = useAuth();
+  const { quizState, leaderboard, participants, activeQuizId, joinQuiz } = useQuiz(eventId);
   const resolvedQuizId = propQuizId || activeQuizId;
   const [phase, setPhase] = useState('lobby'); // lobby | countdown | question | leaderboard | end
+  const [joined, setJoined] = useState(false);
 
   // Drive phase from WebSocket state
   useEffect(() => {
     if (!isOpen) return;
-    if (quizState.type === 'WAITING') setPhase('lobby');
+    if (quizState.type === 'WAITING') {
+      setPhase('lobby');
+      setJoined(false); // Allow re-joining for a fresh session
+    }
+    // START: quiz is now active — guests go to countdown, admin stays in lobby waiting for first question
     if (quizState.type === 'START') setPhase(isOrganizer ? 'lobby' : 'countdown');
+    // NEXT_QUESTION: organizer goes to question screen, guests go to countdown first
     if (quizState.type === 'NEXT_QUESTION') setPhase(isOrganizer ? 'question' : 'countdown');
     if (quizState.type === 'LEADERBOARD') setPhase('leaderboard');
     if (quizState.type === 'END') setPhase('end');
-  }, [quizState.type, isOpen]);
+  }, [quizState.type, isOpen, isOrganizer]);
 
-  const handleFirstQuestion = () => {
-    eventService.nextQuizQuestion(resolvedQuizId, 0).catch(() => toast.error('Lỗi'));
+  const handleFirstQuestion = async () => {
+    try {
+      // 1. Activate the quiz on backend (broadcasts START to guests)
+      await eventService.startQuiz(resolvedQuizId);
+      // 2. Send the first question (broadcasts NEXT_QUESTION to everyone)
+      await eventService.nextQuizQuestion(resolvedQuizId, 0);
+    } catch {
+      toast.error('Lỗi khi bắt đầu thử thách');
+    }
   };
 
   const handleNextQuestion = () => {
@@ -344,9 +615,20 @@ const QuizModal = ({ isOpen, onClose, eventId, isOrganizer, quizId: propQuizId }
 
   const handleEndQuiz = async () => {
     try {
-      await eventService.startQuiz(resolvedQuizId); // call end if available, fallback
+      await eventService.startQuiz(resolvedQuizId); // call end if available
       setPhase('end');
     } catch { setPhase('end'); }
+  };
+
+  const handleResetQuiz = async () => {
+    try {
+      await eventService.resetQuiz(resolvedQuizId);
+      // Backend will broadcast WAITING, which setPhase('lobby') via useEffect
+      setJoined(false); 
+      toast.success('Đã làm mới thử thách!');
+    } catch {
+      toast.error('Lỗi khi làm mới thử thách');
+    }
   };
 
   const handleSubmitAnswer = async (answer, responseTime) => {
@@ -359,25 +641,46 @@ const QuizModal = ({ isOpen, onClose, eventId, isOrganizer, quizId: propQuizId }
     return res.data;
   };
 
+  const handleJoin = (nickname, avatar) => {
+    if (joinQuiz(resolvedQuizId, nickname, avatar, user?.userProfileId)) {
+      setJoined(true);
+      toast.success(`Chào mừng ${nickname}!`);
+    } else {
+      toast.error('Lỗi kết nối máy chủ');
+    }
+  };
+
   if (!isOpen) return null;
 
-  return (
-    <div className="fixed inset-0 z-[200] overflow-hidden">
+  return createPortal(
+    <div className="fixed inset-0 z-[9999] overflow-hidden">
       {/* Close button - always visible */}
       <button onClick={onClose}
-        className="absolute top-5 right-5 z-[200] p-3 bg-black/40 hover:bg-black/60 rounded-full text-white transition-all backdrop-blur-sm">
+        className="absolute top-5 right-5 z-[300] p-3 bg-black/40 hover:bg-black/60 rounded-full text-white transition-all backdrop-blur-sm">
         <X size={22} />
       </button>
 
       <AnimatePresence mode="wait">
-        {/* LOBBY */}
-        {phase === 'lobby' && (
-          <motion.div key="lobby" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="w-full h-full">
-            <LobbyScreen isOrganizer={isOrganizer} quizId={resolvedQuizId} onFirstQuestion={handleFirstQuestion} />
+        {/* NICKNAME ENTRY FOR STUDENTS */}
+        {!isOrganizer && !joined && phase === 'lobby' && (
+          <motion.div key="nick" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="w-full h-full">
+            <NicknameEntry onJoin={handleJoin} />
           </motion.div>
         )}
 
-        {/* COUNTDOWN → then show question */}
+        {/* LOBBY */}
+        {phase === 'lobby' && (isOrganizer || joined) && (
+          <motion.div key="lobby" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="w-full h-full">
+            <LobbyScreen
+              isOrganizer={isOrganizer}
+              quizId={resolvedQuizId}
+              participants={participants}
+              onFirstQuestion={handleFirstQuestion}
+            />
+          </motion.div>
+        )}
+
+        {/* COUNTDOWN */}
         {phase === 'countdown' && (
           <motion.div key="countdown" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="w-full h-full">
             <Countdown onDone={() => setPhase('question')} />
@@ -385,6 +688,20 @@ const QuizModal = ({ isOpen, onClose, eventId, isOrganizer, quizId: propQuizId }
         )}
 
         {/* QUESTION */}
+        {phase === 'question' && !quizState.data && (
+          <motion.div key="q-loading" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="w-full h-full flex flex-col items-center justify-center bg-[#46178F]">
+            <div className="flex gap-3 mb-6">
+              {[0, 1, 2].map(i => (
+                <motion.div key={i} className="w-5 h-5 bg-white rounded-full"
+                  animate={{ y: [0, -20, 0] }}
+                  transition={{ duration: 0.6, repeat: Infinity, delay: i * 0.15 }}
+                />
+              ))}
+            </div>
+            <p className="text-white font-black text-2xl uppercase tracking-widest">Đang tải câu hỏi...</p>
+          </motion.div>
+        )}
+
         {phase === 'question' && quizState.data && (
           <motion.div key={`q-${quizState.data.id}`} initial={{ x: '100%' }} animate={{ x: 0 }} exit={{ x: '-100%' }} transition={{ type: 'tween', duration: 0.35 }} className="w-full h-full">
             <QuestionScreen
@@ -414,20 +731,31 @@ const QuizModal = ({ isOpen, onClose, eventId, isOrganizer, quizId: propQuizId }
             <Trophy size={100} className="text-amber-400 mb-6" fill="currentColor" />
             <h1 className="text-6xl font-black text-white uppercase tracking-tighter mb-3">Kết thúc!</h1>
             <p className="text-white/60 text-lg mb-10">Cảm ơn tất cả đã tham gia 🎉</p>
-            <div className="w-full max-w-lg px-6 space-y-2 mb-10">
-              {leaderboard.slice(0, 3).map((e, i) => (
-                <div key={e.participantAccountId} className="flex items-center gap-4 bg-white/10 rounded-2xl px-5 py-3">
-                  <span className="text-3xl">{['🥇', '🥈', '🥉'][i]}</span>
-                  <span className="flex-1 text-white font-bold">{e.fullName}</span>
+            <div className="w-full max-w-lg px-6 space-y-2 mb-10 overflow-y-auto max-h-64">
+              {leaderboard.slice(0, 10).map((e, i) => (
+                <div key={e.participantAccountId || i} className="flex items-center gap-4 bg-white/10 rounded-2xl px-5 py-3">
+                  <span className="text-2xl w-8">{i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `#${i + 1}`}</span>
+                  <span className="flex-1 text-white font-bold">{e.nickname || e.fullName}</span>
                   <span className="text-amber-300 font-black">{e.totalScore} pts</span>
                 </div>
               ))}
             </div>
-            <button onClick={onClose} className="px-12 py-4 bg-white text-[#46178F] rounded-2xl font-black text-lg uppercase">Đóng</button>
+            <div className="flex gap-4">
+              {isOrganizer && (
+                <button 
+                  onClick={handleResetQuiz}
+                  className="px-12 py-4 bg-amber-500 text-white rounded-2xl font-black text-lg uppercase shadow-2xl hover:scale-105 transition-all flex items-center gap-2"
+                >
+                  <Play size={24} fill="currentColor" /> Chơi lại
+                </button>
+              )}
+              <button onClick={onClose} className="px-12 py-4 bg-white text-[#46178F] rounded-2xl font-black text-lg uppercase shadow-2xl hover:scale-105 transition-all">Đóng</button>
+            </div>
           </motion.div>
         )}
       </AnimatePresence>
-    </div>
+    </div>,
+    document.body
   );
 };
 

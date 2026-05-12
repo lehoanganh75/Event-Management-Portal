@@ -1,5 +1,6 @@
-import React from "react";
-import { ClipboardCheck, FileUp, Plus } from "lucide-react";
+import React, { useState } from "react";
+import { ClipboardCheck, FileUp, Plus, BarChart2 } from "lucide-react";
+import SurveyResultsModal from "../../../survey/SurveyResultsModal";
 
 const SurveyTab = ({ 
   event, 
@@ -10,6 +11,8 @@ const SurveyTab = ({
   showAllSurveyQuestions, 
   setShowAllSurveyQuestions 
 }) => {
+  const [showResultsModal, setShowResultsModal] = useState(false);
+
   return (
     <div className="space-y-6">
       <input
@@ -40,6 +43,12 @@ const SurveyTab = ({
               </div>
             </div>
             <div className="flex gap-2">
+              <button
+                onClick={() => setShowResultsModal(true)}
+                className="flex items-center gap-2 px-5 py-2.5 bg-indigo-50 text-indigo-600 rounded-xl text-sm font-bold hover:bg-indigo-100 transition-all"
+              >
+                <BarChart2 size={18} /> Xem kết quả
+              </button>
               <button
                 onClick={() => surveyFileInputRef.current.click()}
                 className="flex items-center gap-2 px-5 py-2.5 bg-[#f0f3ff] text-[#5c59f2] rounded-xl text-sm font-bold hover:bg-[#e8ebff] transition-all"
@@ -100,6 +109,13 @@ const SurveyTab = ({
           </div>
         </div>
       )}
+
+      <SurveyResultsModal
+        isOpen={showResultsModal}
+        onClose={() => setShowResultsModal(false)}
+        survey={event.survey}
+        eventId={event.id}
+      />
     </div>
   );
 };

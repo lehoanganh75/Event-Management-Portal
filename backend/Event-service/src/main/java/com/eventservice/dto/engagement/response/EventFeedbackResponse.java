@@ -11,8 +11,14 @@ import com.eventservice.entity.engagement.EventFeedback;
 @Builder
 public class EventFeedbackResponse {
     private String id;
+    private String reviewerAccountId;
     private Integer rating;
+    private String title;
     private String comment;
+    private String ratingReason;
+    private boolean isAnonymous;
+    private String organizerReply;
+    private LocalDateTime repliedAt;
     private LocalDateTime createdAt;
     private UserResponse user;
 
@@ -20,8 +26,14 @@ public class EventFeedbackResponse {
         if (feedback == null) return null;
         return EventFeedbackResponse.builder()
                 .id(feedback.getId())
+                .reviewerAccountId(feedback.getReviewerAccountId())
                 .rating(feedback.getRating())
+                .title(feedback.getTitle())
                 .comment(feedback.getComment())
+                .ratingReason(feedback.getRatingReason())
+                .isAnonymous(feedback.isAnonymous())
+                .organizerReply(feedback.getOrganizerReply())
+                .repliedAt(feedback.getRepliedAt())
                 .createdAt(feedback.getCreatedAt())
                 .user(user)
                 .build();

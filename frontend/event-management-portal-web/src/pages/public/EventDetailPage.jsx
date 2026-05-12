@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { useParams, useNavigate } from "react-router-dom";
 import {
+  X,
   ArrowLeft,
   Calendar,
   MapPin,
@@ -19,7 +21,8 @@ import {
   Heart,
   Mail,
   Phone,
-  Camera
+  Camera,
+  Star
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -31,6 +34,8 @@ import TicketDetail from "../../components/ticket/TicketDetail";
 import RegisterModal from "../../components/common/RegisterModal";
 import QRScannerModal from "../../components/common/management/QRScannerModal";
 import QuizModal from "../../components/quiz/QuizModal";
+import QAModal from "../../components/survey/QAModal";
+import FeedbackModal from "../../components/engagement/FeedbackModal";
 import SurveyModal from "../../components/survey/SurveyModal";
 import { toast } from "react-toastify";
 import { useAuth } from "../../context/AuthContext";
@@ -59,11 +64,14 @@ export default function EventDetail() {
   const [showCancelModal, setShowCancelModal] = useState(false);
   const [showQuizModal, setShowQuizModal] = useState(false);
   const [showSurveyModal, setShowSurveyModal] = useState(false);
+  const [showQAModal, setShowQAModal] = useState(false);
+  const [showFeedbackModal, setShowFeedbackModal] = useState(false);
   const [quizzes, setQuizzes] = useState([]);
   const [joiningQuizId, setJoiningQuizId] = useState(null);
+  const [showJoinCodeModal, setShowJoinCodeModal] = useState(false);
   const [registrationError, setRegistrationError] = useState("");
 
-  const { quizState, activeQuizId } = useQuiz(eventId);
+  const { quizState, activeQuizId: wsActiveQuizId } = useQuiz(event?.id);
   const isQuizLive = ['START', 'NEXT_QUESTION', 'LEADERBOARD'].includes(quizState.type);
 
   const fetchEvent = async () => {
@@ -88,10 +96,42 @@ export default function EventDetail() {
   }, [eventId]);
 
   useEffect(() => {
-    if (quizState.type === 'START' && showQuizModal) {
-      setJoiningQuizId(activeQuizId);
+    if (quizState?.type === 'START' && quizState.data) {
+      const qId = quizState.data;
+      
+      // If user is not already in the quiz modal, alert them
+      if (!showQuizModal) {
+        toast.info(
+          <div className="flex flex-col gap-1 text-left">
+            <div className="flex items-center gap-2 text-indigo-600 mb-1">
+              <Trophy size={16} />
+              <p className="font-black text-[11px] uppercase tracking-wider">Thử thách mới đã bắt đầu!</p>
+            </div>
+            <p className="text-[10px] text-slate-600 font-medium leading-relaxed">
+              Ban tổ chức vừa kích hoạt một thử thách mới. Hãy tham gia ngay để dành lấy những phần quà hấp dẫn!
+            </p>
+            <button 
+              onClick={() => {
+                setJoiningQuizId(qId);
+                setShowQuizModal(true);
+              }}
+              className="mt-3 w-full py-2 bg-indigo-600 text-white rounded-lg text-[9px] font-black uppercase tracking-[0.2em] shadow-lg shadow-indigo-100 hover:bg-indigo-700 transition-all"
+            >
+              Tham gia ngay
+            </button>
+          </div>,
+          { 
+            position: "top-right",
+            autoClose: 15000,
+            pauseOnHover: true,
+            theme: "light"
+          }
+        );
+      } else {
+        setJoiningQuizId(qId);
+      }
     }
-  }, [quizState.type]);
+  }, [quizState.type, quizState.data]);
 
   const formatTimeRange = (startTime, endTime) => {
     const start = new Date(startTime);
@@ -216,9 +256,6 @@ export default function EventDetail() {
     );
   }
 
-  if (loading) {
-    // ... loading state
-  }
   if (!event) return <div>{t('event_not_found')}</div>;
 
   const role = event.currentUserRole || {};
@@ -586,7 +623,11 @@ export default function EventDetail() {
 
                 {role.registered && role.registration?.status !== "CANCELLED" && !showTicket && (
                   <div className="w-full">
-                    {new Date(event.startTime) - new Date() > 30 * 60 * 1000 ? (
+                    {role.registration?.checkedIn ? (
+                      <div className="w-full py-4 text-[9px] font-bold text-emerald-600/60 text-center uppercase tracking-wider">
+                        Không thể hủy khi đã điểm danh
+                      </div>
+                    ) : new Date(event.startTime) - new Date() > 30 * 60 * 1000 ? (
                       <button
                         onClick={() => setShowCancelModal(true)}
                         className="w-full py-4 text-[10px] font-black text-slate-400 hover:text-rose-500 uppercase tracking-[0.2em] transition-colors"
@@ -603,20 +644,71 @@ export default function EventDetail() {
 
                 {/* INTERACTIONS FOR REGISTERED USERS */}
                 {event.currentUserRole?.registered && (
-                  <div className="pt-4 grid grid-cols-2 gap-3">
+                  <div className="pt-4 space-y-3">
+                    {isQuizLive && (
+                      <motion.button
+                        initial={{ scale: 0.9, opacity: 0 }}
+                        animate={{ scale: 1, opacity: 1 }}
+                        whileHover={{ scale: 1.02 }}
+                        whileTap={{ scale: 0.98 }}
+                        onClick={() => {
+                          setJoiningQuizId(quizState.data || wsActiveQuizId);
+                          setShowQuizModal(true);
+                        }}
+                        className="w-full flex items-center justify-center gap-3 p-4 rounded-2xl bg-indigo-600 text-white shadow-lg shadow-indigo-200 relative overflow-hidden group"
+                      >
+                        <motion.div 
+                          animate={{ scale: [1, 1.2, 1], opacity: [0.5, 0.2, 0.5] }}
+                          transition={{ duration: 2, repeat: Infinity }}
+                          className="absolute inset-0 bg-white"
+                        />
+                        <Trophy size={20} className="relative z-10 animate-bounce" />
+                        <span className="relative z-10 text-xs font-black uppercase tracking-[0.2em]">Tham gia trò chơi ngay!</span>
+                      </motion.button>
+                    )}
+
+                    {/* INTERACTIVE GAME BUTTON */}
                     <button
-                      onClick={() => setShowSurveyModal(true)}
-                      className="flex flex-col items-center gap-1.5 p-3 rounded-xl bg-slate-50 border border-slate-100 hover:bg-indigo-50 hover:border-indigo-100 transition-all"
+                      onClick={() => setShowJoinCodeModal(true)}
+                      className="w-full flex items-center justify-center gap-4 p-5 rounded-[2rem] bg-indigo-600 text-white shadow-xl shadow-indigo-200 hover:bg-indigo-700 hover:scale-[1.02] active:scale-[0.98] transition-all relative overflow-hidden group"
                     >
-                      <ClipboardCheck size={18} className="text-indigo-600" />
-                      <span className="text-[9px] font-bold text-slate-700 uppercase">{t('survey_label')}</span>
+                      <div className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/20 to-white/0 -translate-x-full group-hover:translate-x-full transition-transform duration-1000" />
+                      <Trophy size={24} className="animate-bounce" />
+                      <span className="text-sm font-black uppercase tracking-[0.2em]">Tham gia trò chơi tương tác</span>
                     </button>
-                    <button
-                      className="flex flex-col items-center gap-1.5 p-3 rounded-xl bg-slate-50 border border-slate-100 hover:bg-amber-50 hover:border-amber-100 transition-all"
-                    >
-                      <MessageCircle size={18} className="text-amber-600" />
-                      <span className="text-[9px] font-bold text-slate-700 uppercase">{t('q_and_a_label')}</span>
-                    </button>
+
+                    {/* INTERACTION GRID (Khảo sát, Hỏi đáp) */}
+                    <div className="grid grid-cols-2 gap-3">
+                      <button
+                        onClick={() => setShowSurveyModal(true)}
+                        className="flex flex-col items-center gap-1.5 p-4 rounded-2xl bg-slate-50 border border-slate-100 hover:bg-white hover:shadow-md transition-all group"
+                      >
+                        <div className="w-10 h-10 rounded-full bg-indigo-50 flex items-center justify-center text-indigo-600 group-hover:scale-110 transition-transform">
+                          <ClipboardCheck size={20} />
+                        </div>
+                        <span className="text-[10px] font-bold text-slate-600 uppercase tracking-tight">Bình chọn / Khảo sát</span>
+                      </button>
+                      <button
+                        onClick={() => setShowQAModal(true)}
+                        className="flex flex-col items-center gap-1.5 p-4 rounded-2xl bg-slate-50 border border-slate-100 hover:bg-white hover:shadow-md transition-all group"
+                      >
+                        <div className="w-10 h-10 rounded-full bg-amber-50 flex items-center justify-center text-amber-600 group-hover:scale-110 transition-transform">
+                          <MessageCircle size={20} />
+                        </div>
+                        <span className="text-[10px] font-bold text-slate-600 uppercase tracking-tight">Hỏi đáp (Q&A)</span>
+                      </button>
+                    </div>
+
+                    {/* FEEDBACK BUTTON (Only if checked in or completed) */}
+                    {(role.registration?.checkedIn || event.status === 'COMPLETED') && (
+                      <button
+                        onClick={() => setShowFeedbackModal(true)}
+                        className="w-full flex items-center justify-center gap-3 p-4 rounded-2xl bg-emerald-50 text-emerald-700 border border-emerald-100 hover:bg-emerald-100 transition-all group"
+                      >
+                        <Star size={18} className="group-hover:rotate-12 transition-transform" />
+                        <span className="text-[10px] font-black uppercase tracking-widest">Đánh giá sự kiện này</span>
+                      </button>
+                    )}
                   </div>
                 )}
               </div>
@@ -640,25 +732,28 @@ export default function EventDetail() {
       </main>
 
       {/* TICKETS & MODALS */}
-      <AnimatePresence>
-        {showTicket && (
-          <motion.div
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            className="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-slate-900/90 backdrop-blur-md"
-          >
-            <div className="max-w-xl w-full relative">
-              <button
-                onClick={() => setShowTicket(false)}
-                className="absolute -top-12 right-0 text-white/60 hover:text-white"
-              >
-                <XCircle size={32} />
-              </button>
-              <TicketDetail eventId={event.id} />
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      {createPortal(
+        <AnimatePresence>
+          {showTicket && (
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              className="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-slate-900/90 backdrop-blur-md"
+            >
+              <div className="max-w-xl w-full relative">
+                <button
+                  onClick={() => setShowTicket(false)}
+                  className="absolute -top-12 right-0 text-white/60 hover:text-white"
+                >
+                  <XCircle size={32} />
+                </button>
+                <TicketDetail eventId={event.id} />
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>,
+        document.body
+      )}
 
       <Footer />
 
@@ -702,15 +797,127 @@ export default function EventDetail() {
       <QuizModal
         isOpen={showQuizModal}
         onClose={() => { setShowQuizModal(false); setJoiningQuizId(null); }}
-        eventId={eventId}
+        isOrganizer={false}
+        eventId={event.id}
         quizId={joiningQuizId}
       />
 
       <SurveyModal
         isOpen={showSurveyModal}
         onClose={() => setShowSurveyModal(false)}
-        eventId={eventId}
+        survey={event.survey}
+        eventId={event.id}
       />
+
+      <QAModal 
+        isOpen={showQAModal} 
+        onClose={() => setShowQAModal(false)} 
+        eventId={event.id} 
+        user={user}
+      />
+
+      <FeedbackModal
+        isOpen={showFeedbackModal}
+        onClose={() => setShowFeedbackModal(false)}
+        eventId={event.id}
+        user={user}
+      />
+      
+      {/* FULL SCREEN JOIN MODAL (Hình 2 Style) */}
+      {createPortal(
+        <AnimatePresence>
+          {showJoinCodeModal && (
+            <motion.div 
+              initial={{ opacity: 0 }} 
+              animate={{ opacity: 1 }} 
+              exit={{ opacity: 0 }} 
+              className="fixed inset-0 z-[10000] bg-[#46178F] flex flex-col items-center justify-center p-6 overflow-hidden"
+            >
+              {/* Close button */}
+              <button 
+                onClick={() => setShowJoinCodeModal(false)}
+                className="absolute top-8 right-8 p-3 bg-white/10 hover:bg-white/20 rounded-full text-white transition-all backdrop-blur-md"
+              >
+                <X size={28} />
+              </button>
+
+              {/* Floating particles background */}
+              <div className="absolute inset-0 overflow-hidden pointer-events-none">
+                {[...Array(20)].map((_, i) => (
+                  <motion.div 
+                    key={i} 
+                    className="absolute rounded-full bg-white/10"
+                    style={{ 
+                      width: 10 + (i % 5) * 20, 
+                      height: 10 + (i % 5) * 20, 
+                      left: `${(i * 13) % 100}%`, 
+                      top: `${(i * 17) % 100}%` 
+                    }}
+                    animate={{ y: [0, -50, 0], opacity: [0.1, 0.4, 0.1] }}
+                    transition={{ duration: 3 + i * 0.5, repeat: Infinity }}
+                  />
+                ))}
+              </div>
+
+              <div className="relative z-10 w-full max-w-4xl flex flex-col items-center">
+                <motion.div 
+                  initial={{ scale: 0.5, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  className="w-32 h-32 bg-white/20 rounded-full flex items-center justify-center mb-12 border-4 border-white/30 shadow-2xl"
+                >
+                  <Trophy size={64} className="text-amber-300" fill="currentColor" />
+                </motion.div>
+
+                <h2 className="text-5xl font-black text-white uppercase tracking-tighter mb-4 text-center">Tham gia ngay!</h2>
+                <p className="text-white/60 text-lg font-bold uppercase tracking-[0.3em] mb-16 text-center">Nhập mã PIN hoặc quét QR để bắt đầu</p>
+                
+                <div className="flex flex-col md:flex-row items-center gap-8 w-full max-w-2xl">
+                  {/* CENTER: PIN INPUT */}
+                  <div className="flex-1 w-full">
+                    <div className="relative">
+                      <input 
+                        autoFocus
+                        type="text"
+                        placeholder="MÃ PIN (6 SỐ)"
+                        maxLength={6}
+                        className="w-full bg-white rounded-[2rem] px-8 py-8 text-4xl font-black text-center uppercase tracking-[0.4em] text-[#46178F] shadow-[0_20px_50px_rgba(0,0,0,0.3)] focus:ring-8 focus:ring-white/20 outline-none transition-all placeholder:tracking-normal placeholder:font-black placeholder:text-slate-200"
+                        onChange={(e) => {
+                          const val = e.target.value.toUpperCase();
+                          if (val.length === 6) {
+                            const matched = quizzes.find(q => q.id?.startsWith(val.toLowerCase()));
+                            if (matched) {
+                              setJoiningQuizId(matched.id);
+                              setShowQuizModal(true);
+                              setShowJoinCodeModal(false);
+                              toast.success("Kết nối thành công!");
+                            } else {
+                              toast.error("Mã PIN không đúng");
+                            }
+                          }
+                        }}
+                      />
+                    </div>
+                  </div>
+
+                  {/* RIGHT: QR SCANNER BUTTON */}
+                  <div className="flex-shrink-0">
+                    <button 
+                      onClick={() => setShowScanner(true)}
+                      className="w-24 h-24 md:w-32 md:h-32 bg-amber-400 text-slate-900 rounded-[2rem] flex flex-col items-center justify-center gap-2 hover:bg-amber-300 hover:scale-105 transition-all shadow-2xl group"
+                    >
+                      <QrCode size={40} className="group-hover:rotate-12 transition-transform" />
+                      <span className="text-[10px] font-black uppercase tracking-widest">Quét QR</span>
+                    </button>
+                  </div>
+                </div>
+
+                <p className="mt-16 text-white/40 text-xs font-bold uppercase tracking-widest animate-pulse">Đang đợi bạn nhập mã...</p>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>,
+        document.body
+      )}
     </div>
   );
 }

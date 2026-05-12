@@ -54,11 +54,11 @@ const OrganizerTab = ({
     <div className="space-y-6">
       {/* Role Update Modal */}
       {selectedOrgForRole && (
-        <div 
+        <div
           className="fixed inset-0 z-[10000] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-300"
           onClick={() => setSelectedOrgForRole(null)}
         >
-          <div 
+          <div
             className="bg-white rounded-[2rem] w-full max-w-md shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200 border border-white"
             onClick={(e) => e.stopPropagation()}
           >
@@ -67,19 +67,19 @@ const OrganizerTab = ({
                 <h3 className="font-black text-slate-800 text-lg uppercase tracking-tight">Thay đổi vai trò</h3>
                 <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-0.5">Update Member Role</p>
               </div>
-              <button 
-                onClick={() => setSelectedOrgForRole(null)} 
+              <button
+                onClick={() => setSelectedOrgForRole(null)}
                 className="p-2 hover:bg-white hover:shadow-sm rounded-xl transition-all text-slate-400 hover:text-slate-600"
               >
                 <X size={20} />
               </button>
             </div>
-            
+
             <div className="p-8 space-y-6">
               <div className="flex items-center gap-4 p-4 bg-indigo-50/30 rounded-2xl border border-indigo-100/50">
-                <img 
-                  src={selectedOrgForRole.avatarUrl || "https://cdn-icons-png.flaticon.com/512/3135/3135715.png"} 
-                  className="w-12 h-12 rounded-xl object-cover border-2 border-white shadow-sm" 
+                <img
+                  src={selectedOrgForRole.avatarUrl || "https://cdn-icons-png.flaticon.com/512/3135/3135715.png"}
+                  className="w-12 h-12 rounded-xl object-cover border-2 border-white shadow-sm"
                 />
                 <div>
                   <div className="font-black text-slate-800 text-sm">{selectedOrgForRole.fullName}</div>
@@ -111,14 +111,14 @@ const OrganizerTab = ({
             </div>
 
             <div className="p-8 bg-slate-50/50 border-t border-slate-50 flex gap-3">
-              <button 
-                onClick={() => setSelectedOrgForRole(null)} 
+              <button
+                onClick={() => setSelectedOrgForRole(null)}
                 className="flex-1 py-4 text-xs font-black uppercase tracking-widest text-slate-400 hover:text-slate-600 transition-colors"
               >
                 Hủy bỏ
               </button>
-              <button 
-                onClick={handleConfirmRoleChange} 
+              <button
+                onClick={handleConfirmRoleChange}
                 disabled={newRole === selectedOrgForRole.role}
                 className="flex-1 py-4 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 disabled:grayscale text-white rounded-2xl text-xs font-black uppercase tracking-[0.2em] transition-all shadow-xl shadow-indigo-100 active:scale-95"
               >
@@ -283,7 +283,7 @@ const OrganizerTab = ({
                             {roleData.label}
                           </span>
                           {canManage && !org.isPending && (
-                            <button 
+                            <button
                               onClick={() => handleOpenRoleModal(org)}
                               className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-md transition-all"
                               title="Thay đổi vai trò"

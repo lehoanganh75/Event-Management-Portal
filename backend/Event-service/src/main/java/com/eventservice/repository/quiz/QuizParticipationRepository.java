@@ -10,4 +10,5 @@ import java.util.Optional;
 public interface QuizParticipationRepository extends JpaRepository<QuizParticipation, String> {
     Optional<QuizParticipation> findByQuizIdAndParticipantAccountId(String quizId, String participantAccountId);
     List<QuizParticipation> findByQuizIdOrderByTotalScoreDesc(String quizId);
+    void deleteByQuizId(String quizId);
 }

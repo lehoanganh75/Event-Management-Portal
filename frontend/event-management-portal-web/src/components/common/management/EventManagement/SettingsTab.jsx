@@ -10,78 +10,64 @@ const SettingsTab = ({
   onResetStatistics 
 }) => {
   return (
-    <div className="max-w-4xl mx-auto py-4">
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {/* NHÓM 1: QUẢN LÝ SỰ KIỆN */}
-        <div className="bg-white border border-slate-100 rounded-[2.5rem] p-8 shadow-sm space-y-6">
-          <div className="flex items-center gap-4 mb-2">
-            <div className="w-12 h-12 bg-indigo-50 text-indigo-600 rounded-2xl flex items-center justify-center">
-              <Settings size={24} />
-            </div>
-            <div>
-              <h3 className="text-lg font-black text-slate-800 uppercase tracking-tight">Cấu hình chung</h3>
-              <p className="text-xs text-slate-400 font-bold">Chỉnh sửa thông tin và quyền riêng tư</p>
-            </div>
+    <div className="max-w-3xl mx-auto py-6">
+      <div className="space-y-8">
+        {/* SECTION 1: CẤU HÌNH CHUNG */}
+        <div>
+          <div className="flex items-center gap-3 mb-4 px-2">
+            <Settings className="text-slate-400" size={20} />
+            <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest">Cấu hình cơ bản</h3>
           </div>
-
-          <div className="space-y-3">
+          <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
             {(isAdmin || userPerms.canEditEvent) && (
               <button
                 onClick={onEdit}
-                className="w-full flex items-center justify-between p-5 bg-slate-50 hover:bg-indigo-50 rounded-2xl transition-all group border border-transparent hover:border-indigo-100"
+                className="w-full flex items-center justify-between p-5 hover:bg-slate-50 transition-all border-b border-slate-100 last:border-0 group"
               >
                 <div className="flex items-center gap-4">
-                  <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center text-indigo-600 shadow-sm group-hover:scale-110 transition-transform">
+                  <div className="w-10 h-10 bg-indigo-50 text-indigo-600 rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform">
                     <Edit3 size={20} />
                   </div>
                   <div className="text-left">
-                    <p className="text-sm font-bold text-slate-800">Chỉnh sửa thông tin</p>
-                    <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Tên, mô tả, thời gian, địa điểm...</p>
+                    <p className="text-sm font-bold text-slate-800">Chỉnh sửa thông tin sự kiện</p>
+                    <p className="text-xs text-slate-400">Tên, mô tả, thời gian, địa điểm và các thông tin cơ bản khác.</p>
                   </div>
+                </div>
+                <div className="text-slate-300 group-hover:text-indigo-500 transition-colors">
+                  <Settings size={16} />
                 </div>
               </button>
             )}
-
-            {(isAdmin || userPerms.canEditEvent) && (
-              <button
-                onClick={() => setShowDeleteConfirm(true)}
-                className="w-full flex items-center justify-between p-5 bg-rose-50/30 hover:bg-rose-50 rounded-2xl transition-all group border border-transparent hover:border-rose-100"
-              >
-                <div className="flex items-center gap-4">
-                  <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center text-rose-500 shadow-sm group-hover:scale-110 transition-transform">
-                    <Trash2 size={20} />
-                  </div>
-                  <div className="text-left">
-                    <p className="text-sm font-bold text-rose-600">Xóa sự kiện</p>
-                    <p className="text-[10px] text-rose-400 font-bold uppercase tracking-wider">Hủy bỏ và xóa toàn bộ dữ liệu</p>
-                  </div>
+            
+            <button className="w-full flex items-center justify-between p-5 hover:bg-slate-50 transition-all border-b border-slate-100 last:border-0 group">
+              <div className="flex items-center gap-4">
+                <div className="w-10 h-10 bg-blue-50 text-blue-600 rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform">
+                  <ShieldCheck size={20} />
                 </div>
-              </button>
-            )}
+                <div className="text-left">
+                  <p className="text-sm font-bold text-slate-800">Cài đặt quyền riêng tư</p>
+                  <p className="text-xs text-slate-400">Kiểm soát ai có thể xem và tham gia sự kiện của bạn.</p>
+                </div>
+              </div>
+            </button>
           </div>
         </div>
 
-        {/* NHÓM 2: DỮ LIỆU & HỆ THỐNG */}
-        <div className="bg-white border border-slate-100 rounded-[2.5rem] p-8 shadow-sm space-y-6">
-          <div className="flex items-center gap-4 mb-2">
-            <div className="w-12 h-12 bg-amber-50 text-amber-600 rounded-2xl flex items-center justify-center">
-              <ShieldCheck size={24} />
-            </div>
-            <div>
-              <h3 className="text-lg font-black text-slate-800 uppercase tracking-tight">Hệ thống</h3>
-              <p className="text-xs text-slate-400 font-bold">Quản lý dữ liệu và thông báo</p>
-            </div>
+        {/* SECTION 2: HỆ THỐNG & DỮ LIỆU */}
+        <div>
+          <div className="flex items-center gap-3 mb-4 px-2">
+            <ShieldCheck className="text-slate-400" size={20} />
+            <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest">Hệ thống & Dữ liệu</h3>
           </div>
-
-          <div className="space-y-3">
-            <button className="w-full flex items-center justify-between p-5 bg-slate-50 hover:bg-amber-50 rounded-2xl transition-all group border border-transparent hover:border-amber-100">
+          <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
+            <button className="w-full flex items-center justify-between p-5 hover:bg-slate-50 transition-all border-b border-slate-100 last:border-0 group">
               <div className="flex items-center gap-4">
-                <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center text-amber-600 shadow-sm group-hover:scale-110 transition-transform">
+                <div className="w-10 h-10 bg-amber-50 text-amber-600 rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform">
                   <Mail size={20} />
                 </div>
                 <div className="text-left">
-                  <p className="text-sm font-bold text-slate-800">Gửi Email thông báo</p>
-                  <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Thông báo cho tất cả người tham gia</p>
+                  <p className="text-sm font-bold text-slate-800">Gửi thông báo Email</p>
+                  <p className="text-xs text-slate-400">Gửi cập nhật hoặc lời nhắc cho tất cả người tham gia.</p>
                 </div>
               </div>
             </button>
@@ -89,42 +75,52 @@ const SettingsTab = ({
             {isAdmin && (
               <button
                 onClick={onResetStatistics}
-                className="w-full flex items-center justify-between p-5 bg-slate-50 hover:bg-slate-100 rounded-2xl transition-all group border border-transparent hover:border-slate-200"
+                className="w-full flex items-center justify-between p-5 hover:bg-slate-50 transition-all border-b border-slate-100 last:border-0 group"
               >
                 <div className="flex items-center gap-4">
-                  <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center text-slate-600 shadow-sm group-hover:scale-110 transition-transform">
+                  <div className="w-10 h-10 bg-slate-100 text-slate-600 rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform">
                     <Trash size={20} />
                   </div>
                   <div className="text-left">
-                    <p className="text-sm font-bold text-slate-800">Làm mới thống kê</p>
-                    <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Xóa bộ nhớ đệm và tính toán lại</p>
+                    <p className="text-sm font-bold text-slate-800">Làm mới dữ liệu thống kê</p>
+                    <p className="text-xs text-slate-400">Xóa bộ nhớ đệm và tính toán lại các số liệu báo cáo.</p>
                   </div>
                 </div>
               </button>
             )}
           </div>
         </div>
-      </div>
 
-      {/* QUICK INFO FOOTER */}
-      <div className="mt-10 p-8 bg-slate-900 rounded-[2.5rem] text-white overflow-hidden relative group">
-        <div className="absolute top-0 right-0 p-10 opacity-10 group-hover:scale-110 transition-transform">
-          <Bot size={120} />
-        </div>
-        <div className="relative z-10 flex flex-col md:flex-row items-center justify-between gap-8">
-          <div className="space-y-2 text-center md:text-left">
-            <div className="flex items-center gap-2 justify-center md:justify-start">
-              <Bot className="text-indigo-400" size={20} />
-              <h4 className="text-lg font-black uppercase tracking-widest">Trợ lý Event Management</h4>
-            </div>
-            <p className="text-slate-400 text-sm max-w-lg leading-relaxed">
-              Các cài đặt quan trọng như xóa sự kiện sẽ ảnh hưởng đến tất cả dữ liệu liên quan. Vui lòng kiểm tra kỹ trước khi thực hiện.
-            </p>
+        {/* SECTION 3: VÙNG NGUY HIỂM */}
+        <div>
+          <div className="flex items-center gap-3 mb-4 px-2">
+            <Trash2 className="text-rose-400" size={20} />
+            <h3 className="text-sm font-black text-rose-500 uppercase tracking-widest">Vùng nguy hiểm</h3>
           </div>
-          <div className="flex items-center gap-4">
-            <button className="px-6 py-3 bg-white/10 hover:bg-white/20 rounded-xl text-xs font-bold uppercase tracking-widest transition-all">Tài liệu HD</button>
-            <button className="px-6 py-3 bg-indigo-600 hover:bg-indigo-700 rounded-xl text-xs font-bold uppercase tracking-widest transition-all shadow-xl shadow-indigo-900/50">Hỗ trợ 24/7</button>
+          <div className="bg-rose-50/20 border border-rose-100 rounded-2xl overflow-hidden">
+            {(isAdmin || userPerms.canEditEvent) && (
+              <button
+                onClick={() => setShowDeleteConfirm(true)}
+                className="w-full flex items-center justify-between p-5 hover:bg-rose-50 transition-all group"
+              >
+                <div className="flex items-center gap-4">
+                  <div className="w-10 h-10 bg-white border border-rose-100 text-rose-500 rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform shadow-sm">
+                    <Trash2 size={20} />
+                  </div>
+                  <div className="text-left">
+                    <p className="text-sm font-bold text-rose-600">Xóa vĩnh viễn sự kiện</p>
+                    <p className="text-xs text-rose-400">Tất cả dữ liệu, bài viết và thống kê sẽ bị xóa và không thể khôi phục.</p>
+                  </div>
+                </div>
+                <div className="bg-rose-600 text-white px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest opacity-0 group-hover:opacity-100 transition-all shadow-lg shadow-rose-200">
+                  Thực hiện
+                </div>
+              </button>
+            )}
           </div>
+          <p className="mt-4 px-4 text-[11px] text-slate-400 italic">
+            * Lưu ý: Các thay đổi trong vùng nguy hiểm có thể ảnh hưởng đến toàn bộ hệ thống dữ liệu của sự kiện.
+          </p>
         </div>
       </div>
     </div>

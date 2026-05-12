@@ -61,7 +61,7 @@ public class NotificationConsumer {
     }
 
     @KafkaListener(topics = "quiz-topic", groupId = "quiz-group")
-    public void consumeQuizEvent(com.eventservice.dto.quiz.QuizEvent event) {
+    public void consumeQuizEvent(com.eventservice.dto.engagement.quiz.QuizEvent event) {
         log.info("#### [KAFKA CONSUMER] Received QuizEvent: {}", event);
         String destination = "/topic/quiz." + event.getEventId();
         log.info("#### [KAFKA CONSUMER] Broadcasting Quiz to WebSocket: {}", destination);

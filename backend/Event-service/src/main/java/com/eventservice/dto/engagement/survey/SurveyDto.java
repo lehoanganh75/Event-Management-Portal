@@ -16,6 +16,7 @@ public class SurveyDto {
     private String title;
     private String description;
     private List<SurveyQuestionDto> questions;
+    @com.fasterxml.jackson.annotation.JsonProperty("isPublished")
     private boolean isPublished;
 
     public static SurveyDto from(com.eventservice.entity.engagement.survey.Survey survey) {

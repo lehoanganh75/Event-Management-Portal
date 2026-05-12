@@ -35,6 +35,12 @@ public class QuizController {
         return ResponseEntity.ok().build();
     }
 
+    @PostMapping("/{quizId}/reset")
+    public ResponseEntity<Void> resetQuiz(@PathVariable String quizId) {
+        quizService.resetQuiz(quizId);
+        return ResponseEntity.ok().build();
+    }
+
     @PostMapping("/{quizId}/next")
     public ResponseEntity<Void> nextQuestion(@PathVariable String quizId, @RequestParam int index) {
         quizService.nextQuestion(quizId, index);

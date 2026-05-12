@@ -17,6 +17,7 @@ import {
   List,
   Info,
   MessageSquare,
+  MessageCircle,
   AlertTriangle,
   Mail,
   Camera,
@@ -63,6 +64,8 @@ import SurveyTab from "./EventManagement/SurveyTab";
 import RegistrationTab from "./EventManagement/RegistrationTab";
 import CheckInTab from "./EventManagement/CheckInTab";
 import OrganizerInvitation from "./EventManagement/OrganizerInvitation";
+import FeedbackTab from "./EventManagement/FeedbackTab";
+import QATab from "./EventManagement/QATab";
 
 
 
@@ -444,8 +447,50 @@ const EventDetailManagement = ({
     return (await luckyDrawService.adminSpin(ldId, prizeId)).data;
   };
 
+  const [showJoinCodeModal, setShowJoinCodeModal] = useState(false);
+
   // Always-on WebSocket for quiz - connected at component level to never miss events
   const { quizState, leaderboard, activeQuizId: wsActiveQuizId } = useQuiz(event?.id);
+
+  // --- AUTOMATIC QUIZ NOTIFICATION FOR PARTICIPANTS ---
+  useEffect(() => {
+    if (quizState?.type === 'START' && quizState.data) {
+      const qId = quizState.data;
+      
+      // If user is not already in the quiz modal, alert them
+      if (!showQuizModal) {
+        toast.info(
+          <div className="flex flex-col gap-1 text-left">
+            <div className="flex items-center gap-2 text-indigo-600 mb-1">
+              <Trophy size={16} />
+              <p className="font-black text-[11px] uppercase tracking-wider">Thử thách đã bắt đầu!</p>
+            </div>
+            <p className="text-[10px] text-slate-600 font-medium leading-relaxed">
+              Ban tổ chức vừa kích hoạt một thử thách mới. Hãy tham gia ngay để dành lấy những phần quà hấp dẫn!
+            </p>
+            <button 
+              onClick={() => {
+                setActiveQuizId(qId);
+                setShowQuizModal(true);
+              }}
+              className="mt-3 w-full py-2 bg-indigo-600 text-white rounded-lg text-[9px] font-black uppercase tracking-[0.2em] shadow-lg shadow-indigo-100 hover:bg-indigo-700 transition-all"
+            >
+              Tham gia ngay
+            </button>
+          </div>,
+          { 
+            position: "top-right",
+            autoClose: 15000,
+            hideProgressBar: false,
+            closeOnClick: false,
+            pauseOnHover: true,
+            draggable: true,
+            theme: "light"
+          }
+        );
+      }
+    }
+  }, [quizState, event?.id]);
 
   const fetchQuizzes = async () => {
     try {
@@ -466,15 +511,9 @@ const EventDetailManagement = ({
   }, [activeTab, event?.id]);
 
   const handleStartQuiz = async (quizId) => {
-    try {
-      await eventService.startQuiz(quizId);
-      toast.success("Đã bắt đầu thử thách! Sinh viên sẽ nhận được thông báo.");
-      setActiveQuizId(quizId);
-      setShowQuizModal(true);
-      fetchQuizzes(); // refresh isActive state
-    } catch (err) {
-      toast.error(err.response?.data?.message || "Lỗi khi bắt đầu thử thách");
-    }
+    // Just open the lobby — admin will click 'Bắt đầu' inside the modal to start
+    setActiveQuizId(quizId);
+    setShowQuizModal(true);
   };
 
   const downloadEventQR = () => {
@@ -700,6 +739,16 @@ const EventDetailManagement = ({
       tabs.push({ key: t('survey'), label: t('survey'), icon: ClipboardCheck });
     }
 
+    // FEEDBACK TAB
+    if (canSeeAll) {
+      tabs.push({ key: 'feedback', label: 'Đánh giá', icon: MessageSquare });
+    }
+
+    // QA TAB
+    if (canSeeAll) {
+      tabs.push({ key: 'qa', label: 'Hỏi đáp (Q&A)', icon: MessageCircle });
+    }
+
     // Vòng quay may mắn (Giai đoạn tương tác - Nếu có)
     if (canSeeAll && event?.hasLuckyDraw) {
       tabs.push({ key: t('lucky_draw_tab'), label: t('lucky_draw_tab'), icon: Gift });
@@ -822,7 +871,6 @@ const EventDetailManagement = ({
           <p className="text-base text-gray-600 leading-relaxed">{event.description}</p>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-5 mt-3">
             <div className="flex gap-3"><div className="w-10 h-10 bg-blue-100 rounded-xl flex items-center justify-center"><Calendar className="text-blue-600" size={22} /></div><div><p className="text-gray-500 text-xs">Ngày tổ chức</p><p className="font-semibold text-sm">{formatDate(event.startTime)}</p></div></div>
-            <div className="flex gap-3"><div className="w-10 h-10 bg-blue-100 rounded-xl flex items-center justify-center"><MapPin className="text-blue-600" size={22} /></div><div><p className="text-gray-500 text-xs">Địa điểm</p><p className="font-semibold text-sm">{event.location}</p><p className="text-xs text-gray-500">{event.eventMode === "OFFLINE" ? "Trực tiếp" : "Trực tuyến"}</p></div></div>
           </div>
         </div>
 
@@ -1037,23 +1085,14 @@ const EventDetailManagement = ({
             {activeTab === "Cài đặt" && (
               <SettingsTab
                 event={event}
-                getOrganizerRole={getOrganizerRole}
-                onLeaveTeam={onLeaveTeam}
-                setConfirmConfig={setConfirmConfig}
-                setShowConfirmModal={setShowConfirmModal}
-                canSeeAll={canSeeAll}
-                userPerms={up}
-                canEdit={canEdit}
-                onEditInfo={onEditInfo}
                 isAdmin={isAdmin}
-                navigate={navigate}
-                showCancelInput={showCancelInput}
-                setShowCancelInput={setShowCancelInput}
-                cancelReason={cancelReason}
-                setCancelReason={setCancelReason}
-                onCancelEvent={onCancelEvent}
-                isCancelling={isCancelling}
+                userPerms={up}
+                onEdit={onEditInfo}
                 setShowDeleteConfirm={setShowDeleteConfirm}
+                onResetStatistics={() => {
+                  toast.success("Đang làm mới dữ liệu thống kê...");
+                  onRefresh();
+                }}
               />
             )}
             {/* THỬ THÁCH */}
@@ -1070,16 +1109,100 @@ const EventDetailManagement = ({
 
             {/* KHẢO SÁT */}
             {activeTab === "Khảo sát" && (
-              <SurveyTab
-                event={event}
-                surveyFileInputRef={surveyFileInputRef}
-                handleSurveyWordImport={handleSurveyWordImport}
-                setShowSurveyModal={setShowSurveyModal}
-                showAllSurveyQuestions={showAllSurveyQuestions}
-                setShowAllSurveyQuestions={setShowAllSurveyQuestions}
-                setShowSurveyCreatorModal={setShowSurveyCreatorModal}
-              />
+              <div className="space-y-6">
+
+                <SurveyTab
+                  event={event}
+                  surveyFileInputRef={surveyFileInputRef}
+                  handleSurveyWordImport={handleSurveyWordImport}
+                  setShowSurveyModal={setShowSurveyModal}
+                  showAllSurveyQuestions={showAllSurveyQuestions}
+                  setShowAllSurveyQuestions={setShowAllSurveyQuestions}
+                  setShowSurveyCreatorModal={setShowSurveyCreatorModal}
+                />
+              </div>
             )}
+
+            {/* PHẢN HỒI / ĐÁNH GIÁ */}
+            {activeTab === "feedback" && (
+              <FeedbackTab eventId={event.id} />
+            )}
+
+            {/* HỎI ĐÁP Q&A */}
+            {activeTab === "qa" && (
+              <QATab eventId={event.id} />
+            )}
+
+            {/* FULL SCREEN JOIN MODAL */}
+            <AnimatePresence>
+              {showJoinCodeModal && (
+                <motion.div 
+                  initial={{ opacity: 0 }} 
+                  animate={{ opacity: 1 }} 
+                  exit={{ opacity: 0 }} 
+                  className="fixed inset-0 z-[9999] bg-[#46178F] flex flex-col items-center justify-center p-6"
+                >
+                  {/* Close button */}
+                  <button 
+                    onClick={() => setShowJoinCodeModal(false)}
+                    className="absolute top-8 right-8 p-3 bg-white/10 hover:bg-white/20 rounded-full text-white transition-all backdrop-blur-md"
+                  >
+                    <X size={28} />
+                  </button>
+
+                  <div className="relative z-10 w-full max-w-4xl flex flex-col items-center">
+                    <motion.div 
+                      initial={{ scale: 0.5, opacity: 0 }}
+                      animate={{ scale: 1, opacity: 1 }}
+                      className="w-32 h-32 bg-white/20 rounded-full flex items-center justify-center mb-12 border-4 border-white/30 shadow-2xl"
+                    >
+                      <Trophy size={64} className="text-amber-300" fill="currentColor" />
+                    </motion.div>
+
+                    <h2 className="text-5xl font-black text-white uppercase tracking-tighter mb-4 text-center">Mã tham gia</h2>
+                    <p className="text-white/60 text-lg font-bold uppercase tracking-[0.3em] mb-16 text-center">Nhập PIN 6 số hoặc quét QR</p>
+                    
+                    <div className="flex flex-col md:flex-row items-center gap-8 w-full max-w-2xl">
+                      {/* CENTER: PIN INPUT */}
+                      <div className="flex-1 w-full">
+                        <input 
+                          autoFocus
+                          type="text"
+                          placeholder="MÃ PIN"
+                          maxLength={6}
+                          className="w-full bg-white rounded-[2rem] px-8 py-8 text-4xl font-black text-center uppercase tracking-[0.4em] text-[#46178F] shadow-2xl outline-none"
+                          onChange={(e) => {
+                            const val = e.target.value.toUpperCase();
+                            if (val.length === 6) {
+                              const matched = quizzes.find(q => q.id?.startsWith(val.toLowerCase()));
+                              if (matched) {
+                                setActiveQuizId(matched.id);
+                                setShowQuizModal(true);
+                                setShowJoinCodeModal(false);
+                                toast.success("Đang kết nối...");
+                              } else {
+                                toast.error("Mã PIN không đúng");
+                              }
+                            }
+                          }}
+                        />
+                      </div>
+
+                      {/* RIGHT: QR SCANNER BUTTON */}
+                      <div className="flex-shrink-0">
+                        <button 
+                          onClick={() => { setShowJoinCodeModal(false); setShowScanner(true); }}
+                          className="w-24 h-24 md:w-32 md:h-32 bg-amber-400 text-slate-900 rounded-[2rem] flex flex-col items-center justify-center gap-2 hover:bg-amber-300 hover:scale-105 transition-all shadow-2xl"
+                        >
+                          <QrCode size={40} />
+                          <span className="text-[10px] font-black uppercase tracking-widest">Quét QR</span>
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
         </div>
       </div>

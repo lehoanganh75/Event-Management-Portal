@@ -75,7 +75,7 @@ const SurveyModal = ({ isOpen, onClose, eventId }) => {
             <div className="flex justify-center py-20">
               <div className="animate-spin w-10 h-10 border-4 border-indigo-500 border-t-transparent rounded-full" />
             </div>
-          ) : !survey || !survey.isPublished ? (
+          ) : !survey || (!survey.isPublished && !survey.published) ? (
             <div className="text-center py-20">
               <p className="text-slate-500">Khảo sát hiện chưa sẵn sàng.</p>
             </div>
@@ -101,18 +101,31 @@ const SurveyModal = ({ isOpen, onClose, eventId }) => {
                   </label>
 
                   {q.type === 'RATING' && (
-                    <div className="flex gap-2">
-                      {[1, 2, 3, 4, 5].map(star => (
-                        <button
-                          key={star}
-                          onClick={() => setAnswers(prev => ({ ...prev, [q.id]: star }))}
-                          className={`p-3 rounded-xl border-2 transition-all ${
-                            answers[q.id] >= star ? 'bg-amber-50 border-amber-400 text-amber-500' : 'bg-white border-slate-100 text-slate-300'
-                          }`}
-                        >
-                          <Star size={24} fill={answers[q.id] >= star ? 'currentColor' : 'none'} />
-                        </button>
-                      ))}
+                    <div className="space-y-4">
+                      <div className="flex gap-2">
+                        {[1, 2, 3, 4, 5].map(star => (
+                          <button
+                            key={star}
+                            onClick={() => setAnswers(prev => ({ ...prev, [q.id]: { rating: star, reason: prev[q.id]?.reason || "" } }))}
+                            className={`p-3 rounded-xl border-2 transition-all ${
+                              (typeof answers[q.id] === 'object' ? answers[q.id]?.rating : answers[q.id]) >= star ? 'bg-amber-50 border-amber-400 text-amber-500' : 'bg-white border-slate-100 text-slate-300'
+                            }`}
+                          >
+                            <Star size={24} fill={(typeof answers[q.id] === 'object' ? answers[q.id]?.rating : answers[q.id]) >= star ? 'currentColor' : 'none'} />
+                          </button>
+                        ))}
+                      </div>
+                      {(typeof answers[q.id] === 'object' || answers[q.id]) && (
+                        <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}>
+                          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Lý do cho mức đánh giá này (Tùy chọn)</p>
+                          <textarea
+                            className="w-full p-4 rounded-2xl border-2 border-slate-100 focus:border-amber-400 outline-none transition-all min-h-[80px] text-sm font-medium"
+                            placeholder="Tại sao bạn lại đưa ra mức đánh giá này?"
+                            value={answers[q.id]?.reason || ""}
+                            onChange={(e) => setAnswers(prev => ({ ...prev, [q.id]: { ...prev[q.id], reason: e.target.value } }))}
+                          />
+                        </motion.div>
+                      )}
                     </div>
                   )}
 

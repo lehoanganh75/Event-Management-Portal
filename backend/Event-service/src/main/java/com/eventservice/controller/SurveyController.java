@@ -55,4 +55,10 @@ public class SurveyController {
     public ResponseEntity<SurveyDto> importSurvey(@PathVariable String eventId, @RequestParam("file") org.springframework.web.multipart.MultipartFile file) {
         return ResponseEntity.ok(surveyService.importSurveyFromWord(eventId, file));
     }
+
+    @GetMapping("/{surveyId}/responses")
+    public ResponseEntity<java.util.List<com.eventservice.entity.engagement.survey.SurveyResponse>> getResponses(@PathVariable String surveyId) {
+        System.out.println("DEBUG: Fetching responses for survey: " + surveyId);
+        return ResponseEntity.ok(surveyService.getResponses(surveyId));
+    }
 }

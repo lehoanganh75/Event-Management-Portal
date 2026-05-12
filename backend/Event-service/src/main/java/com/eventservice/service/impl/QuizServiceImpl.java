@@ -14,7 +14,7 @@ import com.eventservice.repository.quiz.QuizRepository;
 import com.eventservice.service.QuizService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.kafka.core.KafkaTemplate;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -37,7 +37,7 @@ public class QuizServiceImpl implements QuizService {
     private final QuizQuestionRepository questionRepository;
     private final QuizParticipationRepository participationRepository;
     private final EventRepository eventRepository;
-    private final KafkaTemplate<String, Object> kafkaTemplate;
+    private final SimpMessagingTemplate messagingTemplate;
 
     @Override
     @Transactional
@@ -147,6 +147,52 @@ public class QuizServiceImpl implements QuizService {
         quizRepository.save(quiz);
 
         broadcastEvent(quiz.getEvent().getId(), "END", quizId);
+    }
+
+    @Override
+    @Transactional
+    public void resetQuiz(String quizId) {
+        Quiz quiz = quizRepository.findById(quizId).orElseThrow();
+        quiz.setActive(false);
+        quizRepository.save(quiz);
+
+        // Clear all participants for this quiz
+        participationRepository.deleteByQuizId(quizId);
+        
+        log.info("[Quiz] Reset quiz: {}. Clearing participants.", quizId);
+        broadcastEvent(quiz.getEvent().getId(), "WAITING", quizId);
+    }
+
+    @Override
+    @Transactional
+    public void joinQuiz(String quizId, String nickname, String avatar, String userId) {
+        log.info("[Quiz] Join request: quizId={}, nickname={}, userId={}", quizId, nickname, userId);
+        
+        Quiz quiz = quizRepository.findById(quizId)
+                .orElseThrow(() -> new RuntimeException("Quiz not found: " + quizId));
+
+        // Save or update participation
+        QuizParticipation participation = participationRepository.findByQuizIdAndParticipantAccountId(quizId, userId != null ? userId : nickname)
+                .orElseGet(() -> QuizParticipation.builder()
+                        .quizId(quizId)
+                        .participantAccountId(userId != null ? userId : nickname)
+                        .fullName(nickname)
+                        .avatar(avatar)
+                        .totalScore(0)
+                        .build());
+        
+        participation.setFullName(nickname);
+        participation.setAvatar(avatar);
+        participationRepository.save(participation);
+
+        // Broadcast LOBBY_UPDATE
+        broadcastLobbyUpdate(quizId, quiz.getEvent().getId());
+    }
+
+    private void broadcastLobbyUpdate(String quizId, String eventId) {
+        List<QuizParticipation> participants = participationRepository.findByQuizIdOrderByTotalScoreDesc(quizId);
+        log.info("[Quiz] Broadcasting lobby update for event {}: {} participants", eventId, participants.size());
+        broadcastEvent(eventId, "LOBBY_UPDATE", participants);
     }
 
     @Override
@@ -294,7 +340,8 @@ public class QuizServiceImpl implements QuizService {
                 .type(type)
                 .data(data)
                 .build();
-        kafkaTemplate.send("quiz-topic", event);
+        log.info("[Quiz WS] Broadcasting type={} to /topic/quiz.{}", type, eventId);
+        messagingTemplate.convertAndSend("/topic/quiz." + eventId, event);
     }
 
     private void broadcastLeaderboard(String quizId, String eventId) {

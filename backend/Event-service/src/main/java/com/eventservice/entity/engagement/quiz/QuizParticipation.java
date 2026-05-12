@@ -22,11 +22,9 @@ public class QuizParticipation {
 
     private String participantAccountId;
 
-    @Transient
     private String fullName;
 
-    @Transient
-    private String avatarUrl;
+    private String avatar;
 
     @Builder.Default
     private int totalScore = 0;

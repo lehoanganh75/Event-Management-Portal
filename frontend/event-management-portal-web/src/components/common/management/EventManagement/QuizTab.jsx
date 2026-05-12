@@ -1,5 +1,6 @@
 import React from "react";
-import { Plus, Trophy, Clock, PlayCircle } from "lucide-react";
+import { Plus, Trophy, Clock, PlayCircle, QrCode, Eye, EyeOff } from "lucide-react";
+import { toast } from "react-toastify";
 
 const QuizTab = ({ 
   event, 
@@ -7,6 +8,12 @@ const QuizTab = ({
   setShowQuizCreatorModal, 
   handleStartQuiz 
 }) => {
+  const [visiblePins, setVisiblePins] = React.useState({});
+
+  const togglePin = (id) => {
+    setVisiblePins(prev => ({ ...prev, [id]: !prev[id] }));
+  };
+
   return (
     <div className="space-y-8">
       <div className="flex justify-between items-center mb-6">
@@ -29,39 +36,48 @@ const QuizTab = ({
 
       {quizzes.length > 0 ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {quizzes.map((quiz, idx) => (
-            <div key={idx} className="bg-white border border-slate-100 rounded-[2rem] p-6 shadow-sm hover:shadow-xl hover:shadow-indigo-100/50 transition-all group">
-              <div className="flex justify-between items-start mb-6">
-                <div className="w-12 h-12 bg-indigo-50 text-indigo-600 rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform">
-                  <Trophy size={24} />
-                </div>
-                <span className="px-3 py-1 bg-emerald-50 text-emerald-600 rounded-lg text-[10px] font-black uppercase tracking-wider">
-                  {quiz.questions?.length || 0} câu hỏi
-                </span>
-              </div>
-              <h4 className="text-lg font-black text-slate-800 mb-2 leading-tight">{quiz.title}</h4>
-              <p className="text-xs text-slate-400 font-medium mb-6 line-clamp-2">{quiz.description || "Chương trình thử thách kiến thức và nhận quà hấp dẫn."}</p>
+          {quizzes.map((quiz, idx) => {
+            const joinCode = quiz.id?.substring(0, 6).toUpperCase();
+            const isVisible = visiblePins[quiz.id];
 
-              <div className="flex items-center gap-4 mb-6">
-                <div className="flex items-center gap-1.5">
-                  <Clock size={14} className="text-slate-300" />
-                  <span className="text-[10px] font-bold text-slate-400">15 Phút</span>
+            return (
+              <div key={idx} className="bg-white border border-slate-100 rounded-[2rem] p-6 shadow-sm hover:shadow-xl hover:shadow-indigo-100/50 transition-all group">
+                <div className="flex justify-between items-start mb-6">
+                  <div className="w-12 h-12 bg-indigo-50 text-indigo-600 rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform">
+                    <Trophy size={24} />
+                  </div>
+                  <span className="px-3 py-1 bg-emerald-50 text-emerald-600 rounded-lg text-[10px] font-black uppercase tracking-wider">
+                    {quiz.questions?.length || 0} câu hỏi
+                  </span>
                 </div>
-                <div className="w-1 h-1 bg-slate-200 rounded-full" />
-                <div className="flex items-center gap-1.5">
-                  <Trophy size={14} className="text-slate-300" />
-                  <span className="text-[10px] font-bold text-slate-400">3 Giải thưởng</span>
+                <h4 className="text-lg font-black text-slate-800 mb-2 leading-tight">{quiz.title}</h4>
+                <p className="text-xs text-slate-400 font-medium mb-6 line-clamp-2">{quiz.description || "Chương trình thử thách kiến thức và nhận quà hấp dẫn."}</p>
+
+                <div className="flex items-center gap-4 mb-8">
+                  <div className="flex items-center gap-1.5">
+                    <Clock size={14} className="text-slate-300" />
+                    <span className="text-[10px] font-bold text-slate-400">15 Phút</span>
+                  </div>
+                  <div className="w-1 h-1 bg-slate-200 rounded-full" />
+                  <div className="flex items-center gap-1.5">
+                    <Trophy size={14} className="text-slate-300" />
+                    <span className="text-[10px] font-bold text-slate-400">3 Giải thưởng</span>
+                  </div>
+                </div>
+
+                <div className="flex justify-end">
+                  {/* ONLY PLAY BUTTON ON THE CARD */}
+                  <button
+                    onClick={() => handleStartQuiz(quiz.id)}
+                    className="w-14 h-14 bg-slate-900 text-white rounded-2xl flex items-center justify-center hover:bg-slate-800 transition-all shadow-lg hover:scale-110 active:scale-95 group"
+                    title="Bắt đầu ngay"
+                  >
+                    <PlayCircle size={28} className="group-hover:rotate-12 transition-transform" />
+                  </button>
                 </div>
               </div>
-
-              <button
-                onClick={() => handleStartQuiz(quiz.id)}
-                className="w-12 h-12 bg-slate-900 text-white rounded-2xl flex items-center justify-center hover:bg-slate-800 transition-all shadow-lg active:scale-90"
-              >
-                <PlayCircle size={24} />
-              </button>
-            </div>
-          ))}
+            );
+          })}
         </div>
       ) : (
         <div className="text-center py-20 bg-slate-50 rounded-3xl border border-dashed border-slate-200">

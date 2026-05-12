@@ -260,6 +260,7 @@ const eventService = {
     createQuiz: (quizData) => privateApi.post('/quizzes', quizData),
     getQuizzesByEvent: (eventId) => privateApi.get(`/quizzes/event/${eventId}`),
     startQuiz: (quizId) => privateApi.post(`/quizzes/${quizId}/start`),
+    resetQuiz: (quizId) => privateApi.post(`/quizzes/${quizId}/reset`),
     nextQuizQuestion: (quizId, index) => privateApi.post(`/quizzes/${quizId}/next`, null, { params: { index } }),
     submitQuizAnswer: (submission) => privateApi.post('/quizzes/submit', submission),
     getQuizLeaderboard: (quizId) => privateApi.get(`/quizzes/${quizId}/leaderboard`),
@@ -284,6 +285,16 @@ const eventService = {
             headers: { 'Content-Type': 'multipart/form-data' }
         });
     },
+    getSurveyResponses: (surveyId) => privateApi.get(`/surveys/${surveyId}/responses`),
+
+    // --- Q&A API ---
+    getQAMessages: (eventId) => privateApi.get(`/qa/event/${eventId}`),
+    upvoteQAMessage: (messageId) => privateApi.post(`/qa/${messageId}/upvote`),
+
+    // --- FEEDBACK API ---
+    submitFeedback: (eventId, data) => privateApi.post(`/api/v1/feedbacks/event/${eventId}`, data),
+    getFeedbacksByEvent: (eventId) => privateApi.get(`/api/v1/feedbacks/event/${eventId}`),
+    replyToFeedback: (feedbackId, reply) => privateApi.patch(`/api/v1/feedbacks/${feedbackId}/reply`, null, { params: { reply } }),
 
     // --- GROUP 7: ADMIN APPROVAL ---
     getPlansPendingApproval: () => privateApi.get('/events/admin/plans/pending'),
