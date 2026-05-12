@@ -17,7 +17,7 @@ const DashboardLayout = () => {
   };
 
   return (
-    <div className="flex min-h-screen bg-[#f8fafc]">
+    <div className="flex h-screen bg-[#f8fafc] overflow-hidden">
       {/* Sidebar - w-72 hoặc w-20, dùng sticky nên content bên phải tự động co dãn */}
       <Sidebar isCollapsed={isCollapsed} onToggle={toggleSidebar} />
 

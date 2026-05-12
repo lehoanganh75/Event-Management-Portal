@@ -43,9 +43,8 @@ const EventCard = ({ event, onClick, t, language }) => {
         />
         {/* Top Right Badge */}
         <div className="absolute top-4 right-4">
-          <span className={`text-[10px] font-black uppercase px-3 py-1 rounded-full shadow-sm ${
-            event.status === 'ONGOING' ? 'bg-emerald-100 text-emerald-600' : 'bg-blue-100 text-blue-600'
-          }`}>
+          <span className={`text-[10px] font-black uppercase px-3 py-1 rounded-full shadow-sm ${event.status === 'ONGOING' ? 'bg-emerald-100 text-emerald-600' : 'bg-blue-100 text-blue-600'
+            }`}>
             {event.status === 'ONGOING' ? t('ongoing') : t('upcoming')}
           </span>
         </div>
@@ -323,7 +322,7 @@ const LandingPage = () => {
                   <div className="w-full py-20 flex justify-center"><Loader2 className="animate-spin text-blue-600" size={48} /></div>
                 ) : ongoing && ongoing.length > 0 ? (
                   ongoing.map(event => (
-                    <EventCard key={event.id} event={{...event, status: 'ONGOING'}} onClick={handleEventClick} t={t} language={language} />
+                    <EventCard key={event.id} event={{ ...event, status: 'ONGOING' }} onClick={handleEventClick} t={t} language={language} />
                   ))
                 ) : (
                   <div className="w-full py-20 text-center text-slate-400 font-medium bg-white rounded-3xl border border-dashed border-slate-200">{t('no_ongoing')}</div>
@@ -362,7 +361,7 @@ const LandingPage = () => {
                   <div className="w-full py-20 flex justify-center"><Loader2 className="animate-spin text-blue-600" size={48} /></div>
                 ) : upcoming && upcoming.length > 0 ? (
                   upcoming.map(event => (
-                    <EventCard key={event.id} event={{...event, status: 'UPCOMING'}} onClick={handleEventClick} t={t} language={language} />
+                    <EventCard key={event.id} event={{ ...event, status: 'UPCOMING' }} onClick={handleEventClick} t={t} language={language} />
                   ))
                 ) : (
                   <div className="w-full py-20 text-center text-slate-400 font-medium bg-white rounded-3xl border border-dashed border-slate-200">{t('no_upcoming')}</div>
@@ -392,7 +391,7 @@ const LandingPage = () => {
           <section className="mb-32">
             <div className="flex items-center justify-between mb-10">
               <div className="space-y-1">
-                <h2 className="text-3xl font-black text-slate-900 tracking-tight uppercase italic">
+                <h2 className="text-3xl font-black text-slate-900 tracking-tight">
                   {language === 'VI' ? 'Bản tin mới nhất' : 'Latest Bulletin'}
                 </h2>
                 <div className="h-1.5 w-20 bg-blue-600 rounded-full"></div>
@@ -479,8 +478,8 @@ const LandingPage = () => {
                 ))
               ) : (
                 <div className="col-span-3 py-20 text-center bg-white rounded-[2rem] border border-dashed border-slate-200">
-                   <LayoutGrid size={48} className="mx-auto text-slate-200 mb-4" />
-                   <p className="text-slate-400 font-medium">{language === 'VI' ? 'Chưa có bản tin nào' : 'No bulletins yet'}</p>
+                  <LayoutGrid size={48} className="mx-auto text-slate-200 mb-4" />
+                  <p className="text-slate-400 font-medium">{language === 'VI' ? 'Chưa có bản tin nào' : 'No bulletins yet'}</p>
                 </div>
               )}
             </div>

@@ -25,19 +25,6 @@ const LecturerEventDetailPage = () => {
   const [isDeleting, setIsDeleting] = useState(false);
   const [showQRScanner, setShowQRScanner] = useState(false);
 
-  // Invitation States
-  const [showUserSuggestions, setShowUserSuggestions] = useState(false);
-  const [searchKey, setSearchKey] = useState("");
-  const [systemUsers, setSystemUsers] = useState([]);
-  const [loadingUsers, setLoadingUsers] = useState(false);
-  const [invitations, setInvitations] = useState([]);
-  const [isInviting, setIsInviting] = useState(false);
-  const [isAddingMember, setIsAddingMember] = useState(false);
-
-  // Presenter Invitation States
-  const [isAddingPresenter, setIsAddingPresenter] = useState(false);
-  const [presenterInvitations, setPresenterInvitations] = useState([]);
-  const [isInvitingPresenter, setIsInvitingPresenter] = useState(false);
 
   const fetchData = useCallback(async () => {
     try {
@@ -90,17 +77,6 @@ const LecturerEventDetailPage = () => {
     if (id) fetchData();
   }, [fetchData]);
 
-  const fetchUsers = async () => {
-    setLoadingUsers(true);
-    try {
-      const res = await authService.getAllAccounts();
-      setSystemUsers(res.data || []);
-    } catch (err) {
-      toast.error("Lỗi lấy danh sách người dùng");
-    } finally {
-      setLoadingUsers(false);
-    }
-  };
 
   const handleCancelEvent = async () => {
     if (!cancelReason.trim()) {
@@ -199,88 +175,7 @@ const LecturerEventDetailPage = () => {
     }
   };
 
-  const addInvite = (user = null) => {
-    const newInvite = user ? {
-      inviteeEmail: user.email || "",
-      inviteeAccountId: user.id || "",
-      fullName: user.fullName || user.profile?.fullName || user.username || "",
-      targetRole: "MEMBER",
-      message: ""
-    } : { inviteeEmail: "", inviteeAccountId: "", fullName: "", targetRole: "MEMBER", message: "" };
 
-    if (user) {
-      const emptyIdx = invitations.findIndex(inv => !inv.inviteeEmail);
-      if (emptyIdx !== -1) {
-        const newList = [...invitations];
-        newList[emptyIdx] = newInvite;
-        setInvitations(newList);
-        return;
-      }
-    }
-    setInvitations([...invitations, newInvite]);
-  };
-
-  const handleSendInvites = async () => {
-    try {
-      const validInvites = invitations.filter(inv => inv.inviteeEmail?.trim() !== "");
-      if (validInvites.length === 0) return;
-      setIsInviting(true);
-      await eventService.sendOrganizerInvitations(id, { invitations: validInvites });
-      toast.success("Đã gửi lời mời!");
-      setInvitations([]);
-      setIsAddingMember(false);
-      fetchData();
-    } catch (err) {
-      toast.error("Lỗi gửi lời mời");
-    } finally {
-      setIsInviting(false);
-    }
-  };
-
-  const addPresenterInvite = (user = null) => {
-    const newInvite = user ? {
-      inviteeEmail: user.email || "",
-      inviteeAccountId: user.id || "",
-      fullName: user.fullName || user.profile?.fullName || user.username || "",
-      session: "ALL",
-      bio: ""
-    } : { inviteeEmail: "", inviteeAccountId: "", fullName: "", session: "ALL", bio: "" };
-
-    if (user) {
-      const emptyIdx = presenterInvitations.findIndex(inv => !inv.inviteeEmail);
-      if (emptyIdx !== -1) {
-        const newList = [...presenterInvitations];
-        newList[emptyIdx] = newInvite;
-        setPresenterInvitations(newList);
-        return;
-      }
-    }
-    setPresenterInvitations([...presenterInvitations, newInvite]);
-  };
-
-  const handleSendPresenterInvites = async () => {
-    try {
-      const validInvites = presenterInvitations.filter(inv => inv.inviteeEmail?.trim() !== "");
-      if (validInvites.length === 0) return;
-      setIsInvitingPresenter(true);
-      await eventService.sendPresenterInvitations(id, { invitations: validInvites });
-      toast.success("Đã gửi lời mời diễn giả!");
-      setPresenterInvitations([]);
-      setIsAddingPresenter(false);
-      fetchData();
-    } catch (err) {
-      toast.error("Lỗi gửi lời mời");
-    } finally {
-      setIsInvitingPresenter(false);
-    }
-  };
-
-  const filteredUsers = useMemo(() => {
-    return systemUsers.filter(u =>
-      (u.profile?.fullName || "").toLowerCase().includes(searchKey.toLowerCase()) ||
-      (u.email || "").toLowerCase().includes(searchKey.toLowerCase())
-    );
-  }, [systemUsers, searchKey]);
 
   const handleRemoveMember = async (member) => {
     try {
@@ -344,36 +239,6 @@ const LecturerEventDetailPage = () => {
       onLeaveTeam={handleLeaveTeam}
       onApproveLeave={handleApproveLeave}
       onRejectLeave={handleRejectLeave}
-      isAddingMember={isAddingMember}
-      setIsAddingMember={setIsAddingMember}
-      showUserSuggestions={showUserSuggestions}
-      setShowUserSuggestions={setShowUserSuggestions}
-      searchKey={searchKey}
-      setSearchKey={setSearchKey}
-      loadingUsers={loadingUsers}
-      filteredUsers={filteredUsers}
-      invitations={invitations}
-      addInvite={addInvite}
-      updateInvite={(idx, field, val) => {
-        const newList = [...invitations];
-        newList[idx][field] = val;
-        setInvitations(newList);
-      }}
-      removeInvite={(idx) => setInvitations(invitations.filter((_, i) => i !== idx))}
-      handleSendInvites={handleSendInvites}
-      isInviting={isInviting}
-      isAddingPresenter={isAddingPresenter}
-      setIsAddingPresenter={setIsAddingPresenter}
-      presenterInvitations={presenterInvitations}
-      addPresenterInvite={addPresenterInvite}
-      updatePresenterInvite={(idx, field, val) => {
-        const newList = [...presenterInvitations];
-        newList[idx][field] = val;
-        setPresenterInvitations(newList);
-      }}
-      removePresenterInvite={(idx) => setPresenterInvitations(presenterInvitations.filter((_, i) => i !== idx))}
-      handleSendPresenterInvites={handleSendPresenterInvites}
-      isInvitingPresenter={isInvitingPresenter}
       showCancelInput={showCancelInput}
       setShowCancelInput={setShowCancelInput}
       cancelReason={cancelReason}
@@ -382,7 +247,6 @@ const LecturerEventDetailPage = () => {
       showDeleteConfirm={showDeleteConfirm}
       setShowDeleteConfirm={setShowDeleteConfirm}
       isDeleting={isDeleting}
-      onFetchUsers={fetchUsers}
       onStartEvent={handleStartEvent}
       onCompleteEvent={handleCompleteEvent}
       onManualCheckIn={handleManualCheckIn}

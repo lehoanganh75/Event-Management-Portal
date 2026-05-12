@@ -23,21 +23,20 @@ public interface EventOrganizerRepository extends JpaRepository<EventOrganizer, 
     Optional<EventOrganizer> findFirstByEventIdAndAccountId(String eventId, String accountId);
 
     @Query("""
-        SELECT eo FROM EventOrganizer eo 
-        JOIN eo.event e 
-        WHERE eo.accountId = :userId 
-        AND eo.isDeleted = false 
-        AND e.isDeleted = false 
-        AND e.startTime < :endTime 
-        AND e.endTime > :startTime 
-        AND e.id != :excludeEventId
-    """)
+                SELECT eo FROM EventOrganizer eo
+                JOIN eo.event e
+                WHERE eo.accountId = :userId
+                AND eo.isDeleted = false
+                AND e.isDeleted = false
+                AND e.startTime < :endTime
+                AND e.endTime > :startTime
+                AND e.id != :excludeEventId
+            """)
     List<EventOrganizer> findConflictingOrganizers(
             @Param("userId") String userId,
             @Param("startTime") java.time.LocalDateTime startTime,
             @Param("endTime") java.time.LocalDateTime endTime,
-            @Param("excludeEventId") String excludeEventId
-    );
+            @Param("excludeEventId") String excludeEventId);
 
     @org.springframework.data.jpa.repository.Modifying(clearAutomatically = true)
     @org.springframework.transaction.annotation.Transactional

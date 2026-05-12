@@ -1,83 +1,124 @@
-/* Custom Toast Styles - Premium Version */
+/* Premium Toast Styles - Modern & Professional */
+.Toastify__toast-container {
+  width: auto !important;
+  /* Adaptive width */
+  max-width: 90vw !important;
+  padding: 10px !important;
+  z-index: 9999 !important;
+}
+
+/* Ensure toast takes width based on content */
 .Toastify__toast {
-  border-radius: 16px !important;
-  padding: 12px 16px !important;
-  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05), 0 4px 6px -2px rgba(0, 0, 0, 0.05) !important;
-  min-height: 64px !important;
+  width: auto !important;
+  min-width: 320px !important;
+  /* Minimum standard width */
+  max-width: 800px !important;
+  /* Maximum allowed width */
+  margin-left: auto !important;
+  /* Keep aligned to the right */
+  border-radius: 12px !important;
+  padding: 12px 24px !important;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.08), 0 8px 10px -6px rgba(0, 0, 0, 0.05) !important;
+  min-height: 50px !important;
   font-family: 'Inter', system-ui, -apple-system, sans-serif !important;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  margin-bottom: 12px !important;
+  display: flex !important;
 }
 
 .Toastify__toast-body {
   padding: 0 !important;
   margin: 0 !important;
+  display: flex !important;
   align-items: center !important;
-  font-weight: 600 !important;
+  font-weight: 500;
+  font-size: 13px;
+  letter-spacing: -0.01em;
+  width: 100% !important;
+}
+
+/* Base style for all toasts - Adding a thick left border for visual accent */
+.Toastify__toast::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 5px;
 }
 
 /* Success Toast */
 .Toastify__toast--success {
-  background: #ecfdf5 !important;
-  /* emerald-50 */
+  background: rgba(236, 253, 245, 0.9) !important;
   color: #065f46 !important;
-  /* emerald-800 */
-  border: 1px solid #d1fae5 !important;
+  border: 1px solid rgba(16, 185, 129, 0.2) !important;
+}
+
+.Toastify__toast--success::before {
+  background: #10b981;
 }
 
 .Toastify__toast--success .Toastify__toast-icon {
   color: #059669 !important;
-  /* emerald-600 */
 }
 
 /* Error Toast */
 .Toastify__toast--error {
-  background: #fef2f2 !important;
-  /* red-50 */
+  background: rgba(254, 242, 242, 0.9) !important;
   color: #991b1b !important;
-  /* red-800 */
-  border: 1px solid #fee2e2 !important;
+  border: 1px solid rgba(239, 68, 68, 0.2) !important;
+}
+
+.Toastify__toast--error::before {
+  background: #ef4444;
 }
 
 .Toastify__toast--error .Toastify__toast-icon {
   color: #dc2626 !important;
-  /* red-600 */
 }
 
 /* Warning Toast */
 .Toastify__toast--warning {
-  background: #fffbeb !important;
-  /* amber-50 */
+  background: rgba(255, 251, 235, 0.9) !important;
   color: #92400e !important;
-  /* amber-800 */
-  border: 1px solid #fef3c7 !important;
+  border: 1px solid rgba(245, 158, 11, 0.2) !important;
+}
+
+.Toastify__toast--warning::before {
+  background: #f59e0b;
 }
 
 .Toastify__toast--warning .Toastify__toast-icon {
   color: #d97706 !important;
-  /* amber-600 */
 }
 
 /* Info Toast */
 .Toastify__toast--info {
-  background: #eff6ff !important;
-  /* blue-50 */
+  background: rgba(239, 246, 255, 0.9) !important;
   color: #1e40af !important;
-  /* blue-800 */
-  border: 1px solid #dbeafe !important;
+  border: 1px solid rgba(59, 130, 246, 0.2) !important;
+}
+
+.Toastify__toast--info::before {
+  background: #3b82f6;
 }
 
 .Toastify__toast--info .Toastify__toast-icon {
   color: #2563eb !important;
-  /* blue-600 */
 }
 
 .Toastify__toast-icon {
-  width: 24px !important;
-  margin-right: 12px !important;
+  width: 22px !important;
+  margin-right: 16px !important;
+  flex-shrink: 0;
 }
 
 .Toastify__close-button {
   color: currentColor !important;
-  opacity: 0.5 !important;
+  opacity: 0.4 !important;
+  transition: opacity 0.2s;
+  padding: 4px;
 }
 
 .Toastify__close-button:hover {
@@ -88,7 +129,7 @@
 .Toastify__progress-bar {
   height: 3px !important;
   bottom: 0 !important;
-  opacity: 0.7 !important;
+  opacity: 1 !important;
 }
 
 .Toastify__progress-bar--success {
@@ -107,9 +148,7 @@
   background: #3b82f6 !important;
 }
 
-/* Text Styling Wrapper */
-.custom-toast-message {
-  display: flex;
-  align-items: center;
-  font-family: inherit;
+/* Animation tweak */
+.Toastify__bounce-enter--top-right {
+  animation-name: Toastify__bounceInRight;
 }

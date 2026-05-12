@@ -608,9 +608,4 @@ public class GeminiChatServiceImpl implements GeminiChatService {
             return "ERROR_AI_OVERLOADED";
         }
     }
-}       } catch (Exception e) {
-            log.error("Error getting raw AI response: {}", e.getMessage());
-            return "Lỗi kết nối AI hoặc dịch vụ đang bận.";
-        }
-    }
 }
