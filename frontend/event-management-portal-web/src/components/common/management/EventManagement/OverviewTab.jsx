@@ -1,6 +1,7 @@
 import React from "react";
-import { Flag, UserCheck, UserPlus, Info, Users, CheckCircle } from "lucide-react";
+import { Flag, UserCheck, UserPlus, Info, Users, CheckCircle, QrCode as QrIcon, Download, Ticket } from "lucide-react";
 import { useLanguage } from "../../../../context/LanguageContext";
+import QRCode from "react-qr-code";
 
 const OverviewTab = ({ 
   event, 
@@ -13,6 +14,9 @@ const OverviewTab = ({
   formatFullDateTime 
 }) => {
   const { t } = useLanguage();
+
+  const isParticipant = userPerms?.isRegistered || userPerms?.registered || userPerms?.registration;
+  const registrationData = userPerms?.registration || {};
 
   return (
     <div className="space-y-8">
@@ -60,30 +64,30 @@ const OverviewTab = ({
                   {/* MILESTONE: DEADLINE */}
                   <div className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2" style={{ left: `${deadlinePos}%` }}>
                     <div className={`w-3 h-3 rounded-full border-2 ${isPast(deadline) ? 'bg-indigo-500 border-indigo-100' : 'bg-white border-slate-300'} z-10`} />
-                    <div className="absolute top-1/2 left-1/2 w-px h-8 bg-slate-200 -translate-x-1/2" />
-                    <div className="absolute top-10 left-1/2 -translate-x-1/2 text-center w-32">
-                      <p className="text-[9px] font-black text-rose-500 uppercase tracking-tighter">{t('reg_deadline_short')}</p>
-                      <p className="text-[10px] font-bold text-slate-700 leading-tight">{formatFullDateTime(event.registrationDeadline)}</p>
+                    <div className="absolute top-1/2 left-1/2 w-px h-12 bg-slate-200 -translate-x-1/2" />
+                    <div className="absolute top-14 left-1/2 -translate-x-1/2 text-center w-28">
+                      <p className="text-[8px] font-black text-rose-500 uppercase tracking-tighter mb-0.5">{t('reg_deadline_short')}</p>
+                      <p className="text-[9px] font-bold text-slate-700 leading-tight">{formatFullDateTime(event.registrationDeadline)}</p>
                     </div>
                   </div>
 
                   {/* MILESTONE: START */}
                   <div className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2" style={{ left: `${startPos}%` }}>
                     <div className={`w-3 h-3 rounded-full border-2 ${isPast(start) ? 'bg-indigo-500 border-indigo-100' : 'bg-white border-slate-300'} z-10`} />
-                    <div className="absolute bottom-1/2 left-1/2 w-px h-8 bg-slate-200 -translate-x-1/2" />
-                    <div className="absolute bottom-10 left-1/2 -translate-x-1/2 text-center w-32">
-                      <p className="text-[9px] font-black text-blue-500 uppercase tracking-tighter">{t('start_short')}</p>
-                      <p className="text-[10px] font-bold text-slate-700 leading-tight">{formatFullDateTime(event.startTime)}</p>
+                    <div className="absolute bottom-1/2 left-1/2 w-px h-12 bg-slate-200 -translate-x-1/2" />
+                    <div className="absolute bottom-14 left-1/2 -translate-x-1/2 text-center w-28">
+                      <p className="text-[8px] font-black text-blue-500 uppercase tracking-tighter mb-0.5">{t('start_short')}</p>
+                      <p className="text-[9px] font-bold text-slate-700 leading-tight">{formatFullDateTime(event.startTime)}</p>
                     </div>
                   </div>
 
                   {/* MILESTONE: END */}
                   <div className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2" style={{ left: `${endPos}%` }}>
                     <div className={`w-3 h-3 rounded-full border-2 ${isPast(end) ? 'bg-indigo-500 border-indigo-100' : 'bg-white border-slate-300'} z-10`} />
-                    <div className="absolute top-1/2 left-1/2 w-px h-8 bg-slate-200 -translate-x-1/2" />
-                    <div className="absolute top-10 left-1/2 -translate-x-1/2 text-center w-32">
-                      <p className="text-[9px] font-black text-emerald-500 uppercase tracking-tighter">{t('end_short')}</p>
-                      <p className="text-[10px] font-bold text-slate-700 leading-tight">{formatFullDateTime(event.endTime)}</p>
+                    <div className="absolute top-1/2 left-1/2 w-px h-12 bg-slate-200 -translate-x-1/2" />
+                    <div className="absolute top-14 left-1/2 -translate-x-1/2 text-center w-28">
+                      <p className="text-[8px] font-black text-emerald-500 uppercase tracking-tighter mb-0.5">{t('end_short')}</p>
+                      <p className="text-[9px] font-bold text-slate-700 leading-tight">{formatFullDateTime(event.endTime)}</p>
                     </div>
                   </div>
 
@@ -92,15 +96,15 @@ const OverviewTab = ({
                     className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 z-20"
                     style={{ left: `${nowPos}%` }}
                   >
-                    <div className="w-6 h-6 bg-indigo-600 rounded-full flex items-center justify-center shadow-lg shadow-indigo-200 animate-pulse border-2 border-white">
-                      <div className="w-2 h-2 bg-white rounded-full" />
+                    <div className="w-5 h-5 bg-indigo-600 rounded-full flex items-center justify-center shadow-lg shadow-indigo-200 animate-pulse border-2 border-white">
+                      <div className="w-1.5 h-1.5 bg-white rounded-full" />
                     </div>
-                    <div className="absolute -top-10 left-1/2 -translate-x-1/2 bg-indigo-600 text-white text-[9px] font-black px-2 py-1 rounded-lg shadow-lg whitespace-nowrap">
+                    <div className="absolute -top-12 left-1/2 -translate-x-1/2 bg-indigo-600 text-white text-[8px] font-black px-2 py-0.5 rounded-full shadow-lg whitespace-nowrap">
                       {t('today')}
                     </div>
-                    <div className="absolute top-8 left-1/2 -translate-x-1/2 text-center w-32">
-                      <p className="text-[10px] font-black text-indigo-600 uppercase tracking-tighter">{t('current_time')}</p>
-                      <p className="text-[11px] font-black text-slate-900">{formatFullDateTime(now)}</p>
+                    <div className="absolute top-10 left-1/2 -translate-x-1/2 text-center w-28">
+                      <p className="text-[9px] font-black text-indigo-600 uppercase tracking-tighter">{t('current_time')}</p>
+                      <p className="text-[10px] font-black text-slate-900">{formatFullDateTime(now)}</p>
                     </div>
                   </div>
                 </>
@@ -112,38 +116,74 @@ const OverviewTab = ({
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
         {/* CỘT 1: QUYỀN HẠN CỦA BẠN */}
-        <div className="bg-slate-50 border border-slate-200 rounded-2xl p-5 relative overflow-hidden group h-full">
-          <div className="absolute top-0 right-0 p-3 opacity-10 group-hover:opacity-20 transition-opacity">
-            <UserCheck size={80} />
-          </div>
-          <h3 className="font-bold text-sm mb-4 flex items-center gap-2 text-slate-800 uppercase tracking-tight">
-            <UserPlus size={18} className="text-indigo-600" /> {t('your_permissions')}
-          </h3>
-          {userRoles.length > 0 ? (
-            <div className="space-y-4">
-              <div className="flex flex-col gap-1">
-                <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">{t('current_position')}</span>
-                <div className="flex flex-wrap gap-2">
-                  {userRoles.map((r, i) => (
-                    <span key={i} className={`inline-block px-3 py-1 rounded-lg text-[10px] font-black uppercase ${r.color}`}>
-                      {r.label}
-                    </span>
-                  ))}
-                </div>
-              </div>
-              <div className="space-y-2">
-                <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">{t('operation_capability')}</span>
-                <div className="grid grid-cols-1 gap-1.5">
-                  {(isAdmin || userPerms.canEditEvent) && <div className="flex items-center gap-2 text-[11px] font-bold text-emerald-600 bg-emerald-50 px-2 py-1 rounded-md"><CheckCircle size={12} /> {t('edit_event_perm')}</div>}
-                  {(isAdmin || userPerms.canManageTeam) && <div className="flex items-center gap-2 text-[11px] font-bold text-emerald-600 bg-emerald-50 px-2 py-1 rounded-md"><CheckCircle size={12} /> {t('manage_team_perm')}</div>}
-                  {(isAdmin || userPerms.canCheckIn || isMember || isCoreTeam) && <div className="flex items-center gap-2 text-[11px] font-bold text-blue-600 bg-blue-50 px-2 py-1 rounded-md"><CheckCircle size={12} /> {t('checkin_perm')}</div>}
-                  {(isAdmin || userPerms.canViewAnalytics) && <div className="flex items-center gap-2 text-[11px] font-bold text-indigo-600 bg-indigo-50 px-2 py-1 rounded-md"><CheckCircle size={12} /> {t('view_stats_perm')}</div>}
-                </div>
-              </div>
+        <div className="space-y-6">
+          <div className="bg-slate-50 border border-slate-200 rounded-2xl p-5 relative overflow-hidden group">
+            <div className="absolute top-0 right-0 p-3 opacity-10 group-hover:opacity-20 transition-opacity">
+              <UserCheck size={80} />
             </div>
-          ) : (
-            <div className="py-6 text-center">
-              <p className="text-xs text-slate-400 italic">{t('view_as_guest')}</p>
+            <h3 className="font-bold text-sm mb-4 flex items-center gap-2 text-slate-800 uppercase tracking-tight">
+              <UserPlus size={18} className="text-indigo-600" /> {t('your_permissions')}
+            </h3>
+            {userRoles.length > 0 ? (
+              <div className="space-y-4">
+                <div className="flex flex-col gap-1">
+                  <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">{t('current_position')}</span>
+                  <div className="flex flex-wrap gap-2">
+                    {userRoles.map((r, i) => (
+                      <span key={i} className={`inline-block px-3 py-1 rounded-lg text-[10px] font-black uppercase ${r.color}`}>
+                        {r.label}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">{t('operation_capability')}</span>
+                  <div className="grid grid-cols-1 gap-1.5">
+                    {(isAdmin || userPerms.canEditEvent) && <div className="flex items-center gap-2 text-[11px] font-bold text-emerald-600 bg-emerald-50 px-2 py-1 rounded-md"><CheckCircle size={12} /> {t('edit_event_perm')}</div>}
+                    {(isAdmin || userPerms.canManageTeam) && <div className="flex items-center gap-2 text-[11px] font-bold text-emerald-600 bg-emerald-50 px-2 py-1 rounded-md"><CheckCircle size={12} /> {t('manage_team_perm')}</div>}
+                    {(isAdmin || userPerms.canCheckIn || isMember || isCoreTeam) && <div className="flex items-center gap-2 text-[11px] font-bold text-blue-600 bg-blue-50 px-2 py-1 rounded-md"><CheckCircle size={12} /> {t('checkin_perm')}</div>}
+                    {(isAdmin || userPerms.canViewAnalytics) && <div className="flex items-center gap-2 text-[11px] font-bold text-indigo-600 bg-indigo-50 px-2 py-1 rounded-md"><CheckCircle size={12} /> {t('view_stats_perm')}</div>}
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="py-6 text-center">
+                <p className="text-xs text-slate-400 italic">{t('view_as_guest')}</p>
+              </div>
+            )}
+          </div>
+
+          {/* VÉ ĐIỆN TỬ CHO SINH VIÊN */}
+          {isParticipant && (
+            <div className="bg-indigo-600 rounded-3xl p-6 text-white shadow-xl shadow-indigo-100 relative overflow-hidden group">
+              <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+                <Ticket size={100} />
+              </div>
+              <h3 className="font-black text-xs mb-6 flex items-center gap-2 uppercase tracking-[0.2em] relative z-10">
+                <QrIcon size={16} /> Vé điện tử của bạn
+              </h3>
+
+              <div className="bg-white p-4 rounded-2xl mb-6 flex items-center justify-center shadow-inner relative z-10">
+                <QRCode
+                  value={registrationData.id || `EVENT-${event.id}-USER-${registrationData.studentId || 'UNKNOWN'}`}
+                  size={140}
+                  className="max-w-full"
+                />
+              </div>
+
+              <div className="space-y-1 relative z-10">
+                <p className="text-[10px] font-bold text-indigo-200 uppercase tracking-widest">Trạng thái vé</p>
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-black uppercase tracking-tight">
+                    {registrationData.status === 'ATTENDED' ? 'ĐÃ ĐIỂM DANH' : 'CHỜ ĐIỂM DANH'}
+                  </span>
+                  <Download size={16} className="text-indigo-300 hover:text-white cursor-pointer transition-colors" />
+                </div>
+              </div>
+
+              <div className="mt-4 pt-4 border-t border-white/10 text-[9px] font-bold text-indigo-200 leading-relaxed relative z-10 italic">
+                * Vui lòng đưa mã này cho Ban tổ chức tại quầy check-in để được ghi nhận tham gia.
+              </div>
             </div>
           )}
         </div>
