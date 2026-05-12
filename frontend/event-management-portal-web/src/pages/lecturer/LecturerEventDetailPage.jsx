@@ -222,6 +222,16 @@ const LecturerEventDetailPage = () => {
     }
   };
 
+  const handleUpdateOrganizerRole = async (organizerId, role) => {
+    try {
+      await eventService.updateOrganizerRole(organizerId, role);
+      toast.success("Đã cập nhật vai trò thành viên");
+      fetchData();
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Lỗi khi cập nhật vai trò");
+    }
+  };
+
   return (
     <EventDetailManagement
       event={event}
@@ -239,6 +249,7 @@ const LecturerEventDetailPage = () => {
       onLeaveTeam={handleLeaveTeam}
       onApproveLeave={handleApproveLeave}
       onRejectLeave={handleRejectLeave}
+      onUpdateOrganizerRole={handleUpdateOrganizerRole}
       showCancelInput={showCancelInput}
       setShowCancelInput={setShowCancelInput}
       cancelReason={cancelReason}

@@ -99,6 +99,7 @@ const EventDetailManagement = ({
   onManualCheckIn = () => { },
   onUndoCheckIn = () => { },
   onUpdateCheckInTime = () => { },
+  onUpdateOrganizerRole = () => { },
   // QR Scanner props
   showQRScanner = false,
   setShowQRScanner = () => { },
@@ -952,6 +953,7 @@ const EventDetailManagement = ({
                   getOrganizerRole={getOrganizerRole}
                   setShowConfirmModal={setShowConfirmModal}
                   setConfirmConfig={setConfirmConfig}
+                  onUpdateOrganizerRole={onUpdateOrganizerRole}
                 />
               </div>
             )}

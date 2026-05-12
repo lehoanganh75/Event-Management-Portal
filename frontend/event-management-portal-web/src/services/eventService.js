@@ -341,6 +341,7 @@ const eventService = {
     leaveTeam: (eventId) => privateApi.post(`/events/${eventId}/organizers/leave`),
     approveLeaveRequest: (organizerId) => privateApi.post(`/events/organizers/${organizerId}/approve-leave`),
     rejectLeaveRequest: (organizerId) => privateApi.post(`/events/organizers/${organizerId}/reject-leave`),
+    updateOrganizerRole: (organizerId, role) => privateApi.patch(`/events/organizers/${organizerId}/role`, null, { params: { role } }),
 };
 
 export default eventService;
