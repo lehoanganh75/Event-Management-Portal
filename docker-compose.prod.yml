@@ -173,7 +173,7 @@ services:
     image: cloudflare/cloudflared:latest
     container_name: cloudflare-tunnel
     restart: always
-    command: tunnel --no-autoupdate run --token ${CF_TUNNEL_TOKEN:-empty_token}
+    command: tunnel --no-autoupdate run --token eyJhIjoiMzdkMjllMjAwZjg3NGUyYjM2ZTJiMjU2OWM1NWE0MGIiLCJ0IjoiOWYzZjc0MGEtNDFjOS00YzZjLThhOTEtNDgwZWU2NmNiMGZiIiwicyI6Ik5tWmpPVGhpWm1VdE5tVTNPQzAwWVRrekxXRXdPRGN0WW1Vd09ETTVObU5tTnpWbCJ9
     networks:
       - micro-network
 

@@ -152,7 +152,6 @@ const translations = {
     registered_label: "Đã đăng ký",
     deadline_label: "Thời hạn",
     seats_label: "Ghế",
-    register_now: "Đăng ký ngay",
     cancel_reg: "Hủy đăng ký tham gia",
     survey_label: "Khảo sát",
     q_and_a_label: "Hỏi đáp",
@@ -247,7 +246,6 @@ const translations = {
     statistics: "Thống kê",
     ai_analysis: "Phân tích AI",
     settings: "Cài đặt",
-    back_btn: "Quay lại",
     
     // Statuses
     status_draft: "Bản nháp",
@@ -361,7 +359,6 @@ const translations = {
     role_secretary: "Thư ký",
     role_member_org: "Thành viên tổ chức",
     role_guest: "Khách",
-    role_leader: "Trưởng ban (Người tạo)",
     role_approver: "Người duyệt sự kiện",
 
     // Common
@@ -518,7 +515,6 @@ const translations = {
     registered_label: "Registered",
     deadline_label: "Deadline",
     seats_label: "Seats",
-    register_now: "Register Now",
     cancel_reg: "Cancel Registration",
     survey_label: "Survey",
     q_and_a_label: "Q&A",
@@ -613,7 +609,6 @@ const translations = {
     statistics: "Statistics",
     ai_analysis: "AI Analysis",
     settings: "Settings",
-    back_btn: "Back",
 
     // Statuses
     status_draft: "Draft",
@@ -727,7 +722,6 @@ const translations = {
     role_secretary: "Secretary",
     role_member_org: "Org Member",
     role_guest: "Guest",
-    role_leader: "Leader (Creator)",
     role_approver: "Event Approver",
 
     // Common
