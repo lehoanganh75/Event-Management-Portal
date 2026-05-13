@@ -80,6 +80,7 @@ public class SecurityConfig {
                                                                 "/quizzes/**",
                                                                 "/surveys/**",
                                                                 "/posts/**",
+                                                                "/api/v1/feedbacks/event/**",
                                                                 "/ws/chat/**",
                                                                 "/error")
                                                 .permitAll()
@@ -128,7 +129,8 @@ public class SecurityConfig {
                 return (web) -> web.ignoring().requestMatchers(
                                 "/v3/api-docs/**",
                                 "/swagger-ui/**",
-                                "/swagger-ui.html");
+                                "/swagger-ui.html",
+                                "/api/v1/feedbacks/event/**");
         }
 
         @Bean

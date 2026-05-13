@@ -23,22 +23,24 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(RuntimeException.class)
     public ResponseEntity<Map<String, Object>> handleRuntimeException(RuntimeException ex) {
+        String message = ex.getMessage() != null ? ex.getMessage() : "Runtime error occurred";
         return ResponseEntity
                 .status(400) // Default to 400 for business logic errors
                 .body(Map.of(
                         "status", 400,
-                        "message", ex.getMessage(),
+                        "message", message,
                         "timestamp", System.currentTimeMillis()
                 ));
     }
 
     @ExceptionHandler(Exception.class)
     public ResponseEntity<Map<String, Object>> handleGeneralException(Exception ex) {
+        String message = ex.getMessage() != null ? ex.getMessage() : "System error occurred";
         return ResponseEntity
                 .status(500)
                 .body(Map.of(
                         "status", 500,
-                        "message", "Đã có lỗi hệ thống xảy ra: " + ex.getMessage(),
+                        "message", "Đã có lỗi hệ thống xảy ra: " + message,
                         "timestamp", System.currentTimeMillis()
                 ));
     }

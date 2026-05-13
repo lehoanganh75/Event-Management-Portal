@@ -96,12 +96,14 @@ public class EventController {
     @GetMapping("/my-events")
     public ResponseEntity<List<EventResponse>> getMyEvents(
             @AuthenticationPrincipal Jwt jwt) {
+        if (jwt == null) return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         String accountId = jwt.getSubject();
         return ResponseEntity.ok(eventService.findInvolvedEvents(accountId));
     }
 
     @GetMapping("/involved-ids")
     public ResponseEntity<List<String>> getInvolvedEventIds(@AuthenticationPrincipal Jwt jwt) {
+        if (jwt == null) return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         String accountId = jwt.getSubject();
         return ResponseEntity.ok(eventService.getInvolvedEventIdsByAccountId(accountId));
     }
@@ -143,14 +145,16 @@ public class EventController {
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<Void> rejectLeaveRequest(
             @PathVariable String organizerId,
+            @RequestParam(required = false) String reason,
             @AuthenticationPrincipal Jwt jwt) {
         String approverAccountId = jwt.getSubject();
-        organizerService.rejectLeaveRequest(organizerId, approverAccountId);
+        organizerService.rejectLeaveRequest(organizerId, approverAccountId, reason);
         return ResponseEntity.ok().build();
     }
 
     @GetMapping("/organizer-roles")
     public ResponseEntity<List<String>> getMyOrganizerRoles(@AuthenticationPrincipal Jwt jwt) {
+        if (jwt == null) return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         String accountId = jwt.getSubject();
         return ResponseEntity.ok(eventService.getOrganizerRoles(accountId));
     }

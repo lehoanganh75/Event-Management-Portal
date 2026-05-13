@@ -25,5 +25,5 @@ public interface EventOrganizerService {
     void approveLeaveRequest(String organizerId, String approverAccountId);
 
     @Transactional
-    void rejectLeaveRequest(String organizerId, String approverAccountId);
+    void rejectLeaveRequest(String organizerId, String approverAccountId, String reason);
 }

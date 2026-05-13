@@ -146,8 +146,12 @@ const PostManagement = ({
 
   const handleCreatePost = async (e) => {
     if (e) e.preventDefault();
-    if (!postFormData.title || !postFormData.content || !postFormData.eventId) {
-      toast.warning("Vui lòng điền đầy đủ các thông tin bắt buộc");
+    if (!postFormData.title || !postFormData.content) {
+      toast.warning("Vui lòng điền tiêu đề và nội dung bài viết");
+      return;
+    }
+    if (!postFormData.eventId) {
+      toast.warning("Vui lòng chọn một sự kiện để gắn bài viết");
       return;
     }
 

@@ -25,6 +25,8 @@ const OrganizerTab = ({
 }) => {
   const [selectedOrgForRole, setSelectedOrgForRole] = React.useState(null);
   const [newRole, setNewRole] = React.useState("");
+  const [selectedOrgForReject, setSelectedOrgForReject] = React.useState(null);
+  const [rejectReason, setRejectReason] = React.useState("Bạn vẫn cần thiết cho giai đoạn này.");
 
   if (!event) return null;
 
@@ -48,6 +50,14 @@ const OrganizerTab = ({
       console.warn("⚠️ No change detected or no member selected");
     }
     setSelectedOrgForRole(null);
+  };
+
+  const handleConfirmReject = () => {
+    if (selectedOrgForReject && rejectReason.trim()) {
+      onRejectLeave(selectedOrgForReject.id, rejectReason);
+      setSelectedOrgForReject(null);
+      setRejectReason("Bạn vẫn cần thiết cho giai đoạn này.");
+    }
   };
 
   return (
@@ -123,6 +133,71 @@ const OrganizerTab = ({
                 className="flex-1 py-4 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 disabled:grayscale text-white rounded-2xl text-xs font-black uppercase tracking-[0.2em] transition-all shadow-xl shadow-indigo-100 active:scale-95"
               >
                 Xác nhận
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Rejection Reason Modal */}
+      {selectedOrgForReject && (
+        <div
+          className="fixed inset-0 z-[10000] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-300"
+          onClick={() => setSelectedOrgForReject(null)}
+        >
+          <div
+            className="bg-white rounded-[2rem] w-full max-w-md shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200 border border-white"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="p-8 border-b border-slate-50 flex items-center justify-between bg-slate-50/50">
+              <div>
+                <h3 className="font-black text-rose-600 text-lg uppercase tracking-tight">Từ chối yêu cầu</h3>
+                <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-0.5">Reject Leave Request</p>
+              </div>
+              <button
+                onClick={() => setSelectedOrgForReject(null)}
+                className="p-2 hover:bg-white hover:shadow-sm rounded-xl transition-all text-slate-400 hover:text-slate-600"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            <div className="p-8 space-y-6">
+              <div className="flex items-center gap-4 p-4 bg-rose-50/30 rounded-2xl border border-rose-100/50">
+                <img
+                  src={selectedOrgForReject.avatarUrl || "https://cdn-icons-png.flaticon.com/512/3135/3135715.png"}
+                  className="w-12 h-12 rounded-xl object-cover border-2 border-white shadow-sm"
+                />
+                <div>
+                  <div className="font-black text-slate-800 text-sm">{selectedOrgForReject.fullName}</div>
+                  <div className="text-[11px] text-slate-500 font-medium">Muốn rời khỏi ban tổ chức</div>
+                </div>
+              </div>
+
+              <div className="space-y-3">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-1">Lý do từ chối</label>
+                <textarea
+                  value={rejectReason}
+                  onChange={(e) => setRejectReason(e.target.value)}
+                  placeholder="Nhập lý do tại đây..."
+                  className="w-full min-h-[120px] p-5 rounded-2xl border-2 border-slate-100 focus:border-rose-500 focus:ring-0 transition-all text-sm font-medium text-slate-700 bg-slate-50/30 placeholder:text-slate-300 resize-none"
+                />
+              </div>
+            </div>
+
+            <div className="p-8 bg-slate-50/50 border-t border-slate-50 flex gap-3">
+              <button
+                onClick={() => setSelectedOrgForReject(null)}
+                className="flex-1 py-4 text-xs font-black uppercase tracking-widest text-slate-400 hover:text-slate-600 transition-colors"
+              >
+                Hủy bỏ
+              </button>
+              <button
+                onClick={handleConfirmReject}
+                disabled={!rejectReason.trim()}
+                className="flex-1 py-4 bg-rose-600 hover:bg-rose-700 disabled:opacity-50 disabled:grayscale text-white rounded-2xl text-xs font-black uppercase tracking-[0.2em] transition-all shadow-xl shadow-rose-100 active:scale-95"
+              >
+                Gửi từ chối
               </button>
             </div>
           </div>
@@ -310,7 +385,42 @@ const OrganizerTab = ({
                       </td>
                       <td className="px-6 py-4 text-right">
                         <div className="flex justify-end gap-2">
-                          {canManage && (
+                          {/* Leave Request Management */}
+                          {org.status === 'LEAVING_PENDING' && (
+                            <div className="flex gap-2">
+                              {(isAdmin || userPerms.organizerRole === 'LEADER' || (userPerms.organizerRole === 'COORDINATOR' && org.role === 'MEMBER')) && (
+                                <>
+                                  <button
+                                    onClick={() => {
+                                      setConfirmConfig({
+                                        title: "Phê duyệt rời nhóm",
+                                        message: `Xác nhận phê duyệt cho ${org.fullName} rời ban tổ chức?`,
+                                        onConfirm: () => onApproveLeave(org.id),
+                                        icon: CheckCircle,
+                                        color: "emerald"
+                                      });
+                                      setShowConfirmModal(true);
+                                    }}
+                                    className="p-2 text-emerald-500 hover:text-emerald-700 hover:bg-emerald-50 rounded-lg transition-all"
+                                    title="Chấp nhận"
+                                  >
+                                    <Check size={16} />
+                                  </button>
+                                  <button
+                                    onClick={() => {
+                                      setSelectedOrgForReject(org);
+                                    }}
+                                    className="p-2 text-rose-500 hover:text-rose-700 hover:bg-rose-50 rounded-lg transition-all"
+                                    title="Từ chối"
+                                  >
+                                    <X size={16} />
+                                  </button>
+                                </>
+                              )}
+                            </div>
+                          )}
+
+                          {canManage && org.status !== 'LEAVING_PENDING' && (
                             <button
                               onClick={() => {
                                 setConfirmConfig({

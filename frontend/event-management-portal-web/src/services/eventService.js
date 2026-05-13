@@ -121,7 +121,15 @@ const eventService = {
         const api = token ? privateApi : publicApi;
         return api.get(`/events/${slug}`).then(res => ({ ...res, data: transformBaseData(res.data) }));
     },
-    getByStatus: (status) => privateApi.get('/events/by-statuses', { params: { statuses: status.toUpperCase() } }).then(res => ({ ...res, data: (res.data || []).map(transformBaseData) })),
+    getByStatus: (status) => {
+        const statuses = status.split(',').map(s => s.trim().toUpperCase());
+        return privateApi.get('/events/by-statuses', { 
+            params: { statuses },
+            paramsSerializer: {
+                indexes: null // Tránh statuses[0]=... mà dùng statuses=...
+            }
+        }).then(res => ({ ...res, data: (res.data || []).map(transformBaseData) }));
+    },
     getAllPlans: (params = {}) => {
         const token = localStorage.getItem('accessToken');
         const api = token ? privateApi : publicApi;
@@ -279,7 +287,11 @@ const eventService = {
     },
 
     // --- SURVEY API ---
-    getSurveyByEvent: (eventId) => publicApi.get(`/surveys/event/${eventId}`),
+    getSurveyByEvent: (eventId) => {
+        const token = localStorage.getItem('accessToken');
+        const api = token ? privateApi : publicApi;
+        return api.get(`/surveys/event/${eventId}`);
+    },
     createOrUpdateSurvey: (surveyData) => privateApi.post('/surveys', surveyData),
     publishSurvey: (surveyId) => privateApi.post(`/surveys/${surveyId}/publish`),
     submitSurveyResponse: (surveyId, answers) => privateApi.post(`/surveys/${surveyId}/submit`, { answers }),
@@ -294,12 +306,24 @@ const eventService = {
     getSurveyResponses: (surveyId) => privateApi.get(`/surveys/${surveyId}/responses`),
 
     // --- Q&A API ---
-    getQAMessages: (eventId) => privateApi.get(`/qa/event/${eventId}`),
+    getQAMessages: (eventId) => {
+        const token = localStorage.getItem('accessToken');
+        const api = token ? privateApi : publicApi;
+        return api.get(`/qa/event/${eventId}`);
+    },
     upvoteQAMessage: (messageId) => privateApi.post(`/qa/${messageId}/upvote`),
 
     // --- FEEDBACK API ---
-    submitFeedback: (eventId, data) => privateApi.post(`/api/v1/feedbacks/event/${eventId}`, data),
-    getFeedbacksByEvent: (eventId) => privateApi.get(`/api/v1/feedbacks/event/${eventId}`),
+    submitFeedback: (eventId, data) => {
+        const token = localStorage.getItem('accessToken');
+        const api = token ? privateApi : publicApi;
+        return api.post(`/api/v1/feedbacks/event/${eventId}`, data);
+    },
+    getFeedbacksByEvent: (eventId) => {
+        const token = localStorage.getItem('accessToken');
+        const api = token ? privateApi : publicApi;
+        return api.get(`/api/v1/feedbacks/event/${eventId}`);
+    },
     replyToFeedback: (feedbackId, reply) => privateApi.patch(`/api/v1/feedbacks/${feedbackId}/reply`, null, { params: { reply } }),
 
     // --- GROUP 7: ADMIN APPROVAL ---
@@ -315,8 +339,16 @@ const eventService = {
 
     // --- GROUP 9: AI CHAT ---
     chat: {
-        createSession: (data) => privateApi.post('/api/v1/chat/sessions', data),
-        sendMessage: (data) => privateApi.post('/api/v1/chat/messages', data),
+        createSession: (data) => {
+            const token = localStorage.getItem('accessToken');
+            const api = token ? privateApi : publicApi;
+            return api.post('/api/v1/chat/sessions', data);
+        },
+        sendMessage: (data) => {
+            const token = localStorage.getItem('accessToken');
+            const api = token ? privateApi : publicApi;
+            return api.post('/api/v1/chat/messages', data);
+        },
         analyzeStats: (statsJson) => privateApi.post('/api/v1/chat/analyze-stats', statsJson, {
             headers: { 'Content-Type': 'text/plain' }
         }),
@@ -357,7 +389,7 @@ const eventService = {
 
     leaveTeam: (eventId) => privateApi.post(`/events/${eventId}/organizers/leave`),
     approveLeaveRequest: (organizerId) => privateApi.post(`/events/organizers/${organizerId}/approve-leave`),
-    rejectLeaveRequest: (organizerId) => privateApi.post(`/events/organizers/${organizerId}/reject-leave`),
+    rejectLeaveRequest: (organizerId, reason) => privateApi.post(`/events/organizers/${organizerId}/reject-leave${reason ? `?reason=${encodeURIComponent(reason)}` : ""}`),
     updateOrganizerRole: (organizerId, role) => privateApi.patch(`/events/organizers/${organizerId}/role`, null, { params: { role } }),
 };
 

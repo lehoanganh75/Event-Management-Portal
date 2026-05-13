@@ -219,7 +219,11 @@ const EventSidebar = ({
           )}
 
         {/* INTERACTIONS */}
-        {role.registered && (
+        {((role.registered && role.registration?.status !== "CANCELLED") ||
+          role.creator ||
+          role.approver ||
+          role.organizerRole ||
+          isSystemAdmin) && (
           <div className="mt-5 pt-5 border-t border-gray-100 space-y-3">
             {isQuizLive && (
               <button

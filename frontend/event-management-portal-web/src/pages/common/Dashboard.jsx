@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   Calendar, Share2, ClipboardList, FileText,
   TrendingUp, Eye, Heart, RotateCcw, Download, ChevronDown, Award, Loader2
@@ -58,16 +58,44 @@ const InfoListCard = ({ title, icon: Icon, items, iconColor = "text-blue-600" })
   </div>
 );
 
+const isWithinFilter = (dateStr, type, value) => {
+  if (!dateStr) return false;
+  const date = new Date(dateStr);
+  if (type === 'Month') {
+    return date.getMonth() + 1 === parseInt(value) && date.getFullYear() === new Date().getFullYear();
+  }
+  if (type === 'Week' && typeof value === 'string') {
+    const [start, end] = value.split('|').map(d => new Date(d));
+    return date >= start && date <= end;
+  }
+  return true;
+};
+
 const Dashboard = () => {
   const { user } = useAuth();
-  const isAdmin = user?.roles?.some(r => r.name === 'ADMIN') || user?.roles?.includes('ADMIN');
-  const isManager = isAdmin || user?.roles?.some(r => ['ORGANIZER', 'MANAGER'].includes(r.name || r));
+  const isAdmin = useMemo(() => {
+    const roles = user?.roles || (user?.role ? [{ name: user.role }] : []);
+    return roles.some(r => {
+      const name = (typeof r === 'string' ? r : r.name)?.toUpperCase();
+      return name === 'ADMIN' || name === 'SUPER_ADMIN';
+    });
+  }, [user]);
+
+  const isManager = useMemo(() => {
+    if (isAdmin) return true;
+    const roles = user?.roles || (user?.role ? [{ name: user.role }] : []);
+    return roles.some(r => {
+      const name = (typeof r === 'string' ? r : r.name)?.toUpperCase();
+      return ['ORGANIZER', 'MANAGER'].includes(name);
+    });
+  }, [user, isAdmin]);
 
   const [selectedKhoa, setSelectedKhoa] = useState('Tất cả khoa');
   const [dataScope, setDataScope] = useState(isAdmin ? 'KHOA' : 'PERSONAL'); // KHOA or PERSONAL
   const [filterType, setFilterType] = useState('Month'); // Week, Month
   const [filterValue, setFilterValue] = useState(new Date().getMonth() + 1); // Month: 1-12, Week: "start|end"
   const [loading, setLoading] = useState(true);
+  const [allEvents, setAllEvents] = useState([]);
 
   // Stats
   const [stats, setStats] = useState({ events: 0, posts: 0, plans: 0, recaps: 0 });
@@ -82,91 +110,32 @@ const Dashboard = () => {
   const [topLiked, setTopLiked] = useState([]);
   const [topViewed, setTopViewed] = useState([]);
   const [chartData, setChartData] = useState(null);
-  const [allEvents, setAllEvents] = useState([]);
-
-  const isWithinFilter = (dateStr) => {
-    if (!dateStr) return false;
-    const date = new Date(dateStr);
-    const now = new Date();
-
-    if (filterType === 'Week') {
-      if (typeof filterValue === 'string' && filterValue.includes('|')) {
-        const [startStr, endStr] = filterValue.split('|');
-        const start = new Date(startStr);
-        const end = new Date(endStr);
-        end.setHours(23, 59, 59, 999);
-        return date >= start && date <= end;
-      }
-      // Fallback to last 7 days if no value
-      const oneDay = 24 * 60 * 60 * 1000;
-      const diff = now - date;
-      return diff >= 0 && diff < 7 * oneDay;
-    }
-
-    if (filterType === 'Month') {
-      return date.getMonth() + 1 === parseInt(filterValue) && date.getFullYear() === now.getFullYear();
-    }
-
-    return true;
-  };
-
-  const generateWeeks = () => {
-    const weeks = [];
-    const now = new Date();
-    const currentYear = now.getFullYear();
-
-    // Start from the beginning of the year
-    let d = new Date(currentYear, 0, 1);
-    // Find first Monday
-    while (d.getDay() !== 1) d.setDate(d.getDate() + 1);
-
-    while (d <= now || d.getFullYear() === currentYear) {
-      const start = new Date(d);
-      const end = new Date(d);
-      end.setDate(end.getDate() + 6);
-
-      const label = `Tuần ${weeks.length + 1} (${start.getDate()}/${start.getMonth() + 1} - ${end.getDate()}/${end.getMonth() + 1})`;
-      const value = `${start.toISOString()}|${end.toISOString()}`;
-
-      weeks.push({ label, value, isCurrent: now >= start && now <= end });
-      d.setDate(d.getDate() + 7);
-
-      if (d.getFullYear() > currentYear) break;
-    }
-    return weeks.reverse().slice(0, 12); // Show last 12 weeks, newest first
-  };
-
-  const weeks = generateWeeks();
-
-  // Set default week if switching to week type
-  useEffect(() => {
-    if (filterType === 'Week') {
-      const currentWeek = weeks.find(w => w.isCurrent) || weeks[0];
-      if (currentWeek) setFilterValue(currentWeek.value);
-    } else if (filterType === 'Month') {
-      setFilterValue(new Date().getMonth() + 1);
-    }
-  }, [filterType]);
+  const availableKhoas = useMemo(() => {
+    const names = new Set();
+    // Use raw allEvents which isn't filtered by time yet
+    allEvents.forEach(e => {
+      if (e.organization?.name) names.add(e.organization.name);
+    });
+    return Array.from(names).sort();
+  }, [allEvents]);
 
   const fetchData = async () => {
     try {
       setLoading(true);
-      
+
       const requests = [];
-      
+
       if (dataScope === 'KHOA' && isAdmin) {
         requests.push(eventService.getAdminAllEvents());
         requests.push(eventService.getAllPosts({ size: 1000 }));
         requests.push(authService.getAllAccounts());
       } else if (dataScope === 'KHOA' && !isAdmin) {
-        // Regular user viewing Khoa stats (only public events)
         requests.push(eventService.getEventsForUser({ size: 1000 }));
         requests.push(eventService.getAllPosts({ size: 1000 }));
         requests.push(Promise.resolve({ data: [] }));
       } else {
-        // Personal view
         requests.push(eventService.getMyEvents());
-        requests.push(eventService.getAllPosts({ size: 1000 })); 
+        requests.push(eventService.getAllPosts({ size: 1000 }));
         requests.push(Promise.resolve({ data: [] }));
       }
 
@@ -176,16 +145,29 @@ const Dashboard = () => {
       let posts = postsRes.data?.content || postsRes.data || [];
       const users = usersRes.data || [];
 
+      // Save raw events for the Khoa list
+      if (dataScope === 'KHOA') {
+        setAllEvents(events);
+      }
+
+      // Filter by Khoa if applicable
+      if (dataScope === 'KHOA' && selectedKhoa !== 'Tất cả khoa') {
+        events = events.filter(e => e.organization?.name === selectedKhoa);
+        const filteredEventIds = new Set(events.map(e => e.id));
+        posts = posts.filter(p => {
+          const eId = p.eventId || p.event?.id;
+          return filteredEventIds.has(eId);
+        });
+      }
+
       // If personal view, filter posts by current user ID
       if (dataScope === 'PERSONAL' && user?.id) {
         posts = posts.filter(p => p.author?.id === user.id || p.authorId === user.id);
       }
 
-      setAllEvents(events);
-
       // Filter based on selected time range
-      const filteredEvents = events.filter(e => isWithinFilter(e.createdAt || e.startTime));
-      const filteredPosts = posts.filter(p => isWithinFilter(p.createdAt || p.publishedAt));
+      const filteredEvents = events.filter(e => isWithinFilter(e.createdAt || e.startTime, filterType, filterValue));
+      const filteredPosts = posts.filter(p => isWithinFilter(p.createdAt || p.publishedAt, filterType, filterValue));
 
       // 1. Stat Cards calculation based on FILTERED data
       const plans = filteredEvents.filter(e => ['DRAFT', 'PLAN_PENDING_APPROVAL', 'PLAN_APPROVED'].includes(e.status));
@@ -203,7 +185,7 @@ const Dashboard = () => {
         userMap[u.id] = u.profile?.fullName || u.username;
       });
 
-      // 3. Top creators (based on all data or filtered? usually all for ranking, but let's keep it consistent)
+      // 3. Top creators
       const userEventCount = {};
       events.forEach(e => {
         if (e.createdByAccountId) {
@@ -220,14 +202,14 @@ const Dashboard = () => {
         { name: "Trần Thị Bé", events: 3 }
       ]);
 
-      // 4. Hot Events (from filtered data)
+      // 4. Hot Events
       const topE = [...filteredEvents]
         .sort((a, b) => (b.registeredCount || 0) - (a.registeredCount || 0))
         .slice(0, 3)
         .map(e => ({ label: e.title || e.eventTopic }));
       setHotEvents(topE);
 
-      // 5. Top Liked (from filtered data)
+      // 5. Top Liked
       const topL = [...filteredPosts]
         .map(p => ({ label: p.title, value: `${Object.keys(p.reactions || {}).length} ♥` }))
         .sort((a, b) => parseInt(b.value) - parseInt(a.value))
@@ -293,7 +275,10 @@ const Dashboard = () => {
           {isManager && (
             <div className="flex bg-white p-1 rounded-lg border border-gray-200 shadow-sm">
               <button
-                onClick={() => setDataScope('PERSONAL')}
+                onClick={() => {
+                  setDataScope('PERSONAL');
+                  setSelectedKhoa('Tất cả khoa');
+                }}
                 className={`px-4 py-1.5 rounded-md text-sm font-medium transition ${dataScope === 'PERSONAL' ? 'bg-blue-600 text-white shadow-sm' : 'text-gray-600 hover:bg-gray-100'}`}
               >
                 Cá nhân
@@ -315,13 +300,15 @@ const Dashboard = () => {
                 onChange={e => setSelectedKhoa(e.target.value)}
                 className="w-full appearance-none bg-white border border-gray-300 rounded-lg px-4 py-2.5 pr-10 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400/50 shadow-sm transition"
               >
-                <option>Tất cả khoa</option>
-                <option>CNTT</option>
-                <option>Cơ khí</option>
+                <option value="Tất cả khoa">Tất cả khoa</option>
+                {availableKhoas.map(name => (
+                  <option key={name} value={name}>{name}</option>
+                ))}
               </select>
               <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500 pointer-events-none" />
             </div>
           )}
+
 
           {/* Filter Type Selector */}
           <div className="relative min-w-32">
@@ -401,7 +388,7 @@ const Dashboard = () => {
         <div className="lg:col-span-2 bg-white rounded-xl border border-gray-200 shadow-sm p-6">
           <h3 className="text-xl font-bold text-gray-800 mb-5 flex items-center gap-3">
             <TrendingUp size={20} className="text-emerald-600" />
-            Hoạt động năm {new Date().getFullYear()} - {dataScope === 'KHOA' ? 'Khoa' : 'Cá nhân'}
+            Hoạt động năm {new Date().getFullYear()} - {dataScope === 'KHOA' ? selectedKhoa : 'Cá nhân'}
           </h3>
           {chartData ? <ActivityChart data={chartData} /> : <ActivityChart />}
         </div>

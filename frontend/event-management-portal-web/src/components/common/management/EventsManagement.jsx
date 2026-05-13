@@ -194,7 +194,8 @@ const EventsManagement = ({ type = "lecturer", mode = "all" }) => {
         if (activeTab === "Chờ duyệt") return ["PLAN_PENDING_APPROVAL"].includes(e.status);
         if (activeTab === "Đã duyệt") return ["PLAN_APPROVED"].includes(e.status);
         if (activeTab === "Chờ duyệt sự kiện") return ["EVENT_PENDING_APPROVAL"].includes(e.status);
-        if (activeTab === "Công bố") return ["PUBLISHED", "ONGOING"].includes(e.status);
+        if (activeTab === "Công bố") return e.status === "PUBLISHED";
+        if (activeTab === "Đang diễn ra") return e.status === "ONGOING";
         if (activeTab === "Hoàn thành") return e.status === "COMPLETED";
         if (activeTab === "Đã hủy") return e.status === "CANCELLED";
         return true;
@@ -760,7 +761,8 @@ const EventsManagement = ({ type = "lecturer", mode = "all" }) => {
           ] : []),
           ...(mode === "all" || mode === "event" ? [
             { id: "Chờ duyệt sự kiện", label: "Chờ duyệt", icon: AlertCircle, count: events.filter(e => ["EVENT_PENDING_APPROVAL"].includes(e.status)).length },
-            { id: "Công bố", label: "Công bố", icon: Clock, count: events.filter(e => ["PUBLISHED", "ONGOING"].includes(e.status)).length },
+            { id: "Công bố", label: "Đã công bố", icon: Send, count: events.filter(e => e.status === "PUBLISHED").length },
+            { id: "Đang diễn ra", label: "Đang diễn ra", icon: PlayCircle, count: events.filter(e => e.status === "ONGOING").length },
             { id: "Hoàn thành", label: "Hoàn thành", icon: CheckCircle2, count: events.filter(e => e.status === "COMPLETED").length },
             { id: "Đã hủy", label: "Đã hủy", icon: XCircle, count: events.filter(e => e.status === "CANCELLED").length }
           ] : [])

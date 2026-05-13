@@ -8,18 +8,25 @@ import {
   Bot,
   Trash,
   Gift,
-  ChevronRight
+  ChevronRight,
+  LogOut
 } from "lucide-react";
 
 const SettingsTab = ({
   event,
   isAdmin,
+  isMember,
   userPerms = {},
   onEdit,
   onNavigateToLuckyDraw,
   setShowDeleteConfirm,
-  onResetStatistics
+  onResetStatistics,
+  onLeaveTeam
 }) => {
+  // Nếu là Member (không phải Admin hay Leader/Coordinator)
+  // Trong context này, isMember có nghĩa là role === 'MEMBER'
+  const isOnlyMember = isMember && !isAdmin && userPerms.organizerRole === 'MEMBER';
+
   return (
     <div className="max-w-4xl mx-auto py-6">
       <div className="space-y-6">
@@ -37,89 +44,93 @@ const SettingsTab = ({
               </h2>
 
               <p className="text-sm text-slate-300 mt-1">
-                Quản lý cấu hình, dữ liệu và quyền của sự kiện
+                {isOnlyMember ? "Quản lý vai trò của bạn trong sự kiện" : "Quản lý cấu hình, dữ liệu và quyền của sự kiện"}
               </p>
             </div>
           </div>
         </div>
 
-        {/* SECTION 1 */}
-        <SectionTitle
-          icon={<Settings size={16} />}
-          title="Cấu hình cơ bản"
-        />
-
-        <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
-          {(isAdmin || userPerms.canEditEvent) && (
-            <SettingItem
-              icon={
-                <div className="bg-indigo-50 text-indigo-600">
-                  <Edit3 size={18} />
-                </div>
-              }
-              title="Chỉnh sửa thông tin sự kiện"
-              description="Cập nhật tên, thời gian, mô tả và địa điểm."
-              onClick={onEdit}
+        {!isOnlyMember && (
+          <>
+            {/* SECTION 1 */}
+            <SectionTitle
+              icon={<Settings size={16} />}
+              title="Cấu hình cơ bản"
             />
-          )}
 
-          <SettingItem
-            icon={
-              <div className="bg-sky-50 text-sky-600">
-                <ShieldCheck size={18} />
-              </div>
-            }
-            title="Cài đặt quyền riêng tư"
-            description="Quản lý quyền truy cập và tham gia sự kiện."
-          />
-        </div>
+            <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
+              {(isAdmin || userPerms.canEditEvent) && (
+                <SettingItem
+                  icon={
+                    <div className="bg-indigo-50 text-indigo-600">
+                      <Edit3 size={18} />
+                    </div>
+                  }
+                  title="Chỉnh sửa thông tin sự kiện"
+                  description="Cập nhật tên, thời gian, mô tả và địa điểm."
+                  onClick={onEdit}
+                />
+              )}
 
-        {/* SECTION 2 */}
-        <SectionTitle
-          icon={<ShieldCheck size={16} />}
-          title="Hệ thống & dữ liệu"
-        />
+              <SettingItem
+                icon={
+                  <div className="bg-sky-50 text-sky-600">
+                    <ShieldCheck size={18} />
+                  </div>
+                }
+                title="Cài đặt quyền riêng tư"
+                description="Quản lý quyền truy cập và tham gia sự kiện."
+              />
+            </div>
 
-        <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
-
-          <SettingItem
-            icon={
-              <div className="bg-amber-50 text-amber-600">
-                <Gift size={18} />
-              </div>
-            }
-            title={
-              event?.hasLuckyDraw
-                ? "Quản lý vòng quay may mắn"
-                : "Khởi tạo vòng quay may mắn"
-            }
-            description="Thiết lập quà tặng và chương trình quay thưởng."
-            onClick={onNavigateToLuckyDraw}
-          />
-
-          <SettingItem
-            icon={
-              <div className="bg-emerald-50 text-emerald-600">
-                <Mail size={18} />
-              </div>
-            }
-            title="Gửi thông báo Email"
-            description="Gửi cập nhật và nhắc lịch đến người tham gia."
-          />
-
-          {isAdmin && (
-            <SettingItem
-              icon={
-                <div className="bg-slate-100 text-slate-600">
-                  <Trash size={18} />
-                </div>
-              }
-              title="Làm mới dữ liệu thống kê"
-              description="Xóa cache và đồng bộ lại dữ liệu báo cáo."
-              onClick={onResetStatistics}
+            {/* SECTION 2 */}
+            <SectionTitle
+              icon={<ShieldCheck size={16} />}
+              title="Hệ thống & dữ liệu"
             />
-          )}
-        </div>
+
+            <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
+
+              <SettingItem
+                icon={
+                  <div className="bg-amber-50 text-amber-600">
+                    <Gift size={18} />
+                  </div>
+                }
+                title={
+                  event?.hasLuckyDraw
+                    ? "Quản lý vòng quay may mắn"
+                    : "Khởi tạo vòng quay may mắn"
+                }
+                description="Thiết lập quà tặng và chương trình quay thưởng."
+                onClick={onNavigateToLuckyDraw}
+              />
+
+              <SettingItem
+                icon={
+                  <div className="bg-emerald-50 text-emerald-600">
+                    <Mail size={18} />
+                  </div>
+                }
+                title="Gửi thông báo Email"
+                description="Gửi cập nhật và nhắc lịch đến người tham gia."
+              />
+
+              {isAdmin && (
+                <SettingItem
+                  icon={
+                    <div className="bg-slate-100 text-slate-600">
+                      <Trash size={18} />
+                    </div>
+                  }
+                  title="Làm mới dữ liệu thống kê"
+                  description="Xóa cache và đồng bộ lại dữ liệu báo cáo."
+                  onClick={onResetStatistics}
+                />
+              )}
+            </div>
+          </>
+        )}
 
         {/* Danger Zone */}
         <SectionTitle
@@ -129,31 +140,56 @@ const SettingsTab = ({
         />
 
         <div className="border border-rose-200 bg-rose-50 rounded-2xl overflow-hidden shadow-sm">
-          {(isAdmin || userPerms.canEditEvent) && (
+          {isOnlyMember ? (
             <button
-              onClick={() => setShowDeleteConfirm(true)}
+              onClick={onLeaveTeam}
               className="w-full p-5 flex items-center justify-between hover:bg-rose-100/60 transition-all group"
             >
               <div className="flex items-center gap-4">
                 <div className="w-11 h-11 rounded-xl bg-white border border-rose-200 text-rose-500 flex items-center justify-center shadow-sm">
-                  <Trash2 size={18} />
+                  <LogOut size={18} />
                 </div>
 
                 <div className="text-left">
                   <p className="text-sm font-semibold text-rose-700">
-                    Xóa vĩnh viễn sự kiện
+                    Rời ban tổ chức
                   </p>
 
                   <p className="text-xs text-rose-500 mt-1">
-                    Hành động này không thể hoàn tác.
+                    Bạn sẽ không còn quyền quản lý sự kiện này.
                   </p>
                 </div>
               </div>
 
-              <div className="px-3 py-1.5 rounded-lg bg-rose-600 text-white text-[11px] font-medium opacity-0 group-hover:opacity-100 transition-all">
-                Xóa
-              </div>
+              <ChevronRight size={18} className="text-rose-300 group-hover:text-rose-500 transition-all" />
             </button>
+          ) : (
+            (isAdmin || userPerms.canEditEvent) && (
+              <button
+                onClick={() => setShowDeleteConfirm(true)}
+                className="w-full p-5 flex items-center justify-between hover:bg-rose-100/60 transition-all group"
+              >
+                <div className="flex items-center gap-4">
+                  <div className="w-11 h-11 rounded-xl bg-white border border-rose-200 text-rose-500 flex items-center justify-center shadow-sm">
+                    <Trash2 size={18} />
+                  </div>
+
+                  <div className="text-left">
+                    <p className="text-sm font-semibold text-rose-700">
+                      Xóa vĩnh viễn sự kiện
+                    </p>
+
+                    <p className="text-xs text-rose-500 mt-1">
+                      Hành động này không thể hoàn tác.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="px-3 py-1.5 rounded-lg bg-rose-600 text-white text-[11px] font-medium opacity-0 group-hover:opacity-100 transition-all">
+                  Xóa
+                </div>
+              </button>
+            )
           )}
         </div>
 

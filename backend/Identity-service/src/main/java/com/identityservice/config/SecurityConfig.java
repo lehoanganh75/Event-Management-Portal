@@ -45,6 +45,8 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/profiles/batch").permitAll()
                         .requestMatchers(HttpMethod.POST, "/profiles/batch").permitAll()
                         .requestMatchers(HttpMethod.GET, "/profiles/invite").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/profiles/by-emails").permitAll()
+                        .requestMatchers("/accounts/**").permitAll()
                         .requestMatchers("/admin/**").authenticated()
                         .requestMatchers("/profiles/**").authenticated()
                         .anyRequest().authenticated())
@@ -79,15 +81,27 @@ public class SecurityConfig {
     }
 
     @Bean
+    public WebSecurityCustomizer webSecurityCustomizer() {
+        return (web) -> web.ignoring().requestMatchers(
+                "/auth/**",
+                "/profiles/batch",
+                "/profiles/invite",
+                "/profiles/by-emails",
+                "/accounts/**",
+                "/files/**"
+        );
+    }
+
+    @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-
+        
         configuration.setAllowedOriginPatterns(Arrays.asList("*"));
-
+        
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS"));
         configuration.setAllowedHeaders(Arrays.asList("*"));
         configuration.setAllowCredentials(true);
-
+        
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", configuration);
         return source;
