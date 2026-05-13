@@ -16,6 +16,7 @@ public class EventFeedbackResponse {
     private String title;
     private String comment;
     private String ratingReason;
+    @com.fasterxml.jackson.annotation.JsonProperty("isAnonymous")
     private boolean isAnonymous;
     private String organizerReply;
     private LocalDateTime repliedAt;
@@ -23,10 +24,11 @@ public class EventFeedbackResponse {
     private UserResponse user;
 
     public static EventFeedbackResponse from(EventFeedback feedback, UserResponse user) {
-        if (feedback == null) return null;
+        if (feedback == null)
+            return null;
         return EventFeedbackResponse.builder()
                 .id(feedback.getId())
-                .reviewerAccountId(feedback.getReviewerAccountId())
+                .reviewerAccountId(feedback.isAnonymous() ? "anonymous" : feedback.getReviewerAccountId())
                 .rating(feedback.getRating())
                 .title(feedback.getTitle())
                 .comment(feedback.getComment())

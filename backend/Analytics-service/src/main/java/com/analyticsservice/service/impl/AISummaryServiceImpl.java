@@ -38,7 +38,7 @@ public class AISummaryServiceImpl implements AISummaryService {
             // 1. Lấy dữ liệu sự kiện, đăng ký và tương tác
             Map<String, Object> eventData = eventClient.getEventById(eventId);
             List<Map<String, Object>> registrations = eventClient.getRegistrationsByEvent(eventId);
-            
+
             // Safe call to lucky draw service
             Optional<Map<String, Object>> luckyDrawData = Optional.empty();
             try {
@@ -74,30 +74,31 @@ public class AISummaryServiceImpl implements AISummaryService {
 
             String quantitativeSummary = String.format(
                     "Tổng đăng ký: %d\nTổng tham gia: %d\nTỷ lệ tham gia thực tế: %.2f%%",
-                    totalRegistrations, totalAttendances, attendanceRate
-            );
-            
+                    totalRegistrations, totalAttendances, attendanceRate);
+
             if (analytic != null) {
-                quantitativeSummary += String.format("\nTương tác: %d Lượt thích, %d Bình luận, Đánh giá: %.1f/5", 
-                    analytic.getTotalLikes(), analytic.getTotalComments(), analytic.getAverageRating());
+                quantitativeSummary += String.format("\nTương tác: %d Lượt thích, %d Bình luận, Đánh giá: %.1f/5",
+                        analytic.getTotalLikes(), analytic.getTotalComments(), analytic.getAverageRating());
             }
 
             // 3. Tạo prompt yêu cầu AI phân tích chi tiết với nội dung rõ ràng, logic
-            String prompt = buildDetailedPrompt(eventData, totalRegistrations, totalAttendances, attendanceRate, luckyDrawData, analytic);
+            String prompt = buildDetailedPrompt(eventData, totalRegistrations, totalAttendances, attendanceRate,
+                    luckyDrawData, analytic);
 
             // 4. Gọi AI local (Node.js) để nhận xét, phân tích sâu
             org.springframework.web.client.RestTemplate restTemplate = new org.springframework.web.client.RestTemplate();
             org.springframework.http.HttpHeaders headers = new org.springframework.http.HttpHeaders();
             headers.setContentType(org.springframework.http.MediaType.APPLICATION_JSON);
-            
+
             java.util.Map<String, String> body = new java.util.HashMap<>();
             body.put("prompt", prompt);
-            
-            org.springframework.http.HttpEntity<java.util.Map<String, String>> request = new org.springframework.http.HttpEntity<>(body, headers);
-            
+
+            org.springframework.http.HttpEntity<java.util.Map<String, String>> request = new org.springframework.http.HttpEntity<>(
+                    body, headers);
+
             String aiUrl = "http://host.docker.internal:3000/chat";
             log.info("Đang gọi Local AI tại: {}", aiUrl);
-            
+
             java.util.Map<String, Object> response = restTemplate.postForObject(aiUrl, request, java.util.Map.class);
             String aiResponseRaw = (String) response.get("reply");
 
@@ -134,7 +135,8 @@ public class AISummaryServiceImpl implements AISummaryService {
     private EventSummaryReport parseAI(String raw, String eventId) {
         try {
             String cleaned = cleanJson(raw);
-            Map<String, Object> map = objectMapper.readValue(cleaned, new TypeReference<>() {});
+            Map<String, Object> map = objectMapper.readValue(cleaned, new TypeReference<>() {
+            });
 
             String proposals = parseProposals(map.get("improvementProposals"));
 
@@ -161,7 +163,8 @@ public class AISummaryServiceImpl implements AISummaryService {
     }
 
     private String cleanMarkdown(String text) {
-        if (text == null) return "";
+        if (text == null)
+            return "";
         return text.replaceAll("\\*\\*(.*?)\\*\\*", "$1")
                 .replaceAll("\\*(.*?)\\*", "$1")
                 .replaceAll("(?m)^\\s*\\*\\s*", "• ")
@@ -183,7 +186,8 @@ public class AISummaryServiceImpl implements AISummaryService {
     @Override
     public byte[] exportToWord(String eventId) {
         EventSummaryReport report = getSummaryByEventId(eventId);
-        if (report == null) throw new RuntimeException("Không tìm thấy báo cáo để xuất file");
+        if (report == null)
+            throw new RuntimeException("Không tìm thấy báo cáo để xuất file");
 
         try (XWPFDocument document = new XWPFDocument()) {
             // Title
@@ -227,43 +231,45 @@ public class AISummaryServiceImpl implements AISummaryService {
     }
 
     private String buildDetailedPrompt(Map<String, Object> event,
-                                       long registrations,
-                                       long attendances,
-                                       double rate,
-                                       Optional<Map<String, Object>> luckyDraw,
-                                       EventAnalytic analytic) {
-        String interactionData = analytic != null ? 
-            String.format("- Tương tác: %d lượt thích, %d bình luận, Đánh giá trung bình: %.1f/5\n", 
-                analytic.getTotalLikes(), analytic.getTotalComments(), analytic.getAverageRating()) : "";
+            long registrations,
+            long attendances,
+            double rate,
+            Optional<Map<String, Object>> luckyDraw,
+            EventAnalytic analytic) {
+        String interactionData = analytic != null
+                ? String.format("- Tương tác: %d lượt thích, %d bình luận, Đánh giá trung bình: %.1f/5\n",
+                        analytic.getTotalLikes(), analytic.getTotalComments(), analytic.getAverageRating())
+                : "";
 
-        return String.format("""
-            Bạn là chuyên gia tổ chức và phân tích sự kiện cao cấp. Dựa trên dữ liệu dưới đây, vui lòng tổng hợp và phân tích cực kỳ chi tiết, chuyên nghiệp.
-            
-            Dữ liệu sự kiện:
-            - Tiêu đề: %s
-            - Mô tả: %s
-            - Thống kê tham gia: %d đăng ký, %d tham gia thực tế (Tỷ lệ: %.2f%%)
-            %s
-            - Mini game: %s
+        return String.format(
+                """
+                        Bạn là chuyên gia tổ chức và phân tích sự kiện cao cấp. Dựa trên dữ liệu dưới đây, vui lòng tổng hợp và phân tích cực kỳ chi tiết, chuyên nghiệp.
 
-            Yêu cầu phân tích:
-            1. **Thống kê chi tiết**: Trình bày các con số một cách ấn tượng.
-            2. **Đánh giá chuyên sâu**: Phân tích mức độ lan tỏa, sự hài lòng của người dùng qua lượt tương tác và đánh giá. Chỉ ra ưu điểm và nhược điểm cụ thể.
-            3. **Báo cáo tổng hợp**: Tóm tắt dành cho lãnh đạo, nhấn mạnh vào giá trị sự kiện mang lại.
-            4. **Đề xuất cải tiến**: Đề xuất ít nhất 3 hành động cụ thể để tối ưu hóa sự kiện lần sau.
+                        Dữ liệu sự kiện:
+                        - Tiêu đề: %s
+                        - Mô tả: %s
+                        - Thống kê tham gia: %d đăng ký, %d tham gia thực tế (Tỷ lệ: %.2f%%)
+                        %s
+                        - Mini game: %s
 
-            Vui lòng trả về KHÔNG có markdown, KHÔNG có dấu ```json, và phần improvementProposals phải ở dạng MẢNG (ARRAY) các chuỗi.
+                        Yêu cầu phân tích:
+                        1. **Thống kê chi tiết**: Trình bày các con số một cách ấn tượng.
+                        2. **Đánh giá chuyên sâu**: Phân tích mức độ lan tỏa, sự hài lòng của người dùng qua lượt tương tác và đánh giá. Chỉ ra ưu điểm và nhược điểm cụ thể.
+                        3. **Báo cáo tổng hợp**: Tóm tắt dành cho lãnh đạo, nhấn mạnh vào giá trị sự kiện mang lại.
+                        4. **Đề xuất cải tiến**: Đề xuất ít nhất 3 hành động cụ thể để tối ưu hóa sự kiện lần sau.
 
-            Định dạng JSON:
-            {
-              "quantitativeAnalysis": "...",
-              "qualitativeAnalysis": "...",
-              "summaryReport": "...",
-              "improvementProposals": ["...", "...", "..."]
-            }
+                        Vui lòng trả về KHÔNG có markdown, KHÔNG có dấu ```json, và phần improvementProposals phải ở dạng MẢNG (ARRAY) các chuỗi.
 
-            Ngôn ngữ: Tiếng Việt
-            """,
+                        Định dạng JSON:
+                        {
+                          "quantitativeAnalysis": "...",
+                          "qualitativeAnalysis": "...",
+                          "summaryReport": "...",
+                          "improvementProposals": ["...", "...", "..."]
+                        }
+
+                        Ngôn ngữ: Tiếng Việt
+                        """,
                 event.getOrDefault("title", ""),
                 event.getOrDefault("description", ""),
                 registrations,

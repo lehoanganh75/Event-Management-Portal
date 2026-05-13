@@ -1,20 +1,27 @@
 import React, { useState } from "react";
-import { ClipboardCheck, FileUp, Plus, BarChart2 } from "lucide-react";
+import {
+  ClipboardCheck,
+  FileUp,
+  Plus,
+  BarChart2
+} from "lucide-react";
+
 import SurveyResultsModal from "../../../survey/SurveyResultsModal";
 
-const SurveyTab = ({ 
-  event, 
-  surveyFileInputRef, 
-  handleSurveyWordImport, 
-  setShowSurveyModal, 
-  setShowSurveyCreatorModal, 
-  showAllSurveyQuestions, 
-  setShowAllSurveyQuestions 
+const SurveyTab = ({
+  event,
+  surveyFileInputRef,
+  handleSurveyWordImport,
+  setShowSurveyModal,
+  setShowSurveyCreatorModal,
+  showAllSurveyQuestions,
+  setShowAllSurveyQuestions
 }) => {
-  const [showResultsModal, setShowResultsModal] = useState(false);
+  const [showResultsModal, setShowResultsModal] =
+    useState(false);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       <input
         type="file"
         ref={surveyFileInputRef}
@@ -22,89 +29,181 @@ const SurveyTab = ({
         accept=".docx"
         onChange={handleSurveyWordImport}
       />
+
       {event.survey ? (
-        <div className="bg-white border border-slate-200 rounded-[3rem] p-8 shadow-sm">
-          <div className="flex items-start justify-between mb-8">
-            <div className="flex items-center gap-4">
-              <div className="w-16 h-16 bg-indigo-50 text-indigo-600 rounded-3xl flex items-center justify-center shadow-lg shadow-indigo-100/50">
-                <ClipboardCheck size={32} />
-              </div>
-              <div>
-                <h3 className="text-xl font-black text-slate-800 uppercase tracking-tight">{event.survey.title}</h3>
-                <p className="text-sm text-slate-500 mt-1">{event.survey.description || "Không có mô tả"}</p>
-                <div className="flex gap-2 mt-3">
-                  <span className="px-2 py-0.5 bg-indigo-50 text-indigo-600 rounded-md text-[10px] font-black uppercase">
-                    {event.survey.questions?.length || 0} CÂU HỎI
-                  </span>
-                  <span className={`px-2 py-0.5 rounded-md text-[10px] font-black uppercase ${event.survey.isPublished ? 'bg-emerald-100 text-emerald-600' : 'bg-amber-100 text-amber-600'}`}>
-                    {event.survey.isPublished ? 'ĐÃ CÔNG BỐ' : 'BẢN NHÁP'}
-                  </span>
+        <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
+          {/* Header */}
+          <div className="px-6 py-5 border-b border-slate-100 bg-gradient-to-r from-indigo-50/70 via-white to-cyan-50/50">
+            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+              <div className="flex items-start gap-4">
+                <div className="w-12 h-12 rounded-2xl bg-indigo-100 text-indigo-600 flex items-center justify-center shadow-sm">
+                  <ClipboardCheck size={22} />
+                </div>
+
+                <div>
+                  <h3 className="text-lg font-bold text-slate-800">
+                    Khảo sát sự kiện
+                  </h3>
+
+                  <p className="text-sm text-slate-500 mt-1">
+                    Thu thập phản hồi và đánh giá
+                    từ người tham gia
+                  </p>
+
+                  <div className="flex gap-2 mt-3 flex-wrap">
+                    <span className="px-3 py-1 rounded-full text-[11px] font-semibold bg-indigo-100 text-indigo-700">
+                      {event.survey.questions
+                        ?.length || 0}{" "}
+                      câu hỏi
+                    </span>
+
+                    <span
+                      className={`px-3 py-1 rounded-full text-[11px] font-semibold ${event.survey.isPublished
+                          ? "bg-emerald-100 text-emerald-700"
+                          : "bg-amber-100 text-amber-700"
+                        }`}
+                    >
+                      {event.survey.isPublished
+                        ? "Đã công bố"
+                        : "Bản nháp"}
+                    </span>
+                  </div>
                 </div>
               </div>
-            </div>
-            <div className="flex gap-2">
-              <button
-                onClick={() => setShowResultsModal(true)}
-                className="flex items-center gap-2 px-5 py-2.5 bg-indigo-50 text-indigo-600 rounded-xl text-sm font-bold hover:bg-indigo-100 transition-all"
-              >
-                <BarChart2 size={18} /> Xem kết quả
-              </button>
-              <button
-                onClick={() => surveyFileInputRef.current.click()}
-                className="flex items-center gap-2 px-5 py-2.5 bg-[#f0f3ff] text-[#5c59f2] rounded-xl text-sm font-bold hover:bg-[#e8ebff] transition-all"
-              >
-                <FileUp size={18} /> Ghi đè từ Word
-              </button>
-              {!event.survey.isPublished && (
+
+              {/* Actions */}
+              <div className="flex flex-wrap gap-2">
                 <button
-                  onClick={() => setShowSurveyModal(true)}
-                  className="flex items-center gap-2 px-5 py-2.5 bg-[#1a61ff] text-white rounded-xl text-sm font-bold shadow-lg shadow-blue-100 hover:bg-[#0051ff] transition-all"
+                  onClick={() =>
+                    setShowResultsModal(true)
+                  }
+                  className="flex items-center gap-2 px-4 py-2.5 rounded-xl border border-slate-200 bg-white text-slate-700 text-sm font-medium hover:border-indigo-200 hover:bg-indigo-50 hover:text-indigo-700 transition-all"
                 >
-                  <Plus size={18} /> Chỉnh sửa & Công bố
+                  <BarChart2 size={16} />
+                  Kết quả
                 </button>
-              )}
+
+                <button
+                  onClick={() =>
+                    surveyFileInputRef.current.click()
+                  }
+                  className="flex items-center gap-2 px-4 py-2.5 rounded-xl border border-slate-200 bg-white text-slate-700 text-sm font-medium hover:border-cyan-200 hover:bg-cyan-50 hover:text-cyan-700 transition-all"
+                >
+                  <FileUp size={16} />
+                  Import Word
+                </button>
+
+                {!event.survey.isPublished && (
+                  <button
+                    onClick={() =>
+                      setShowSurveyModal(true)
+                    }
+                    className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-slate-900 text-white text-sm font-semibold hover:bg-indigo-600 transition-all shadow-sm"
+                  >
+                    <Plus size={16} />
+                    Chỉnh sửa
+                  </button>
+                )}
+              </div>
             </div>
           </div>
 
-          <div className="grid grid-cols-1 gap-4">
-            {(showAllSurveyQuestions ? event.survey.questions : event.survey.questions?.slice(0, 3)).map((q, idx) => (
-              <div key={q.id || idx} className="p-4 bg-slate-50 rounded-2xl border border-slate-100">
-                <p className="text-sm font-bold text-slate-700 flex items-start gap-2">
-                  <span className="text-indigo-600">Q{idx + 1}.</span> {q.questionText}
-                </p>
-                <p className="text-[10px] text-slate-400 mt-1 uppercase font-bold tracking-wider">{q.type === 'MULTIPLE_CHOICE' ? 'Trắc nghiệm' : 'Tự luận'}</p>
+          {/* Questions */}
+          <div className="p-5 space-y-3 bg-slate-50/40">
+            {(showAllSurveyQuestions
+              ? event.survey.questions
+              : event.survey.questions?.slice(
+                0,
+                3
+              )
+            ).map((q, idx) => (
+              <div
+                key={q.id || idx}
+                className="bg-white border border-slate-200 rounded-2xl p-4 hover:border-indigo-200 hover:shadow-sm transition-all"
+              >
+                <div className="flex items-start justify-between gap-4">
+                  <div>
+                    <p className="text-sm font-semibold text-slate-800 leading-6">
+                      {idx + 1}. {q.questionText}
+                    </p>
+
+                    <div className="mt-3">
+                      <span
+                        className={`px-2.5 py-1 rounded-lg text-[11px] font-medium ${q.type ===
+                            "MULTIPLE_CHOICE"
+                            ? "bg-indigo-100 text-indigo-700"
+                            : "bg-slate-100 text-slate-600"
+                          }`}
+                      >
+                        {q.type ===
+                          "MULTIPLE_CHOICE"
+                          ? "Trắc nghiệm"
+                          : "Tự luận"}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="w-9 h-9 rounded-xl bg-slate-100 text-slate-500 flex items-center justify-center text-sm font-bold">
+                    {idx + 1}
+                  </div>
+                </div>
               </div>
             ))}
-            {event.survey.questions?.length > 3 && (
-              <button
-                onClick={() => setShowAllSurveyQuestions(!showAllSurveyQuestions)}
-                className="w-full py-2 text-center text-xs text-indigo-600 font-bold hover:text-indigo-700 transition-all"
-              >
-                {showAllSurveyQuestions ? 'Thu gọn' : `...và ${event.survey.questions.length - 3} câu hỏi khác (Bấm để xem tất cả)`}
-              </button>
-            )}
+
+            {event.survey.questions?.length >
+              3 && (
+                <button
+                  onClick={() =>
+                    setShowAllSurveyQuestions(
+                      !showAllSurveyQuestions
+                    )
+                  }
+                  className="text-sm font-medium text-slate-500 hover:text-indigo-600 transition-colors px-1"
+                >
+                  {showAllSurveyQuestions
+                    ? "Thu gọn"
+                    : `Xem thêm ${event.survey.questions
+                      .length - 3
+                    } câu hỏi`}
+                </button>
+              )}
           </div>
         </div>
       ) : (
-        <div className="bg-indigo-50 border border-indigo-100 p-12 rounded-[3.5rem] text-center">
-          <div className="w-20 h-20 bg-white text-indigo-600 rounded-[2rem] flex items-center justify-center mx-auto mb-6 shadow-2xl shadow-indigo-100/50">
-            <ClipboardCheck size={40} />
+        <div className="bg-white border border-slate-200 rounded-2xl p-12 text-center shadow-sm">
+          <div className="w-16 h-16 mx-auto rounded-2xl bg-gradient-to-br from-indigo-100 to-cyan-100 flex items-center justify-center text-indigo-600 mb-5 shadow-sm">
+            <ClipboardCheck size={28} />
           </div>
-          <h3 className="text-2xl font-black text-slate-800 uppercase tracking-tight mb-3">Chưa có khảo sát</h3>
-          <p className="text-slate-500 max-w-md mx-auto mb-10 leading-relaxed">Bạn có thể tạo form khảo sát để lắng nghe ý kiến đóng góp từ những người đã tham gia sự kiện.</p>
 
-          <div className="flex justify-center gap-4">
+          <h3 className="text-lg font-bold text-slate-800 mb-2">
+            Chưa có khảo sát
+          </h3>
+
+          <p className="text-sm text-slate-500 max-w-md mx-auto mb-7 leading-6">
+            Tạo khảo sát để thu thập phản hồi,
+            đánh giá và cải thiện trải nghiệm
+            người tham gia.
+          </p>
+
+          <div className="flex flex-wrap justify-center gap-3">
             <button
-              onClick={() => surveyFileInputRef.current.click()}
-              className="flex items-center gap-2 px-8 py-3.5 bg-white border-2 border-indigo-100 text-indigo-600 rounded-2xl font-bold hover:bg-indigo-50 transition-all active:scale-95"
+              onClick={() =>
+                surveyFileInputRef.current.click()
+              }
+              className="flex items-center gap-2 px-4 py-2.5 rounded-xl border border-slate-200 bg-white text-slate-700 text-sm font-medium hover:border-cyan-200 hover:bg-cyan-50 hover:text-cyan-700 transition-all"
             >
-              <FileUp size={20} /> Import từ Word
+              <FileUp size={16} />
+              Import Word
             </button>
+
             <button
-              onClick={() => setShowSurveyCreatorModal(true)}
-              className="flex items-center gap-2 px-8 py-3.5 bg-indigo-600 text-white rounded-2xl font-bold shadow-xl shadow-indigo-200 hover:bg-indigo-700 transition-all active:scale-95"
+              onClick={() =>
+                setShowSurveyCreatorModal(true)
+              }
+              className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-slate-900 text-white text-sm font-semibold hover:bg-indigo-600 transition-all shadow-sm"
             >
-              <Plus size={20} /> Tạo mới khảo sát
+              <Plus size={16} />
+              Tạo khảo sát
             </button>
           </div>
         </div>
@@ -112,7 +211,9 @@ const SurveyTab = ({
 
       <SurveyResultsModal
         isOpen={showResultsModal}
-        onClose={() => setShowResultsModal(false)}
+        onClose={() =>
+          setShowResultsModal(false)
+        }
         survey={event.survey}
         eventId={event.id}
       />

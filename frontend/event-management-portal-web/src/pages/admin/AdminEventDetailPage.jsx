@@ -44,13 +44,15 @@ const AdminEventDetailPage = () => {
         }
       }
 
-      if (resEvent.data?.hasLuckyDraw) {
-        try {
-          const resLucky = await luckyDrawService.findLuckyDrawByEventId(id);
+      // Cố gắng tải dữ liệu Vòng quay may mắn
+      try {
+        const resLucky = await luckyDrawService.findLuckyDrawByEventId(id);
+        if (resLucky.data) {
           setLuckyDraw(resLucky.data);
-        } catch (e) {
-          console.warn("Lucky Draw chưa khởi tạo.");
         }
+      } catch (e) {
+        console.warn("Lucky Draw chưa khởi tạo hoặc lỗi tải.");
+        setLuckyDraw(null);
       }
 
       // Fetch registrations for stats and management

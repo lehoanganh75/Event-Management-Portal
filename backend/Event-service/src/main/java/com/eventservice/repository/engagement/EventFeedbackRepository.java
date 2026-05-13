@@ -8,5 +8,5 @@ import java.util.List;
 
 @Repository
 public interface EventFeedbackRepository extends JpaRepository<EventFeedback, String> {
-    List<EventFeedback> findByEventId(String eventId);
+    List<EventFeedback> findByEventIdOrderByCreatedAtDesc(String eventId);
 }

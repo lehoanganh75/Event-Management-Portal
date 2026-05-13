@@ -11,4 +11,5 @@ public interface QuizParticipationRepository extends JpaRepository<QuizParticipa
     Optional<QuizParticipation> findByQuizIdAndParticipantAccountId(String quizId, String participantAccountId);
     List<QuizParticipation> findByQuizIdOrderByTotalScoreDesc(String quizId);
     void deleteByQuizId(String quizId);
+    void deleteByQuizIdAndParticipantAccountId(String quizId, String participantAccountId);
 }

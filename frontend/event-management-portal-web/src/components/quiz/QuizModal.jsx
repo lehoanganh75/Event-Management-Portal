@@ -20,6 +20,18 @@ const ANIMALS = [
   { emoji: '🦉', name: 'Cú mèo' }, { emoji: '🦄', name: 'Kỳ lân' }, { emoji: '🐝', name: 'Ong vàng' }
 ];
 
+const getAvatarEmoji = (avatar) => {
+  if (!avatar) return '👤';
+  if (typeof avatar === 'object' && avatar.emoji) return avatar.emoji;
+  if (typeof avatar === 'string') {
+    // Handle the Java Map string format: {emoji=🐤, name=Gà chíp}
+    const match = avatar.match(/emoji=([^,}\s]+)/);
+    if (match) return match[1];
+    return avatar; // Assume it's just the emoji string
+  }
+  return '👤';
+};
+
 // ─── Nickname Entry (For Students) ────────────────────────
 const NicknameEntry = ({ onJoin, defaultNickname }) => {
   const [nickname, setNickname] = useState(defaultNickname || '');
@@ -179,7 +191,7 @@ const LobbyScreen = ({ isOrganizer, quizId, participants = [], onFirstQuestion }
                   className="flex items-center bg-black/30 backdrop-blur-md rounded-lg overflow-hidden min-w-[200px] shadow-lg border border-white/5"
                 >
                   <div className="w-16 h-16 bg-black/20 flex items-center justify-center text-4xl border-r border-white/5">
-                    {p.avatar?.emoji || '👤'}
+                    {getAvatarEmoji(p.avatar)}
                   </div>
                   <div className="flex-1 px-4 py-3">
                     <span className="text-white font-black text-lg truncate block max-w-[150px]">
@@ -595,7 +607,7 @@ const LeaderboardScreen = ({ leaderboard, isOrganizer, onNext, onEnd, quizId }) 
             className="flex items-center gap-4 bg-white/10 rounded-2xl px-5 py-3">
             <span className="text-white/50 font-black text-lg w-7">#{i + 1}</span>
             <div className="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center font-black text-white text-lg overflow-hidden">
-              {entry.avatar?.emoji || (entry.nickname || entry.fullName)?.[0] || '?'}
+              {getAvatarEmoji(entry.avatar)}
             </div>
             <span className="flex-1 text-white font-bold">{entry.nickname || entry.fullName}</span>
             <span className="text-amber-300 font-black text-lg">{entry.totalScore}</span>
@@ -622,16 +634,27 @@ const LeaderboardScreen = ({ leaderboard, isOrganizer, onNext, onEnd, quizId }) 
 // ─── Main QuizModal ───────────────────────────────────────
 const QuizModal = ({ isOpen, onClose, eventId, isOrganizer, quizId: propQuizId }) => {
   const { user } = useAuth();
-  const { quizState, leaderboard, participants, activeQuizId, joinQuiz } = useQuiz(eventId);
-  const resolvedQuizId = propQuizId || activeQuizId;
-  const [phase, setPhase] = useState('lobby'); // lobby | countdown | question | leaderboard | end
   const [joined, setJoined] = useState(false);
+  const [participantId, setParticipantId] = useState(null);
+  const [showConfirmClose, setShowConfirmClose] = useState(false);
+  const [phase, setPhase] = useState('lobby'); // lobby | countdown | question | leaderboard | end
   // Track which quizId the player has already joined to prevent duplicate entries
   const joinedQuizRef = useRef(null);
+
+  const { quizState, leaderboard, participants, activeQuizId, joinQuiz, leaveQuiz, closeQuiz } = useQuiz(eventId);
+  const resolvedQuizId = propQuizId || activeQuizId;
 
   // Drive phase from WebSocket state
   useEffect(() => {
     if (!isOpen) return;
+
+    if (quizState.type === 'FORCE_CLOSE') {
+      onClose();
+      if (!isOrganizer) {
+        toast.info('Trò chơi đã kết thúc bởi ban tổ chức');
+      }
+      return;
+    }
     if (quizState.type === 'WAITING') {
       setPhase('lobby');
       // Only reset joined if this is a genuine reset (player hasn't joined this quiz yet)
@@ -708,8 +731,10 @@ const QuizModal = ({ isOpen, onClose, eventId, isOrganizer, quizId: propQuizId }
 
   const handleJoin = (nickname, avatar) => {
     const userId = user?.id || user?.accountId;
+    const effectiveId = userId || nickname;
     if (joinQuiz(resolvedQuizId, nickname, avatar, userId)) {
       setJoined(true);
+      setParticipantId(effectiveId);
       joinedQuizRef.current = resolvedQuizId; // Remember this quiz so we don't ask again
       toast.success(`Chào mừng ${nickname}!`);
     } else {
@@ -717,15 +742,67 @@ const QuizModal = ({ isOpen, onClose, eventId, isOrganizer, quizId: propQuizId }
     }
   };
 
+  const handleAttemptClose = () => {
+    if (isOrganizer) {
+      setShowConfirmClose(true);
+    } else {
+      if (joined && participantId) {
+        leaveQuiz(resolvedQuizId, participantId);
+      }
+      onClose();
+    }
+  };
+
+  const handleConfirmClose = () => {
+    closeQuiz(resolvedQuizId);
+    setShowConfirmClose(false);
+    onClose();
+  };
+
   if (!isOpen) return null;
 
   return createPortal(
     <div className="fixed inset-0 z-[9999] overflow-hidden">
       {/* Close button - always visible */}
-      <button onClick={onClose}
+      <button onClick={handleAttemptClose}
         className="absolute top-5 right-5 z-[300] p-3 bg-black/40 hover:bg-black/60 rounded-full text-white transition-all backdrop-blur-sm">
         <X size={22} />
       </button>
+
+      {/* Confirmation Modal for Organizer */}
+      <AnimatePresence>
+        {showConfirmClose && (
+          <motion.div
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[1000] bg-black/60 backdrop-blur-sm flex items-center justify-center p-6"
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
+              className="bg-white rounded-3xl p-8 max-w-sm w-full shadow-2xl text-center"
+            >
+              <div className="w-16 h-16 bg-rose-100 text-rose-600 rounded-full flex items-center justify-center mx-auto mb-6">
+                <XCircle size={32} />
+              </div>
+              <h3 className="text-2xl font-black text-slate-900 mb-2">Đóng phòng Quiz?</h3>
+              <p className="text-slate-500 mb-8">Hành động này sẽ kết thúc trò chơi và mời tất cả người chơi ra ngoài.</p>
+              <div className="grid grid-cols-2 gap-3">
+                <button
+                  onClick={() => setShowConfirmClose(false)}
+                  className="py-3 px-6 bg-slate-100 text-slate-600 rounded-xl font-bold hover:bg-slate-200 transition-all"
+                >
+                  Hủy bỏ
+                </button>
+                <button
+                  onClick={handleConfirmClose}
+                  className="py-3 px-6 bg-rose-600 text-white rounded-xl font-bold hover:bg-rose-700 transition-all shadow-lg shadow-rose-200"
+                >
+                  Đóng phòng
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       <AnimatePresence mode="wait">
         {/* NICKNAME ENTRY FOR STUDENTS */}
@@ -803,9 +880,12 @@ const QuizModal = ({ isOpen, onClose, eventId, isOrganizer, quizId: propQuizId }
             <div className="w-full max-w-lg px-6 space-y-2 mb-10 overflow-y-auto max-h-64">
               {leaderboard.slice(0, 10).map((e, i) => (
                 <div key={e.participantAccountId || i} className="flex items-center gap-4 bg-white/10 rounded-2xl px-5 py-3">
-                  <span className="text-2xl w-8">{i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `#${i + 1}`}</span>
-                  <span className="flex-1 text-white font-bold">{e.nickname || e.fullName}</span>
-                  <span className="text-amber-300 font-black">{e.totalScore} pts</span>
+                  <span className="text-2xl w-8 shrink-0">{i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `#${i + 1}`}</span>
+                  <div className="w-8 h-8 rounded-lg bg-white/10 flex items-center justify-center text-lg shrink-0">
+                    {getAvatarEmoji(e.avatar)}
+                  </div>
+                  <span className="flex-1 text-white font-bold truncate">{e.nickname || e.fullName}</span>
+                  <span className="text-amber-300 font-black shrink-0">{e.totalScore} pts</span>
                 </div>
               ))}
             </div>

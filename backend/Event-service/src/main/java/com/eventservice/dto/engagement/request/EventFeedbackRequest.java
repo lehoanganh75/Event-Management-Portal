@@ -18,5 +18,6 @@ public class EventFeedbackRequest {
     private String comment;
     private String ratingReason;
     private List<String> imageUrls;
+    @com.fasterxml.jackson.annotation.JsonProperty("isAnonymous")
     private boolean isAnonymous;
 }

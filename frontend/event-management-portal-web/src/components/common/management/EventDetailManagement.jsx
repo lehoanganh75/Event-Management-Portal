@@ -58,6 +58,7 @@ import PresenterTab from "./EventManagement/PresenterTab";
 import OverviewTab from "./EventManagement/OverviewTab";
 import ProgramTab from "./EventManagement/ProgramTab";
 import LuckyDrawTab from "./EventManagement/LuckyDrawTab";
+import LuckyDrawCreatorModal from "./EventManagement/LuckyDrawCreatorModal";
 import SettingsTab from "./EventManagement/SettingsTab";
 import QuizTab from "./EventManagement/QuizTab";
 import SurveyTab from "./EventManagement/SurveyTab";
@@ -169,7 +170,7 @@ const EventDetailManagement = ({
 
   const getOrganizerRole = (role) => {
     const normalizedRole = role?.replace('ROLE_', '')?.toUpperCase();
-    
+
     const roleMap = {
       'LEADER': { label: 'Trưởng ban tổ chức', color: 'bg-amber-100 text-amber-700 border-amber-200' },
       'COORDINATOR': { label: 'Điều phối viên', color: 'bg-indigo-100 text-indigo-700 border-indigo-200' },
@@ -414,13 +415,14 @@ const EventDetailManagement = ({
   const [showQuizCreatorModal, setShowQuizCreatorModal] = useState(false);
   const [showSurveyModal, setShowSurveyModal] = useState(false);
   const [showSurveyCreatorModal, setShowSurveyCreatorModal] = useState(false);
+  const [showLuckyDrawCreatorModal, setShowLuckyDrawCreatorModal] = useState(false);
+  const [showDuckRace, setShowDuckRace] = useState(false);
   const [activeQuizId, setActiveQuizId] = useState(null);
   const [quizzes, setQuizzes] = useState([]);
   const [loadingQuizzes, setLoadingQuizzes] = useState(false);
   const [importingWord, setImportingWord] = useState(false);
 
   // Duck Race states
-  const [showDuckRace, setShowDuckRace] = useState(false);
   const [raceParticipants, setRaceParticipants] = useState([]);
   const [isSpinning, setIsSpinning] = useState(false);
 
@@ -459,7 +461,7 @@ const EventDetailManagement = ({
   useEffect(() => {
     if (quizState?.type === 'START' && quizState.data) {
       const qId = quizState.data;
-      
+
       // If user is not already in the quiz modal, alert them
       if (!showQuizModal) {
         toast.info(
@@ -471,7 +473,7 @@ const EventDetailManagement = ({
             <p className="text-[10px] text-slate-600 font-medium leading-relaxed">
               Ban tổ chức vừa kích hoạt một thử thách mới. Hãy tham gia ngay để dành lấy những phần quà hấp dẫn!
             </p>
-            <button 
+            <button
               onClick={() => {
                 setActiveQuizId(qId);
                 setShowQuizModal(true);
@@ -481,7 +483,7 @@ const EventDetailManagement = ({
               Tham gia ngay
             </button>
           </div>,
-          { 
+          {
             position: "top-right",
             autoClose: 15000,
             hideProgressBar: false,
@@ -862,14 +864,6 @@ const EventDetailManagement = ({
             <div className="flex flex-col gap-1">
               <h1 className="text-3xl font-bold text-slate-900">{event.title}</h1>
             </div>
-            {canEdit && (
-              <button
-                onClick={onEditInfo}
-                className="flex items-center gap-2 bg-amber-50 hover:bg-amber-100 text-amber-600 px-5 py-2.5 rounded-2xl text-sm font-bold transition-all border border-amber-200 shadow-sm"
-              >
-                <Edit3 size={18} /> Chỉnh sửa
-              </button>
-            )}
           </div>
           <p className="text-base text-gray-600 leading-relaxed">{event.description}</p>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-5 mt-3">
@@ -1048,15 +1042,19 @@ const EventDetailManagement = ({
             )}
 
             {/* VÒNG QUAY MAY MẮN */}
-            {activeTab === "Vòng quay" && (
-              <LuckyDrawTab
-                event={event}
-                luckyDraw={luckyDraw}
-                handleOpenDuckRace={handleOpenDuckRace}
-                onRefresh={onRefresh}
-                isAdmin={isAdmin}
-                navigate={navigate}
-              />
+            {activeTab === "Vòng quay may mắn" && (
+              <>
+                {console.log("Lucky Draw State:", luckyDraw)}
+                <LuckyDrawTab
+                  event={event}
+                  luckyDraw={luckyDraw}
+                  handleOpenDuckRace={handleOpenDuckRace}
+                  onRefresh={onRefresh}
+                  isAdmin={isAdmin}
+                  navigate={navigate}
+                  onOpenCreator={() => setShowLuckyDrawCreatorModal(true)}
+                />
+              </>
             )}
 
             {/* THỐNG KÊ */}
@@ -1091,6 +1089,13 @@ const EventDetailManagement = ({
                 isAdmin={isAdmin}
                 userPerms={up}
                 onEdit={onEditInfo}
+                onNavigateToLuckyDraw={() => {
+                  if (event?.hasLuckyDraw) {
+                    setActiveTab("Vòng quay");
+                  } else {
+                    setShowLuckyDrawCreatorModal(true);
+                  }
+                }}
                 setShowDeleteConfirm={setShowDeleteConfirm}
                 onResetStatistics={() => {
                   toast.success("Đang làm mới dữ liệu thống kê...");
@@ -1140,14 +1145,14 @@ const EventDetailManagement = ({
             {/* FULL SCREEN JOIN MODAL */}
             <AnimatePresence>
               {showJoinCodeModal && (
-                <motion.div 
-                  initial={{ opacity: 0 }} 
-                  animate={{ opacity: 1 }} 
-                  exit={{ opacity: 0 }} 
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
                   className="fixed inset-0 z-[9999] bg-[#46178F] flex flex-col items-center justify-center p-6"
                 >
                   {/* Close button */}
-                  <button 
+                  <button
                     onClick={() => setShowJoinCodeModal(false)}
                     className="absolute top-8 right-8 p-3 bg-white/10 hover:bg-white/20 rounded-full text-white transition-all backdrop-blur-md"
                   >
@@ -1155,7 +1160,7 @@ const EventDetailManagement = ({
                   </button>
 
                   <div className="relative z-10 w-full max-w-4xl flex flex-col items-center">
-                    <motion.div 
+                    <motion.div
                       initial={{ scale: 0.5, opacity: 0 }}
                       animate={{ scale: 1, opacity: 1 }}
                       className="w-32 h-32 bg-white/20 rounded-full flex items-center justify-center mb-12 border-4 border-white/30 shadow-2xl"
@@ -1165,11 +1170,11 @@ const EventDetailManagement = ({
 
                     <h2 className="text-5xl font-black text-white uppercase tracking-tighter mb-4 text-center">Mã tham gia</h2>
                     <p className="text-white/60 text-lg font-bold uppercase tracking-[0.3em] mb-16 text-center">Nhập PIN 6 số hoặc quét QR</p>
-                    
+
                     <div className="flex flex-col md:flex-row items-center gap-8 w-full max-w-2xl">
                       {/* CENTER: PIN INPUT */}
                       <div className="flex-1 w-full">
-                        <input 
+                        <input
                           autoFocus
                           type="text"
                           placeholder="MÃ PIN"
@@ -1194,7 +1199,7 @@ const EventDetailManagement = ({
 
                       {/* RIGHT: QR SCANNER BUTTON */}
                       <div className="flex-shrink-0">
-                        <button 
+                        <button
                           onClick={() => { setShowJoinCodeModal(false); setShowScanner(true); }}
                           className="w-24 h-24 md:w-32 md:h-32 bg-amber-400 text-slate-900 rounded-[2rem] flex flex-col items-center justify-center gap-2 hover:bg-amber-300 hover:scale-105 transition-all shadow-2xl"
                         >
@@ -1393,15 +1398,15 @@ const EventDetailManagement = ({
       </AnimatePresence>
 
       {/* QUIZ MODAL */}
-      <QuizModal
-        isOpen={showQuizModal}
-        onClose={() => setShowQuizModal(false)}
-        eventId={event.id}
-        quizId={activeQuizId || wsActiveQuizId}
-        isOrganizer={true}
-        quizState={quizState}
-        leaderboard={leaderboard}
-      />
+      {showQuizModal && (
+        <QuizModal
+          isOpen={showQuizModal}
+          onClose={() => setShowQuizModal(false)}
+          eventId={event.id}
+          quizId={activeQuizId || wsActiveQuizId}
+          isOrganizer={true}
+        />
+      )}
 
       {/* QUIZ CREATOR MODAL */}
       <QuizCreatorModal
@@ -1437,7 +1442,14 @@ const EventDetailManagement = ({
       <SurveyModal
         isOpen={showSurveyModal}
         onClose={() => setShowSurveyModal(false)}
-        eventId={event.id}
+        onRefresh={onRefresh}
+      />
+
+      <LuckyDrawCreatorModal
+        isOpen={showLuckyDrawCreatorModal}
+        onClose={() => setShowLuckyDrawCreatorModal(false)}
+        event={event}
+        onRefresh={onRefresh}
       />
     </div>
   );

@@ -33,6 +33,8 @@ export const useQuiz = (eventId) => {
                             setParticipants(event.data || []);
                         } else if (event.type === 'END') {
                             setQuizState({ type: 'END', data: null });
+                        } else if (event.type === 'FORCE_CLOSE') {
+                            setQuizState({ type: 'FORCE_CLOSE', data: event.data });
                         } else {
                             setQuizState({ type: event.type, data: event.data });
                         }
@@ -58,5 +60,26 @@ export const useQuiz = (eventId) => {
         return false;
     };
 
-    return { quizState, leaderboard, participants, activeQuizId, joinQuiz };
+    const leaveQuiz = (quizId, userId) => {
+        if (stompClientRef.current && stompClientRef.current.connected) {
+            stompClientRef.current.publish({
+                destination: `/app/quiz.leave/${quizId}`,
+                body: JSON.stringify({ userId })
+            });
+            return true;
+        }
+        return false;
+    };
+
+    const closeQuiz = (quizId) => {
+        if (stompClientRef.current && stompClientRef.current.connected) {
+            stompClientRef.current.publish({
+                destination: `/app/quiz.close/${quizId}`
+            });
+            return true;
+        }
+        return false;
+    };
+
+    return { quizState, leaderboard, participants, activeQuizId, joinQuiz, leaveQuiz, closeQuiz };
 };

@@ -200,8 +200,27 @@ public class QuizServiceImpl implements QuizService {
         participation.setAvatar(avatar);
         participationRepository.save(participation);
 
-        // Broadcast LOBBY_UPDATE
+    // Broadcast LOBBY_UPDATE
         broadcastLobbyUpdate(quizId, quiz.getEvent().getId());
+    }
+
+    @Override
+    @Transactional
+    public void leaveQuiz(String quizId, String userId) {
+        log.info("[Quiz] Leave request: quizId={}, userId={}", quizId, userId);
+        Quiz quiz = quizRepository.findById(quizId).orElseThrow();
+        participationRepository.deleteByQuizIdAndParticipantAccountId(quizId, userId);
+        broadcastLobbyUpdate(quizId, quiz.getEvent().getId());
+    }
+
+    @Override
+    @Transactional
+    public void forceCloseQuiz(String quizId) {
+        log.info("[Quiz] Force close: quizId={}", quizId);
+        Quiz quiz = quizRepository.findById(quizId).orElseThrow();
+        quiz.setActive(false);
+        quizRepository.save(quiz);
+        broadcastEvent(quiz.getEvent().getId(), "FORCE_CLOSE", quizId);
     }
 
     private void broadcastLobbyUpdate(String quizId, String eventId) {

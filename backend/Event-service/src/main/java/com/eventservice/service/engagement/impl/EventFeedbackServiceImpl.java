@@ -21,6 +21,8 @@ public class EventFeedbackServiceImpl implements EventFeedbackService {
 
     private final EventFeedbackRepository feedbackRepository;
     private final EventRepository eventRepository;
+    private final com.eventservice.client.IdentityServiceClient identityServiceClient;
+    private final org.springframework.messaging.simp.SimpMessagingTemplate messagingTemplate;
 
     @Override
     @Transactional
@@ -39,13 +41,57 @@ public class EventFeedbackServiceImpl implements EventFeedbackService {
                 .build();
 
         feedback = feedbackRepository.save(feedback);
-        return mapToResponse(feedback);
+
+        com.eventservice.dto.user.UserResponse user = null;
+        if (!feedback.isAnonymous()) {
+            try {
+                user = identityServiceClient.getUsersById(feedback.getReviewerAccountId());
+            } catch (Exception e) {
+                // Ignore
+            }
+        }
+
+        EventFeedbackResponse response = EventFeedbackResponse.from(feedback, user);
+
+        // Broadcast to WebSocket
+        messagingTemplate.convertAndSend("/topic/feedback/" + eventId, response);
+
+        return response;
     }
 
     @Override
     public List<EventFeedbackResponse> getFeedbacksByEvent(String eventId) {
-        return feedbackRepository.findByEventId(eventId).stream()
-                .map(this::mapToResponse)
+        List<EventFeedback> feedbacks = feedbackRepository.findByEventIdOrderByCreatedAtDesc(eventId);
+        if (feedbacks.isEmpty())
+            return java.util.List.of();
+
+        java.util.List<String> userIds = feedbacks.stream()
+                .filter(f -> !f.isAnonymous())
+                .map(EventFeedback::getReviewerAccountId)
+                .distinct()
+                .collect(Collectors.toList());
+
+        java.util.Map<String, com.eventservice.dto.user.UserResponse> userMap = new java.util.HashMap<>();
+        if (!userIds.isEmpty()) {
+            try {
+                java.util.List<com.eventservice.dto.user.UserResponse> users = identityServiceClient
+                        .getUsersByIds(userIds);
+                if (users != null) {
+                    userMap = users.stream()
+                            .collect(Collectors.toMap(com.eventservice.dto.user.UserResponse::getId, u -> u));
+                }
+            } catch (Exception e) {
+                // Ignore
+            }
+        }
+
+        java.util.Map<String, com.eventservice.dto.user.UserResponse> finalUserMap = userMap;
+        return feedbacks.stream()
+                .map(f -> {
+                    com.eventservice.dto.user.UserResponse user = f.isAnonymous() ? null
+                            : finalUserMap.get(f.getReviewerAccountId());
+                    return EventFeedbackResponse.from(f, user);
+                })
                 .collect(Collectors.toList());
     }
 
@@ -57,21 +103,28 @@ public class EventFeedbackServiceImpl implements EventFeedbackService {
 
         feedback.setOrganizerReply(reply);
         feedback.setRepliedAt(LocalDateTime.now());
-        return mapToResponse(feedbackRepository.save(feedback));
+        feedback = feedbackRepository.save(feedback);
+
+        com.eventservice.dto.user.UserResponse user = null;
+        if (!feedback.isAnonymous()) {
+            try {
+                user = identityServiceClient.getUsersById(feedback.getReviewerAccountId());
+            } catch (Exception e) {
+                // Ignore
+            }
+        }
+
+        EventFeedbackResponse response = EventFeedbackResponse.from(feedback, user);
+        
+        // Broadcast update
+        String eventId = feedback.getEvent().getId();
+        System.out.println("Broadcasting feedback update to: /topic/feedback/" + eventId);
+        messagingTemplate.convertAndSend("/topic/feedback/" + eventId, response);
+        
+        return response;
     }
 
     private EventFeedbackResponse mapToResponse(EventFeedback feedback) {
-        return EventFeedbackResponse.builder()
-                .id(feedback.getId())
-                .reviewerAccountId(feedback.getReviewerAccountId())
-                .rating(feedback.getRating())
-                .title(feedback.getTitle())
-                .comment(feedback.getComment())
-                .ratingReason(feedback.getRatingReason())
-                .isAnonymous(feedback.isAnonymous())
-                .organizerReply(feedback.getOrganizerReply())
-                .repliedAt(feedback.getRepliedAt())
-                .createdAt(feedback.getCreatedAt())
-                .build();
+        return EventFeedbackResponse.from(feedback, null);
     }
 }

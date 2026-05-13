@@ -17,6 +17,8 @@ public interface QuizService {
     void resetQuiz(String quizId);
     
     void joinQuiz(String quizId, String nickname, String avatar, String userId);
+    void leaveQuiz(String quizId, String userId);
+    void forceCloseQuiz(String quizId);
     
     int submitAnswer(String userId, QuizSubmissionDto submission);
     

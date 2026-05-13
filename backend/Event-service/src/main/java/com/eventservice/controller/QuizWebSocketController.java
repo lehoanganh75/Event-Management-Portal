@@ -27,7 +27,12 @@ public class QuizWebSocketController {
             @Payload Map<String, Object> payload) {
         String nickname = (String) payload.get("nickname");
         Object avatarObj = payload.get("avatar");
-        String avatar = avatarObj != null ? avatarObj.toString() : null;
+        String avatar = null;
+        if (avatarObj instanceof Map) {
+            avatar = (String) ((Map<?, ?>) avatarObj).get("emoji");
+        } else if (avatarObj != null) {
+            avatar = avatarObj.toString();
+        }
         String userId = (String) payload.get("userId");
 
         log.info("[Quiz WS] Join request: quizId={}, nickname={}, userId={}", quizId, nickname, userId);
@@ -36,6 +41,29 @@ public class QuizWebSocketController {
             quizService.joinQuiz(quizId, nickname, avatar, userId);
         } catch (Exception e) {
             log.error("[Quiz WS] Failed to join quiz: {}", e.getMessage());
+        }
+    }
+
+    @MessageMapping("/quiz.leave/{quizId}")
+    public void leaveQuiz(
+            @DestinationVariable String quizId,
+            @Payload Map<String, Object> payload) {
+        String userId = (String) payload.get("userId");
+        log.info("[Quiz WS] Leave request: quizId={}, userId={}", quizId, userId);
+        try {
+            quizService.leaveQuiz(quizId, userId);
+        } catch (Exception e) {
+            log.error("[Quiz WS] Failed to leave quiz: {}", e.getMessage());
+        }
+    }
+
+    @MessageMapping("/quiz.close/{quizId}")
+    public void closeQuiz(@DestinationVariable String quizId) {
+        log.info("[Quiz WS] Force close request: quizId={}", quizId);
+        try {
+            quizService.forceCloseQuiz(quizId);
+        } catch (Exception e) {
+            log.error("[Quiz WS] Failed to close quiz: {}", e.getMessage());
         }
     }
 }
