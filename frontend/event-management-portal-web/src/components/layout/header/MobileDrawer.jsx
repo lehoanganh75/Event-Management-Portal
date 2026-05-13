@@ -194,6 +194,37 @@ const MobileDrawer = ({
                 );
               })}
 
+              {isAuthenticated && !isEventStaff() && !isAdminOnly() && !isSuperAdmin() && (
+                <div className="pt-4 mt-4 border-t border-slate-100">
+                  <p className="px-4 mb-2 text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
+                    {t("personal_account")}
+                  </p>
+
+                  <Link
+                    to="/dashboard"
+                    onClick={() => setIsOpen(false)}
+                    className="
+                      flex items-center justify-between
+                      px-4 py-3
+                      rounded-xl
+                      bg-[#1E40AF]
+                      text-white
+                      shadow-sm
+                    "
+                  >
+                    <div className="flex items-center gap-4">
+                      <LayoutDashboard size={20} />
+
+                      <span className="text-[14px] font-medium">
+                        {t("dashboard")}
+                      </span>
+                    </div>
+
+                    <ChevronRight size={16} className="opacity-70" />
+                  </Link>
+                </div>
+              )}
+
               {(isEventStaff() || isAdminOnly() || isSuperAdmin()) && (
                 <div className="pt-4 mt-4 border-t border-slate-100">
                   <p className="px-4 mb-2 text-[11px] font-semibold text-slate-400 uppercase tracking-wider">

@@ -133,6 +133,7 @@ const GuestEventsPage = () => {
               setCurrentDate={setCurrentDate}
               events={events}
               navigate={navigate}
+              t={t}
             />
           )}
         </div>

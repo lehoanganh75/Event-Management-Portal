@@ -40,6 +40,16 @@ const UserProfileMenu = ({
         !hasRole("LECTURER"),
     },
     {
+      label: t("dashboard"),
+      icon: LayoutDashboard,
+      path: "/student/dashboard",
+      show:
+        hasRole("STUDENT") &&
+        !isSuperAdmin() &&
+        !isAdminOnly() &&
+        !hasRole("LECTURER"),
+    },
+    {
       label: t("admin_dashboard"),
       icon: ShieldCheck,
       path: "/admin/dashboard",

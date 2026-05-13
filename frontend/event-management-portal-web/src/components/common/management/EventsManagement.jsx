@@ -318,8 +318,8 @@ const EventsManagement = ({ type = "lecturer", mode = "all" }) => {
             break;
           case "PUBLISHED":
             await eventService.approveEvent(id);
-             // Send notification to creator
-             if (currentEvent.createdByAccountId) {
+            // Send notification to creator
+            if (currentEvent.createdByAccountId) {
               await notificationService.sendNotification({
                 userProfileId: currentEvent.createdByAccountId,
                 title: "Sự kiện đã xuất bản",
@@ -452,16 +452,16 @@ const EventsManagement = ({ type = "lecturer", mode = "all" }) => {
         hasLuckyDraw: extracted.additionalData?.hasLuckyDraw || false,
         aiReasoning: extracted.reasoning || ""
       } : {
-        eventTitle: (function() {
+        eventTitle: (function () {
           const lines = data.rawText?.split('\n') || [];
           // Tìm dòng có chứa V/v hoặc KẾ HOẠCH trước
           const targetLine = lines.find(l => l.includes("V/v") || l.includes("KẾ HOẠCH"));
           if (targetLine) return targetLine.replace(/V\/v:?\s*/i, "").trim().substring(0, 100);
           // Nếu không thấy, tìm dòng dài nhưng không phải thông tin hành chính
-          return lines.find(l => 
-            l.trim().length > 10 && 
-            !l.includes("TRƯỜNG") && 
-            !l.includes("KHOA") && 
+          return lines.find(l =>
+            l.trim().length > 10 &&
+            !l.includes("TRƯỜNG") &&
+            !l.includes("KHOA") &&
             !l.includes("CỘNG HÒA") &&
             !l.includes("Độc lập")
           )?.trim().substring(0, 70) || "Kế hoạch sự kiện mới";
@@ -483,7 +483,7 @@ const EventsManagement = ({ type = "lecturer", mode = "all" }) => {
           }
           const date = new Date(isoStr);
           if (isNaN(date)) return "";
-          
+
           const year = date.getFullYear();
           const month = String(date.getMonth() + 1).padStart(2, '0');
           const day = String(date.getDate()).padStart(2, '0');
@@ -522,7 +522,7 @@ const EventsManagement = ({ type = "lecturer", mode = "all" }) => {
 
       setShowEventCreator(true);
       showToast("✨ Đã trích xuất thông tin thành công!", "success");
-      
+
       // Force scroll fix
       setTimeout(() => {
         window.dispatchEvent(new Event('resize'));
