@@ -1,12 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from "react";
-import {
-  Calendar, Eye, ArrowLeft, ThumbsUp, MessageCircle,
-  Share2, Globe, MoreHorizontal, Pin, Loader2,
-  Smile, Camera, Send, Filter, Newspaper, Info,
-  X, Plus, Search
-} from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
-import { useNavigate } from "react-router-dom";
+import { Loader2, Newspaper } from "lucide-react";
 import { toast } from "react-toastify";
 import { useAuth } from "../../context/AuthContext";
 import eventService from "../../services/eventService";
@@ -14,6 +7,10 @@ import Layout from "../../components/layout/Layout";
 import PostDetailManagement from "../../components/common/management/PostDetailManagement";
 import { createStompClient } from "../../utils/socket";
 import { useLanguage } from "../../context/LanguageContext";
+
+// Components
+import NewsBanner from "../../components/events/news/NewsBanner";
+import NewsSidebar from "../../components/events/news/NewsSidebar";
 
 const updateCommentInTree = (list, commentId, updateFn) => {
   return list.map(item => {
@@ -31,9 +28,8 @@ const removeCommentFromTree = (list, commentId) => {
 };
 
 export default function NewsPage() {
-  const navigate = useNavigate();
   const { user: currentUser } = useAuth();
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
 
   const [posts, setPosts] = useState([]);
   const [events, setEvents] = useState([]);
@@ -137,7 +133,6 @@ export default function NewsPage() {
         const isReply = !!data.parentId;
 
         if (isReply) {
-          // Nếu là phản hồi, tìm bình luận cha và thêm vào replies
           return {
             ...prev,
             [postId]: updateCommentInTree(existing, data.parentId, (parent) => {
@@ -147,7 +142,6 @@ export default function NewsPage() {
             })
           };
         } else {
-          // Nếu là bình luận cấp một
           if (existing.some(c => String(c.id) === String(data.id))) return prev;
           return {
             ...prev,
@@ -155,7 +149,6 @@ export default function NewsPage() {
           };
         }
       });
-      // Cập nhật số lượng bình luận trên bài viết
       setPosts(prev => prev.map(p => p.id === postId ? { ...p, commentCount: (p.commentCount || 0) + 1 } : p));
     } else if (type === 'COMMENT_LIKE') {
       setPostComments(prev => {
@@ -171,9 +164,6 @@ export default function NewsPage() {
     }
   };
 
-  console.log(posts);
-
-
   const filteredPosts = useMemo(() => {
     if (!Array.isArray(posts)) return [];
     if (activeEventId === "all") return posts;
@@ -184,7 +174,6 @@ export default function NewsPage() {
   const handleReactPost = async (postId, emoji) => {
     if (!currentUser) {
       toast.info("Vui lòng đăng nhập để thực hiện hành động này");
-      navigate("/login");
       return;
     }
     try {
@@ -198,7 +187,6 @@ export default function NewsPage() {
   const handleReactComment = async (postId, commentId, emoji) => {
     if (!currentUser) {
       toast.info("Vui lòng đăng nhập để thực hiện hành động này");
-      navigate("/login");
       return;
     }
     try {
@@ -220,7 +208,6 @@ export default function NewsPage() {
   const handleSubmitComment = async (postId, content) => {
     if (!currentUser) {
       toast.info("Vui lòng đăng nhập để bình luận");
-      navigate("/login");
       return;
     }
     setSubmittingComments(prev => ({ ...prev, [postId]: true }));
@@ -246,7 +233,6 @@ export default function NewsPage() {
   const handleSubmitReply = async (postId, parentId, content) => {
     if (!currentUser) {
       toast.info("Vui lòng đăng nhập để phản hồi");
-      navigate("/login");
       return;
     }
     setSubmittingComments(prev => ({ ...prev, [postId]: true }));
@@ -271,12 +257,10 @@ export default function NewsPage() {
   };
 
   const handleDeleteComment = async (postId, commentId) => {
-    // Optimistic update
     setPostComments(prev => ({
       ...prev,
       [postId]: removeCommentFromTree(prev[postId] || [], commentId)
     }));
-
     try {
       await eventService.deleteComment(commentId);
     } catch (err) {
@@ -299,102 +283,23 @@ export default function NewsPage() {
   return (
     <Layout>
       <div className="min-h-screen bg-slate-50">
-        {/* Banner */}
-        <div className="bg-gradient-to-r from-[#1e3a8a] to-blue-700 text-white py-12">
-          <div className="max-w-7xl mx-auto px-6">
-            <div className="flex items-center gap-4 mb-4">
-              <div className="p-3 bg-white/10 rounded-2xl backdrop-blur-md">
-                <Newspaper size={32} />
-              </div>
-              <div>
-                <h1 className="text-4xl font-black tracking-tight uppercase">{t('news_banner_title')}</h1>
-                <p className="text-blue-100 font-medium opacity-80">{t('news_banner_subtitle')}</p>
-              </div>
-            </div>
-          </div>
-        </div>
+        <NewsBanner t={t} />
 
         <div className="max-w-7xl mx-auto px-6 py-10">
           <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
-
-
-            {/* Sidebar Filters */}
-            <div className="lg:col-span-1 space-y-6">
-              <div className="bg-white rounded-[2rem] p-6 shadow-sm border border-slate-100 sticky top-24">
-                <div
-                  className="flex items-center justify-between mb-6 cursor-pointer"
-                  onClick={() => setIsFilterExpanded(!isFilterExpanded)}
-                >
-                  <div className="flex items-center gap-2">
-                    <Filter size={18} className="text-indigo-600" />
-                    <h2 className="font-black text-slate-800 uppercase tracking-tighter">{t('filter_by_event')}</h2>
-                  </div>
-                  <button className="text-slate-400 hover:text-indigo-600 transition-colors">
-                    {isFilterExpanded ? <X size={16} /> : <Plus size={16} />}
-                  </button>
-                </div>
-
-                {isFilterExpanded && (
-                  <>
-                    {/* Search inside filters */}
-                    <div className="relative mb-4">
-                      <Search size={14} className="absolute left-3 top-2.5 text-slate-400" />
-                      <input
-                        type="text"
-                        placeholder={t('search_event_placeholder')}
-                        value={eventSearch}
-                        onChange={(e) => setEventSearch(e.target.value)}
-                        className="w-full bg-slate-50 border border-slate-100 rounded-xl pl-9 pr-3 py-2 text-[12px] focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all font-medium"
-                      />
-                    </div>
-
-                    <div className="space-y-2 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
-                      <button
-                        onClick={() => setActiveEventId("all")}
-                        className={`w-full text-left px-4 py-3 rounded-2xl text-sm font-bold transition-all flex items-center justify-between ${activeEventId === "all"
-                          ? "bg-indigo-600 text-white shadow-lg shadow-indigo-100"
-                          : "text-slate-500 hover:bg-slate-50"
-                          }`}
-                      >
-                        <span>{t('all_news')}</span>
-                        <span className={`px-2 py-0.5 rounded-full text-[10px] ${activeEventId === "all" ? "bg-white/20" : "bg-slate-100"}`}>
-                          {posts.length}
-                        </span>
-                      </button>
-
-                      {filteredEvents.map(event => (
-                        <button
-                          key={event.id}
-                          onClick={() => setActiveEventId(event.id)}
-                          className={`w-full text-left px-4 py-3 rounded-2xl text-sm font-bold transition-all group ${activeEventId === event.id
-                            ? "bg-indigo-600 text-white shadow-lg shadow-indigo-100"
-                            : "text-slate-500 hover:bg-slate-50"
-                            }`}
-                        >
-                          <div className="line-clamp-1">{event.title}</div>
-                          <div className={`text-[9px] uppercase mt-0.5 opacity-60 ${activeEventId === event.id ? "text-white" : "text-indigo-500"}`}>
-                            {event.type || "Sự kiện"}
-                          </div>
-                        </button>
-                      ))}
-
-                      {filteredEvents.length === 0 && eventSearch && (
-                        <div className="py-8 text-center text-slate-400 text-[11px] font-medium italic">
-                          {t('no_events_found_match')}
-                        </div>
-                      )}
-                    </div>
-
-                    {events.length === 0 && !loading && (
-                      <div className="mt-4 p-4 bg-slate-50 rounded-2xl border border-dashed border-slate-200 text-center">
-                        <Info size={20} className="mx-auto mb-2 text-slate-300" />
-                        <p className="text-[11px] text-slate-400 font-medium leading-relaxed">{t('no_events_public_posts')}</p>
-                      </div>
-                    )}
-                  </>
-                )}
-              </div>
-            </div>
+            <NewsSidebar
+              t={t}
+              isFilterExpanded={isFilterExpanded}
+              setIsFilterExpanded={setIsFilterExpanded}
+              eventSearch={eventSearch}
+              setEventSearch={setEventSearch}
+              activeEventId={activeEventId}
+              setActiveEventId={setActiveEventId}
+              filteredEvents={filteredEvents}
+              posts={posts}
+              loading={loading}
+              events={events}
+            />
 
             {/* Feed Area */}
             <div className="lg:col-span-3 space-y-8">
@@ -406,7 +311,7 @@ export default function NewsPage() {
               ) : (
                 <div className="space-y-8">
                   {filteredPosts.map(post => (
-                    <div key={post.id} className="bg-white rounded-[2.5rem] shadow-sm border border-slate-100 hover:shadow-xl hover:shadow-indigo-500/5 transition-all duration-500">
+                    <div key={post.id} className="bg-white rounded-[2.5rem] shadow-sm border border-slate-100 hover:shadow-xl hover:shadow-indigo-500/5 transition-all duration-500 mb-8">
                       <PostDetailManagement
                         post={post}
                         comments={postComments[post.id] || []}
@@ -437,7 +342,6 @@ export default function NewsPage() {
                 </div>
               )}
             </div>
-
           </div>
         </div>
       </div>
