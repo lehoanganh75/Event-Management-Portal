@@ -258,7 +258,11 @@ const eventService = {
             privateApi.post('/api/v1/ai-planning/from-raw-text', { rawText }),
     },
     createQuiz: (quizData) => privateApi.post('/quizzes', quizData),
-    getQuizzesByEvent: (eventId) => privateApi.get(`/quizzes/event/${eventId}`),
+    getQuizzesByEvent: (eventId) => {
+        const token = localStorage.getItem('accessToken');
+        const api = token ? privateApi : publicApi;
+        return api.get(`/quizzes/event/${eventId}`);
+    },
     getQuizByPin: (pin) => publicApi.get(`/quizzes/pin/${pin}`), // Public: no auth needed
     startQuiz: (quizId) => privateApi.post(`/quizzes/${quizId}/start`),
     endQuiz: (quizId) => privateApi.post(`/quizzes/${quizId}/end`),
