@@ -96,6 +96,18 @@ public class QuizServiceImpl implements QuizService {
     }
 
     @Override
+    public QuizDto findByPin(String pin) {
+        if (pin == null || pin.length() < 6) {
+            throw new RuntimeException("PIN phải có ít nhất 6 ký tự");
+        }
+        List<Quiz> matches = quizRepository.findByIdStartingWithIgnoreCase(pin.toLowerCase());
+        if (matches.isEmpty()) {
+            throw new RuntimeException("Không tìm thấy trò chơi với mã PIN: " + pin);
+        }
+        return mapToDto(matches.get(0));
+    }
+
+    @Override
     @Transactional
     public void startQuiz(String quizId) {
         Quiz quiz = quizRepository.findById(quizId).orElseThrow();
@@ -171,11 +183,14 @@ public class QuizServiceImpl implements QuizService {
         Quiz quiz = quizRepository.findById(quizId)
                 .orElseThrow(() -> new RuntimeException("Quiz not found: " + quizId));
 
+        // Determine the effective participant identifier
+        String effectiveId = (userId != null && !userId.trim().isEmpty()) ? userId : nickname;
+
         // Save or update participation
-        QuizParticipation participation = participationRepository.findByQuizIdAndParticipantAccountId(quizId, userId != null ? userId : nickname)
+        QuizParticipation participation = participationRepository.findByQuizIdAndParticipantAccountId(quizId, effectiveId)
                 .orElseGet(() -> QuizParticipation.builder()
                         .quizId(quizId)
-                        .participantAccountId(userId != null ? userId : nickname)
+                        .participantAccountId(effectiveId)
                         .fullName(nickname)
                         .avatar(avatar)
                         .totalScore(0)

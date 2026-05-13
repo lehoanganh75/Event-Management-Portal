@@ -69,6 +69,7 @@ export default function EventDetail() {
   const [quizzes, setQuizzes] = useState([]);
   const [joiningQuizId, setJoiningQuizId] = useState(null);
   const [showJoinCodeModal, setShowJoinCodeModal] = useState(false);
+  const [pinInput, setPinInput] = useState("");
   const [registrationError, setRegistrationError] = useState("");
 
   const { quizState, activeQuizId: wsActiveQuizId } = useQuiz(event?.id);
@@ -873,30 +874,65 @@ export default function EventDetail() {
                 
                 <div className="flex flex-col md:flex-row items-center gap-8 w-full max-w-2xl">
                   {/* CENTER: PIN INPUT */}
-                  <div className="flex-1 w-full">
+                  <div className="flex-1 w-full flex flex-col gap-4">
                     <div className="relative">
                       <input 
                         autoFocus
                         type="text"
-                        placeholder="MÃ PIN (6 SỐ)"
+                        placeholder="MÃ PIN (6 KÝ TỰ)"
                         maxLength={6}
+                        value={pinInput}
                         className="w-full bg-white rounded-[2rem] px-8 py-8 text-4xl font-black text-center uppercase tracking-[0.4em] text-[#46178F] shadow-[0_20px_50px_rgba(0,0,0,0.3)] focus:ring-8 focus:ring-white/20 outline-none transition-all placeholder:tracking-normal placeholder:font-black placeholder:text-slate-200"
-                        onChange={(e) => {
-                          const val = e.target.value.toUpperCase();
-                          if (val.length === 6) {
-                            const matched = quizzes.find(q => q.id?.startsWith(val.toLowerCase()));
-                            if (matched) {
-                              setJoiningQuizId(matched.id);
-                              setShowQuizModal(true);
-                              setShowJoinCodeModal(false);
-                              toast.success("Kết nối thành công!");
-                            } else {
-                              toast.error("Mã PIN không đúng");
+                        onChange={(e) => setPinInput(e.target.value.toUpperCase())}
+                        onKeyDown={async (e) => {
+                          if (e.key === 'Enter' && pinInput.trim().length >= 6) {
+                            try {
+                              const res = await eventService.getQuizByPin(pinInput.trim());
+                              if (res.data?.id) {
+                                setJoiningQuizId(res.data.id);
+                                setShowQuizModal(true);
+                                setShowJoinCodeModal(false);
+                                setPinInput("");
+                                toast.success("Kết nối thành công!");
+                              } else {
+                                toast.error("Mã PIN không đúng hoặc trò chơi chưa được tạo");
+                              }
+                            } catch {
+                              toast.error("Mã PIN không đúng hoặc trò chơi chưa được tạo");
+                              setTimeout(() => setPinInput(""), 800);
                             }
                           }
                         }}
                       />
                     </div>
+                    <motion.button
+                      whileHover={{ scale: 1.03 }}
+                      whileTap={{ scale: 0.97 }}
+                      onClick={async () => {
+                        if (!pinInput.trim() || pinInput.trim().length < 6) {
+                          toast.warning("Vui lòng nhập đủ 6 ký tự mã PIN");
+                          return;
+                        }
+                        try {
+                          const res = await eventService.getQuizByPin(pinInput.trim());
+                          if (res.data?.id) {
+                            setJoiningQuizId(res.data.id);
+                            setShowQuizModal(true);
+                            setShowJoinCodeModal(false);
+                            setPinInput("");
+                            toast.success("Kết nối thành công!");
+                          } else {
+                            toast.error("Mã PIN không đúng hoặc trò chơi chưa được tạo");
+                          }
+                        } catch {
+                          toast.error("Mã PIN không đúng hoặc trò chơi chưa được tạo");
+                          setTimeout(() => setPinInput(""), 800);
+                        }
+                      }}
+                      className="w-full py-5 bg-amber-400 text-slate-900 rounded-[2rem] font-black text-xl uppercase tracking-[0.3em] shadow-[0_10px_30px_rgba(0,0,0,0.2)] hover:bg-amber-300 transition-all"
+                    >
+                      Tham gia →
+                    </motion.button>
                   </div>
 
                   {/* RIGHT: QR SCANNER BUTTON */}

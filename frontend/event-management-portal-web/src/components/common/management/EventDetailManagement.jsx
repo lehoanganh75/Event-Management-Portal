@@ -347,11 +347,12 @@ const EventDetailManagement = ({
     const file = e.target.files[0];
     if (!file) return;
 
-    if (!file.name.endsWith('.docx')) {
+    if (!file.name.endsWith('.docx') && !file.name.endsWith('.doc')) {
       toast.error("Vui lòng chọn file Word (.docx)");
       return;
     }
 
+    setImportingWord(true);
     try {
       const toastId = toast.loading("Đang nhập dữ liệu từ Word...");
       await eventService.importQuizFromWord(event.id, file);
@@ -366,6 +367,7 @@ const EventDetailManagement = ({
       console.error("Import error:", error);
       toast.error("Lỗi khi nhập file: " + (error.response?.data?.message || error.message));
     } finally {
+      setImportingWord(false);
       e.target.value = null;
     }
   };
@@ -415,6 +417,7 @@ const EventDetailManagement = ({
   const [activeQuizId, setActiveQuizId] = useState(null);
   const [quizzes, setQuizzes] = useState([]);
   const [loadingQuizzes, setLoadingQuizzes] = useState(false);
+  const [importingWord, setImportingWord] = useState(false);
 
   // Duck Race states
   const [showDuckRace, setShowDuckRace] = useState(false);
@@ -1104,6 +1107,7 @@ const EventDetailManagement = ({
                 handleStartQuiz={handleStartQuiz}
                 fileInputRef={fileInputRef}
                 handleWordImport={handleWordImport}
+                importingWord={importingWord}
               />
             )}
 

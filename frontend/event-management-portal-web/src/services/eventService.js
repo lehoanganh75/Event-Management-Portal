@@ -259,7 +259,9 @@ const eventService = {
     },
     createQuiz: (quizData) => privateApi.post('/quizzes', quizData),
     getQuizzesByEvent: (eventId) => privateApi.get(`/quizzes/event/${eventId}`),
+    getQuizByPin: (pin) => publicApi.get(`/quizzes/pin/${pin}`), // Public: no auth needed
     startQuiz: (quizId) => privateApi.post(`/quizzes/${quizId}/start`),
+    endQuiz: (quizId) => privateApi.post(`/quizzes/${quizId}/end`),
     resetQuiz: (quizId) => privateApi.post(`/quizzes/${quizId}/reset`),
     nextQuizQuestion: (quizId, index) => privateApi.post(`/quizzes/${quizId}/next`, null, { params: { index } }),
     submitQuizAnswer: (submission) => privateApi.post('/quizzes/submit', submission),

@@ -21,8 +21,8 @@ const ANIMALS = [
 ];
 
 // ─── Nickname Entry (For Students) ────────────────────────
-const NicknameEntry = ({ onJoin }) => {
-  const [nickname, setNickname] = useState('');
+const NicknameEntry = ({ onJoin, defaultNickname }) => {
+  const [nickname, setNickname] = useState(defaultNickname || '');
   const [randomAnimal] = useState(ANIMALS[Math.floor(Math.random() * ANIMALS.length)]);
 
   return (
@@ -80,6 +80,35 @@ const NicknameEntry = ({ onJoin }) => {
         <div className="text-4xl">{randomAnimal.emoji}</div>
         <p className="text-white/40 text-[10px] font-black uppercase tracking-widest">Bạn sẽ là {randomAnimal.name}</p>
       </motion.div>
+    </div>
+  );
+};
+
+// ─── Countdown ───────────────────────────────────────────
+const Countdown = ({ onDone }) => {
+  const [count, setCount] = useState(3);
+
+  useEffect(() => {
+    if (count <= 0) { onDone(); return; }
+    const t = setTimeout(() => setCount(c => c - 1), 1000);
+    return () => clearTimeout(t);
+  }, [count]);
+
+  return (
+    <div className="w-full h-full flex flex-col items-center justify-center bg-[#46178F]">
+      <AnimatePresence mode="wait">
+        <motion.div
+          key={count}
+          initial={{ scale: 2, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          exit={{ scale: 0.5, opacity: 0 }}
+          transition={{ duration: 0.4 }}
+          className="text-[20rem] font-black text-white leading-none drop-shadow-2xl"
+        >
+          {count > 0 ? count : '🚀'}
+        </motion.div>
+      </AnimatePresence>
+      <p className="text-white/60 font-black text-xl uppercase tracking-[0.3em] mt-8">Chuẩn bị...</p>
     </div>
   );
 };
@@ -242,9 +271,9 @@ const LobbyScreen = ({ isOrganizer, quizId, participants = [], onFirstQuestion }
 // Kahoot-style shape/color definitions
 const SHAPES = [
   { bg: '#E21B3C', icon: '▲', label: 'Tam giác', shadow: 'shadow-rose-900' },
-  { bg: '#1368CE', icon: '◆', label: 'Thoi',     shadow: 'shadow-blue-900' },
-  { bg: '#D89E00', icon: '●', label: 'Tròn',     shadow: 'shadow-yellow-900' },
-  { bg: '#26890C', icon: '■', label: 'Vuông',    shadow: 'shadow-green-900' },
+  { bg: '#1368CE', icon: '◆', label: 'Thoi', shadow: 'shadow-blue-900' },
+  { bg: '#D89E00', icon: '●', label: 'Tròn', shadow: 'shadow-yellow-900' },
+  { bg: '#26890C', icon: '■', label: 'Vuông', shadow: 'shadow-green-900' },
 ];
 
 // ─── Timer bar shared ───────────────────────────────────────
@@ -262,7 +291,7 @@ const TimerBar = ({ timeLeft, totalTime }) => {
 };
 
 // ─── Question Screen ──────────────────────────────────────
-const QuestionScreen = ({ question, isOrganizer, onAnswer, onNext, timeLimit }) => {
+const QuestionScreen = ({ question, isOrganizer, onAnswer, onNext, timeLimit, quizId }) => {
   const [timeLeft, setTimeLeft] = useState(question.timeLimit || 30);
   const [answered, setAnswered] = useState(null);
   const [result, setResult] = useState(null);
@@ -294,7 +323,7 @@ const QuestionScreen = ({ question, isOrganizer, onAnswer, onNext, timeLimit }) 
     try {
       const res = await onAnswer(optId, responseTime);
       setResult(res);
-    } catch {}
+    } catch { }
   };
 
   const timerColor = timeLeft > 10 ? 'text-white' : timeLeft > 5 ? 'text-amber-300' : 'text-rose-400 animate-pulse';
@@ -309,7 +338,12 @@ const QuestionScreen = ({ question, isOrganizer, onAnswer, onNext, timeLimit }) 
             Câu {(question.orderIndex ?? 0) + 1}
           </span>
           <div className={`text-4xl font-black ${timerColor}`}>{timeLeft}s</div>
-          <div className="w-20" />
+          <div className="flex flex-col items-end">
+            <span className="text-white/40 text-[8px] font-black uppercase tracking-widest">Mã PIN:</span>
+            <span className="text-white font-black text-sm tracking-widest">
+              {quizId?.substring(0, 6).toUpperCase() || "—— ——"}
+            </span>
+          </div>
         </div>
 
         <TimerBar timeLeft={timeLeft} totalTime={totalTime} />
@@ -379,7 +413,12 @@ const QuestionScreen = ({ question, isOrganizer, onAnswer, onNext, timeLimit }) 
           Câu {(question.orderIndex ?? 0) + 1}
         </span>
         <div className={`text-4xl font-black ${timerColor}`}>{timeLeft}</div>
-        <div className="w-16" />
+        <div className="flex flex-col items-end">
+          <span className="text-white/40 text-[8px] font-black uppercase tracking-widest">Mã PIN:</span>
+          <span className="text-white font-black text-sm tracking-widest">
+            {quizId?.substring(0, 6).toUpperCase() || "—— ——"}
+          </span>
+        </div>
       </div>
 
       <TimerBar timeLeft={timeLeft} totalTime={totalTime} />
@@ -511,12 +550,18 @@ const WordScrambleInline = ({ data, onAnswer, done }) => {
 };
 
 // ─── Leaderboard (Duck Race) ──────────────────────────────
-const LeaderboardScreen = ({ leaderboard, isOrganizer, onNext, onEnd }) => (
+const LeaderboardScreen = ({ leaderboard, isOrganizer, onNext, onEnd, quizId }) => (
   <div className="w-full h-full flex flex-col bg-gradient-to-b from-[#46178F] to-[#1a0a3b]">
     <div className="flex items-center justify-between px-8 py-5 bg-black/30">
       <h2 className="text-2xl font-black text-white uppercase flex items-center gap-3">
         🦆 Đua Vịt — Bảng xếp hạng
       </h2>
+      <div className="flex flex-col items-end">
+        <span className="text-white/40 text-[8px] font-black uppercase tracking-widest">Mã PIN:</span>
+        <span className="text-white font-black text-lg tracking-widest">
+          {quizId?.substring(0, 6).toUpperCase() || "—— ——"}
+        </span>
+      </div>
     </div>
 
     <div className="flex-1 overflow-y-auto p-6">
@@ -581,13 +626,19 @@ const QuizModal = ({ isOpen, onClose, eventId, isOrganizer, quizId: propQuizId }
   const resolvedQuizId = propQuizId || activeQuizId;
   const [phase, setPhase] = useState('lobby'); // lobby | countdown | question | leaderboard | end
   const [joined, setJoined] = useState(false);
+  // Track which quizId the player has already joined to prevent duplicate entries
+  const joinedQuizRef = useRef(null);
 
   // Drive phase from WebSocket state
   useEffect(() => {
     if (!isOpen) return;
     if (quizState.type === 'WAITING') {
       setPhase('lobby');
-      setJoined(false); // Allow re-joining for a fresh session
+      // Only reset joined if this is a genuine reset (player hasn't joined this quiz yet)
+      // or if the joined quiz is a different one
+      if (joinedQuizRef.current !== resolvedQuizId) {
+        setJoined(false);
+      }
     }
     // START: quiz is now active — guests go to countdown, admin stays in lobby waiting for first question
     if (quizState.type === 'START') setPhase(isOrganizer ? 'lobby' : 'countdown');
@@ -597,11 +648,23 @@ const QuizModal = ({ isOpen, onClose, eventId, isOrganizer, quizId: propQuizId }
     if (quizState.type === 'END') setPhase('end');
   }, [quizState.type, isOpen, isOrganizer]);
 
+  // Reset phase to lobby when modal first opens (in case previous game ended)
+  useEffect(() => {
+    if (isOpen) {
+      setPhase('lobby');
+      // If opening for a different quiz, clear join state
+      if (resolvedQuizId && joinedQuizRef.current !== resolvedQuizId) {
+        setJoined(false);
+        joinedQuizRef.current = null;
+      }
+    }
+  }, [isOpen]);
+
   const handleFirstQuestion = async () => {
     try {
-      // 1. Activate the quiz on backend (broadcasts START to guests)
+      // Start the quiz (sets isActive=true, broadcasts START)
       await eventService.startQuiz(resolvedQuizId);
-      // 2. Send the first question (broadcasts NEXT_QUESTION to everyone)
+      // Send the first question (broadcasts NEXT_QUESTION)
       await eventService.nextQuizQuestion(resolvedQuizId, 0);
     } catch {
       toast.error('Lỗi khi bắt đầu thử thách');
@@ -615,16 +678,18 @@ const QuizModal = ({ isOpen, onClose, eventId, isOrganizer, quizId: propQuizId }
 
   const handleEndQuiz = async () => {
     try {
-      await eventService.startQuiz(resolvedQuizId); // call end if available
-      setPhase('end');
-    } catch { setPhase('end'); }
+      await eventService.endQuiz(resolvedQuizId); // call the real end API
+    } catch { }
+    setPhase('end');
   };
 
   const handleResetQuiz = async () => {
     try {
       await eventService.resetQuiz(resolvedQuizId);
-      // Backend will broadcast WAITING, which setPhase('lobby') via useEffect
-      setJoined(false); 
+      // Backend broadcasts WAITING → useEffect resets phase to 'lobby'
+      // Clear joinedQuizRef so players can re-enter nickname
+      joinedQuizRef.current = null;
+      setJoined(false);
       toast.success('Đã làm mới thử thách!');
     } catch {
       toast.error('Lỗi khi làm mới thử thách');
@@ -642,8 +707,10 @@ const QuizModal = ({ isOpen, onClose, eventId, isOrganizer, quizId: propQuizId }
   };
 
   const handleJoin = (nickname, avatar) => {
-    if (joinQuiz(resolvedQuizId, nickname, avatar, user?.userProfileId)) {
+    const userId = user?.id || user?.accountId;
+    if (joinQuiz(resolvedQuizId, nickname, avatar, userId)) {
       setJoined(true);
+      joinedQuizRef.current = resolvedQuizId; // Remember this quiz so we don't ask again
       toast.success(`Chào mừng ${nickname}!`);
     } else {
       toast.error('Lỗi kết nối máy chủ');
@@ -662,9 +729,9 @@ const QuizModal = ({ isOpen, onClose, eventId, isOrganizer, quizId: propQuizId }
 
       <AnimatePresence mode="wait">
         {/* NICKNAME ENTRY FOR STUDENTS */}
-        {!isOrganizer && !joined && phase === 'lobby' && (
+        {!isOrganizer && !joined && phase !== 'end' && (
           <motion.div key="nick" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="w-full h-full">
-            <NicknameEntry onJoin={handleJoin} />
+            <NicknameEntry onJoin={handleJoin} defaultNickname={user?.fullName} />
           </motion.div>
         )}
 
@@ -709,6 +776,7 @@ const QuizModal = ({ isOpen, onClose, eventId, isOrganizer, quizId: propQuizId }
               isOrganizer={isOrganizer}
               onAnswer={handleSubmitAnswer}
               onNext={handleNextQuestion}
+              quizId={resolvedQuizId}
             />
           </motion.div>
         )}
@@ -721,6 +789,7 @@ const QuizModal = ({ isOpen, onClose, eventId, isOrganizer, quizId: propQuizId }
               isOrganizer={isOrganizer}
               onNext={handleNextQuestion}
               onEnd={handleEndQuiz}
+              quizId={resolvedQuizId}
             />
           </motion.div>
         )}
@@ -742,7 +811,7 @@ const QuizModal = ({ isOpen, onClose, eventId, isOrganizer, quizId: propQuizId }
             </div>
             <div className="flex gap-4">
               {isOrganizer && (
-                <button 
+                <button
                   onClick={handleResetQuiz}
                   className="px-12 py-4 bg-amber-500 text-white rounded-2xl font-black text-lg uppercase shadow-2xl hover:scale-105 transition-all flex items-center gap-2"
                 >

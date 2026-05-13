@@ -9,6 +9,7 @@ public interface QuizService {
     QuizDto createQuiz(QuizDto quizDto);
     QuizDto getQuiz(String quizId);
     List<QuizDto> getQuizzesByEvent(String eventId);
+    QuizDto findByPin(String pin); // Public PIN lookup
     
     void startQuiz(String quizId);
     void nextQuestion(String quizId, int questionIndex);

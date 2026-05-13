@@ -29,6 +29,19 @@ public class QuizController {
         return ResponseEntity.ok(quizService.getQuizzesByEvent(eventId));
     }
 
+    /**
+     * Public PIN lookup - no auth required.
+     * Finds a quiz whose UUID starts with the given 6-char PIN.
+     */
+    @GetMapping("/pin/{pin}")
+    public ResponseEntity<?> findByPin(@PathVariable String pin) {
+        try {
+            return ResponseEntity.ok(quizService.findByPin(pin));
+        } catch (RuntimeException e) {
+            return ResponseEntity.status(404).body(java.util.Map.of("error", e.getMessage()));
+        }
+    }
+
     @PostMapping("/{quizId}/start")
     public ResponseEntity<Void> startQuiz(@PathVariable String quizId) {
         quizService.startQuiz(quizId);
@@ -38,6 +51,12 @@ public class QuizController {
     @PostMapping("/{quizId}/reset")
     public ResponseEntity<Void> resetQuiz(@PathVariable String quizId) {
         quizService.resetQuiz(quizId);
+        return ResponseEntity.ok().build();
+    }
+
+    @PostMapping("/{quizId}/end")
+    public ResponseEntity<Void> endQuiz(@PathVariable String quizId) {
+        quizService.endQuiz(quizId);
         return ResponseEntity.ok().build();
     }
 
