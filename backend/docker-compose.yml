@@ -197,6 +197,22 @@ services:
       - micro-network
 
 # ========================
+# FRONTEND
+# ========================
+  frontend:
+    build: 
+      context: ../frontend/event-management-portal-web
+      dockerfile: Dockerfile
+    container_name: event-management-frontend
+    restart: always
+    ports:
+      - "80:80"
+    depends_on:
+      - kong
+    networks:
+      - micro-network
+
+# ========================
 # NETWORK
 # ========================
 networks:
