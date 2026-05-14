@@ -134,14 +134,25 @@ Nếu là yêu cầu trích xuất JSON, hãy CHỈ trả về JSON nguyên bả
 
     // --- CASE 1: USE GEMINI (FAST & CLOUD) ---
     if (genAI) {
-      try {
-        console.log("Using Gemini AI...");
-        const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash-latest" });
-        const result = await model.generateContent([systemInstruction, userPrompt]);
-        finalResponse = result.response.text();
-      } catch (geminiError) {
-        console.error("Gemini runtime error, falling back to Ollama:", geminiError.message);
-        // Set genAI to null temporarily for this request to trigger Case 2
+      const modelsToTry = ["gemini-1.5-flash-latest", "gemini-1.5-flash", "gemini-pro"];
+      let success = false;
+
+      for (const modelName of modelsToTry) {
+        try {
+          console.log(`Trying Gemini AI (${modelName})...`);
+          const model = genAI.getGenerativeModel({ model: modelName });
+          const result = await model.generateContent([systemInstruction, userPrompt]);
+          finalResponse = result.response.text();
+          success = true;
+          break; // Exit loop if successful
+        } catch (geminiError) {
+          console.warn(`Gemini (${modelName}) failed:`, geminiError.message);
+          // Continue to next model
+        }
+      }
+
+      if (!success) {
+        console.error("All Gemini models failed, falling back to Ollama.");
         return await handleOllamaFallback(res, systemInstruction, userPrompt, isExtraction);
       }
     } else {
