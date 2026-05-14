@@ -26,7 +26,7 @@ function getGeminiModel(modelName = GEMINI_MODELS[0], isExtraction = false) {
     model: modelName,
     generationConfig: {
       temperature: isExtraction ? 0.1 : 0.7,
-      maxOutputTokens: 2048,
+      maxOutputTokens: 4096,
     },
   });
 }
