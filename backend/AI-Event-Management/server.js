@@ -109,14 +109,8 @@ app.post("/chat", async (req, res) => {
     const greetings = ["hello", "hi", "chào", "xin chào", "hey", "bonjour", "tạm biệt"];
     const isGreeting = greetings.some(g => userPrompt.toLowerCase().trim() === g);
 
-    if (isGreeting) {
-      return res.json({
-        reply: "Xin chào! 👋 Tôi là trợ lý AI IUH. Tôi có thể giúp bạn tìm kiếm sự kiện, trích xuất dữ liệu hoặc tư vấn thông tin. Bạn cần tôi hỗ trợ gì?"
-      });
-    }
-
-    const eventKeywords = ["sự kiện", "event", "lịch", "đăng ký", "tham gia", "tổ chức", "diễn ra", "hội thảo", "workshop", "thông tin"];
-    const needsContext = eventKeywords.some(kw => userPrompt.toLowerCase().includes(kw));
+    const eventKeywords = ["sự kiện", "event", "lịch", "đăng ký", "tham gia", "tổ chức", "diễn ra", "hội thảo", "workshop", "thông tin", "ở đâu", "khi nào"];
+    const needsContext = eventKeywords.some(kw => userPrompt.toLowerCase().includes(kw)) || isExtraction;
 
     let dbContext = "";
     if (needsContext) {
@@ -124,61 +118,52 @@ app.post("/chat", async (req, res) => {
     }
 
     const systemInstruction = `Bạn là trợ lý AI chuyên gia của hệ thống Quản lý Sự kiện IUH.
-Hãy trả lời ngắn gọn, thân thiện và chính xác. 
-${dbContext ? "Dựa trên dữ liệu hệ thống bên dưới:\n" + dbContext : ""}
-${pdfContext ? "Dựa trên tài liệu đã tải lên:\n" + pdfContext.substring(0, 5000) : ""}
-Nếu người dùng hỏi về sự kiện mà không có trong dữ liệu, hãy đề nghị họ tìm kiếm thêm hoặc liên hệ ban tổ chức.
-Nếu là yêu cầu trích xuất JSON, hãy CHỈ trả về JSON nguyên bản, không kèm văn bản giải thích.`;
+Hãy trả lời ngắn gọn, thân thiện và chuyên nghiệp. 
+${dbContext ? "Dữ liệu sự kiện hiện có:\n" + dbContext : ""}
+${pdfContext ? "Nội dung tài liệu đính kèm:\n" + pdfContext.substring(0, 5000) : ""}
+Nếu người dùng chào hỏi, hãy chào lại và giới thiệu ngắn gọn bạn có thể giúp gì (tìm sự kiện, giải đáp thắc mắc).
+Nếu trích xuất JSON, hãy CHỈ trả về code JSON.`;
 
     let finalResponse = "";
 
-    // --- CASE 1: USE GEMINI (FAST & CLOUD) ---
+    // --- CASE 1: USE GEMINI (TRY STABLE NAMES) ---
     if (genAI) {
-      const modelsToTry = ["gemini-1.5-flash", "gemini-pro"];
+      const modelsToTry = ["models/gemini-1.5-flash", "models/gemini-pro"];
       let success = false;
 
       for (const modelName of modelsToTry) {
         try {
           console.log(`Trying Gemini AI (${modelName})...`);
           const model = genAI.getGenerativeModel({ model: modelName });
-          const result = await model.generateContent([systemInstruction, userPrompt]);
+          const result = await model.generateContent(systemInstruction + "\n\nUser: " + userPrompt);
           finalResponse = result.response.text();
           success = true;
-          break; // Exit loop if successful
+          break;
         } catch (geminiError) {
           console.warn(`Gemini (${modelName}) failed:`, geminiError.message);
-          // Continue to next model
         }
       }
 
-      if (!success) {
-        console.error("All Gemini models failed, falling back to Ollama.");
-        return await handleOllamaFallback(res, systemInstruction, userPrompt, isExtraction);
+      if (success) {
+        return res.json({ reply: finalResponse });
       }
-    } else {
-      await handleOllamaFallback(res, systemInstruction, userPrompt, isExtraction);
     }
-  } catch (error) {
-    console.error("AI Error:", error);
-    res.status(500).json({ error: "AI error: " + error.message });
-  }
-});
 
-// Helper function for Ollama fallback to avoid code duplication
-async function handleOllamaFallback(res, systemInstruction, userPrompt, isExtraction) {
-  try {
-    console.log("Using Ollama...");
+    // --- CASE 2: OLLAMA CHAT API (Better Reasoning) ---
+    console.log("Using Ollama Chat API...");
     const OLLAMA_URL = process.env.OLLAMA_URL || "http://ollama:11434";
-    const response = await fetch(`${OLLAMA_URL}/api/generate`, {
+    const response = await fetch(`${OLLAMA_URL}/api/chat`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         model: "event-assistant",
-        prompt: `${systemInstruction}\n\nNgười dùng: ${userPrompt}`,
+        messages: [
+          { role: "system", content: systemInstruction },
+          { role: "user", content: userPrompt }
+        ],
         stream: false,
         options: {
           temperature: isExtraction ? 0.1 : 0.7,
-          num_predict: isExtraction ? 1024 : 512,
           num_ctx: 4096
         }
       })
@@ -186,12 +171,13 @@ async function handleOllamaFallback(res, systemInstruction, userPrompt, isExtrac
 
     if (!response.ok) throw new Error(`Ollama error: ${response.statusText}`);
     const data = await response.json();
-    res.json({ reply: data.response });
+    res.json({ reply: data.message.content });
+
   } catch (error) {
-    console.error("Ollama Fallback Error:", error);
-    res.status(500).json({ error: "AI error (both Gemini and Ollama failed): " + error.message });
+    console.error("AI Error:", error);
+    res.status(500).json({ error: "AI error: " + error.message });
   }
-}
+});
 
 // Default route to serve the UI
 app.get("/", (req, res) => {
