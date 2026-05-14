@@ -69,6 +69,7 @@ const { GoogleGenerativeAI } = require("@google/generative-ai");
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 let genAI = null;
 if (GEMINI_API_KEY) {
+  // Ép sử dụng phiên bản v1 ổn định thay vì v1beta
   genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
   console.log("✨ Gemini AI is enabled and ready.");
 } else {
@@ -80,15 +81,15 @@ async function getDatabaseContext() {
   let connection;
   try {
     connection = await mysql.createConnection(MARIADB_CONFIG);
-    // Lấy 5 sự kiện mới nhất từ bảng events
+    // Chỉ lấy 3 sự kiện (thay vì 5) để giảm tải cho Ollama, và cắt ngắn mô tả
     const [rows] = await connection.execute(
-      "SELECT title, description, location, start_time FROM events ORDER BY created_at DESC LIMIT 5"
+      "SELECT title, LEFT(description, 100) as description, location, start_time FROM events WHERE status IN ('PUBLISHED', 'ONGOING', 'COMPLETED') ORDER BY created_at DESC LIMIT 3"
     );
     if (rows.length === 0) return "Hiện tại chưa có sự kiện nào trong hệ thống.";
 
-    let context = "Dữ liệu từ hệ thống MariaDB (Sự kiện mới nhất):\n";
+    let context = "Dữ liệu sự kiện:\n";
     rows.forEach(ev => {
-      context += `- Sự kiện: ${ev.title}, Địa điểm: ${ev.location}, Ngày: ${ev.start_time}, Mô tả: ${ev.description}\n`;
+      context += `- ${ev.title} (${ev.start_time}) tại ${ev.location}\n`;
     });
     return context;
   } catch (err) {
@@ -109,14 +110,8 @@ app.post("/chat", async (req, res) => {
     const greetings = ["hello", "hi", "chào", "xin chào", "hey", "bonjour", "tạm biệt"];
     const isGreeting = greetings.some(g => userPrompt.toLowerCase().trim() === g);
 
-    if (isGreeting) {
-      return res.json({
-        reply: "Xin chào! 👋 Tôi là trợ lý AI IUH. Tôi có thể giúp bạn tìm kiếm sự kiện, trích xuất dữ liệu hoặc tư vấn thông tin. Bạn cần tôi hỗ trợ gì?"
-      });
-    }
-
-    const eventKeywords = ["sự kiện", "event", "lịch", "đăng ký", "tham gia", "tổ chức", "diễn ra", "hội thảo", "workshop", "thông tin"];
-    const needsContext = eventKeywords.some(kw => userPrompt.toLowerCase().includes(kw));
+    const eventKeywords = ["sự kiện", "event", "lịch", "đăng ký", "tham gia", "tổ chức", "diễn ra", "hội thảo", "workshop", "thông tin", "ở đâu", "khi nào"];
+    const needsContext = eventKeywords.some(kw => userPrompt.toLowerCase().includes(kw)) || isExtraction;
 
     let dbContext = "";
     if (needsContext) {
@@ -124,46 +119,60 @@ app.post("/chat", async (req, res) => {
     }
 
     const systemInstruction = `Bạn là trợ lý AI chuyên gia của hệ thống Quản lý Sự kiện IUH.
-Hãy trả lời ngắn gọn, thân thiện và chính xác. 
-${dbContext ? "Dựa trên dữ liệu hệ thống bên dưới:\n" + dbContext : ""}
-${pdfContext ? "Dựa trên tài liệu đã tải lên:\n" + pdfContext.substring(0, 5000) : ""}
-Nếu người dùng hỏi về sự kiện mà không có trong dữ liệu, hãy đề nghị họ tìm kiếm thêm hoặc liên hệ ban tổ chức.
-Nếu là yêu cầu trích xuất JSON, hãy CHỈ trả về JSON nguyên bản, không kèm văn bản giải thích.`;
+    Hãy trả lời ngắn gọn, thân thiện và chuyên nghiệp. 
+    ${dbContext ? "Dữ liệu sự kiện hiện có:\n" + dbContext : ""}
+    ${pdfContext ? "Nội dung tài liệu đính kèm:\n" + pdfContext.substring(0, 5000) : ""}
+    Nếu người dùng chào hỏi, hãy chào lại và giới thiệu ngắn gọn bạn có thể giúp gì (tìm sự kiện, giải đáp thắc mắc).
+    Nếu trích xuất JSON, hãy CHỈ trả về code JSON.`;
 
     let finalResponse = "";
 
-    // --- CASE 1: USE GEMINI (FAST & CLOUD) ---
+    // --- CASE 1: USE GEMINI (STABLE MULTI-MODEL RETRY) ---
     if (genAI) {
-      console.log("Using Gemini AI...");
-      const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
-      const result = await model.generateContent([systemInstruction, userPrompt]);
-      finalResponse = result.response.text();
-    } 
-    // --- CASE 2: USE OLLAMA (LOCAL FALLBACK) ---
-    else {
-      console.log("Using Ollama (Fallback)...");
-      const OLLAMA_URL = process.env.OLLAMA_URL || "http://ollama:11434";
-      const response = await fetch(`${OLLAMA_URL}/api/generate`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          model: "event-assistant",
-          prompt: `${systemInstruction}\n\nNgười dùng: ${userPrompt}`,
-          stream: false,
-          options: {
-            temperature: isExtraction ? 0.1 : 0.7,
-            num_predict: isExtraction ? 1024 : 512,
-            num_ctx: 4096
-          }
-        })
-      });
+      const modelsToTry = ["models/gemini-1.5-flash", "models/gemini-pro"];
+      let success = false;
 
-      if (!response.ok) throw new Error(`Ollama error: ${response.statusText}`);
-      const data = await response.json();
-      finalResponse = data.response;
+      for (const modelName of modelsToTry) {
+        try {
+          console.log(`Trying Gemini AI (${modelName})...`);
+          const model = genAI.getGenerativeModel({ model: modelName });
+          const result = await model.generateContent(systemInstruction + "\n\nUser Prompt: " + userPrompt);
+          finalResponse = result.response.text();
+          success = true;
+          break;
+        } catch (geminiError) {
+          console.warn(`Gemini (${modelName}) failed:`, geminiError.message);
+        }
+      }
+
+      if (success) {
+        return res.json({ reply: finalResponse });
+      }
     }
 
-    res.json({ reply: finalResponse });
+    // --- CASE 2: OLLAMA CHAT API (Advanced Logic) ---
+    console.log("Using Ollama Chat API (Fallback)...");
+    const OLLAMA_URL = process.env.OLLAMA_URL || "http://ollama:11434";
+    const response = await fetch(`${OLLAMA_URL}/api/chat`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        model: "event-assistant",
+        messages: [
+          { role: "system", content: systemInstruction },
+          { role: "user", content: userPrompt }
+        ],
+        stream: false,
+        options: {
+          temperature: isExtraction ? 0.1 : 0.7,
+          num_ctx: 4096
+        }
+      })
+    });
+
+    if (!response.ok) throw new Error(`Ollama error: ${response.statusText}`);
+    const data = await response.json();
+    res.json({ reply: data.message.content });
 
   } catch (error) {
     console.error("AI Error:", error);
