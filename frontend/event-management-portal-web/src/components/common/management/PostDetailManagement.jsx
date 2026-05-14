@@ -631,8 +631,7 @@ const PostDetailManagement = ({
                 {post.pinned && <Pin size={14} className="text-blue-600 fill-blue-600" />}
               </div>
               <div className="flex items-center gap-1.5 text-slate-400 text-[11px]">
-                {post.author?.email && <><span className="text-blue-500 font-medium">{post.author.email}</span><span>•</span></>}
-                <span>{new Date(post.publishedAt || post.createdAt).toLocaleString(language === 'VI' ? 'vi-VN' : 'en-US')}</span>
+                <span>{getRelativeTime(post.publishedAt || post.createdAt, t)}</span>
                 <span>•</span><Globe size={12} />
               </div>
             </div>

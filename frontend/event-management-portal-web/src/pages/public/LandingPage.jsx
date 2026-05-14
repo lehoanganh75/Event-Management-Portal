@@ -518,20 +518,7 @@ const LandingPage = () => {
 
             <div className="text-center mb-16">
 
-              <div
-                className="
-                  inline-flex items-center
-                  px-3 py-1
-                  rounded-full
-                  bg-blue-50
-                  text-[#1E40AF]
-                  text-sm
-                  font-medium
-                  mb-4
-                "
-              >
-                Ecosystem
-              </div>
+
 
               <h2
                 className="

@@ -20,20 +20,7 @@ const LandingSectionHeader = ({
     {/* Left */}
     <div>
       {/* Small label */}
-      <div
-        className="
-          inline-flex items-center
-          px-3 py-1
-          rounded-full
-          bg-blue-50
-          text-[#1E40AF]
-          text-[11px]
-          font-medium
-          mb-3
-        "
-      >
-        Explore
-      </div>
+
 
       {/* Title */}
       <h2

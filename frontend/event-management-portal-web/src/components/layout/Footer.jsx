@@ -84,12 +84,7 @@ const Footer = () => {
               />
 
               <div>
-                <h2 className="text-xl font-black tracking-tight">
-                  EVENT PORTAL
-                </h2>
-                <p className="text-blue-100/70 text-[11px] uppercase tracking-widest font-bold mt-1">
-                  Industrial University
-                </p>
+
               </div>
             </div>
 

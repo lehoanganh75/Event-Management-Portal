@@ -16,11 +16,7 @@ const TopBar = ({ t, language, setLanguage }) => {
             </span>
           </div>
 
-          <span className="text-white/20">•</span>
 
-          <span className="text-blue-100/70">
-            emp.iuh.edu.vn
-          </span>
         </div>
 
         {/* Right */}

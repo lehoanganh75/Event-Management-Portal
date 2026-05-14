@@ -387,7 +387,7 @@ const translations = {
     sort_all_desc: "Hiển thị tất cả bình luận, bao gồm cả nội dung có thể là spam.",
     view_replies: "Xem {{count}} phản hồi",
     hide_replies: "Ẩn phản hồi",
-    time_now: "Vừa xong",
+    time_now: "Đăng mới đây vừa xong",
     time_min: "phút",
     time_hour: "giờ",
     time_day: "ngày",
