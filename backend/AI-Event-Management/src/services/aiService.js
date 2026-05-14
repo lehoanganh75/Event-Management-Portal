@@ -234,9 +234,12 @@ const isLimitError = (error) => {
 const askGemini = async ({ systemInstruction, userPrompt, isExtraction }) => {
   for (const modelName of GEMINI_MODELS) {
     try {
-      console.log(`Trying Gemini model: ${modelName}`);
+      console.log(`[Gemini] Đang thử model: ${modelName}`);
       const model = getGeminiModel(modelName, isExtraction);
-      if (!model) continue;
+      if (!model) {
+        console.warn(`[Gemini] Model ${modelName} không khởi tạo được (thiếu API Key?)`);
+        continue;
+      }
 
       const result = await model.generateContent({
         contents: [{ role: "user", parts: [{ text: `${systemInstruction}\n\nUser: ${userPrompt}` }] }],
@@ -248,8 +251,11 @@ const askGemini = async ({ systemInstruction, userPrompt, isExtraction }) => {
 
       return { provider: "gemini", model: modelName, reply: result.response.text() };
     } catch (error) {
-      console.warn(`Gemini ${modelName} failed:`, error.message);
-      if (isLimitError(error)) continue;
+      console.warn(`[Gemini] Model ${modelName} thất bại. Lỗi: ${error.message}`);
+      if (isLimitError(error)) {
+        console.warn(`[Gemini] Model ${modelName} đã chạm giới hạn (Rate Limit).`);
+        continue;
+      }
     }
   }
   return null;
@@ -385,31 +391,30 @@ CÁCH XỬ LÝ CÂU HỎI:
   }
 };
 
-const generateEmbedding = async (text) => {
-  try {
-    const { GoogleGenerativeAI } = require("@google/generative-ai");
-    const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-    const model = genAI.getGenerativeModel({ model: "text-embedding-004" });
-    const result = await model.embedContent(text);
-    return result.embedding.values;
-  } catch (error) {
-    console.error("Embedding Error:", error);
-    throw error;
-  }
-};
-
 const chatWithAI = async ({ userPrompt, pdfContext = "", isExtraction = false }) => {
+  console.log(`[AI-Process] Nhận yêu cầu - Trích xuất: ${isExtraction}`);
+
   let eventDbContext = getEventCache();
   if (!eventDbContext || eventDbContext.includes("chưa có dữ liệu")) {
+    console.log("[AI-Cache] Cache trống, đang tải lại dữ liệu sự kiện...");
     eventDbContext = await loadEventDataOnce();
   }
 
   const systemInstruction = buildSystemInstruction({ eventDbContext, pdfContext, isExtraction });
 
+  console.log("[AI-Orchestrator] Đang thử kết nối Gemini...");
   const geminiResult = await askGemini({ systemInstruction, userPrompt, isExtraction });
-  if (geminiResult) return geminiResult;
+  
+  if (geminiResult) {
+    console.log(`[AI-Success] Gemini phản hồi thành công (${geminiResult.model})`);
+    return geminiResult;
+  }
 
-  return await askOllama({ systemInstruction, userPrompt, isExtraction });
+  console.log("[AI-Fallback] Gemini thất bại hoặc hết lượt. Đang chuyển sang Ollama...");
+  const ollamaResult = await askOllama({ systemInstruction, userPrompt, isExtraction });
+  console.log(`[AI-Result] Kết quả từ ${ollamaResult.provider} (${ollamaResult.model})`);
+  
+  return ollamaResult;
 };
 
-module.exports = { chatWithAI, generateEmbedding };
+module.exports = { chatWithAI };

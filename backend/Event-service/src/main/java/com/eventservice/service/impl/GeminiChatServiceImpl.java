@@ -333,40 +333,53 @@ public class GeminiChatServiceImpl implements GeminiChatService {
 
     private String callLocalAI(String prompt) {
         try {
-            // Sử dụng URL từ cấu hình
             String localUrl = localAiUrl;
             if (localUrl == null || localUrl.isEmpty()) {
                 localUrl = "http://ai-event-management:3000/api/chat";
             }
 
-            // Đảm bảo có path /chat nếu chưa có
-            if (!localUrl.endsWith("/chat")) {
-                localUrl = localUrl.endsWith("/") ? localUrl + "chat" : localUrl + "/chat";
+            // Đảm bảo URL kết thúc bằng /api/chat
+            if (!localUrl.contains("/api/chat")) {
+                if (localUrl.endsWith("/")) {
+                    localUrl = localUrl + "api/chat";
+                } else if (localUrl.endsWith("/api")) {
+                    localUrl = localUrl + "/chat";
+                } else {
+                    localUrl = localUrl + "/api/chat";
+                }
             }
 
-            log.info("Calling Local AI Fallback at: {}", localUrl);
+            log.info(">>> CALLING AI NODEJS AT: {}", localUrl);
+            // log.debug("Prompt length: {}", prompt.length());
 
             Map<String, String> request = new HashMap<>();
             request.put("prompt", prompt);
 
+            long start = System.currentTimeMillis();
             Map<String, Object> response = restTemplate.postForObject(
                     localUrl,
                     request,
                     Map.class);
+            long end = System.currentTimeMillis();
+
+            log.info("<<< AI NODEJS RESPONSE RECEIVED IN {}ms", (end - start));
 
             if (response != null && response.containsKey("reply")) {
-                log.info("Local AI Fallback successful.");
                 Object replyObj = response.get("reply");
                 if (replyObj instanceof Map) {
-                    return (String) ((Map<?, ?>) replyObj).get("reply");
+                    String finalReply = (String) ((Map<?, ?>) replyObj).get("reply");
+                    log.info("AI Nodejs replied successfully (length: {})",
+                            finalReply != null ? finalReply.length() : 0);
+                    return finalReply;
                 }
                 return replyObj.toString();
             }
 
+            log.warn("AI Nodejs response is invalid or missing 'reply' field: {}", response);
             return "Dịch vụ AI hiện đang bảo trì. Vui lòng thử lại sau.";
         } catch (Exception e) {
-            log.error("Local AI Fallback failed (timeout or connection): {}", e.getMessage());
-            return null; // Trả về null để kích hoạt Fallback Database ở ChatServiceImpl
+            log.error("!!! AI NODEJS CALL FAILED: {} - Message: {}", e.getClass().getSimpleName(), e.getMessage());
+            return null;
         }
     }
 
