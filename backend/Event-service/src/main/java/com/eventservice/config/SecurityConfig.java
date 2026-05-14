@@ -43,19 +43,13 @@ public class SecurityConfig {
                                                 .sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                                 .authorizeHttpRequests(auth -> auth
                                                 .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
-
-                                                // 1. Admin restricted routes
                                                 .requestMatchers("/api/v1/events/admin/**")
                                                 .hasAnyRole("ADMIN", "SUPER_ADMIN")
                                                 .requestMatchers("/events/admin/**").hasAnyRole("ADMIN", "SUPER_ADMIN")
-
-                                                // 2. Specific Authenticated routes (Highest priority for these paths)
                                                 .requestMatchers("/events/my-events").authenticated()
                                                 .requestMatchers("/events/organizer-roles").authenticated()
                                                 .requestMatchers("/events/plans/my").authenticated()
                                                 .requestMatchers("/events/plans/status/**").authenticated()
-
-                                                // 3. Public routes
                                                 .requestMatchers(
                                                                 "/api/v1/chat/**",
                                                                 "/api/v1/ai-planning/**",
@@ -85,34 +79,6 @@ public class SecurityConfig {
                                                                 "/events/site-stats/**",
                                                                 "/error")
                                                 .permitAll()
-
-                                                // 4. Public GET routes for events (Narrowed to avoid matching private
-                                                // routes)
-                                                // .requestMatchers(new AntPathRequestMatcher("/events", "GET"))
-                                                // .permitAll()
-                                                // .requestMatchers(new AntPathRequestMatcher("/events/ongoing", "GET"))
-                                                // .permitAll()
-                                                // .requestMatchers(new AntPathRequestMatcher("/events/upcoming-week",
-                                                // "GET"))
-                                                // .permitAll()
-                                                // .requestMatchers(new AntPathRequestMatcher("/events/featured",
-                                                // "GET"))
-                                                // .permitAll()
-                                                // .requestMatchers(new AntPathRequestMatcher("/events/news", "GET"))
-                                                // .permitAll()
-                                                // .requestMatchers(new AntPathRequestMatcher("/events/plans", "GET"))
-                                                // .permitAll()
-                                                // .requestMatchers(new AntPathRequestMatcher("/events/{id}", "GET"))
-                                                // .permitAll()
-
-                                                // .requestMatchers(new AntPathRequestMatcher("/quizzes/**", "GET"))
-                                                // .permitAll()
-                                                // .requestMatchers(new AntPathRequestMatcher("/surveys/**", "GET"))
-                                                // .permitAll()
-                                                // .requestMatchers(new AntPathRequestMatcher("/posts/**", "GET"))
-                                                // .permitAll()
-
-                                                // 5. Everything else
                                                 .anyRequest().authenticated())
                                 .oauth2ResourceServer(oauth2 -> oauth2
                                                 .jwt(jwt -> jwt.jwtAuthenticationConverter(
@@ -131,6 +97,7 @@ public class SecurityConfig {
                                 "/v3/api-docs/**",
                                 "/swagger-ui/**",
                                 "/swagger-ui.html",
+                                "/events/site-stats/**",
                                 "/api/v1/feedbacks/event/**");
         }
 

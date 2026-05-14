@@ -159,52 +159,73 @@ const CreatePost = () => {
     : 0;
 
   return (
-    <div className="min-h-screen bg-gray-50 p-4 md:p-6">
+    <div className="min-h-screen bg-slate-50 px-4 py-6 md:px-6">
       <div className="max-w-4xl mx-auto">
+        {/* Header */}
         <div className="mb-6">
           <button
             onClick={() => navigate(-1)}
-            className="flex items-center gap-2 text-gray-600 hover:text-gray-900 mb-3 text-sm font-medium"
+            className="inline-flex items-center gap-2 text-sm font-medium text-slate-500 hover:text-[#1E40AF] transition-colors mb-4"
           >
             <ArrowLeft size={18} />
-            <span>Quay lại</span>
+            Quay lại
           </button>
-          <h1 className="text-2xl font-bold text-gray-900">Tạo bài viết mới</h1>
+
+          <div>
+            <h1 className="text-2xl font-semibold text-slate-900">
+              Tạo bài viết mới
+            </h1>
+            <p className="text-sm text-slate-500 mt-1">
+              Nhập thông tin bài viết và chọn sự kiện áp dụng
+            </p>
+          </div>
         </div>
 
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 space-y-6">
+        {/* Form */}
+        <div className="bg-white rounded-2xl border border-slate-200 p-6 space-y-6">
           <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">
+            <label className="block text-sm font-medium text-slate-700 mb-2">
               Tiêu đề bài viết *
             </label>
+
             <input
               type="text"
               name="title"
               value={formData.title}
               onChange={handleInputChange}
-              className={`w-full px-4 py-2.5 border rounded-lg focus:ring-2 focus:ring-blue-500 text-sm ${errors.title ? "border-red-300" : "border-gray-300"}`}
+              className={`w-full h-11 px-4 rounded-xl border text-sm outline-none transition-all ${errors.title
+                ? "border-red-300 focus:border-red-400"
+                : "border-slate-200 focus:border-[#1E40AF]"
+                }`}
+              placeholder="Nhập tiêu đề bài viết"
             />
-            <div className="flex justify-between mt-1">
+
+            <div className="flex justify-between mt-1.5">
               {errors.title && (
                 <p className="text-xs text-red-500 flex items-center gap-1">
                   <AlertCircle size={12} /> {errors.title}
                 </p>
               )}
-              <p className="text-xs text-gray-500 ml-auto">
+
+              <p className="text-xs text-slate-400 ml-auto">
                 {formData.title.length}/100
               </p>
             </div>
           </div>
 
           <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">
+            <label className="block text-sm font-medium text-slate-700 mb-2">
               Sự kiện áp dụng *
             </label>
+
             <select
               name="eventId"
               value={formData.eventId}
               onChange={handleInputChange}
-              className={`w-full px-4 py-2.5 border rounded-lg focus:ring-2 focus:ring-blue-500 text-sm ${errors.eventId ? "border-red-300" : "border-gray-300"}`}
+              className={`w-full h-11 px-4 rounded-xl border text-sm outline-none bg-white transition-all ${errors.eventId
+                ? "border-red-300 focus:border-red-400"
+                : "border-slate-200 focus:border-[#1E40AF]"
+                }`}
             >
               <option value="">-- Chọn sự kiện --</option>
               {userEvents.map((ev) => (
@@ -213,8 +234,9 @@ const CreatePost = () => {
                 </option>
               ))}
             </select>
+
             {errors.eventId && (
-              <p className="text-xs text-red-500 flex items-center gap-1 mt-1">
+              <p className="text-xs text-red-500 flex items-center gap-1 mt-1.5">
                 <AlertCircle size={12} /> {errors.eventId}
               </p>
             )}
@@ -222,14 +244,18 @@ const CreatePost = () => {
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-slate-700 mb-2">
                 Danh mục *
               </label>
+
               <select
                 name="category"
                 value={formData.category}
                 onChange={handleInputChange}
-                className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm"
+                className={`w-full h-11 px-4 rounded-xl border text-sm outline-none bg-white transition-all ${errors.category
+                  ? "border-red-300 focus:border-red-400"
+                  : "border-slate-200 focus:border-[#1E40AF]"
+                  }`}
               >
                 <option value="">-- Chọn danh mục --</option>
                 {categories.map((cat) => (
@@ -238,54 +264,77 @@ const CreatePost = () => {
                   </option>
                 ))}
               </select>
+
+              {errors.category && (
+                <p className="text-xs text-red-500 flex items-center gap-1 mt-1.5">
+                  <AlertCircle size={12} /> {errors.category}
+                </p>
+              )}
             </div>
 
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-slate-700 mb-2">
                 Đối tượng xem *
               </label>
-              <div className="space-y-2">
-                {visibilityOptions.map((opt) => (
-                  <label
-                    key={opt.id}
-                    className="flex items-center gap-2 cursor-pointer"
-                  >
-                    <input
-                      type="checkbox"
-                      checked={formData.visibility.includes(opt.id)}
-                      onChange={() => handleVisibilityChange(opt.id)}
-                      className="w-4 h-4 text-blue-600 rounded"
-                    />
-                    <span className="text-sm text-gray-700">{opt.label}</span>
-                  </label>
-                ))}
+
+              <div className="grid grid-cols-2 gap-2">
+                {visibilityOptions.map((opt) => {
+                  const checked = formData.visibility.includes(opt.id);
+
+                  return (
+                    <button
+                      key={opt.id}
+                      type="button"
+                      onClick={() => handleVisibilityChange(opt.id)}
+                      className={`h-10 rounded-xl border text-sm font-medium transition-all ${checked
+                        ? "bg-blue-50 border-blue-200 text-[#1E40AF]"
+                        : "bg-white border-slate-200 text-slate-600 hover:bg-slate-50"
+                        }`}
+                    >
+                      {opt.label}
+                    </button>
+                  );
+                })}
               </div>
+
+              {errors.visibility && (
+                <p className="text-xs text-red-500 flex items-center gap-1 mt-1.5">
+                  <AlertCircle size={12} /> {errors.visibility}
+                </p>
+              )}
             </div>
           </div>
 
           <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">
+            <label className="block text-sm font-medium text-slate-700 mb-2">
               Ảnh đại diện
             </label>
+
             {formData.thumbnail ? (
-              <div className="flex items-start gap-3">
+              <div className="flex items-start gap-4">
                 <img
                   src={formData.thumbnail}
                   alt="Preview"
-                  className="w-32 h-32 object-cover rounded-lg border"
+                  className="w-32 h-32 object-cover rounded-xl border border-slate-200"
                 />
+
                 <button
                   onClick={() =>
-                    setFormData((prev) => ({ ...prev, thumbnail: null }))
+                    setFormData((prev) => ({
+                      ...prev,
+                      thumbnail: null,
+                    }))
                   }
-                  className="text-red-600 text-sm flex items-center gap-1"
+                  className="inline-flex items-center gap-1.5 text-sm font-medium text-red-500 hover:text-red-600"
                 >
-                  <X size={14} /> Xóa
+                  <X size={15} />
+                  Xóa ảnh
                 </button>
               </div>
             ) : (
-              <label className="inline-flex items-center gap-2 px-4 py-2.5 border border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50 text-sm font-medium">
-                <Upload size={16} /> Chọn ảnh
+              <label className="inline-flex items-center gap-2 h-11 px-4 rounded-xl border border-slate-200 bg-white text-sm font-medium text-slate-600 hover:bg-slate-50 cursor-pointer transition-colors">
+                <Upload size={16} className="text-[#1E40AF]" />
+                Chọn ảnh
                 <input
                   type="file"
                   accept="image/*"
@@ -297,35 +346,53 @@ const CreatePost = () => {
           </div>
 
           <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">
+            <label className="block text-sm font-medium text-slate-700 mb-2">
               Nội dung *
             </label>
+
             <textarea
               name="content"
               value={formData.content}
               onChange={handleInputChange}
               rows={10}
-              className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 text-sm ${errors.content ? "border-red-300" : "border-gray-300"}`}
+              className={`w-full px-4 py-3 rounded-xl border text-sm outline-none resize-none transition-all ${errors.content
+                ? "border-red-300 focus:border-red-400"
+                : "border-slate-200 focus:border-[#1E40AF]"
+                }`}
+              placeholder="Nhập nội dung bài viết..."
             />
-            <p className="text-xs text-gray-500 text-right mt-1">
-              {wordCount} từ
-            </p>
+
+            <div className="flex justify-between mt-1.5">
+              {errors.content && (
+                <p className="text-xs text-red-500 flex items-center gap-1">
+                  <AlertCircle size={12} /> {errors.content}
+                </p>
+              )}
+
+              <p className="text-xs text-slate-400 ml-auto">
+                {wordCount} từ
+              </p>
+            </div>
           </div>
 
-          <div className="flex flex-col sm:flex-row gap-3 pt-4 border-t">
+          {/* Actions */}
+          <div className="flex flex-col sm:flex-row gap-3 pt-5 border-t border-slate-100">
             <button
               onClick={() => handleSubmit("Published")}
               disabled={isSubmitting}
-              className="flex-1 flex items-center justify-center gap-2 px-6 py-2.5 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 disabled:bg-gray-400 text-sm"
+              className="flex-1 h-11 rounded-xl bg-[#1E40AF] text-white text-sm font-semibold hover:bg-blue-800 disabled:bg-slate-300 transition-all flex items-center justify-center gap-2"
             >
-              <Send size={16} /> {isSubmitting ? "Đang xử lý..." : "Đăng bài"}
+              <Send size={16} />
+              {isSubmitting ? "Đang xử lý..." : "Đăng bài"}
             </button>
+
             <button
               onClick={() => handleSubmit("Draft")}
               disabled={isSubmitting}
-              className="flex-1 flex items-center justify-center gap-2 px-6 py-2.5 bg-gray-200 text-gray-700 rounded-lg font-semibold hover:bg-gray-300 text-sm"
+              className="flex-1 h-11 rounded-xl bg-slate-100 text-slate-700 text-sm font-semibold hover:bg-slate-200 disabled:opacity-60 transition-all flex items-center justify-center gap-2"
             >
-              <Save size={16} /> Lưu nháp
+              <Save size={16} />
+              Lưu nháp
             </button>
           </div>
         </div>

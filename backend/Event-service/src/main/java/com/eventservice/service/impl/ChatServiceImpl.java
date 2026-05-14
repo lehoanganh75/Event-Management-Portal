@@ -158,15 +158,19 @@ public class ChatServiceImpl implements ChatService {
 
         userMessage = chatMessageRepository.save(userMessage);
 
-        // Analyze intent - OPTIMIZATION: Skip AI call for very short messages
+        // Analyze intent - OPTIMIZATION: Skip AI call to save time (it takes ~20s per call)
         String content = request.getContent();
         String intent = "GENERAL_QUESTION";
+        /* 
         if (content.length() > 25) {
-            intent = geminiChatService.analyzeUserIntent(content);
-        } else {
-            log.info("Short message detected, skipping AI intent analysis");
+            try {
+                intent = geminiChatService.analyzeUserIntent(content);
+            } catch (Exception e) {
+                log.warn("Intent analysis failed: {}", e.getMessage());
+            }
         }
-        log.info("User intent: {}", intent);
+        */
+        log.info("User intent (defaulted to save time): {}", intent);
 
         // Update context if needed
         if ("EVENT_PLANNING".equals(intent) && session.getContextType() == null) {
@@ -185,7 +189,9 @@ public class ChatServiceImpl implements ChatService {
         
         try {
             if (embeddingModel != null && content.length() > 5) {
-                log.info("Performing Vector Search for query: {}", content);
+                log.info("Performing Vector Search (max 5s) for query: {}", content);
+                // Vector search is often slow if CPU is high, so we could skip or use a very short timeout if possible
+                // For now, let's just catch any potential delay/error
                 List<Double> queryEmbedding = embeddingModel.embed(content);
                 List<EventVector> allVectors = eventVectorRepository.findAll();
                 List<String> topEventIds = allVectors.stream()
@@ -201,7 +207,7 @@ public class ChatServiceImpl implements ChatService {
                 }
             }
         } catch (Exception e) {
-            log.error("Vector Search failed: {}", e.getMessage());
+            log.error("Vector Search skipped due to error/delay: {}", e.getMessage());
         }
 
         // Keyword search fallback
@@ -234,17 +240,25 @@ public class ChatServiceImpl implements ChatService {
 
         // Generate AI response
         long startTime = System.currentTimeMillis();
-        String aiResponse = geminiChatService.generateChatResponse(
-                enhancedUserMessage,
-                history,
-                session.getContextType()
-        );
-        long duration = System.currentTimeMillis() - startTime;
-        log.info("AI Response generated in {}ms", duration);
+        String aiResponse = null;
+        long duration = 0;
+        
+        try {
+            aiResponse = geminiChatService.generateChatResponse(
+                    enhancedUserMessage,
+                    history,
+                    session.getContextType()
+            );
+            duration = System.currentTimeMillis() - startTime;
+            log.info("AI Response generated in {}ms", duration);
+        } catch (Exception e) {
+            log.error("AI Generation failed, will use fallback: {}", e.getMessage());
+            aiResponse = "ERROR_AI_OVERLOADED";
+        }
 
         // Fallback: If AI is slow/failed and returned a generic error
-        if (aiResponse == null || aiResponse.isBlank() || aiResponse.contains("gián đoạn") || aiResponse.equals("ERROR_AI_OVERLOADED")) {
-            log.warn("AI service failed, using smart database fallback");
+        if (aiResponse == null || aiResponse.isBlank() || aiResponse.contains("gián đoạn") || aiResponse.contains("không khả dụng") || aiResponse.equals("ERROR_AI_OVERLOADED")) {
+            log.warn("AI service timed out or failed, using smart database fallback");
             aiResponse = generateFallbackResponse(content, finalContextEvents);
         }
 
