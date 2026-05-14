@@ -70,7 +70,7 @@ const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 let genAI = null;
 if (GEMINI_API_KEY) {
   // Ép sử dụng phiên bản v1 ổn định thay vì v1beta
-  genAI = new GoogleGenerativeAI(GEMINI_API_KEY); 
+  genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
   console.log("✨ Gemini AI is enabled and ready.");
 } else {
   console.log("⚠️ GEMINI_API_KEY not found. Falling back to local Ollama.");
@@ -119,11 +119,11 @@ app.post("/chat", async (req, res) => {
     }
 
     const systemInstruction = `Bạn là trợ lý AI chuyên gia của hệ thống Quản lý Sự kiện IUH.
-Hãy trả lời ngắn gọn, thân thiện và chuyên nghiệp. 
-${dbContext ? "Dữ liệu sự kiện hiện có:\n" + dbContext : ""}
-${pdfContext ? "Nội dung tài liệu đính kèm:\n" + pdfContext.substring(0, 5000) : ""}
-Nếu người dùng chào hỏi, hãy chào lại và giới thiệu ngắn gọn bạn có thể giúp gì (tìm sự kiện, giải đáp thắc mắc).
-Nếu trích xuất JSON, hãy CHỈ trả về code JSON.`;
+    Hãy trả lời ngắn gọn, thân thiện và chuyên nghiệp. 
+    ${dbContext ? "Dữ liệu sự kiện hiện có:\n" + dbContext : ""}
+    ${pdfContext ? "Nội dung tài liệu đính kèm:\n" + pdfContext.substring(0, 5000) : ""}
+    Nếu người dùng chào hỏi, hãy chào lại và giới thiệu ngắn gọn bạn có thể giúp gì (tìm sự kiện, giải đáp thắc mắc).
+    Nếu trích xuất JSON, hãy CHỈ trả về code JSON.`;
 
     let finalResponse = "";
 
