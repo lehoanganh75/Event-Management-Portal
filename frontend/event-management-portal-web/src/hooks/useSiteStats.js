@@ -1,96 +1,72 @@
 import { useState, useEffect, useRef } from "react";
+import axios from "axios";
 
 const BASE_VISITS = 288_704_603;
-const BASE_ONLINE = 218;
-const STORAGE_KEY = "iuh_site_stats";
+const BASE_ONLINE = 212;
+const API_URL = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000') + '/events/site-stats';
 
 /**
- * Simulates realtime site stats:
- * - totalVisits: persisted in localStorage, increments on each new session
- * - online: fluctuates randomly around a base value every few seconds
+ * Realtime site stats fetching from backend Redis:
+ * - totalVisits: increments on each new session
+ * - online: tracks active heartbeats
  */
 export function useSiteStats() {
-  const initStats = () => {
-    try {
-      const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || "{}");
-      const visits = saved.visits || BASE_VISITS;
-      const sessionCounted = sessionStorage.getItem("iuh_session_counted");
+  const [totalVisits, setTotalVisits] = useState(BASE_VISITS);
+  const [online, setOnline] = useState(BASE_ONLINE);
+  const [displayVisits, setDisplayVisits] = useState(BASE_VISITS);
+  const animRef = useRef(null);
+  const sessionIdRef = useRef(null);
 
-      if (!sessionCounted) {
-        // New session → increment visits
-        const newVisits = visits + 1;
-        localStorage.setItem(STORAGE_KEY, JSON.stringify({ visits: newVisits }));
-        sessionStorage.setItem("iuh_session_counted", "1");
-        return newVisits;
-      }
-      return visits;
-    } catch {
-      return BASE_VISITS;
+  // Initialize session ID
+  if (!sessionIdRef.current) {
+    let sid = sessionStorage.getItem("site_session_id");
+    if (!sid) {
+      sid = Math.random().toString(36).substring(2) + Date.now().toString(36);
+      sessionStorage.setItem("site_session_id", sid);
+      
+      // First visit for this session
+      axios.post(`${API_URL}/visit`).catch(() => {});
+    }
+    sessionIdRef.current = sid;
+  }
+
+  const fetchStats = async () => {
+    try {
+      const response = await axios.post(`${API_URL}/heartbeat?sessionId=${sessionIdRef.current}`);
+      const { totalVisits: tv, online: onl } = response.data;
+      setTotalVisits(tv);
+      setOnline(onl);
+    } catch (err) {
+      // Fallback or ignore
     }
   };
 
-  const [totalVisits, setTotalVisits] = useState(initStats);
-  const [online, setOnline] = useState(BASE_ONLINE);
-  const [displayVisits, setDisplayVisits] = useState(totalVisits);
-  const animRef = useRef(null);
+  // ── Initial Fetch & Heartbeat ──────────────────────────────────────────
+  useEffect(() => {
+    fetchStats();
+    const interval = setInterval(fetchStats, 15000); // Heartbeat every 15s
+    return () => clearInterval(interval);
+  }, []);
 
-  // ── Animate visit counter on mount ──────────────────────────────────────────
+  // ── Animate visit counter on change ──────────────────────────────────────────
   useEffect(() => {
     const target = totalVisits;
-    const start = target - 120; // animate last 120 numbers
+    const start = displayVisits;
     let current = start;
 
     const step = () => {
-      current += Math.ceil((target - current) / 8);
-      setDisplayVisits(current);
-      if (current < target) {
-        animRef.current = requestAnimationFrame(step);
-      } else {
+      if (Math.abs(target - current) < 1) {
         setDisplayVisits(target);
+        return;
       }
+      current += (target - current) / 10;
+      setDisplayVisits(Math.round(current));
+      animRef.current = requestAnimationFrame(step);
     };
 
     animRef.current = requestAnimationFrame(step);
     return () => cancelAnimationFrame(animRef.current);
   }, [totalVisits]);
-
-  // ── Fluctuate online count every 4-8 seconds ─────────────────────────────
-  useEffect(() => {
-    const tick = () => {
-      setOnline((prev) => {
-        // Random walk: ±1 to ±5, clamped between 150 and 400
-        const delta = Math.floor(Math.random() * 11) - 5; // -5 to +5
-        return Math.min(400, Math.max(150, prev + delta));
-      });
-    };
-
-    const schedule = () => {
-      const delay = 4000 + Math.random() * 4000; // 4-8s
-      return setTimeout(() => {
-        tick();
-        const id = schedule();
-        return id;
-      }, delay);
-    };
-
-    const id = schedule();
-    return () => clearTimeout(id);
-  }, []);
-
-  // ── Increment visits slowly over time (simulate other users) ─────────────
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setTotalVisits((prev) => {
-        const newVal = prev + 1;
-        try {
-          localStorage.setItem(STORAGE_KEY, JSON.stringify({ visits: newVal }));
-        } catch {}
-        return newVal;
-      });
-    }, 30_000); // +1 every 30s
-
-    return () => clearInterval(interval);
-  }, []);
 
   return {
     totalVisits: displayVisits,

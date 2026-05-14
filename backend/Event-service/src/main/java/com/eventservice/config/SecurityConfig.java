@@ -82,6 +82,7 @@ public class SecurityConfig {
                                                                 "/posts/**",
                                                                 "/api/v1/feedbacks/event/**",
                                                                 "/ws/chat/**",
+                                                                "/events/site-stats/**",
                                                                 "/error")
                                                 .permitAll()
 
