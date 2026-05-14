@@ -648,18 +648,15 @@ public class GeminiChatServiceImpl implements GeminiChatService {
                             Bạn là một chuyên gia truyền thông sự kiện xuất sắc.
 
                             [TASK]
-                            Dựa trên thông tin sự kiện dưới đây, hãy viết một bài đăng truyền thông hấp dẫn để thu hút người tham gia.
+                            Dựa trên thông tin sự kiện dưới đây, hãy viết một bài đăng truyền thông (Facebook/LinkedIn) hấp dẫn.
 
                             Thông tin sự kiện:
                             %s
 
-                            [OUTPUT FORMAT - JSON ONLY]
-                            {
-                              "title": "Tiêu đề bài đăng thật thu hút (khoảng 5-10 từ)",
-                              "content": "Nội dung bài đăng gồm 3 phần: Mở đầu gây chú ý, Thông tin cốt lõi, và Lời kêu gọi hành động (Call to action). Sử dụng emoji phù hợp."
-                            }
-
-                            Lưu ý: Chỉ trả về JSON hợp lệ.
+                            [RULES]
+                            - Trả về DUY NHẤT JSON.
+                            - Cấu trúc: {"title": "...", "content": "..."}
+                            - QUAN TRỌNG: Nếu trong nội dung có dùng dấu ngoặc kép, hãy dùng dấu ngoặc đơn '' hoặc dùng gạch chéo \\" để escape.
                             """,
                     eventDetails);
 
