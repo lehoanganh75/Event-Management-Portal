@@ -51,7 +51,7 @@ export const NotificationProvider = ({ children }) => {
     useEffect(() => {
         const userId = user?.id || user?.accountId;
         if (isAuthenticated && userId) {
-            const wsBaseUrl = import.meta.env.VITE_API_BASE_URL || "http://localhost:8000";
+            const wsBaseUrl = import.meta.env.VITE_API_BASE_URL || "https://fitiuh-events.io.vn";
             const wsBrokerUrl = wsBaseUrl.replace(/^http/, "ws") + "/notification/ws";
             // SockJS must use http/https
             const sockJsUrl = wsBaseUrl.replace(/^ws/, "http") + "/notification/ws";

@@ -3,7 +3,7 @@ import axios from "axios";
 
 const BASE_VISITS = 288_704_603;
 const BASE_ONLINE = 212;
-const API_URL = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000') + '/events/site-stats';
+const API_URL = (import.meta.env.VITE_API_BASE_URL || 'https://fitiuh-events.io.vn') + '/events/site-stats';
 
 /**
  * Realtime site stats fetching from backend Redis:
@@ -78,3 +78,4 @@ export function useSiteStats() {
 export function formatCount(n) {
   return n.toLocaleString("en-US");
 }
+

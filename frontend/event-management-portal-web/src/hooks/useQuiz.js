@@ -13,7 +13,7 @@ export const useQuiz = (eventId) => {
         if (!eventId) return;
 
         const client = new Client({
-            webSocketFactory: () => new SockJS("http://localhost:8000/ws/chat"),
+            webSocketFactory: () => new SockJS("https://fitiuh-events.io.vn/ws/chat"),
             reconnectDelay: 5000,
             onConnect: () => {
                 console.log("✅ [Quiz WS] Connected for Event:", eventId);
@@ -83,3 +83,4 @@ export const useQuiz = (eventId) => {
 
     return { quizState, leaderboard, participants, activeQuizId, joinQuiz, leaveQuiz, closeQuiz };
 };
+

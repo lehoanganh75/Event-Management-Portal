@@ -1,7 +1,7 @@
 import { Client } from '@stomp/stompjs';
 import SockJS from 'sockjs-client';
 
-const WS_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
+const WS_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://fitiuh-events.io.vn';
 // SockJS requires http/https, not ws/wss
 const SOCKJS_URL = WS_BASE_URL.replace(/^ws/, 'http') + '/ws/chat';
 
@@ -32,3 +32,4 @@ export const createStompClient = (onConnect, onDisconnect) => {
 
   return client;
 };
+
