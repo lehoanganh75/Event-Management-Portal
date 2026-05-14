@@ -123,7 +123,7 @@ const eventService = {
     },
     getByStatus: (status) => {
         const statuses = status.split(',').map(s => s.trim().toUpperCase());
-        return privateApi.get('/events/by-statuses', { 
+        return privateApi.get('/events/by-statuses', {
             params: { statuses },
             paramsSerializer: {
                 indexes: null // Tránh statuses[0]=... mà dùng statuses=...
@@ -342,18 +342,20 @@ const eventService = {
         createSession: (data) => {
             const token = localStorage.getItem('accessToken');
             const api = token ? privateApi : publicApi;
-            return api.post('/api/v1/chat/sessions', data);
+            return api.post('/api/v1/chat/sessions', data, { timeout: 60000 });
         },
         sendMessage: (data) => {
             const token = localStorage.getItem('accessToken');
             const api = token ? privateApi : publicApi;
-            return api.post('/api/v1/chat/messages', data);
+            return api.post('/api/v1/chat/messages', data, { timeout: 60000 });
         },
         analyzeStats: (statsJson) => privateApi.post('/api/v1/chat/analyze-stats', statsJson, {
-            headers: { 'Content-Type': 'text/plain' }
+            headers: { 'Content-Type': 'text/plain' },
+            timeout: 60000
         }),
         extractFromText: (text) => privateApi.post('/api/v1/chat/extract-from-text', text, {
-            headers: { 'Content-Type': 'text/plain' }
+            headers: { 'Content-Type': 'text/plain' },
+            timeout: 60000
         }),
         generateMediaPost: (eventDetails) => privateApi.post('/events/ai/generate-post', { eventDetails }),
     },
@@ -367,7 +369,7 @@ const eventService = {
                 headers: { 'Content-Type': 'multipart/form-data' }
             });
         },
-        chat: (prompt) => axios.post('http://localhost:3000/chat', { prompt }),
+        chat: (prompt) => axios.post('http://localhost:3000/chat', { prompt }, { timeout: 60000 }),
     },
 
     // --- GROUP 11: UTILS ---

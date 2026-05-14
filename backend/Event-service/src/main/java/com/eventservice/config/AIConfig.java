@@ -16,8 +16,8 @@ public class AIConfig {
     @Bean
     public RestTemplate restTemplate() {
         org.springframework.http.client.SimpleClientHttpRequestFactory factory = new org.springframework.http.client.SimpleClientHttpRequestFactory();
-        factory.setConnectTimeout(60000); // 60 giây kết nối
-        factory.setReadTimeout(60000);    // 60 giây chờ phản hồi
+        factory.setConnectTimeout(55000); // 55 giây kết nối
+        factory.setReadTimeout(55000); // 55 giây chờ AI xử lý
         return new RestTemplate(factory);
     }
 }

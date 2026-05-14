@@ -103,7 +103,7 @@ services:
       SPRING_DATA_REDIS_PORT: 6379
       IDENTITY_SERVICE_URL: http://identity-service:8083
       LUCKY_DRAW_SERVICE_URL: http://lucky-draw-service:8084
-      LOCAL_AI_URL: http://host.docker.internal:3000
+      LOCAL_AI_URL: http://ai-event-management:3000
       JWT_SECRET: ouhPBmsFWNGn1/QKWEsm/2WMB4CAt4yFGv/3qYaWD4xa5DmoBD/ACvY3oVcBZmsVLl03mVuRLJ9QsKoA3Q0osg==
       PORT: 8082
     depends_on:
@@ -168,6 +168,62 @@ services:
     depends_on:
       - mariadb
       - kafka
+    networks:
+      - micro-network
+
+  # ========================
+  # AI & OLLAMA SERVICES
+  # ========================
+  ollama:
+    image: ollama/ollama:latest
+    container_name: ollama-server
+    restart: always
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+    networks:
+      - micro-network
+
+  ollama-setup:
+    image: ollama/ollama:latest
+    container_name: ollama-setup
+    volumes:
+      - ./AI-Event-Management/Modelfile:/Modelfile
+      - ollama_data:/root/.ollama
+    environment:
+      - OLLAMA_HOST=ollama:11434
+    entrypoint: /bin/sh
+    command:
+      - "-c"
+      - |
+        echo "Waiting for Ollama server to start..."
+        until ollama list > /dev/null 2>&1; do
+          echo "Ollama server is not ready yet, sleeping 5s..."
+          sleep 5
+        done
+        echo "Ollama server is up!"
+        echo "Pulling qwen2.5:3b model..."
+        ollama pull qwen2.5:3b
+        echo "Creating event-assistant model..."
+        ollama create event-assistant -f /Modelfile
+        echo "Ollama setup complete!"
+    depends_on:
+      - ollama
+    networks:
+      - micro-network
+
+  ai-event-management:
+    build: ./AI-Event-Management
+    container_name: ai-event-management
+    restart: always
+    ports:
+      - "3000:3000"
+    env_file:
+      - ./AI-Event-Management/.env
+    depends_on:
+      - mariadb
+      - ollama-setup
     networks:
       - micro-network
 
@@ -239,3 +295,4 @@ networks:
 volumes:
   mariadb_data:
   mongo_data:
+  ollama_data:

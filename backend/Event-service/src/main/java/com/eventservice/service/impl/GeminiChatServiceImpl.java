@@ -341,7 +341,7 @@ public class GeminiChatServiceImpl implements GeminiChatService {
             // Sử dụng URL từ cấu hình (AppProperties)
             String localUrl = appProperties.getAi().getLocalUrl();
             if (localUrl == null || localUrl.isEmpty()) {
-                localUrl = "http://host.docker.internal:3000/chat";
+                localUrl = "http://ai-event-management:3000/chat";
             }
             
             // Đảm bảo có path /chat nếu chưa có
@@ -367,8 +367,8 @@ public class GeminiChatServiceImpl implements GeminiChatService {
             
             return "Dịch vụ AI hiện đang bảo trì. Vui lòng thử lại sau.";
         } catch (Exception e) {
-            log.error("Local AI Fallback also failed: {}", e.getMessage());
-            return "Hệ thống AI (cả Gemini và Local) hiện không khả dụng. Vui lòng kiểm tra lại kết nối.";
+            log.error("Local AI Fallback failed (timeout or connection): {}", e.getMessage());
+            return null; // Trả về null để kích hoạt Fallback Database ở ChatServiceImpl
         }
     }
 
