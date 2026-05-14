@@ -134,42 +134,53 @@ Nếu là yêu cầu trích xuất JSON, hãy CHỈ trả về JSON nguyên bả
 
     // --- CASE 1: USE GEMINI (FAST & CLOUD) ---
     if (genAI) {
-      console.log("Using Gemini AI...");
-      const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
-      const result = await model.generateContent([systemInstruction, userPrompt]);
-      finalResponse = result.response.text();
-    } 
-    // --- CASE 2: USE OLLAMA (LOCAL FALLBACK) ---
-    else {
-      console.log("Using Ollama (Fallback)...");
-      const OLLAMA_URL = process.env.OLLAMA_URL || "http://ollama:11434";
-      const response = await fetch(`${OLLAMA_URL}/api/generate`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          model: "event-assistant",
-          prompt: `${systemInstruction}\n\nNgười dùng: ${userPrompt}`,
-          stream: false,
-          options: {
-            temperature: isExtraction ? 0.1 : 0.7,
-            num_predict: isExtraction ? 1024 : 512,
-            num_ctx: 4096
-          }
-        })
-      });
-
-      if (!response.ok) throw new Error(`Ollama error: ${response.statusText}`);
-      const data = await response.json();
-      finalResponse = data.response;
+      try {
+        console.log("Using Gemini AI...");
+        const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+        const result = await model.generateContent([systemInstruction, userPrompt]);
+        finalResponse = result.response.text();
+      } catch (geminiError) {
+        console.error("Gemini runtime error, falling back to Ollama:", geminiError.message);
+        // Set genAI to null temporarily for this request to trigger Case 2
+        return await handleOllamaFallback(res, systemInstruction, userPrompt, isExtraction);
+      }
+    } else {
+      await handleOllamaFallback(res, systemInstruction, userPrompt, isExtraction);
     }
-
-    res.json({ reply: finalResponse });
-
   } catch (error) {
     console.error("AI Error:", error);
     res.status(500).json({ error: "AI error: " + error.message });
   }
 });
+
+// Helper function for Ollama fallback to avoid code duplication
+async function handleOllamaFallback(res, systemInstruction, userPrompt, isExtraction) {
+  try {
+    console.log("Using Ollama...");
+    const OLLAMA_URL = process.env.OLLAMA_URL || "http://ollama:11434";
+    const response = await fetch(`${OLLAMA_URL}/api/generate`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        model: "event-assistant",
+        prompt: `${systemInstruction}\n\nNgười dùng: ${userPrompt}`,
+        stream: false,
+        options: {
+          temperature: isExtraction ? 0.1 : 0.7,
+          num_predict: isExtraction ? 1024 : 512,
+          num_ctx: 4096
+        }
+      })
+    });
+
+    if (!response.ok) throw new Error(`Ollama error: ${response.statusText}`);
+    const data = await response.json();
+    res.json({ reply: data.response });
+  } catch (error) {
+    console.error("Ollama Fallback Error:", error);
+    res.status(500).json({ error: "AI error (both Gemini and Ollama failed): " + error.message });
+  }
+}
 
 // Default route to serve the UI
 app.get("/", (req, res) => {
