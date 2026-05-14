@@ -98,10 +98,10 @@ const PostManagement = ({
       const eventRes = await eventService.getEventById(postFormData.eventId);
       const event = eventRes.data;
 
-      const shortDesc = event.description?.length > 1000 
-        ? event.description.substring(0, 1000) + "..." 
+      const shortDesc = event.description?.length > 1000
+        ? event.description.substring(0, 1000) + "..."
         : event.description;
-      
+
       const eventDetails = `
         Tên sự kiện: ${event.title}
         Mô tả: ${shortDesc}
@@ -111,17 +111,21 @@ const PostManagement = ({
       `;
 
       const aiRes = await eventService.chat.generateMediaPost(eventDetails);
-      const rawResult = aiRes.data.result;
+      let rawResult = aiRes.data.reply?.reply || aiRes.data.result;
 
-      if (rawResult === "ERROR_AI_OVERLOADED") {
-        toast.error("Hệ thống AI đang quá tải, vui lòng thử lại sau vài giây.");
+      if (!rawResult) {
+        toast.error("Không nhận được phản hồi từ AI. Vui lòng thử lại.");
         return;
       }
+
+      // ✨ Dọn dẹp markdown nếu AI trả về dạng ```json ... ```
+      rawResult = rawResult.replace(/```json/g, "").replace(/```/g, "").trim();
 
       let result;
       try {
         result = JSON.parse(rawResult);
       } catch (parseErr) {
+        console.error("Parse AI JSON failed:", rawResult);
         toast.error("AI phản hồi không đúng định dạng. Vui lòng thử lại.");
         return;
       }
@@ -306,7 +310,7 @@ const PostManagement = ({
 
   return (
     <div className="p-6 bg-slate-50 min-h-screen text-left">
-      <PostFilters 
+      <PostFilters
         title={title}
         eventTitle={eventTitle}
         count={filteredPosts.length}
@@ -319,14 +323,14 @@ const PostManagement = ({
         postTypes={POST_TYPES}
       />
 
-      <PostStats 
+      <PostStats
         stats={stats}
         activeTab={activeTab}
         setActiveTab={setActiveTab}
         setCurrentPage={setCurrentPage}
       />
 
-      <PostTable 
+      <PostTable
         posts={paginatedPosts}
         loading={loading}
         postTypes={POST_TYPES}
@@ -349,13 +353,13 @@ const PostManagement = ({
         onDelete={(id) => { setPostToDelete(id); setIsDeleteModalOpen(true); }}
       />
 
-      <Pagination 
+      <Pagination
         currentPage={currentPage}
         totalPages={totalPages}
         setCurrentPage={setCurrentPage}
       />
 
-      <PostCreateModal 
+      <PostCreateModal
         isOpen={isCreateModalOpen}
         onClose={() => setIsCreateModalOpen(false)}
         user={user}
@@ -381,7 +385,7 @@ const PostManagement = ({
         resetForm={resetForm}
       />
 
-      <PostDeleteModal 
+      <PostDeleteModal
         isOpen={isDeleteModalOpen}
         onClose={() => setIsDeleteModalOpen(false)}
         onConfirm={async () => {

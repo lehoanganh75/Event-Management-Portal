@@ -21,6 +21,9 @@ import java.util.Map;
 public class AuthController {
     private final AuthService authService;
 
+    @org.springframework.beans.factory.annotation.Value("${app.frontend-url}")
+    private String frontendUrl;
+
     @GetMapping("/check-email")
     public ResponseEntity<Boolean> checkEmail(@RequestParam String email) {
         return ResponseEntity.ok(authService.existsByEmail(email));
@@ -56,12 +59,12 @@ public class AuthController {
     public void verifyToken(@RequestParam String token, HttpServletResponse response) throws IOException {
         try {
             Map<String, String> result = authService.checkEmailVerification(token);
-            String redirectUrl = "http://localhost:5173/login?verified=true&message=" +
+            String redirectUrl = frontendUrl + "/login?verified=true&message=" +
                     URLEncoder.encode(result.get("message"), StandardCharsets.UTF_8);
             response.sendRedirect(redirectUrl);
         } catch (Exception e) {
             String errorMsg = URLEncoder.encode("Có lỗi hệ thống. Vui lòng thử lại.", StandardCharsets.UTF_8);
-            response.sendRedirect("http://localhost:5173/login?verified=false&error=" + errorMsg);
+            response.sendRedirect(frontendUrl + "/login?verified=false&error=" + errorMsg);
         }
     }
 

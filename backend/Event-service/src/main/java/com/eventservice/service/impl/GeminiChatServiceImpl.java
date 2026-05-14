@@ -5,7 +5,7 @@ import com.eventservice.dto.ProgramItemSuggestion;
 import com.eventservice.entity.social.ChatMessage;
 import com.eventservice.entity.enums.ChatMessageRole;
 import com.eventservice.service.GeminiChatService;
-import com.eventservice.config.AppProperties;
+import org.springframework.beans.factory.annotation.Value;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
@@ -29,7 +29,9 @@ public class GeminiChatServiceImpl implements GeminiChatService {
     private final ChatClient chatClient;
     private final ObjectMapper objectMapper;
     private final RestTemplate restTemplate;
-    private final AppProperties appProperties;
+
+    @Value("${app.ai.local-url}")
+    private String localAiUrl;
 
     @Override
     public String generateChatResponse(String userMessage, List<ChatMessage> conversationHistory, String contextType) {
@@ -191,14 +193,15 @@ public class GeminiChatServiceImpl implements GeminiChatService {
         log.info("Starting AI extraction for text (length: {})", naturalLanguageInput.length());
         try {
             // Kiểm tra nếu đây là một prompt gợi ý trực tiếp từ Frontend
-            boolean isDirectPrompt = naturalLanguageInput.contains("gợi ý") || 
-                                   naturalLanguageInput.contains("tiêu đề") || 
-                                   naturalLanguageInput.length() < 500;
+            boolean isDirectPrompt = naturalLanguageInput.contains("gợi ý") ||
+                    naturalLanguageInput.contains("tiêu đề") ||
+                    naturalLanguageInput.length() < 500;
 
             if (isDirectPrompt) {
                 log.info("Detected direct suggestion prompt, bypassing DOCX template");
                 String response = callGeminiAPI(naturalLanguageInput);
-                // Trả về một object tối giản chứa nội dung gợi ý trong phần reasoning hoặc description
+                // Trả về một object tối giản chứa nội dung gợi ý trong phần reasoning hoặc
+                // description
                 return EventPlanSuggestion.builder()
                         .title("AI Suggestion")
                         .description(response) // Frontend sẽ đọc từ đây
@@ -292,17 +295,17 @@ public class GeminiChatServiceImpl implements GeminiChatService {
 
         String contextSpecific = switch (contextType) {
             case "EVENT_PLANNING" ->
-                    """
-    
-                            [CONTEXT: LẬP KẾ HOẠCH]
-                            Bạn đang hỗ trợ Admin xây dựng sự kiện. Hãy tư vấn về ý tưởng, nội dung và các bước tổ chức một cách sáng tạo.
-                            """;
+                """
+
+                        [CONTEXT: LẬP KẾ HOẠCH]
+                        Bạn đang hỗ trợ Admin xây dựng sự kiện. Hãy tư vấn về ý tưởng, nội dung và các bước tổ chức một cách sáng tạo.
+                        """;
             case "EVENT_INQUIRY" ->
-                    """
-    
-                            [CONTEXT: TÌM HIỂU SỰ KIỆN]
-                            Bạn đang hỗ trợ người dùng tìm kiếm niềm vui. Hãy giới thiệu sự kiện một cách lôi cuốn, nhấn mạnh vào giá trị mà họ nhận được.
-                            """;
+                """
+
+                        [CONTEXT: TÌM HIỂU SỰ KIỆN]
+                        Bạn đang hỗ trợ người dùng tìm kiếm niềm vui. Hãy giới thiệu sự kiện một cách lôi cuốn, nhấn mạnh vào giá trị mà họ nhận được.
+                        """;
             default -> "";
         };
 
@@ -324,47 +327,42 @@ public class GeminiChatServiceImpl implements GeminiChatService {
     }
 
     private String callGeminiAPI(String prompt) {
-        try {
-            log.info("Calling Gemini AI API...");
-            return chatClient.prompt()
-                    .user(prompt)
-                    .call()
-                    .content();
-        } catch (Exception e) {
-            log.warn("Gemini AI service call failed or overloaded: {}. Switching to local AI fallback...", e.getMessage());
-            return callLocalAI(prompt);
-        }
+        log.info("Redirecting AI request to Local AI (Node.js)...");
+        return callLocalAI(prompt);
     }
 
     private String callLocalAI(String prompt) {
         try {
-            // Sử dụng URL từ cấu hình (AppProperties)
-            String localUrl = appProperties.getAi().getLocalUrl();
+            // Sử dụng URL từ cấu hình
+            String localUrl = localAiUrl;
             if (localUrl == null || localUrl.isEmpty()) {
-                localUrl = "http://ai-event-management:3000/chat";
+                localUrl = "http://ai-event-management:3000/api/chat";
             }
-            
+
             // Đảm bảo có path /chat nếu chưa có
             if (!localUrl.endsWith("/chat")) {
                 localUrl = localUrl.endsWith("/") ? localUrl + "chat" : localUrl + "/chat";
             }
 
             log.info("Calling Local AI Fallback at: {}", localUrl);
-            
+
             Map<String, String> request = new HashMap<>();
             request.put("prompt", prompt);
 
             Map<String, Object> response = restTemplate.postForObject(
                     localUrl,
                     request,
-                    Map.class
-            );
+                    Map.class);
 
             if (response != null && response.containsKey("reply")) {
                 log.info("Local AI Fallback successful.");
-                return (String) response.get("reply");
+                Object replyObj = response.get("reply");
+                if (replyObj instanceof Map) {
+                    return (String) ((Map<?, ?>) replyObj).get("reply");
+                }
+                return replyObj.toString();
             }
-            
+
             return "Dịch vụ AI hiện đang bảo trì. Vui lòng thử lại sau.";
         } catch (Exception e) {
             log.error("Local AI Fallback failed (timeout or connection): {}", e.getMessage());
@@ -418,7 +416,8 @@ public class GeminiChatServiceImpl implements GeminiChatService {
                     .purpose(root.path("purpose").asText(root.path("eventPurpose").asText(null)))
                     .description(root.path("description").asText(null))
                     .suggestedLocation(root.path("suggestedLocation").asText(root.path("location").asText(null)))
-                    .estimatedParticipants(root.path("estimatedParticipants").asInt(root.path("maxParticipants").asInt(0)))
+                    .estimatedParticipants(
+                            root.path("estimatedParticipants").asInt(root.path("maxParticipants").asInt(0)))
                     .confidenceScore(root.path("confidenceScore").asDouble(0.0))
                     .reasoning(root.path("reasoning").asText(null))
                     .additionalData(new HashMap<>())
@@ -444,7 +443,7 @@ public class GeminiChatServiceImpl implements GeminiChatService {
                         try {
                             String startTimeStr = item.path("startTime").asText(null);
                             String endTimeStr = item.path("endTime").asText(null);
-                            
+
                             ProgramItemSuggestion programItem = ProgramItemSuggestion.builder()
                                     .title(item.path("title").asText("Không tên"))
                                     .description(item.path("description").asText(""))
@@ -455,7 +454,7 @@ public class GeminiChatServiceImpl implements GeminiChatService {
                                     .endTime(parseFlexibleDateTime(endTimeStr))
                                     .durationMinutes(item.path("durationMinutes").asInt(30))
                                     .build();
-                            
+
                             items.add(programItem);
                         } catch (Exception e) {
                             log.warn("Error parsing program item: {}", e.getMessage());
@@ -513,7 +512,7 @@ public class GeminiChatServiceImpl implements GeminiChatService {
 
     @Override
     public EventPlanSuggestion generatePlanFromTemplate(String templateName, String templateDescription,
-                                                         String userContext) {
+            String userContext) {
         String prompt = String.format("""
                 Bạn là chuyên gia lập kế hoạch sự kiện chuyên nghiệp.
                 Hãy tạo một bản kế hoạch chi tiết dựa trên mẫu sau:
@@ -597,26 +596,28 @@ public class GeminiChatServiceImpl implements GeminiChatService {
     public String analyzeEventStatistics(String eventDataJson) {
         log.info("Requesting AI to analyze event statistics");
         try {
-            String prompt = String.format("""
-                [ROLE]
-                Bạn là Chuyên gia Phân tích Dữ liệu Sự kiện (Event Data Analyst).
-                
-                [INPUT DATA - JSON]
-                %s
-                
-                [GOAL]
-                Dựa trên dữ liệu thực tế của sự kiện, hãy đưa ra các đánh giá thông minh, trung thực và có giá trị chuyên môn.
-                
-                [OUTPUT FORMAT - JSON ONLY]
-                {
-                  "summary": "Đánh giá tổng quát (khoảng 2-3 câu, nêu bật hiệu quả)",
-                  "recommendation": "Lời khuyên hành động (ví dụ: Mở rộng quy mô, Tăng cường truyền thông...)",
-                  "highlight": "Điểm sáng nhất của sự kiện (ví dụ: Tỷ lệ check-in cao, Phản hồi tích cực...)",
-                  "lessonsLearned": "Phân tích sâu và bài học rút ra (đoạn văn dài hơn, mang tính chuyên sâu)"
-                }
-                
-                Lưu ý: Chỉ trả về JSON, dùng ngôn ngữ Tiếng Việt chuyên nghiệp, lịch sự.
-                """, eventDataJson);
+            String prompt = String.format(
+                    """
+                            [ROLE]
+                            Bạn là Chuyên gia Phân tích Dữ liệu Sự kiện (Event Data Analyst).
+
+                            [INPUT DATA - JSON]
+                            %s
+
+                            [GOAL]
+                            Dựa trên dữ liệu thực tế của sự kiện, hãy đưa ra các đánh giá thông minh, trung thực và có giá trị chuyên môn.
+
+                            [OUTPUT FORMAT - JSON ONLY]
+                            {
+                              "summary": "Đánh giá tổng quát (khoảng 2-3 câu, nêu bật hiệu quả)",
+                              "recommendation": "Lời khuyên hành động (ví dụ: Mở rộng quy mô, Tăng cường truyền thông...)",
+                              "highlight": "Điểm sáng nhất của sự kiện (ví dụ: Tỷ lệ check-in cao, Phản hồi tích cực...)",
+                              "lessonsLearned": "Phân tích sâu và bài học rút ra (đoạn văn dài hơn, mang tính chuyên sâu)"
+                            }
+
+                            Lưu ý: Chỉ trả về JSON, dùng ngôn ngữ Tiếng Việt chuyên nghiệp, lịch sự.
+                            """,
+                    eventDataJson);
 
             return callGeminiAPI(prompt);
         } catch (Exception e) {
@@ -628,27 +629,29 @@ public class GeminiChatServiceImpl implements GeminiChatService {
     @Override
     public String generateMediaPost(String eventDetails) {
         try {
-            String prompt = String.format("""
-                [ROLE]
-                Bạn là một chuyên gia truyền thông sự kiện xuất sắc.
-                
-                [TASK]
-                Dựa trên thông tin sự kiện dưới đây, hãy viết một bài đăng truyền thông hấp dẫn để thu hút người tham gia.
-                
-                Thông tin sự kiện:
-                %s
-                
-                [OUTPUT FORMAT - JSON ONLY]
-                {
-                  "title": "Tiêu đề bài đăng thật thu hút (khoảng 5-10 từ)",
-                  "content": "Nội dung bài đăng gồm 3 phần: Mở đầu gây chú ý, Thông tin cốt lõi, và Lời kêu gọi hành động (Call to action). Sử dụng emoji phù hợp."
-                }
-                
-                Lưu ý: Chỉ trả về JSON hợp lệ.
-                """, eventDetails);
+            String prompt = String.format(
+                    """
+                            [ROLE]
+                            Bạn là một chuyên gia truyền thông sự kiện xuất sắc.
+
+                            [TASK]
+                            Dựa trên thông tin sự kiện dưới đây, hãy viết một bài đăng truyền thông hấp dẫn để thu hút người tham gia.
+
+                            Thông tin sự kiện:
+                            %s
+
+                            [OUTPUT FORMAT - JSON ONLY]
+                            {
+                              "title": "Tiêu đề bài đăng thật thu hút (khoảng 5-10 từ)",
+                              "content": "Nội dung bài đăng gồm 3 phần: Mở đầu gây chú ý, Thông tin cốt lõi, và Lời kêu gọi hành động (Call to action). Sử dụng emoji phù hợp."
+                            }
+
+                            Lưu ý: Chỉ trả về JSON hợp lệ.
+                            """,
+                    eventDetails);
 
             String response = callGeminiAPI(prompt);
-            
+
             if (response == null || response.equals("ERROR_AI_OVERLOADED")) {
                 return "ERROR_AI_OVERLOADED";
             }
@@ -659,7 +662,7 @@ public class GeminiChatServiceImpl implements GeminiChatService {
             if (start != -1 && end != -1 && end >= start) {
                 return response.substring(start, end + 1);
             }
-            
+
             return response;
         } catch (Exception e) {
             log.error("CRITICAL ERROR generating media post: {}", e.getMessage());

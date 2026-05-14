@@ -94,24 +94,22 @@ services:
         paths:
           - /notification
         strip_path: true
-
-  # 6. AI Management Service
-  - name: ai-event-management
+  # 6. AI Event Management Service
+  - name: ai-service
     url: http://ai-event-management:3000
-    connect_timeout: 60000
-    write_timeout: 60000
-    read_timeout: 60000
     routes:
-      - name: ai-management-route
+      - name: ai-chat-route
         paths:
-          - /ai-management
+          - /ai
         strip_path: true
 
 plugins:
   - name: cors
     config:
       origins:
-        - "https://fitiuh-events.io.vn"
+        - "http://localhost:3000"
+        - "http://localhost:5173"
+        - "http://localhost:5174"
         - "http://fitiuh-events.io.vn"
       methods:
         - GET
@@ -126,8 +124,13 @@ plugins:
         - Content-Type
         - Origin
         - X-Requested-With
+        - X-Auth-Token
+        - App-Version
+      exposed_headers:
+        - Content-Disposition
       credentials: true
       max_age: 3600
+      preflight_continue: false
 
   # 2. Rate Limiting: 100 requests per minute per IP
   - name: rate-limiting

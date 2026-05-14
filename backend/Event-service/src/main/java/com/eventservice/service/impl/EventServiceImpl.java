@@ -28,7 +28,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.server.ResponseStatusException;
 import com.eventservice.client.IdentityServiceClient;
-import com.eventservice.config.AppProperties;
 import com.eventservice.constant.RedisConstant;
 import com.eventservice.dto.engagement.NotificationEventDto;
 import com.eventservice.kafka.NotificationProducer;
@@ -36,6 +35,7 @@ import com.eventservice.dto.plan.response.EventPlanResponse;
 import com.eventservice.dto.user.UserResponse;
 import com.eventservice.service.EmailService;
 import com.eventservice.service.EventService;
+import org.springframework.beans.factory.annotation.Value;
 
 import com.eventservice.service.EventEmbeddingService;
 import java.time.LocalDateTime;
@@ -72,7 +72,9 @@ public class EventServiceImpl implements EventService {
     private final S3Service s3Service;
     private final KafkaTemplate<String, Object> kafkaTemplate;
     private final EventEmbeddingService eventEmbeddingService;
-    private final AppProperties appProperties;
+
+    @Value("${app.frontend.base-url}")
+    private String frontendBaseUrl;
 
     // Lấy sự kiện cho xem (trang chủ, trang danh sách sự kiện)
     @Override
@@ -753,7 +755,7 @@ public class EventServiceImpl implements EventService {
         // 6. Gửi Email thông báo (Async)
         invitations.forEach(invitation -> {
             String inviteUrl = String.format("%s/invitation/accept?token=%s&eventId=%s",
-                    appProperties.getFrontend().getBaseUrl(), invitation.getToken(), eventId);
+                    frontendBaseUrl, invitation.getToken(), eventId);
 
             String startTimeStr = event.getStartTime() != null ? event.getStartTime().toString() : "Chưa xác định";
             String endTimeStr = event.getEndTime() != null ? event.getEndTime().toString() : "Chưa xác định";
@@ -2158,7 +2160,7 @@ public class EventServiceImpl implements EventService {
         Event event = invitation.getEvent();
         log.info("#### [INVITE-SEND] Sending Organizer invite: email={}, accountId={}", invitation.getInviteeEmail(),
                 invitation.getInviteeAccountId());
-        String inviteUrl = appProperties.getFrontend().getBaseUrl() + "/invitation/accept?eventId=" + event.getId()
+        String inviteUrl = frontendBaseUrl + "/invitation/accept?eventId=" + event.getId()
                 + "&token=" + invitation.getToken();
 
         emailService.sendEventInviteEmailAsync(
@@ -2188,7 +2190,7 @@ public class EventServiceImpl implements EventService {
         Event event = invitation.getEvent();
         log.info("#### [INVITE-SEND] Sending Presenter invite: email={}, accountId={}", invitation.getInviteeEmail(),
                 invitation.getInviteeAccountId());
-        String inviteUrl = appProperties.getFrontend().getBaseUrl() + "/invitation/accept?eventId=" + event.getId()
+        String inviteUrl = frontendBaseUrl + "/invitation/accept?eventId=" + event.getId()
                 + "&token=" + invitation.getToken();
 
         emailService.sendPresenterInviteEmailAsync(

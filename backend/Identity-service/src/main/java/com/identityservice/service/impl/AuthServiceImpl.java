@@ -41,6 +41,9 @@ public class AuthServiceImpl implements AuthService {
     @Value("${cloudflare.turnstile.secret-key}")
     private String turnstileSecretKey;
 
+    @Value("${app.frontend-url}")
+    private String frontendUrl;
+
     @Override
     @Transactional
     public Map<String, String> register(RegisterRequest request) {
@@ -117,7 +120,8 @@ public class AuthServiceImpl implements AuthService {
     @Override
     public Map<String, String> checkEmailVerification(String token) {
         VerificationToken verificationToken = verificationTokenRepository.findByToken(token)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.CONFLICT, "Token không hợp lệ hoặc đã hết hạn"));
+                .orElseThrow(
+                        () -> new ResponseStatusException(HttpStatus.CONFLICT, "Token không hợp lệ hoặc đã hết hạn"));
 
         if (verificationToken.isUsed()) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Token đã được sử dụng");
@@ -141,7 +145,8 @@ public class AuthServiceImpl implements AuthService {
     @Transactional
     public Map<String, String> verifyMobileOTP(String otp, String username) {
         VerificationToken verificationToken = verificationTokenRepository.findByTokenAndUser_Username(otp, username)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "Mã OTP không chính xác hoặc đã hết hạn"));
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                        "Mã OTP không chính xác hoặc đã hết hạn"));
 
         if (verificationToken.getExpiryDate().isBefore(LocalDateTime.now())) {
             verificationTokenRepository.delete(verificationToken);
@@ -166,18 +171,19 @@ public class AuthServiceImpl implements AuthService {
         verifyTurnstile(request.getTurnstileToken());
 
         User user = userRepository.findByUsernameAndIsDeletedFalse(request.getUsername())
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.CONFLICT, "Username không tồn tại hoặc đã bị xóa"));
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.CONFLICT,
+                        "Username không tồn tại hoặc đã bị xóa"));
 
         if (!passwordEncoder.matches(request.getPassword(), user.getPasswordHash())) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Password không đúng");
         }
         if (user.getStatus() == AccountStatus.PENDING) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "Tài khoản chưa được kích hoạt. Vui lòng kiểm tra email để xác nhận.");
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "Tài khoản chưa được kích hoạt. Vui lòng kiểm tra email để xác nhận.");
         }
         if (user.getStatus() != AccountStatus.ACTIVE) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Tài khoản của bạn đã bị khóa hoặc vô hiệu hóa.");
         }
-
 
         user.setLastLoginAt(LocalDateTime.now());
         userRepository.save(user);
@@ -205,22 +211,18 @@ public class AuthServiceImpl implements AuthService {
     @Override
     @Transactional
     public void logout(String token) {
-        RefreshToken refreshToken = refreshTokenRepository.findByToken(token)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.CONFLICT, "Refresh Token không tồn tại hoặc không hợp lệ."));
-
-        if (refreshToken.isRevoked() || refreshToken.isUsed()) {
-            return;
+        int updated = refreshTokenRepository.revokeToken(token);
+        if (updated == 0) {
+            log.warn("Logout attempt with already revoked or invalid token: {}", token);
         }
-        refreshToken.setRevoked(true);
-        refreshToken.setUsed(true);
-        refreshTokenRepository.save(refreshToken);
     }
 
     @Transactional
     @Override
     public void forgotPassword(String email) {
         User user = userRepository.findByEmailAndIsDeletedFalse(email)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.CONFLICT, "Email không tồn tại hoặc tài khoản đã bị xóa."));
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.CONFLICT,
+                        "Email không tồn tại hoặc tài khoản đã bị xóa."));
 
         passwordResetTokenRepository.deleteByUser(user);
         String token = UUID.randomUUID().toString();
@@ -231,7 +233,7 @@ public class AuthServiceImpl implements AuthService {
         resetToken.setUsed(false);
         passwordResetTokenRepository.save(resetToken);
 
-        String resetUrl = "http://localhost:5173/reset-password?token=" + token;
+        String resetUrl = frontendUrl + "/reset-password?token=" + token;
         emailService.sendResetPasswordEmailAsync(email, resetUrl, user.getFullName());
     }
 
@@ -256,7 +258,8 @@ public class AuthServiceImpl implements AuthService {
     @Transactional
     public void resendOtp(String username) {
         User user = userRepository.findByUsernameAndIsDeletedFalse(username)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.CONFLICT, "Tên đăng nhập không tồn tại hoặc tài khoản đã bị xóa."));
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.CONFLICT,
+                        "Tên đăng nhập không tồn tại hoặc tài khoản đã bị xóa."));
 
         if (user.getStatus() == AccountStatus.ACTIVE) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Tài khoản đã được kích hoạt.");
@@ -275,10 +278,12 @@ public class AuthServiceImpl implements AuthService {
     @Transactional
     public AuthResponse refreshToken(String token) {
         RefreshToken refreshToken = refreshTokenRepository.findByToken(token)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Refresh Token không tồn tại hoặc không hợp lệ."));
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED,
+                        "Refresh Token không tồn tại hoặc không hợp lệ."));
 
         if (refreshToken.isRevoked() || refreshToken.isUsed()) {
-            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Refresh Token đã bị vô hiệu hóa hoặc đã được sử dụng.");
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED,
+                    "Refresh Token đã bị vô hiệu hóa hoặc đã được sử dụng.");
         }
 
         if (refreshToken.getExpiryDate().isBefore(LocalDateTime.now())) {
@@ -294,8 +299,11 @@ public class AuthServiceImpl implements AuthService {
         principal.setRole(user.getRole());
         String newAccessToken = jwtUtils.generateAccessToken(principal);
 
-        refreshToken.setUsed(true);
-        refreshTokenRepository.save(refreshToken);
+        int updated = refreshTokenRepository.markTokenAsUsed(token);
+        if (updated == 0) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED,
+                    "Refresh Token đã được sử dụng bởi một yêu cầu khác.");
+        }
 
         String newRefreshTokenStr = UUID.randomUUID().toString();
         RefreshToken newRefreshToken = new RefreshToken();
@@ -342,7 +350,7 @@ public class AuthServiceImpl implements AuthService {
         }
 
         String url = "https://challenges.cloudflare.com/turnstile/v0/siteverify";
-        
+
         org.springframework.util.LinkedMultiValueMap<String, String> map = new org.springframework.util.LinkedMultiValueMap<>();
         map.add("secret", turnstileSecretKey);
         map.add("response", token);
@@ -351,11 +359,13 @@ public class AuthServiceImpl implements AuthService {
             Map<String, Object> response = restTemplate.postForObject(url, map, Map.class);
             if (response == null || !Boolean.TRUE.equals(response.get("success"))) {
                 log.error("Turnstile verification failed: {}", response);
-                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Xác minh người dùng thật không thành công. Vui lòng thử lại.");
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                        "Xác minh người dùng thật không thành công. Vui lòng thử lại.");
             }
         } catch (Exception e) {
             log.error("Error calling Turnstile API", e);
-            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Lỗi hệ thống khi xác minh người dùng.");
+            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR,
+                    "Lỗi hệ thống khi xác minh người dùng.");
         }
     }
 }

@@ -72,7 +72,7 @@ export const EventCreator = ({
   // Unified to 5 steps
   const { user } = useAuth();
   const isPlanMode = !forceEventMode && (
-    (initialFormData?.status?.startsWith('PLAN_')) || 
+    (initialFormData?.status?.startsWith('PLAN_')) ||
     (!planId && !fromPlan && (!initialFormData?.id || initialFormData?.status?.startsWith('PLAN_')))
   );
 
@@ -82,7 +82,7 @@ export const EventCreator = ({
   }).map(s => {
     if (s.id === 5) {
       const isAuthority = user?.role === 'SUPER_ADMIN' || user?.role === 'ADMIN';
-      const label = isAuthority 
+      const label = isAuthority
         ? (isPlanMode ? "Xem trước & Phê duyệt" : "Xem trước & Xuất bản")
         : "Xem trước & Gửi duyệt";
       return { ...s, label };
@@ -140,8 +140,15 @@ export const EventCreator = ({
         status: 'DRAFT',
         organization: formData.organizationId ? { id: formData.organizationId } : null,
         invitations: formData.invitations || [],
-        presenters: formData.presenters || [],
-        sessions: formData.sessions || [],
+        presenters: (formData.presenters || []).map(p => ({
+          ...p,
+          email: p.email?.trim() || null // Avoid empty string email validation
+        })),
+        sessions: (formData.sessions || []).map(s => ({
+          ...s,
+          startTime: toISO(s.startTime),
+          endTime: toISO(s.endTime)
+        })),
         targetObjects: Array.isArray(formData.targetObjects)
           ? formData.targetObjects.map(obj => typeof obj === 'string' ? { type: 'CATEGORY', name: obj } : obj) : [],
       };
@@ -321,7 +328,7 @@ export const EventCreator = ({
             }
             const date = new Date(isoStr);
             if (isNaN(date)) return "";
-            
+
             // Chuyển đổi sang giờ địa phương YYYY-MM-DDTHH:mm
             const year = date.getFullYear();
             const month = String(date.getMonth() + 1).padStart(2, '0');
@@ -379,10 +386,10 @@ export const EventCreator = ({
           if (targetLine) {
             mappedData.eventTitle = targetLine.replace(/V\/v:?\s*/i, "").trim().substring(0, 100);
           } else {
-            mappedData.eventTitle = lines.find(l => 
-              l.trim().length > 10 && 
-              !l.includes("TRƯỜNG") && 
-              !l.includes("KHOA") && 
+            mappedData.eventTitle = lines.find(l =>
+              l.trim().length > 10 &&
+              !l.includes("TRƯỜNG") &&
+              !l.includes("KHOA") &&
               !l.includes("CỘNG HÒA")
             )?.trim().substring(0, 70) || "Kế hoạch sự kiện (Nhập từ file)";
           }
@@ -393,7 +400,7 @@ export const EventCreator = ({
 
         updateFormData(mappedData);
         toast.success("✨ Đã trích xuất thông tin thành công!");
-        
+
         // Force browser to recalculate height and scroll to top of content
         setTimeout(() => {
           window.dispatchEvent(new Event('resize'));
@@ -566,7 +573,7 @@ export const EventCreator = ({
         coverImage: data.coverImage || "",
         createdByAccountId: accountId,
         // Auto-approval logic for Admin/SuperAdmin
-        status: isPlanMode 
+        status: isPlanMode
           ? (isAdmin ? 'PLAN_APPROVED' : 'PLAN_PENDING_APPROVAL')
           : (isAdmin ? 'PUBLISHED' : 'EVENT_PENDING_APPROVAL'),
         approvedByAccountId: isAdmin ? accountId : null,
@@ -578,8 +585,15 @@ export const EventCreator = ({
           : [],
         organization: { id: organizationId },
         invitations: data.invitations || [],
-        presenters: data.presenters || [],
-        sessions: data.sessions || [],
+        presenters: (data.presenters || []).map(p => ({
+          ...p,
+          email: p.email?.trim() || null
+        })),
+        sessions: (data.sessions || []).map(s => ({
+          ...s,
+          startTime: toISO(s.startTime),
+          endTime: toISO(s.endTime)
+        })),
         prizes: data.prizes || [],
         interactions: data.interactions || [],
         interactionSettings: data.interactionSettings || {},

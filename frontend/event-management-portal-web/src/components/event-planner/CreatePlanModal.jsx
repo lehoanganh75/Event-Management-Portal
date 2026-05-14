@@ -7,6 +7,39 @@ import {
 import eventService from "../../services/eventService";
 import PromptModal from "../common/PromptModal";
 
+// ✨ Helper to extract and parse JSON safely from AI response
+const safeParseAIJson = (text) => {
+  if (!text) return null;
+  try {
+    // 1. Tìm khối JSON bằng Regex (giữa { và })
+    const jsonMatch = text.match(/\{[^]*\}/);
+    if (!jsonMatch) {
+      console.error("Không tìm thấy khối JSON trong văn bản:", text);
+      return null;
+    }
+
+    let cleanJson = jsonMatch[0];
+
+    // 2. Xử lý lỗi "Unterminated string" do xuống dòng trong giá trị chuỗi
+    // Chúng ta tìm các nội dung nằm trong "..." và escape các dấu xuống dòng bên trong đó
+    cleanJson = cleanJson.replace(/"([^"\\]*(?:\\.[^"\\]*)*)"/g, (match, p1) => {
+      // Thay thế xuống dòng thực tế bằng \n trong nội dung chuỗi
+      return '"' + p1.replace(/\n/g, "\\n").replace(/\r/g, "\\r") + '"';
+    });
+
+    try {
+      return JSON.parse(cleanJson);
+    } catch (e) {
+      console.warn("Thử parse lần 2 với dọn dẹp thô...");
+      const crude = cleanJson.replace(/[\u0000-\u001F\u007F-\u009F]/g, " ");
+      return JSON.parse(crude);
+    }
+  } catch (e) {
+    console.error("Lỗi parse JSON AI hoàn toàn:", e, "\nNội dung thô:", text);
+    return null;
+  }
+};
+
 const mapTemplateToPrefill = (template) => {
   // Build AI-suggested sessions from configData if available
   const sessions = template.configData?.sessions || [];
@@ -163,7 +196,7 @@ const CreatePlanModal = ({ isOpen, onClose, onSelectPlan, onCreateNew, initialAi
   const [isAIPlanning, setIsAIPlanning] = useState(false);
   const [aiText, setAiText] = useState("");
   const [showAiInput, setShowAiInput] = useState(false); // For raw text planning
-  
+
   // AI Prompt Modal state
   const [showPromptModal, setShowPromptModal] = useState(false);
 
@@ -190,45 +223,53 @@ const CreatePlanModal = ({ isOpen, onClose, onSelectPlan, onCreateNew, initialAi
     setShowPromptModal(false);
     setIsAIPlanning(true);
     try {
-      const res = await eventService.aiPlanning.generateFromTemplate(selected.id, userContext);
-      
-      if (res.data?.code === 1000) {
-        const suggestion = res.data.result;
-        // Map suggestion to form data
-        const mappedData = {
-          ...mapTemplateToPrefill(selected),
-          eventTitle: suggestion.title || selected.defaultTitle,
-          title: suggestion.title || selected.defaultTitle,
-          eventPurpose: suggestion.purpose || selected.description,
-          description: suggestion.description || selected.description,
-          eventTopic: suggestion.subject || "",
-          location: suggestion.suggestedLocation || selected.defaultLocation,
-          maxParticipants: suggestion.estimatedParticipants || selected.defaultMaxParticipants,
-          sessions: suggestion.programItems?.map((item, idx) => ({
-            title: item.title,
-            description: item.description,
-            durationMinutes: item.durationMinutes,
-            startTime: item.startTime,
-            endTime: item.endTime,
-            speaker: item.speaker,
-            room: item.location,
-            orderIndex: idx + 1
-          })) || [],
-          aiReasoning: suggestion.reasoning || ""
-        };
+      // ✨ Truyền cả đối tượng selected để AI có thêm context về mẫu
+      const res = await eventService.aiPlanning.generateFromTemplate(selected, userContext);
 
-        if (suggestion.suggestedStartTime) {
+      let rawResult = res.data.reply?.reply || res.data.result;
+      if (!rawResult) throw new Error("Không nhận được phản hồi từ AI.");
+
+      const suggestion = safeParseAIJson(rawResult);
+      if (!suggestion) throw new Error("AI trả về định dạng không hợp lệ cho mẫu này. Vui lòng thử lại.");
+
+      const mappedData = {
+        ...mapTemplateToPrefill(selected),
+        eventTitle: suggestion.title || selected.defaultTitle,
+        title: suggestion.title || selected.defaultTitle,
+        eventPurpose: suggestion.purpose || suggestion.description || selected.description,
+        description: suggestion.description || selected.description,
+        eventTopic: suggestion.subject || "",
+        location: suggestion.suggestedLocation || selected.defaultLocation,
+        maxParticipants: suggestion.estimatedParticipants || selected.defaultMaxParticipants,
+        sessions: (suggestion.programItems || []).map((item, idx) => ({
+          title: item.title || "Không tên",
+          description: item.description || "",
+          durationMinutes: item.durationMinutes || 30,
+          startTime: item.startTime ? new Date(item.startTime).toISOString().slice(0, 16) : "",
+          endTime: item.endTime ? new Date(item.endTime).toISOString().slice(0, 16) : "",
+          speaker: item.speaker || "",
+          room: item.location || "",
+          orderIndex: idx + 1
+        })),
+        aiReasoning: suggestion.reasoning || ""
+      };
+
+      if (suggestion.suggestedStartTime) {
+        try {
           mappedData.startTime = new Date(suggestion.suggestedStartTime).toISOString().slice(0, 16);
-        }
-        if (suggestion.suggestedEndTime) {
-          mappedData.endTime = new Date(suggestion.suggestedEndTime).toISOString().slice(0, 16);
-        }
-
-        onSelectPlan({ fromPlan: false, initialFormData: mappedData, startAtStep: 1 });
-        onClose();
+        } catch (e) { console.warn("Invalid start time from AI"); }
       }
+      if (suggestion.suggestedEndTime) {
+        try {
+          mappedData.endTime = new Date(suggestion.suggestedEndTime).toISOString().slice(0, 16);
+        } catch (e) { console.warn("Invalid end time from AI"); }
+      }
+
+      onSelectPlan({ fromPlan: false, initialFormData: mappedData, startAtStep: 1 });
+      onClose();
     } catch (err) {
       console.error("AI Planning Error:", err);
+      alert("❌ " + (err.message || "Lỗi khi AI phân tích dữ liệu mẫu"));
     } finally {
       setIsAIPlanning(false);
     }
@@ -239,67 +280,71 @@ const CreatePlanModal = ({ isOpen, onClose, onSelectPlan, onCreateNew, initialAi
     setIsAIPlanning(true);
     try {
       const res = await eventService.aiPlanning.generateFromRawText(aiText);
-      if (res.data?.code === 1000 && res.data.result) {
-        const suggestion = res.data.result;
-        const mappedData = {
-          eventTitle: suggestion.title || "",
-          title: suggestion.title || "",
-          eventPurpose: suggestion.purpose || "",
-          description: suggestion.description || "",
-          eventTopic: suggestion.subject || "",
-          location: suggestion.suggestedLocation || "",
-          maxParticipants: suggestion.estimatedParticipants || 50,
-          eventType: "WORKSHOP",
-          eventMode: "OFFLINE",
-          orgSelectionMode: "existing",
-          sessions: suggestion.programItems?.map((item, idx) => ({
-            title: item.title || "Không tên",
-            description: item.description || "",
-            durationMinutes: item.durationMinutes || 0,
-            startTime: item.startTime || "",
-            endTime: item.endTime || "",
-            speaker: item.speaker || "",
-            room: item.location || "",
-            orderIndex: idx + 1
-          })) || [],
-          // Extract presenters from sessions
-          presenters: suggestion.programItems?.reduce((acc, item) => {
-            if (item.speaker && !acc.find(p => p.fullName === item.speaker)) {
-              acc.push({
-                fullName: item.speaker,
-                email: "",
-                position: "Diễn giả",
-                department: "",
-                bio: `Diễn giả tại phiên: ${item.title}`,
-                targetSessionName: item.title
-              });
-            }
-            return acc;
-          }, []) || [],
-          interactionSettings: suggestion.additionalData?.interactionSettings || {
-            enableQA: false,
-            enablePolls: false,
-            allowUserQuestions: false
-          },
-          hasLuckyDraw: suggestion.additionalData?.hasLuckyDraw || false,
-          aiReasoning: suggestion.reasoning || ""
-        };
+      let rawResult = res.data.reply?.reply || res.data.result;
 
-        if (suggestion.suggestedStartTime) {
+      if (!rawResult) throw new Error("Không nhận được phản hồi từ AI.");
+
+      const suggestion = safeParseAIJson(rawResult);
+      if (!suggestion) throw new Error("AI trả về định dạng không hợp lệ. Vui lòng thử lại.");
+
+      const mappedData = {
+        eventTitle: suggestion.title || "",
+        title: suggestion.title || "",
+        eventPurpose: suggestion.purpose || suggestion.description || "",
+        description: suggestion.description || "",
+        eventTopic: suggestion.subject || "",
+        location: suggestion.suggestedLocation || "",
+        maxParticipants: suggestion.estimatedParticipants || 50,
+        eventType: "WORKSHOP",
+        eventMode: "OFFLINE",
+        orgSelectionMode: "existing",
+        sessions: (suggestion.programItems || []).map((item, idx) => ({
+          title: item.title || "Không tên",
+          description: item.description || "",
+          durationMinutes: item.durationMinutes || 30,
+          startTime: item.startTime ? new Date(item.startTime).toISOString().slice(0, 16) : "",
+          endTime: item.endTime ? new Date(item.endTime).toISOString().slice(0, 16) : "",
+          speaker: item.speaker || "",
+          room: item.location || "",
+          orderIndex: idx + 1
+        })),
+        presenters: (suggestion.programItems || []).reduce((acc, item) => {
+          if (item.speaker && !acc.find(p => p.fullName === item.speaker)) {
+            acc.push({
+              fullName: item.speaker,
+              email: "",
+              position: "Diễn giả",
+              department: "",
+              bio: `Diễn giả tại phiên: ${item.title}`,
+              targetSessionName: item.title
+            });
+          }
+          return acc;
+        }, []),
+        interactionSettings: {
+          enableQA: true,
+          enablePolls: false,
+          allowUserQuestions: true
+        },
+        hasLuckyDraw: false,
+        aiReasoning: suggestion.reasoning || ""
+      };
+
+      if (suggestion.suggestedStartTime) {
+        try {
           mappedData.startTime = new Date(suggestion.suggestedStartTime).toISOString().slice(0, 16);
-        }
-        if (suggestion.suggestedEndTime) {
-          mappedData.endTime = new Date(suggestion.suggestedEndTime).toISOString().slice(0, 16);
-        }
-
-        onSelectPlan({ fromPlan: false, initialFormData: mappedData, startAtStep: 1 });
-        onClose();
-      } else {
-        throw new Error(res.data?.message || "AI không thể tạo kế hoạch từ văn bản này.");
+        } catch (e) { console.warn("Invalid start time from AI"); }
       }
+      if (suggestion.suggestedEndTime) {
+        try {
+          mappedData.endTime = new Date(suggestion.suggestedEndTime).toISOString().slice(0, 16);
+        } catch (e) { console.warn("Invalid end time from AI"); }
+      }
+
+      onSelectPlan({ fromPlan: false, initialFormData: mappedData, startAtStep: 1 });
+      onClose();
     } catch (err) {
       console.error("AI Planning Raw Error:", err);
-      // Assuming showToast is available or use alert/toast from context
       alert("❌ " + (err.message || "Lỗi khi AI phân tích dữ liệu"));
     } finally {
       setIsAIPlanning(false);
@@ -310,8 +355,9 @@ const CreatePlanModal = ({ isOpen, onClose, onSelectPlan, onCreateNew, initialAi
 
   return (
     <AnimatePresence>
-      <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
+      <div className="fixed inset-0 z-[200] flex items-center justify-center p-4" key="plan-modal-container">
         <motion.div
+          key="plan-modal-overlay"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
@@ -319,6 +365,7 @@ const CreatePlanModal = ({ isOpen, onClose, onSelectPlan, onCreateNew, initialAi
           className="absolute inset-0 bg-slate-900/50 backdrop-blur-sm"
         />
         <motion.div
+          key="plan-modal-content"
           initial={{ scale: 0.95, opacity: 0, y: 16 }}
           animate={{ scale: 1, opacity: 1, y: 0 }}
           exit={{ scale: 0.95, opacity: 0, y: 16 }}
@@ -345,12 +392,11 @@ const CreatePlanModal = ({ isOpen, onClose, onSelectPlan, onCreateNew, initialAi
               >
                 <PlusCircle size={16} /> Tạo trống
               </button>
-              
+
               <button
                 onClick={() => { setSelected(null); setShowAiInput(!showAiInput); }}
-                className={`flex items-center gap-2 px-4 py-2 rounded-xl font-bold transition-all text-sm ${
-                  showAiInput ? "bg-indigo-600 text-white" : "bg-indigo-50 text-indigo-600 hover:bg-indigo-100"
-                }`}
+                className={`flex items-center gap-2 px-4 py-2 rounded-xl font-bold transition-all text-sm ${showAiInput ? "bg-indigo-600 text-white" : "bg-indigo-50 text-indigo-600 hover:bg-indigo-100"
+                  }`}
               >
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                   <path d="M12 2L14.8 9.2L22 12L14.8 14.8L12 22L9.2 14.8L2 12L9.2 9.2L12 2Z" fill="url(#gemini_grad)" />
@@ -378,13 +424,13 @@ const CreatePlanModal = ({ isOpen, onClose, onSelectPlan, onCreateNew, initialAi
             </div>
 
             {showAiInput && (
-              <motion.div 
+              <motion.div
                 initial={{ height: 0, opacity: 0 }}
                 animate={{ height: "auto", opacity: 1 }}
                 className="mb-6 overflow-hidden"
               >
                 <div className="bg-indigo-50 p-4 rounded-2xl border border-indigo-100">
-                  <textarea 
+                  <textarea
                     className="w-full p-3 rounded-xl border border-indigo-200 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
                     placeholder="Mô tả ý tưởng sự kiện của bạn (ví dụ: Tổ chức workshop AI cho 200 sinh viên, có tea break, diễn giả từ Google...)"
                     rows={3}
@@ -392,7 +438,7 @@ const CreatePlanModal = ({ isOpen, onClose, onSelectPlan, onCreateNew, initialAi
                     onChange={(e) => setAiText(e.target.value)}
                   />
                   <div className="flex justify-end mt-2 gap-2">
-                    <button 
+                    <button
                       onClick={() => handleAIRecommend()}
                       disabled={!aiText.trim() || isRecommending}
                       className="flex items-center gap-2 px-4 py-2 bg-emerald-50 text-emerald-600 rounded-lg font-bold text-xs hover:bg-emerald-100 disabled:opacity-50 transition-all border border-emerald-100"
@@ -400,7 +446,7 @@ const CreatePlanModal = ({ isOpen, onClose, onSelectPlan, onCreateNew, initialAi
                       {isRecommending ? <Loader2 size={14} className="animate-spin" /> : <Sparkles size={14} />}
                       AI Gợi ý mẫu phù hợp
                     </button>
-                    <button 
+                    <button
                       onClick={handleAIPlanFromRaw}
                       disabled={!aiText.trim() || isAIPlanning}
                       className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg font-bold text-xs hover:bg-indigo-700 disabled:bg-indigo-300 transition-all shadow-md shadow-indigo-100"
@@ -424,13 +470,13 @@ const CreatePlanModal = ({ isOpen, onClose, onSelectPlan, onCreateNew, initialAi
                     <Sparkles className="text-indigo-600 animate-pulse" size={32} />
                   </div>
                 </div>
-                
+
                 <h4 className="text-xl font-black text-indigo-900 mb-2">AI Thiên tài đang làm việc</h4>
                 <div className="flex flex-col items-center">
                   <p className="text-indigo-600 font-bold">Đang kiến tạo kế hoạch hoàn hảo cho bạn...</p>
                   <div className="flex gap-1 mt-4">
                     {[0, 1, 2].map(i => (
-                      <div key={i} className="w-1.5 h-1.5 bg-indigo-600 rounded-full animate-bounce" style={{ animationDelay: `${i * 0.2}s` }}></div>
+                      <div key={`bounce-dot-${i}`} className="w-1.5 h-1.5 bg-indigo-600 rounded-full animate-bounce" style={{ animationDelay: `${i * 0.2}s` }}></div>
                     ))}
                   </div>
                 </div>
@@ -456,10 +502,9 @@ const CreatePlanModal = ({ isOpen, onClose, onSelectPlan, onCreateNew, initialAi
                     <button
                       key={template.id || `tpl-${index}`}
                       onClick={() => { setSelected(template); setShowAiInput(false); }}
-                      className={`relative w-full text-left p-5 rounded-2xl border-2 transition-all ${
-                        isSelected
-                          ? "border-blue-500 bg-blue-50 shadow-md shadow-blue-100"
-                          : "border-slate-200 bg-white hover:border-blue-300 hover:shadow-sm"
+                      className={`relative w-full text-left p-5 rounded-2xl border-2 transition-all ${isSelected
+                        ? "border-blue-500 bg-blue-50 shadow-md shadow-blue-100"
+                        : "border-slate-200 bg-white hover:border-blue-300 hover:shadow-sm"
                         }`}
 
                     >
@@ -513,7 +558,7 @@ const CreatePlanModal = ({ isOpen, onClose, onSelectPlan, onCreateNew, initialAi
                 {selected ? "Bạn có thể dùng mẫu này hoặc nhờ AI tối ưu" : "Hoặc dùng AI Thiên tài ở trên"}
               </span>
             </div>
-            
+
             <div className="flex gap-2">
               <button
                 disabled={!selected || isAIPlanning}
