@@ -365,11 +365,11 @@ const eventService = {
         parseFile: (file) => {
             const formData = new FormData();
             formData.append('file', file);
-            return axios.post('http://localhost:3000/upload', formData, {
+            return axios.post(`${BASE_URL}/ai-management/upload`, formData, {
                 headers: { 'Content-Type': 'multipart/form-data' }
             });
         },
-        chat: (prompt) => axios.post('http://localhost:3000/chat', { prompt }, { timeout: 60000 }),
+        chat: (prompt) => axios.post(`${BASE_URL}/ai-management/chat`, { prompt }, { timeout: 60000 }),
     },
 
     // --- GROUP 11: UTILS ---

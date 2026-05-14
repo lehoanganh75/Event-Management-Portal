@@ -95,6 +95,18 @@ services:
           - /notification
         strip_path: true
 
+  # 6. AI Management Service
+  - name: ai-event-management
+    url: http://ai-event-management:3000
+    connect_timeout: 60000
+    write_timeout: 60000
+    read_timeout: 60000
+    routes:
+      - name: ai-management-route
+        paths:
+          - /ai-management
+        strip_path: true
+
 plugins:
   - name: cors
     config:

@@ -104,6 +104,7 @@ services:
       IDENTITY_SERVICE_URL: http://identity-service:8083
       LUCKY_DRAW_SERVICE_URL: http://lucky-draw-service:8084
       LOCAL_AI_URL: http://ai-event-management:3000
+      GEMINI_API_KEY: ${GEMINI_API_KEY}
       JWT_SECRET: ouhPBmsFWNGn1/QKWEsm/2WMB4CAt4yFGv/3qYaWD4xa5DmoBD/ACvY3oVcBZmsVLl03mVuRLJ9QsKoA3Q0osg==
       PORT: 8082
     depends_on:
@@ -221,6 +222,8 @@ services:
       - "3000:3000"
     env_file:
       - ./AI-Event-Management/.env
+    environment:
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
     depends_on:
       - mariadb
       - ollama-setup
