@@ -80,9 +80,9 @@ async function getDatabaseContext() {
   let connection;
   try {
     connection = await mysql.createConnection(MARIADB_CONFIG);
-    // Lấy 5 sự kiện mới nhất từ bảng events
+    // Chỉ lấy 5 sự kiện đang diễn ra hoặc đã công bố (không lấy bản nháp)
     const [rows] = await connection.execute(
-      "SELECT title, description, location, start_time FROM events ORDER BY created_at DESC LIMIT 5"
+      "SELECT title, description, location, start_time FROM events WHERE status IN ('PUBLISHED', 'ONGOING', 'COMPLETED') ORDER BY created_at DESC LIMIT 5"
     );
     if (rows.length === 0) return "Hiện tại chưa có sự kiện nào trong hệ thống.";
 
@@ -134,7 +134,7 @@ Nếu là yêu cầu trích xuất JSON, hãy CHỈ trả về JSON nguyên bả
 
     // --- CASE 1: USE GEMINI (FAST & CLOUD) ---
     if (genAI) {
-      const modelsToTry = ["gemini-1.5-flash-latest", "gemini-1.5-flash", "gemini-pro"];
+      const modelsToTry = ["gemini-1.5-flash", "gemini-pro"];
       let success = false;
 
       for (const modelName of modelsToTry) {
