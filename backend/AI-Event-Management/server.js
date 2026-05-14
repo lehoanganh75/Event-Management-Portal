@@ -69,7 +69,8 @@ const { GoogleGenerativeAI } = require("@google/generative-ai");
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 let genAI = null;
 if (GEMINI_API_KEY) {
-  genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
+  // Ép sử dụng phiên bản v1 ổn định thay vì v1beta
+  genAI = new GoogleGenerativeAI(GEMINI_API_KEY); 
   console.log("✨ Gemini AI is enabled and ready.");
 } else {
   console.log("⚠️ GEMINI_API_KEY not found. Falling back to local Ollama.");
@@ -80,15 +81,15 @@ async function getDatabaseContext() {
   let connection;
   try {
     connection = await mysql.createConnection(MARIADB_CONFIG);
-    // Chỉ lấy 5 sự kiện đang diễn ra hoặc đã công bố (không lấy bản nháp)
+    // Chỉ lấy 3 sự kiện (thay vì 5) để giảm tải cho Ollama, và cắt ngắn mô tả
     const [rows] = await connection.execute(
-      "SELECT title, description, location, start_time FROM events WHERE status IN ('PUBLISHED', 'ONGOING', 'COMPLETED') ORDER BY created_at DESC LIMIT 5"
+      "SELECT title, LEFT(description, 100) as description, location, start_time FROM events WHERE status IN ('PUBLISHED', 'ONGOING', 'COMPLETED') ORDER BY created_at DESC LIMIT 3"
     );
     if (rows.length === 0) return "Hiện tại chưa có sự kiện nào trong hệ thống.";
 
-    let context = "Dữ liệu từ hệ thống MariaDB (Sự kiện hiện có):\n";
+    let context = "Dữ liệu sự kiện:\n";
     rows.forEach(ev => {
-      context += `- Sự kiện: ${ev.title}, Địa điểm: ${ev.location}, Ngày: ${ev.start_time}, Mô tả: ${ev.description}\n`;
+      context += `- ${ev.title} (${ev.start_time}) tại ${ev.location}\n`;
     });
     return context;
   } catch (err) {
