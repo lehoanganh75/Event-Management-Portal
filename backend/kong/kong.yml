@@ -96,10 +96,8 @@ plugins:
   - name: cors
     config:
       origins:
-        - "http://localhost:3000"
-        - "http://localhost:5173"
-        - "http://localhost:5174"
-        - "*"
+        - "https://fitiuh-events.io.vn"
+        - "http://fitiuh-events.io.vn"
       methods:
         - GET
         - POST
