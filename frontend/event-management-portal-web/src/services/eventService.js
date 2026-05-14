@@ -412,20 +412,26 @@ const eventService = {
         },
         analyzeStats: (statsJson) => {
             const prompt = `Hãy phân tích dữ liệu thống kê sự kiện sau và đưa ra nhận xét chuyên sâu: ${statsJson}`;
-            return axios.post(`${BASE_URL}/ai/api/chat`, { prompt });
+            const token = localStorage.getItem('accessToken');
+            const api = token ? privateApi : publicApi;
+            return api.post('/ai/api/chat', { prompt });
         },
         extractFromText: (text) => {
             const prompt = `Trích xuất thông tin sự kiện từ văn bản sau và trả về DUY NHẤT định dạng JSON. 
             Yêu cầu các trường: title, subject, suggestedStartTime, suggestedEndTime, suggestedLocation, estimatedParticipants, programItems (mảng các session).
             Văn bản: ${text}`;
-            return axios.post(`${BASE_URL}/ai/api/chat`, { prompt });
+            const token = localStorage.getItem('accessToken');
+            const api = token ? privateApi : publicApi;
+            return api.post('/ai/api/chat', { prompt });
         },
         generateMediaPost: (eventDetails) => {
             const prompt = `Trích xuất JSON bài viết truyền thông cho sự kiện sau. 
             Yêu cầu: Trả về duy nhất 1 khối JSON hợp lệ có cấu trúc: {"title": "tiêu đề bài viết", "content": "nội dung chi tiết"}. 
             Không giải thích gì thêm. 
             Dữ liệu sự kiện: ${eventDetails}`;
-            return axios.post(`${BASE_URL}/ai/api/chat`, { prompt });
+            const token = localStorage.getItem('accessToken');
+            const api = token ? privateApi : publicApi;
+            return api.post('/ai/api/chat', { prompt });
         },
     },
 
