@@ -96,11 +96,14 @@ public class AISummaryServiceImpl implements AISummaryService {
             org.springframework.http.HttpEntity<java.util.Map<String, String>> request = new org.springframework.http.HttpEntity<>(
                     body, headers);
 
-            String aiUrl = "http://host.docker.internal:3000/chat";
+            String aiUrl = "http://ai-event-management:3000/api/chat";
             log.info("Đang gọi Local AI tại: {}", aiUrl);
 
             java.util.Map<String, Object> response = restTemplate.postForObject(aiUrl, request, java.util.Map.class);
-            String aiResponseRaw = (String) response.get("reply");
+
+            // Extract reply from nested structure: { "reply": { "reply": "..." } }
+            java.util.Map<String, Object> replyWrapper = (java.util.Map<String, Object>) response.get("reply");
+            String aiResponseRaw = (String) replyWrapper.get("reply");
 
             log.info("Nhận được phản hồi từ AI Local");
 

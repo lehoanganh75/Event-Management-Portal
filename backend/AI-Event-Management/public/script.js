@@ -34,7 +34,7 @@ async function sendMessage() {
     const loadingId = addLoadingIndicator();
 
     try {
-        const response = await fetch('/chat', {
+        const response = await fetch('/api/chat', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
@@ -46,7 +46,9 @@ async function sendMessage() {
         removeLoadingIndicator(loadingId);
 
         if (data.reply) {
-            addMessage(data.reply, 'assistant');
+            console.log("AI Data Received:", data);
+            const replyText = typeof data.reply === 'object' ? data.reply.reply : data.reply;
+            addMessage(replyText || "AI không trả về nội dung.", 'assistant');
         } else {
             addMessage('Có lỗi xảy ra khi kết nối với AI. Vui lòng thử lại.', 'assistant');
         }
@@ -60,9 +62,9 @@ async function sendMessage() {
 function addMessage(text, role) {
     const msgDiv = document.createElement('div');
     msgDiv.className = `message ${role}`;
-    
+
     const icon = role === 'user' ? 'fa-user' : 'fa-robot';
-    
+
     msgDiv.innerHTML = `
         <div class="avatar-icon">
             <i class="fas ${icon}"></i>
@@ -71,7 +73,7 @@ function addMessage(text, role) {
             <p>${formatText(text)}</p>
         </div>
     `;
-    
+
     chatMessages.appendChild(msgDiv);
     chatMessages.scrollTop = chatMessages.scrollHeight;
 }
@@ -104,6 +106,7 @@ function removeLoadingIndicator(id) {
 }
 
 function formatText(text) {
+    if (typeof text !== 'string') return '';
     // Basic formatting for newlines and code blocks
     return text
         .replace(/\n/g, '<br>')
@@ -135,23 +138,23 @@ fileUpload.addEventListener('change', async (e) => {
     formData.append('file', file);
 
     try {
-        const response = await fetch('/upload', {
+        const response = await fetch('/api/upload', {
             method: 'POST',
             body: formData
         });
 
         const data = await response.json();
         if (response.ok) {
-            uploadStatus.textContent = '✅ Đã nạp tài liệu!';
+            uploadStatus.textContent = 'Đã nạp tài liệu!';
             uploadStatus.style.color = '#10a37f';
             addMessage(`Đã học xong tài liệu: **${file.name}**. Giờ bạn có thể hỏi tôi về nội dung trong file này.`, 'assistant');
         } else {
-            uploadStatus.textContent = '❌ Lỗi tải lên';
+            uploadStatus.textContent = 'Lỗi tải lên';
             uploadStatus.style.color = '#ff4444';
         }
     } catch (error) {
         console.error(error);
-        uploadStatus.textContent = '❌ Lỗi kết nối';
+        uploadStatus.textContent = 'Lỗi kết nối';
         uploadStatus.style.color = '#ff4444';
     }
 });

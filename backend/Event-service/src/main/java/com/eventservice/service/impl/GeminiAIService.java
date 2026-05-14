@@ -143,32 +143,37 @@ public class GeminiAIService {
     }
 
     private String callGemini(String prompt) {
-        String url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=" + geminiApiKey;
+        String aiUrl = "http://ai-event-management:3000/api/chat";
+        log.info("GeminiAIService redirecting to Local AI: {}", aiUrl);
 
         try {
-            Map<String, Object> part = Map.of("text", prompt);
-            Map<String, Object> content = Map.of("parts", List.of(part));
-            Map<String, Object> bodyMap = Map.of("contents", List.of(content));
-            
+            Map<String, String> bodyMap = Map.of("prompt", prompt);
             String requestBody = objectMapper.writeValueAsString(bodyMap);
 
             Request request = new Request.Builder()
-                    .url(url)
+                    .url(aiUrl)
                     .post(RequestBody.create(requestBody, MediaType.parse("application/json")))
                     .build();
 
             try (Response response = httpClient.newCall(request).execute()) {
                 if (!response.isSuccessful()) {
-                    return "Lỗi AI: " + response.code();
+                    log.error("Local AI failed with code: {}", response.code());
+                    return "Lỗi AI (Node.js): " + response.code();
                 }
                 
                 String responseBody = response.body().string();
                 JsonNode root = objectMapper.readTree(responseBody);
-                return root.at("/candidates/0/content/parts/0/text").asText();
+                
+                // Parse nested structure: { "reply": { "reply": "..." } } OR { "reply": "..." }
+                JsonNode replyNode = root.get("reply");
+                if (replyNode.isObject() && replyNode.has("reply")) {
+                    return replyNode.get("reply").asText();
+                }
+                return replyNode.asText();
             }
         } catch (Exception e) {
             log.error("AI Analysis error: ", e);
-            return "Xin lỗi, tôi không thể xử lý yêu cầu phân tích lúc này.";
+            return "Xin lỗi, tôi không thể xử lý yêu cầu phân tích lúc này qua Local AI.";
         }
     }
 }

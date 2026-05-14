@@ -89,27 +89,23 @@ public class TemplateRecommendationService {
     }
 
     public List<Double> generateEmbedding(String text) throws Exception {
-        String url = EMBEDDING_API_URL + "?key=" + geminiApiKey;
+        String aiUrl = "http://ai-event-management:3000/api/embeddings";
+        log.info("Redirecting embedding request to Local AI: {}", aiUrl);
 
-        Map<String, Object> contentPart = Map.of("text", text);
-        Map<String, Object> content = Map.of("parts", List.of(contentPart));
-        Map<String, Object> requestBody = Map.of(
-                "model", "models/text-embedding-004",
-                "content", content
-        );
+        Map<String, String> body = Map.of("text", text);
+        String json = objectMapper.writeValueAsString(body);
 
-        String json = objectMapper.writeValueAsString(requestBody);
         Request request = new Request.Builder()
-                .url(url)
+                .url(aiUrl)
                 .post(RequestBody.create(json, MediaType.parse("application/json")))
                 .build();
 
         try (Response response = httpClient.newCall(request).execute()) {
             if (!response.isSuccessful()) {
-                throw new RuntimeException("Embedding API failed: " + response.code());
+                throw new RuntimeException("Local Embedding API failed: " + response.code());
             }
             JsonNode root = objectMapper.readTree(response.body().string());
-            JsonNode values = root.at("/embedding/values");
+            JsonNode values = root.at("/embedding");
             
             List<Double> embedding = new ArrayList<>();
             for (JsonNode val : values) {

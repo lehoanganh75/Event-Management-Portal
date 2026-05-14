@@ -1,16 +1,16 @@
 import React from "react";
-import { ThumbsUp, MessageCircle, Share2, toast } from "lucide-react";
+import { ThumbsUp, MessageCircle, Share2 } from "lucide-react";
 
-const PostStatsBar = ({ 
-  post, 
-  totalComments, 
-  handleReactPost, 
-  userReaction, 
-  hasLiked, 
-  emojis, 
-  reactionLabels, 
-  reactionColors, 
-  t, 
+const PostStatsBar = ({
+  post,
+  totalComments,
+  handleReactPost,
+  userReaction,
+  hasLiked,
+  emojis,
+  reactionLabels,
+  reactionColors,
+  t,
   mainTextareaRef,
   hoveredPostEmoji,
   setHoveredPostEmoji
@@ -44,9 +44,8 @@ const PostStatsBar = ({
         <div className="flex-1 relative group/post-react">
           <button
             onClick={() => handleReactPost(userReaction ? userReaction : "👍")}
-            className={`w-full flex items-center justify-center gap-2 py-2 hover:bg-slate-50 rounded-xl transition-all font-bold text-[14px] ${
-              hasLiked ? (reactionColors[userReaction] || 'text-blue-600') : 'text-slate-600'
-            }`}
+            className={`w-full flex items-center justify-center gap-2 py-2 hover:bg-slate-50 rounded-xl transition-all font-bold text-[14px] ${hasLiked ? (reactionColors[userReaction] || 'text-blue-600') : 'text-slate-600'
+              }`}
           >
             {userReaction ? (
               userReaction === "👍" ? <ThumbsUp size={18} className="fill-blue-600" /> : <span className="text-lg">{userReaction}</span>
@@ -78,8 +77,8 @@ const PostStatsBar = ({
           </div>
         </div>
 
-        <button 
-          onClick={() => mainTextareaRef.current?.focus()} 
+        <button
+          onClick={() => mainTextareaRef.current?.focus()}
           className="flex-1 flex items-center justify-center gap-2 py-2 hover:bg-slate-50 rounded-xl transition-all text-slate-600 font-bold text-[14px]"
         >
           <MessageCircle size={18} /> {t('comment')}

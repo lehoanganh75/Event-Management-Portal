@@ -1,7 +1,9 @@
 import React, { useState, useRef, useEffect, useCallback } from "react";
-import { X, Send, Loader2, Sparkles, ChevronDown, RotateCcw, Star, ThumbsUp,
-         Calendar, MapPin, Users, ChevronRight, Zap, BookOpen, HelpCircle,
-         ClipboardList, Lightbulb, Search, AlertCircle, RefreshCw } from "lucide-react";
+import {
+  X, Send, Loader2, Sparkles, ChevronDown, RotateCcw, Star, ThumbsUp,
+  Calendar, MapPin, Users, ChevronRight, Zap, BookOpen, HelpCircle,
+  ClipboardList, Lightbulb, Search, AlertCircle, RefreshCw
+} from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import eventService from "../../services/eventService";
@@ -72,15 +74,15 @@ function parseGeminiError(err) {
 function MessageContent({ text }) {
   const cardMatch = text.match(/\[EVENT_CARDS_START\]([\s\S]*?)\[EVENT_CARDS_END\]/);
   const cleanText = text.replace(/\[EVENT_CARDS_START\][\s\S]*?\[EVENT_CARDS_END\]/, "").trim();
-  
+
   let eventCards = [];
   if (cardMatch) {
     try {
       let content = cardMatch[1].trim();
-      
+
       // Tìm khối JSON dạng mảng [...] bên trong thẻ
       const jsonArrayMatch = content.match(/\[\s*\{[\s\S]*\}\s*\]/);
-      
+
       if (jsonArrayMatch) {
         let jsonStr = jsonArrayMatch[0];
         eventCards = JSON.parse(jsonStr);
@@ -98,7 +100,7 @@ function MessageContent({ text }) {
   const renderText = (rawText) => {
     return rawText.split("\n").map((line, i) => {
       if (!line.trim()) return <div key={i} className="h-2" />;
-      
+
       // Xử lý Bold: **text** -> <strong>text</strong>
       const parts = line.split(/(\*\*.*?\*\*)/g);
       const formattedLine = parts.map((part, idx) => {
@@ -127,7 +129,7 @@ function MessageContent({ text }) {
       <div className="text-[13px] md:text-sm">
         {renderText(cleanText)}
       </div>
-      
+
       {eventCards.length > 0 && (
         <div className="flex gap-3 overflow-x-auto pb-2 pt-1 scrollbar-thin scrollbar-thumb-slate-200">
           {eventCards.map((event, idx) => (
@@ -199,7 +201,7 @@ export default function AIChatBot() {
   const [unread, setUnread] = useState(0);
   const [sessionId, setSessionId] = useState(localStorage.getItem("ai_chat_session_id"));
   const [retryInfo, setRetryInfo] = useState(null);
-  
+
   const bottomRef = useRef(null);
   const inputRef = useRef(null);
   const textareaRef = useRef(null);
@@ -211,10 +213,10 @@ export default function AIChatBot() {
     "Hướng dẫn tôi đăng ký sự kiện",
   ];
 
-  useEffect(() => { 
+  useEffect(() => {
     if (isOpen) {
       setTimeout(() => {
-        bottomRef.current?.scrollIntoView({ behavior: "smooth" }); 
+        bottomRef.current?.scrollIntoView({ behavior: "smooth" });
       }, 100);
     }
   }, [messages, loading, isOpen]);
@@ -226,12 +228,12 @@ export default function AIChatBot() {
         sessionId: stored,
         contextType: "GENERAL_INQUIRY"
       });
-      
+
       if (res.data?.result) {
         const session = res.data.result;
         setSessionId(session.sessionId);
         localStorage.setItem("ai_chat_session_id", session.sessionId);
-        
+
         if (session.messages && session.messages.length > 0) {
           const mapped = session.messages.map(m => ({
             id: m.id,
@@ -286,7 +288,7 @@ export default function AIChatBot() {
 
       if (res.data?.result) {
         const msg = res.data.result;
-        
+
         // ✨ Cập nhật sessionId mới nếu backend vừa tự tạo lại (do reset DB chẳng hạn)
         if (msg.sessionId && msg.sessionId !== sessionId) {
           console.log("Session ID shifted from", sessionId, "to", msg.sessionId);
@@ -304,7 +306,7 @@ export default function AIChatBot() {
       }
     } catch (err) {
       console.error("Send message failed:", err);
-      
+
       // Handle special 500 session missing case
       if (err.response?.status === 500) {
         setSessionId(null);
@@ -379,9 +381,8 @@ export default function AIChatBot() {
               {messages.map((msg) => (
                 <div key={msg.id} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"} gap-2`}>
                   {msg.role !== "user" && <ChatIcon size={28} />}
-                  <div className={`max-w-[80%] rounded-2xl px-4 py-2.5 text-sm shadow-sm ${
-                    msg.role === "user" ? "bg-blue-600 text-white rounded-tr-none" : "bg-white text-gray-800 border border-gray-100 rounded-tl-none"
-                  }`}>
+                  <div className={`max-w-[80%] rounded-2xl px-4 py-2.5 text-sm shadow-sm ${msg.role === "user" ? "bg-blue-600 text-white rounded-tr-none" : "bg-white text-gray-800 border border-gray-100 rounded-tl-none"
+                    }`}>
                     <MessageContent text={msg.content} />
                     {msg.quickReplies && msg.quickReplies.length > 0 && (
                       <div className="mt-3 flex flex-wrap gap-1.5">
@@ -402,15 +403,15 @@ export default function AIChatBot() {
             {/* Footer */}
             <div className="p-3 border-t bg-white">
               {retryInfo && <RetryBanner seconds={retryInfo.seconds} onRetry={() => send(retryInfo.pendingMsg)} />}
-              
+
               {messages.length < 2 && !loading && (
                 <div className="mb-3">
                   <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider px-1 mb-1.5">Gợi ý chủ đề</p>
                   <div className="flex gap-2 overflow-x-auto pb-2 custom-scrollbar" style={{ scrollbarWidth: 'thin' }}>
                     {SUGGESTED.map((q, i) => (
-                      <button 
-                        key={i} 
-                        onClick={() => send(q)} 
+                      <button
+                        key={i}
+                        onClick={() => send(q)}
                         className="whitespace-nowrap text-xs bg-gray-50 hover:bg-gray-100 border border-gray-200 rounded-xl px-4 py-2 text-gray-600 transition-colors shrink-0"
                       >
                         {q}

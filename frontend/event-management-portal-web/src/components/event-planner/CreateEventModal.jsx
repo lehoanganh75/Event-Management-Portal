@@ -77,7 +77,7 @@ const mapTemplateToPrefill = (template) => {
 const CreateEventModal = ({ isOpen, onClose, onSelectPlan, onCreateNew, initialAiText = "" }) => {
   // Mode: 'choice' | 'from_plan' | 'new'
   const [selectionMode, setSelectionMode] = useState('choice');
-  
+
   const [templates, setTemplates] = useState([]);
   const [approvedPlans, setApprovedPlans] = useState([]);
   const [fetching, setFetching] = useState(false);
@@ -93,7 +93,7 @@ const CreateEventModal = ({ isOpen, onClose, onSelectPlan, onCreateNew, initialA
       setSelectedTemplate(null);
       setSelectedPlan(null);
       setSearchTerm("");
-      
+
       if (initialAiText) {
         setSelectionMode('new');
         setAiText(initialAiText);
@@ -168,7 +168,7 @@ const CreateEventModal = ({ isOpen, onClose, onSelectPlan, onCreateNew, initialA
   }, [templates, searchTerm]);
 
   const filteredPlans = useMemo(() => {
-    return approvedPlans.filter(p => 
+    return approvedPlans.filter(p =>
       p.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       p.description?.toLowerCase().includes(searchTerm.toLowerCase())
     );
@@ -187,7 +187,7 @@ const CreateEventModal = ({ isOpen, onClose, onSelectPlan, onCreateNew, initialA
     try {
       const response = await eventService.chat.extractFromText(aiText);
       const aiData = response.data || response;
-      
+
       const mappedData = {
         eventTitle: aiData.title || aiData.eventTitle || "",
         eventPurpose: aiData.description || aiData.eventPurpose || aiText,
@@ -196,7 +196,7 @@ const CreateEventModal = ({ isOpen, onClose, onSelectPlan, onCreateNew, initialA
         eventTopic: aiData.topic || aiData.eventTopic || "OTHER",
         // Backend có thể trả thêm các trường khác, form sẽ tự map nếu khớp key
       };
-      
+
       onCreateNew({ fromPlan: false, initialFormData: mappedData, startAtStep: 1 });
       onClose();
     } catch (error) {
@@ -230,10 +230,18 @@ const CreateEventModal = ({ isOpen, onClose, onSelectPlan, onCreateNew, initialA
 
   return (
     <AnimatePresence>
-      <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
-        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={onClose} className="absolute inset-0 bg-slate-900/50 backdrop-blur-sm" />
-        
+      <div className="fixed inset-0 z-[200] flex items-center justify-center p-4" key="modal-container">
         <motion.div
+          key="modal-overlay"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          onClick={onClose}
+          className="absolute inset-0 bg-slate-900/50 backdrop-blur-sm"
+        />
+
+        <motion.div
+          key="modal-content"
           initial={{ scale: 0.95, opacity: 0, y: 16 }}
           animate={{ scale: 1, opacity: 1, y: 0 }}
           exit={{ scale: 0.95, opacity: 0, y: 16 }}
@@ -243,12 +251,12 @@ const CreateEventModal = ({ isOpen, onClose, onSelectPlan, onCreateNew, initialA
           <div className="p-8 pb-6 border-b border-gray-100 flex justify-between items-center bg-white shrink-0">
             <div>
               <h2 className="text-2xl font-black text-slate-800 mb-1">
-                {selectionMode === 'choice' ? 'Tạo sự kiện mới' : 
-                 selectionMode === 'from_plan' ? 'Chọn kế hoạch đã duyệt' : 'Bắt đầu sự kiện mới'}
+                {selectionMode === 'choice' ? 'Tạo sự kiện mới' :
+                  selectionMode === 'from_plan' ? 'Chọn kế hoạch đã duyệt' : 'Bắt đầu sự kiện mới'}
               </h2>
               <p className="text-slate-500 text-sm">
-                {selectionMode === 'choice' ? 'Chọn phương thức khởi tạo sự kiện của bạn' : 
-                 selectionMode === 'from_plan' ? 'Sử dụng nội dung từ kế hoạch đã được phê duyệt' : 'Sử dụng mẫu hoặc AI để thiết lập nhanh'}
+                {selectionMode === 'choice' ? 'Chọn phương thức khởi tạo sự kiện của bạn' :
+                  selectionMode === 'from_plan' ? 'Sử dụng nội dung từ kế hoạch đã được phê duyệt' : 'Sử dụng mẫu hoặc AI để thiết lập nhanh'}
               </p>
             </div>
             <button onClick={onClose} className="p-2 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-full transition-all">
@@ -355,13 +363,12 @@ const CreateEventModal = ({ isOpen, onClose, onSelectPlan, onCreateNew, initialA
                       </div>
                     ) : (
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        {filteredPlans.map(plan => (
+                        {filteredPlans.map((plan, idx) => (
                           <button
-                            key={plan.id}
+                            key={plan.id || `plan-${idx}`}
                             onClick={() => setSelectedPlan(plan)}
-                            className={`p-6 rounded-2xl border-2 transition-all text-left group ${
-                              selectedPlan?.id === plan.id ? 'border-emerald-500 bg-emerald-50 shadow-md' : 'border-white bg-white hover:border-emerald-200'
-                            }`}
+                            className={`p-6 rounded-2xl border-2 transition-all text-left group ${selectedPlan?.id === plan.id ? 'border-emerald-500 bg-emerald-50 shadow-md' : 'border-white bg-white hover:border-emerald-200'
+                              }`}
                           >
                             <h4 className={`font-bold mb-2 ${selectedPlan?.id === plan.id ? 'text-emerald-700' : 'text-slate-800'}`}>{plan.title}</h4>
                             <p className="text-xs text-slate-500 line-clamp-2 mb-4 leading-relaxed">{plan.description}</p>
@@ -392,14 +399,14 @@ const CreateEventModal = ({ isOpen, onClose, onSelectPlan, onCreateNew, initialA
                       <div className="absolute top-4 right-4 p-2 bg-indigo-50 text-indigo-600 rounded-xl">
                         <Sparkles size={20} />
                       </div>
-                      <textarea 
+                      <textarea
                         className="w-full flex-1 p-2 bg-transparent text-slate-700 focus:outline-none resize-none custom-scrollbar text-sm leading-relaxed placeholder:text-slate-300"
                         placeholder="Ví dụ: Tôi muốn tổ chức một buổi hội thảo về Trí tuệ nhân tạo vào thứ 6 tuần sau lúc 8h sáng tại hội trường A. Dự kiến có khoảng 200 sinh viên tham gia..."
                         value={aiText}
                         onChange={(e) => setAiText(e.target.value)}
                         autoFocus
                       />
-                      
+
                       {/* Tips */}
                       <div className="mt-4 pt-4 border-t border-slate-50 flex gap-2 overflow-x-auto custom-scrollbar pb-2 shrink-0">
                         <button onClick={() => setAiText("Lễ tổng kết năm học kết hợp trao giải sinh viên 5 tốt cấp khoa...")} className="shrink-0 px-4 py-2 bg-slate-50 hover:bg-slate-100 text-slate-600 text-[11px] rounded-full font-medium transition-all">
@@ -462,7 +469,7 @@ const CreateEventModal = ({ isOpen, onClose, onSelectPlan, onCreateNew, initialA
       </div>
 
       <PromptModal
-        isOpen={showPromptModal} onClose={() => setShowPromptModal(false)} onConfirm={() => {}} 
+        isOpen={showPromptModal} onClose={() => setShowPromptModal(false)} onConfirm={() => { }}
         title="Yêu cầu đặc biệt cho AI" message="Hãy cho AI biết thêm chi tiết để kế hoạch được tối ưu nhất cho bạn." placeholder="Nhập yêu cầu của bạn ở đây..."
       />
     </AnimatePresence>

@@ -260,10 +260,71 @@ const eventService = {
     // --- QUIZ API ---
     // AI Planning
     aiPlanning: {
-        generateFromTemplate: (templateId, userContext) =>
-            privateApi.post('/api/v1/ai-planning/from-template', { templateId, userContext }),
-        generateFromRawText: (rawText) =>
-            privateApi.post('/api/v1/ai-planning/from-raw-text', { rawText }),
+        generateFromTemplate: (template, userContext) => {
+            const prompt = `Bạn là một chuyên gia lập kế hoạch sự kiện. Dựa trên mẫu sự kiện "${template.templateName}" (Mô tả mẫu: ${template.description}) và yêu cầu bổ sung của người dùng: "${userContext}", hãy lập một kế hoạch chi tiết.
+            YÊU CẦU QUAN TRỌNG: 
+            1. Trả về DUY NHẤT một khối JSON hợp lệ. KHÔNG giải thích thêm.
+            2. Tất cả thời gian (startTime, endTime) PHẢI ở tương lai (sau tháng 5 năm 2026).
+            3. Nếu trong nội dung có dấu ngoặc kép, hãy dùng dấu nháy đơn hoặc escape nó bằng \\".
+            
+            Cấu trúc JSON:
+            {
+              "title": "Tên sự kiện",
+              "purpose": "Mục đích sự kiện",
+              "description": "Mô tả chi tiết",
+              "subject": "Chủ đề",
+              "suggestedLocation": "Địa điểm",
+              "estimatedParticipants": 100,
+              "suggestedStartTime": "2026-06-01T09:00:00",
+              "suggestedEndTime": "2026-06-01T11:00:00",
+              "programItems": [
+                {
+                  "title": "Tên phiên",
+                  "description": "Mô tả phiên",
+                  "startTime": "2026-06-01T09:00:00",
+                  "endTime": "2026-06-01T09:30:00",
+                  "durationMinutes": 30,
+                  "speaker": "Diễn giả",
+                  "location": "Phòng/Vị trí"
+                }
+              ],
+              "reasoning": "Lý do đề xuất"
+            }`;
+            return axios.post(`${BASE_URL}/ai/api/chat`, { prompt });
+        },
+        generateFromRawText: (rawText) => {
+            const prompt = `Bạn là một chuyên gia lập kế hoạch sự kiện. Hãy trích xuất và đề xuất thông tin sự kiện từ văn bản sau. 
+            YÊU CẦU QUAN TRỌNG: 
+            1. Trả về DUY NHẤT một khối JSON hợp lệ. KHÔNG giải thích thêm.
+            2. Tất cả thời gian (startTime, endTime) PHẢI ở tương lai (sau tháng 5 năm 2026).
+            3. Nếu trong nội dung có dấu ngoặc kép, hãy dùng dấu nháy đơn hoặc escape nó bằng \\".
+
+            Cấu trúc JSON:
+            {
+              "title": "Tên sự kiện",
+              "purpose": "Mục đích sự kiện",
+              "description": "Mô tả chi tiết",
+              "subject": "Chủ đề",
+              "suggestedLocation": "Địa điểm",
+              "estimatedParticipants": 100,
+              "suggestedStartTime": "2026-06-15T08:30:00",
+              "suggestedEndTime": "2026-06-15T11:30:00",
+              "programItems": [
+                {
+                  "title": "Tên phiên",
+                  "description": "Mô tả phiên",
+                  "startTime": "2026-06-15T08:30:00",
+                  "endTime": "2026-06-15T09:00:00",
+                  "durationMinutes": 30,
+                  "speaker": "Diễn giả",
+                  "location": "Phòng/Vị trí"
+                }
+              ],
+              "reasoning": "Lý do đề xuất"
+            }
+            Văn bản đầu vào: ${rawText}`;
+            return axios.post(`${BASE_URL}/ai/api/chat`, { prompt });
+        },
     },
     createQuiz: (quizData) => privateApi.post('/quizzes', quizData),
     getQuizzesByEvent: (eventId) => {
@@ -349,15 +410,23 @@ const eventService = {
             const api = token ? privateApi : publicApi;
             return api.post('/api/v1/chat/messages', data, { timeout: 60000 });
         },
-        analyzeStats: (statsJson) => privateApi.post('/api/v1/chat/analyze-stats', statsJson, {
-            headers: { 'Content-Type': 'text/plain' },
-            timeout: 60000
-        }),
-        extractFromText: (text) => privateApi.post('/api/v1/chat/extract-from-text', text, {
-            headers: { 'Content-Type': 'text/plain' },
-            timeout: 60000
-        }),
-        generateMediaPost: (eventDetails) => privateApi.post('/events/ai/generate-post', { eventDetails }),
+        analyzeStats: (statsJson) => {
+            const prompt = `Hãy phân tích dữ liệu thống kê sự kiện sau và đưa ra nhận xét chuyên sâu: ${statsJson}`;
+            return axios.post(`${BASE_URL}/ai/api/chat`, { prompt });
+        },
+        extractFromText: (text) => {
+            const prompt = `Trích xuất thông tin sự kiện từ văn bản sau và trả về DUY NHẤT định dạng JSON. 
+            Yêu cầu các trường: title, subject, suggestedStartTime, suggestedEndTime, suggestedLocation, estimatedParticipants, programItems (mảng các session).
+            Văn bản: ${text}`;
+            return axios.post(`${BASE_URL}/ai/api/chat`, { prompt });
+        },
+        generateMediaPost: (eventDetails) => {
+            const prompt = `Trích xuất JSON bài viết truyền thông cho sự kiện sau. 
+            Yêu cầu: Trả về duy nhất 1 khối JSON hợp lệ có cấu trúc: {"title": "tiêu đề bài viết", "content": "nội dung chi tiết"}. 
+            Không giải thích gì thêm. 
+            Dữ liệu sự kiện: ${eventDetails}`;
+            return axios.post(`${BASE_URL}/ai/api/chat`, { prompt });
+        },
     },
 
     // --- GROUP 10: LOCAL AI ---
@@ -365,11 +434,11 @@ const eventService = {
         parseFile: (file) => {
             const formData = new FormData();
             formData.append('file', file);
-            return axios.post('http://localhost:3000/upload', formData, {
+            return axios.post(`${BASE_URL}/ai/api/upload`, formData, {
                 headers: { 'Content-Type': 'multipart/form-data' }
             });
         },
-        chat: (prompt) => axios.post('http://localhost:3000/chat', { prompt }, { timeout: 60000 }),
+        chat: (prompt) => axios.post(`${BASE_URL}/ai/api/chat`, { prompt }, { timeout: 60000 }),
     },
 
     // --- GROUP 11: UTILS ---
