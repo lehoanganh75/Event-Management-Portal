@@ -261,6 +261,9 @@ const translations = {
     permissions: "Phân quyền hệ thống",
     templates: "Kho mẫu sự kiện",
     games: "Trò chơi & Vòng quay",
+    event_management: "Quản lý sự kiện",
+    check_in: "Điểm danh QR",
+    task_management: "Nhiệm vụ của tôi",
 
     // Calendar
     mon: "Thứ 2",
@@ -671,6 +674,9 @@ const translations = {
     permissions: "System Permissions",
     templates: "Event Templates",
     games: "Games & Spinner",
+    event_management: "Event Management",
+    check_in: "QR Check-in",
+    task_management: "My Tasks",
 
     // Calendar
     mon: "Mon",

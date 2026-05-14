@@ -23,6 +23,7 @@ import {
     QrCode,
 } from "lucide-react";
 import { showToast } from "../../utils/toast";
+import logo_iuh from "../../assets/images/iuh.png";
 import LogoutModal from "./header/LogoutModal";
 
 const Sidebar = ({ isCollapsed, onToggle }) => {
@@ -78,6 +79,7 @@ const Sidebar = ({ isCollapsed, onToggle }) => {
             { name: t("my_events"), icon: Calendar, path: "/lecturer/events" },
             { name: t("posts"), icon: FileText, path: "/lecturer/posts" },
             { name: t("templates"), icon: Layout, path: "/lecturer/templates" },
+            { name: t("manage_accounts") || "Quản lý tài khoản", icon: Users, path: "/lecturer/accounts" },
             { name: t("notifications"), icon: Bell, path: "/lecturer/notifications" },
             { name: t("profile"), icon: UserCircle, path: "/lecturer/profile" },
         ],
@@ -89,11 +91,10 @@ const Sidebar = ({ isCollapsed, onToggle }) => {
             { name: t("profile"), icon: UserCircle, path: "/student/profile" },
         ],
         MEMBER: [
-            { name: t("event_management") || "Quản lý sự kiện", icon: Calendar, path: "/member/events" },
-            { name: t("check_in") || "Điểm danh QR", icon: QrCode, path: "/member/checkin" },
-            { name: t("task_management") || "Nhiệm vụ của tôi", icon: ClipboardList, path: "/member/tasks" },
-            { name: t("notifications"), icon: Bell, path: "/member/notifications" },
-            { name: t("profile"), icon: UserCircle, path: "/member/profile" },
+            { name: t("event_management"), icon: Calendar, path: "/student/events" },
+            { name: t("posts"), icon: Share2, path: "/student/posts" },
+            { name: t("notifications"), icon: Bell, path: "/student/notifications" },
+            { name: t("profile"), icon: UserCircle, path: "/student/profile" },
         ],
         GUEST: [
             { name: t("profile"), icon: UserCircle, path: "/profile" },
@@ -156,26 +157,17 @@ const Sidebar = ({ isCollapsed, onToggle }) => {
                 >
                     <div className="flex items-center gap-3 min-w-0">
                         <div className="relative shrink-0">
-                            <div className="absolute inset-0 bg-blue-500/20 blur-md rounded-xl" />
-                            <div
-                                className="
-                  relative
-                  w-11 h-11
-                  rounded-xl
-                  bg-gradient-to-br from-[#1E40AF] to-[#2563EB]
-                  text-white
-                  flex items-center justify-center
-                  shadow-md shadow-blue-100
-                "
-                            >
-                                <Calendar size={21} strokeWidth={2.5} />
-                            </div>
+                            <img
+                                src={logo_iuh}
+                                alt="IUH Logo"
+                                className="w-11 h-11 object-contain"
+                            />
                         </div>
 
                         {!isCollapsed && (
                             <div className="min-w-0">
                                 <h1 className="text-[15px] font-black text-slate-900 leading-tight tracking-tight">
-                                    EVENTIA
+                                    IUH - EMS
                                 </h1>
                                 <p className="text-[10px] text-[#1E40AF] font-bold uppercase tracking-[0.16em] truncate mt-1">
                                     {t(`role_${role.toLowerCase()}`) || role.replace("_", " ")}

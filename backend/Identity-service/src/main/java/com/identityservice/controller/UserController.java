@@ -39,7 +39,7 @@ public class UserController {
         return ResponseEntity.ok(userService.updateUser(userId, updatedProfile));
     }
 
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN', 'LECTURER')")
     @PutMapping("/{userId}")
     public ResponseEntity<UserResponse> updateAnyProfile(
             @PathVariable String userId,
@@ -50,26 +50,26 @@ public class UserController {
 
 
     // Admin endpoints
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN', 'LECTURER')")
     @GetMapping
     public ResponseEntity<List<UserResponse>> getAllUsers() {
         return ResponseEntity.ok(userService.findAll());
     }
 
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN', 'LECTURER')")
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteUser(@PathVariable String id) {
         userService.delete(id);
         return ResponseEntity.noContent().build();
     }
 
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN', 'LECTURER')")
     @PutMapping("/{id}/roles")
     public ResponseEntity<UserResponse> updateRoles(@PathVariable String id, @RequestBody String role) {
         return ResponseEntity.ok(userService.updateRole(id, role));
     }
 
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN', 'LECTURER')")
     @PutMapping("/{id}/status")
     public ResponseEntity<UserResponse> updateStatus(@PathVariable String id, @RequestBody UserStatusRequest request) {
         return ResponseEntity.ok(userService.updateStatus(id, request.getStatus()));

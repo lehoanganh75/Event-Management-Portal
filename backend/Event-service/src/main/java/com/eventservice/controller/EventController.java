@@ -12,6 +12,7 @@ import com.eventservice.entity.enums.OrganizerRole;
 import com.eventservice.service.EventOrganizerService;
 import com.eventservice.service.EventPresenterService;
 import com.eventservice.service.EventService;
+import com.eventservice.service.ChatService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -43,6 +44,7 @@ import java.util.Map;
 @Slf4j
 public class EventController {
     private final EventService eventService;
+    private final ChatService chatService;
     private final EventPresenterService presenterService;
     private final EventOrganizerService organizerService;
     private final OrganizationRepository organizationRepository;
@@ -649,5 +651,19 @@ public class EventController {
     public ResponseEntity<Void> cancelInvitation(@PathVariable String invitationId) {
         eventService.cancelInvitation(invitationId);
         return ResponseEntity.noContent().build();
+    }
+    @PostMapping("/ai/generate-post")
+    public ResponseEntity<Map<String, Object>> generateMediaPost(
+            @RequestBody Map<String, Object> request) {
+        log.info("Event Controller: Request to generate AI post content");
+        String eventDetails = (String) request.get("eventDetails");
+
+        String postJson = chatService.generateMediaPost(eventDetails);
+
+        return ResponseEntity.ok(Map.of(
+                "code", 1000,
+                "message", "Media post generated successfully",
+                "result", postJson
+        ));
     }
 }

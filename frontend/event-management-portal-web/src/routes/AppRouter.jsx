@@ -137,6 +137,7 @@ const AppRouter = () => {
             <Route path="posts" element={<LecturerPostManagement />} />
             <Route path="posts/:id" element={<LecturerPostDetailPage />} />
             <Route path="templates" element={<LecturerTemplatesPage />} />
+            <Route path="accounts" element={<AdminAccountsPage restrictRoles={["STUDENT", "MEMBER", "GUEST"]} />} />
             <Route path="notifications" element={<LecturerNotificationsPage />} />
             <Route path="spinner" element={<LecturerLuckyDrawManagement />} />
             <Route path="profile" element={<ProfileManagement />} />

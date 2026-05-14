@@ -37,7 +37,7 @@ const roleKeyMap = {
   ADMIN: "role_admin",
   LECTURER: "role_lecturer",
   STUDENT: "role_student",
-  MEMBER: "role_student",
+  MEMBER: "role_member",
   LEADER: "role_leader",
   SUB_LEADER: "role_sub_leader",
   SECRETARY: "role_secretary",
@@ -256,16 +256,6 @@ const Header = () => {
                   alt="IUH Logo"
                   className="h-10 w-auto object-contain"
                 />
-
-                <div className="hidden sm:block border-l border-slate-200 pl-3">
-                  <h1 className="text-[15px] font-semibold text-slate-900 leading-tight">
-                    Event Management
-                  </h1>
-
-                  <p className="text-[11px] text-[#1E40AF] font-medium mt-0.5">
-                    Portal System
-                  </p>
-                </div>
               </Link>
             </div>
 
@@ -308,14 +298,16 @@ const Header = () => {
               {isAuthenticated && user ? (
                 <>
                   {/* Dashboard */}
-                  {(isEventStaff() || isAdminOnly() || isSuperAdmin()) && (
+                  {(isEventStaff() || isAdminOnly() || isSuperAdmin() || hasRole("MEMBER") || hasRole("LECTURER")) && (
                     <Link
                       to={
                         isSuperAdmin() || isAdminOnly()
                           ? "/admin/dashboard"
-                          : isLeaderRole()
-                            ? "/lecturer/dashboard"
-                            : "/lecturer/events"
+                          : hasRole("MEMBER")
+                            ? "/student/events"
+                            : isLeaderRole()
+                              ? "/lecturer/dashboard"
+                              : "/lecturer/events"
                       }
                       className="
                   hidden sm:flex

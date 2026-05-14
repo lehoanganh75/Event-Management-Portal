@@ -355,6 +355,7 @@ const eventService = {
         extractFromText: (text) => privateApi.post('/api/v1/chat/extract-from-text', text, {
             headers: { 'Content-Type': 'text/plain' }
         }),
+        generateMediaPost: (eventDetails) => privateApi.post('/events/ai/generate-post', { eventDetails }),
     },
 
     // --- GROUP 10: LOCAL AI ---

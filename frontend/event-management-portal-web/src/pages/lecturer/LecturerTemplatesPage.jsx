@@ -357,7 +357,7 @@ const LecturerTemplatesPage = () => {
                               className="p-2 hover:bg-gray-100 rounded-lg text-gray-500 hover:text-amber-600 transition-all"
                               title="Chỉnh sửa"
                             >
-                              <Settings size={18} />
+                              <Pencil size={18} />
                             </button>
                             <button
                               onClick={() => setTemplateToDelete(t)}
@@ -415,7 +415,7 @@ const LecturerTemplatesPage = () => {
       {/* MODAL: VIEW / EDIT / CREATE */}
       <AnimatePresence>
         {isModalOpen && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
@@ -677,7 +677,7 @@ const LecturerTemplatesPage = () => {
       {/* DELETE CONFIRMATION MODAL */}
       <AnimatePresence>
         {templateToDelete && (
-          <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+          <div className="fixed inset-0 z-[210] flex items-center justify-center p-4">
             <motion.div
               initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
               onClick={() => setTemplateToDelete(null)}

@@ -1,4 +1,5 @@
 import React from "react";
+import { useLocation } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   User,
@@ -24,6 +25,8 @@ const UserProfileMenu = ({
   menuRef,
   navigate,
 }) => {
+  const location = useLocation();
+
   const menuItems = [
     {
       label: t("profile"),
@@ -39,21 +42,18 @@ const UserProfileMenu = ({
         !isAdminOnly() &&
         !hasRole("LECTURER"),
     },
-    {
-      label: t("dashboard"),
-      icon: LayoutDashboard,
-      path: "/student/dashboard",
-      show:
-        hasRole("STUDENT") &&
-        !isSuperAdmin() &&
-        !isAdminOnly() &&
-        !hasRole("LECTURER"),
-    },
+
     {
       label: t("admin_dashboard"),
       icon: ShieldCheck,
       path: "/admin/dashboard",
       show: isSuperAdmin() || isAdminOnly(),
+    },
+    {
+      label: "Vào trang BTC",
+      icon: LayoutDashboard,
+      path: "/student/events",
+      show: hasRole("MEMBER"),
     },
     {
       label: t("org_dashboard"),
@@ -63,11 +63,6 @@ const UserProfileMenu = ({
         (hasRole("LECTURER") || isEventStaff()) &&
         !isAdminOnly() &&
         !isSuperAdmin(),
-    },
-    {
-      label: t("settings"),
-      icon: Settings,
-      path: "/settings",
     },
   ];
 
@@ -230,39 +225,39 @@ const UserProfileMenu = ({
             {/* Menu */}
             <div className="p-2">
               {menuItems.map(
-                (item, idx) =>
-                  item.show !== false && (
+                (item, idx) => {
+                  const isActive = location.pathname === item.path;
+                  return item.show !== false && (
                     <button
                       key={idx}
                       onClick={() => {
                         setIsOpen(false);
                         navigate(item.path);
                       }}
-                      className="
+                      className={`
                         w-full
                         flex items-center gap-3
                         px-3 py-3
                         rounded-xl
-                        text-slate-700
-                        hover:bg-slate-100
                         transition-all duration-200
                         group
-                      "
+                        ${isActive ? "bg-blue-50 text-[#1E40AF]" : "text-slate-700 hover:bg-slate-100"}
+                      `}
                     >
                       <item.icon
                         size={18}
-                        className="
-                          text-slate-500
-                          group-hover:text-[#1E40AF]
+                        className={`
                           transition-colors
-                        "
+                          ${isActive ? "text-[#1E40AF]" : "text-slate-500 group-hover:text-[#1E40AF]"}
+                        `}
                       />
 
-                      <span className="text-[13px] font-medium">
+                      <span className={`text-[13px] ${isActive ? "font-bold" : "font-medium"}`}>
                         {item.label}
                       </span>
                     </button>
-                  )
+                  );
+                }
               )}
             </div>
 

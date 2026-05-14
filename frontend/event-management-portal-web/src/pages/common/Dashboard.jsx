@@ -43,7 +43,7 @@ const Dashboard = () => {
     const roles = user?.roles || (user?.role ? [{ name: user.role }] : []);
     return roles.some((r) => {
       const name = (typeof r === "string" ? r : r.name)?.toUpperCase();
-      return ["ORGANIZER", "MANAGER"].includes(name);
+      return ["ORGANIZER", "MANAGER", "LECTURER", "MEMBER"].includes(name);
     });
   }, [user, isAdmin]);
 

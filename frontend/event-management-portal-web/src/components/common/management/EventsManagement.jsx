@@ -616,8 +616,8 @@ const EventsManagement = ({ type = "lecturer", mode = "all" }) => {
         </div>
 
         <div className="flex gap-3">
-          {/* Hiển thị Import và Tạo mới cho Admin, Student, Lecturer hoặc trong mode Plan */}
-          {(isAdminMode || type === "student" || type === "lecturer" || mode === "plan" || mode === "all") && (
+          {/* Hiển thị Import và Tạo mới cho Admin, Lecturer, MEMBER hoặc trong mode Plan */}
+          {(isAdminMode || user?.role === "LECTURER" || user?.role === "MEMBER" || mode === "plan") && (
             <>
               <label className={`flex items-center gap-2 bg-indigo-50 text-indigo-600 hover:bg-indigo-100 px-5 py-2.5 rounded-lg text-sm font-bold transition-all cursor-pointer border border-indigo-200 shadow-sm ${isImporting ? 'opacity-50 pointer-events-none' : ''}`}>
                 <input
@@ -640,7 +640,7 @@ const EventsManagement = ({ type = "lecturer", mode = "all" }) => {
                 className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-lg text-sm font-medium transition-all shadow-sm"
               >
                 <Plus size={18} />
-                {mode === "plan" ? "Tạo kế hoạch mới" : (type === "student" ? "Đề xuất sự kiện" : "Tạo sự kiện mới")}
+                {mode === "plan" ? "Tạo kế hoạch mới" : (user?.role === "MEMBER" ? "Đề xuất sự kiện" : "Tạo sự kiện mới")}
               </button>
             </>
           )}

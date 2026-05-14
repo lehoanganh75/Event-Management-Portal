@@ -186,11 +186,11 @@ const RenderComment = ({
   return (
     <div className={`flex gap-3 ${isReply ? "mt-3 ml-8" : "mt-4"}`}>
       {isAnon ? (
-        <div className={`${isReply ? "w-6 h-6 text-sm" : "w-8 h-8 text-lg"} rounded-full flex items-center justify-center shadow-sm border border-slate-100 ${anonymousInfo.color}`}>
+        <div className={`${isReply ? "w-8 h-8 text-sm" : "w-10 h-10 text-lg"} rounded-xl flex items-center justify-center shadow-sm border border-slate-100 ${anonymousInfo.color}`}>
           {anonymousInfo.icon}
         </div>
       ) : (
-        <img src={avatar} alt="avatar" className={`${isReply ? "w-6 h-6" : "w-8 h-8"} rounded-full flex-shrink-0 object-cover border border-slate-100 shadow-sm`} />
+        <img src={avatar} alt="avatar" className={`${isReply ? "w-8 h-8" : "w-10 h-10"} rounded-xl flex-shrink-0 object-cover border-2 border-white shadow-sm ring-1 ring-slate-100`} />
       )}
       <div className="flex-1 min-w-0">
         <div className="flex items-center group/comment-main">
@@ -341,13 +341,13 @@ const RenderComment = ({
           <div className="mt-3 flex gap-2 animate-in slide-in-from-top-1 reply-input-container items-start">
             <div className="flex-shrink-0 mt-1">
               {isAnonEnabled ? (
-                <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs shadow-sm border border-slate-100 ${currentAnonIdentity.color}`}>
+                <div className={`w-8 h-8 rounded-xl flex items-center justify-center text-xs shadow-sm border border-slate-100 ${currentAnonIdentity.color}`}>
                   {currentAnonIdentity.icon}
                 </div>
               ) : (
                 <img
                   src={userAvatar}
-                  className="w-6 h-6 rounded-full object-cover border border-slate-100 shadow-sm"
+                  className="w-8 h-8 rounded-xl object-cover border-2 border-white shadow-sm ring-1 ring-slate-100"
                   alt="User"
                 />
               )}
@@ -624,7 +624,7 @@ const PostDetailManagement = ({
       <div className={`w-full bg-white ${hideHeader ? '' : 'rounded-2xl shadow-sm border border-slate-200'} h-fit relative`}>
         <div className="p-4 flex justify-between items-start">
           <div className="flex gap-3">
-            <div className="w-10 h-10 rounded-full overflow-hidden border border-slate-100 shadow-sm"><img src={post.author?.avatarUrl || DEFAULT_AVATAR} className="w-full h-full object-cover" alt="author" /></div>
+            <div className="w-12 h-12 rounded-xl overflow-hidden border-2 border-white shadow-md ring-1 ring-slate-100"><img src={post.author?.avatarUrl || DEFAULT_AVATAR} className="w-full h-full object-cover" alt="author" /></div>
             <div>
               <div className="flex items-center gap-2">
                 <h3 className="font-bold text-[15px] text-slate-900">{post.author?.fullName || "Tác giả"}</h3>
@@ -766,13 +766,13 @@ const PostDetailManagement = ({
               <div className="flex gap-3 items-start">
                 <div className="flex-shrink-0 mt-1">
                   {isMainAnonEnabled ? (
-                    <div className={`w-8 h-8 rounded-full flex items-center justify-center text-lg shadow-sm border border-slate-100 ${currentMainAnonIdentity.color}`}>
+                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-lg shadow-sm border border-slate-100 ${currentMainAnonIdentity.color}`}>
                       {currentMainAnonIdentity.icon}
                     </div>
                   ) : (
                     <img
                       src={currentUser?.avatarUrl || `https://api.dicebear.com/7.x/initials/svg?seed=${currentUser?.fullName || 'User'}`}
-                      className="w-8 h-8 rounded-full object-cover border border-slate-100 shadow-sm"
+                      className="w-10 h-10 rounded-xl object-cover border-2 border-white shadow-md ring-1 ring-slate-100"
                       alt="User"
                     />
                   )}

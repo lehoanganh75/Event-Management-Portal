@@ -624,4 +624,46 @@ public class GeminiChatServiceImpl implements GeminiChatService {
             return "ERROR_AI_OVERLOADED";
         }
     }
+
+    @Override
+    public String generateMediaPost(String eventDetails) {
+        try {
+            String prompt = String.format("""
+                [ROLE]
+                Bạn là một chuyên gia truyền thông sự kiện xuất sắc.
+                
+                [TASK]
+                Dựa trên thông tin sự kiện dưới đây, hãy viết một bài đăng truyền thông hấp dẫn để thu hút người tham gia.
+                
+                Thông tin sự kiện:
+                %s
+                
+                [OUTPUT FORMAT - JSON ONLY]
+                {
+                  "title": "Tiêu đề bài đăng thật thu hút (khoảng 5-10 từ)",
+                  "content": "Nội dung bài đăng gồm 3 phần: Mở đầu gây chú ý, Thông tin cốt lõi, và Lời kêu gọi hành động (Call to action). Sử dụng emoji phù hợp."
+                }
+                
+                Lưu ý: Chỉ trả về JSON hợp lệ.
+                """, eventDetails);
+
+            String response = callGeminiAPI(prompt);
+            
+            if (response == null || response.equals("ERROR_AI_OVERLOADED")) {
+                return "ERROR_AI_OVERLOADED";
+            }
+
+            // Clean JSON response (remove markdown markers if present)
+            int start = response.indexOf('{');
+            int end = response.lastIndexOf('}');
+            if (start != -1 && end != -1 && end >= start) {
+                return response.substring(start, end + 1);
+            }
+            
+            return response;
+        } catch (Exception e) {
+            log.error("CRITICAL ERROR generating media post: {}", e.getMessage());
+            return "ERROR_AI_OVERLOADED";
+        }
+    }
 }

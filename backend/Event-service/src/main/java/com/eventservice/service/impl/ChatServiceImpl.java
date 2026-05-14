@@ -672,4 +672,10 @@ public class ChatServiceImpl implements ChatService {
         log.info("Requesting AI to analyze event statistics");
         return geminiChatService.analyzeEventStatistics(statsJson);
     }
+
+    @Override
+    public String generateMediaPost(String eventDetails) {
+        log.info("Requesting AI to generate media post content");
+        return geminiChatService.generateMediaPost(eventDetails);
+    }
 }

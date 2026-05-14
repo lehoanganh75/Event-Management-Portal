@@ -23,11 +23,11 @@ const RegistrationTab = ({ event, getRegistrationStatus, formatDateTime }) => {
                     <td className="p-4 font-mono text-xs text-blue-600">{reg.ticketCode || "—"}</td>
                     <td className="p-4">
                       <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-full overflow-hidden bg-slate-100 flex-shrink-0 border border-gray-100">
+                        <div className="w-10 h-10 rounded-xl overflow-hidden bg-slate-50 flex-shrink-0 border-2 border-white shadow-sm ring-1 ring-slate-100">
                           {reg.profile?.avatarUrl ? (
                             <img src={reg.profile.avatarUrl} alt="" className="w-full h-full object-cover" />
                           ) : (
-                            <div className="w-full h-full flex items-center justify-center text-slate-400 text-[10px] font-black uppercase">
+                            <div className="w-full h-full flex items-center justify-center text-slate-400 text-[11px] font-black uppercase">
                               {(reg.profile?.fullName || reg.participantAccountId)?.charAt(0)}
                             </div>
                           )}
