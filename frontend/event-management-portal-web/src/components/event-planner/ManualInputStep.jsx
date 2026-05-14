@@ -247,27 +247,26 @@ const SESSION_TYPES = [
 ];
 
 const DateTimeField = ({ label, value, onChange, error, required }) => {
-  // Handle string, Date object, or null/undefined
-  let stringValue = "";
-  if (typeof value === 'string') {
-    stringValue = value;
-  } else if (value instanceof Date && !isNaN(value)) {
-    // Format Date to YYYY-MM-DDTHH:mm (local time)
-    const pad = (num) => String(num).padStart(2, '0');
-    const yyyy = value.getFullYear();
-    const mm = pad(value.getMonth() + 1);
-    const dd = pad(value.getDate());
-    const hh = pad(value.getHours());
-    const min = pad(value.getMinutes());
-    stringValue = `${yyyy}-${mm}-${dd}T${hh}:${min}`;
-  } else if (typeof value === 'string' && value.match(/^\d{2}:\d{2}(:\d{2})?$/)) {
-    // NẾU CHỈ CÓ TIME -> GHÉP THÊM NGÀY HÔM NAY ĐỂ TRÁNH LỖI HTML5
-    const today = new Date().toISOString().split('T')[0];
-    stringValue = `${today}T${value.substring(0, 5)}`;
-  }
+  // Chuẩn hóa mọi loại dữ liệu (Date object hoặc String) về định dạng YYYY-MM-DDTHH:mm địa phương
+  const formatLocal = (val) => {
+    if (!val) return "";
+    const d = new Date(val);
+    if (isNaN(d.getTime())) return typeof val === 'string' ? val : "";
+    
+    const pad = (n) => String(n).padStart(2, '0');
+    const yyyy = d.getFullYear();
+    const mm = pad(d.getMonth() + 1);
+    const dd = pad(d.getDate());
+    const hh = pad(d.getHours());
+    const min = pad(d.getMinutes());
+    return `${yyyy}-${mm}-${dd}T${hh}:${min}`;
+  };
 
-  const dateVal = stringValue ? stringValue.split('T')[0] : "";
-  const timeVal = stringValue ? stringValue.split('T')[1] || "00:00" : "00:00";
+  const stringValue = formatLocal(value);
+  const [datePart, timePart] = stringValue.includes('T') ? stringValue.split('T') : [stringValue, "00:00"];
+  
+  const dateVal = datePart || "";
+  const timeVal = timePart ? timePart.substring(0, 5) : "00:00";
 
   return (
     <Field label={label} required={required} error={error}>

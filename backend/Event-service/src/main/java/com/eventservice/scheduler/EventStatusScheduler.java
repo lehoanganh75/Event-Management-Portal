@@ -30,6 +30,17 @@ public class EventStatusScheduler {
     public void autoUpdateEventStatus() {
         LocalDateTime now = LocalDateTime.now();
 
+        // 1. TỰ ĐỘNG BẮT ĐẦU SỰ KIỆN (PUBLISHED -> ONGOING)
+        List<String> eventsToStart = eventRepository.findEventsToStart(now);
+        if (!eventsToStart.isEmpty()) {
+            int startedCount = eventRepository.updateStatusesByIds(eventsToStart, EventStatus.ONGOING);
+            log.info("Auto-started {} events at {}", startedCount, now);
+            for (String id : eventsToStart) {
+                eventStatusProducer.sendEventStatusChange(id, "PUBLISHED", "ONGOING");
+            }
+        }
+
+        // 2. TỰ ĐỘNG KẾT THÚC SỰ KIỆN (PUBLISHED/ONGOING -> COMPLETED)
         List<EventStatus> activeStatuses = List.of(
                 EventStatus.PUBLISHED,
                 EventStatus.ONGOING);
@@ -41,8 +52,6 @@ public class EventStatusScheduler {
             log.info("Auto-completed {} events at {}", updatedCount, now);
 
             for (String eventId : expiredEventIds) {
-                // Chúng ta không biết chắc chắn status cũ là cái nào trong list activeStatuses
-                // Nhưng chúng ta biết nó đã chuyển sang COMPLETED
                 eventStatusProducer.sendEventStatusChange(eventId, "ACTIVE", "COMPLETED");
             }
         }

@@ -212,9 +212,9 @@ const StudentEventDetailPage = () => {
     }
   };
 
-  const handleRejectLeave = async (organizerId) => {
+  const handleRejectLeave = async (organizerId, reason) => {
     try {
-      await eventService.rejectLeaveRequest(organizerId);
+      await eventService.rejectLeaveRequest(organizerId, reason);
       toast.success("Đã từ chối yêu cầu rời nhóm");
       fetchData();
     } catch (err) {

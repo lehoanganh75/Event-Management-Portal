@@ -123,8 +123,7 @@ public class ChatServiceImpl implements ChatService {
     @Override
     @Transactional
     public ChatMessageResponse sendMessage(ChatMessageRequest request, String userId) {
-        // Get session or create a new one if not found (fixes 500 error when session
-        // expires/DB reset)
+        // Get session or create a new one if not found
         ChatSession session = chatSessionRepository.findBySessionId(request.getSessionId())
                 .orElseGet(() -> {
                     log.info("Session {} not found, creating a fallback session", request.getSessionId());
@@ -137,9 +136,8 @@ public class ChatServiceImpl implements ChatService {
                     return chatSessionRepository.save(newSession);
                 });
 
-        // Validate session ownership (allow guest access if session userId is null)
+        // Validate session ownership
         if (userId != null && session.getUserId() != null && !session.getUserId().equals(userId)) {
-            // If mismatch, we create a new session for this user instead of throwing error
             log.warn("Session userId mismatch. Creating new session for user {}", userId);
             session = ChatSession.builder()
                     .sessionId(UUID.randomUUID().toString())
@@ -160,11 +158,14 @@ public class ChatServiceImpl implements ChatService {
 
         userMessage = chatMessageRepository.save(userMessage);
 
-        // Ensure we update session ID in response if it's a new one
-        String currentSessionId = session.getSessionId();
-
-        // Analyze intent
-        String intent = geminiChatService.analyzeUserIntent(request.getContent());
+        // Analyze intent - OPTIMIZATION: Skip AI call for very short messages
+        String content = request.getContent();
+        String intent = "GENERAL_QUESTION";
+        if (content.length() > 25) {
+            intent = geminiChatService.analyzeUserIntent(content);
+        } else {
+            log.info("Short message detected, skipping AI intent analysis");
+        }
         log.info("User intent: {}", intent);
 
         // Update context if needed
@@ -173,30 +174,25 @@ public class ChatServiceImpl implements ChatService {
             chatSessionRepository.save(session);
         }
 
-        // Get conversation history (Limit to last 20 for context efficiency)
-        List<ChatMessage> fullHistory = chatMessageRepository.findBySessionIdOrderByCreatedAtAsc(request.getSessionId());
-        List<ChatMessage> history = fullHistory.size() > 20 
-                ? fullHistory.subList(fullHistory.size() - 20, fullHistory.size()) 
+        // Get conversation history
+        List<ChatMessage> fullHistory = chatMessageRepository.findBySessionIdOrderByCreatedAtAsc(session.getSessionId());
+        List<ChatMessage> history = fullHistory.size() > 10 
+                ? fullHistory.subList(fullHistory.size() - 10, fullHistory.size()) 
                 : fullHistory;
         
         // --- SMART RAG INTEGRATION (VECTOR SEARCH) ---
         Set<com.eventservice.entity.core.Event> contextEventsSet = new LinkedHashSet<>();
-        String userQuery = request.getContent();
         
         try {
-            log.info("Performing Vector Search for query: {}", userQuery);
-            
-            if (embeddingModel != null) {
-                // 1. Tạo embedding cho câu hỏi
-                List<Double> queryEmbedding = embeddingModel.embed(userQuery);
-
-                // 2. Lấy tất cả vector và tìm kiếm
+            if (embeddingModel != null && content.length() > 5) {
+                log.info("Performing Vector Search for query: {}", content);
+                List<Double> queryEmbedding = embeddingModel.embed(content);
                 List<EventVector> allVectors = eventVectorRepository.findAll();
                 List<String> topEventIds = allVectors.stream()
                         .map(v -> new AbstractMap.SimpleEntry<>(v.getId(), calculateCosineSimilarity(queryEmbedding, v.getEmbedding())))
                         .sorted((e1, e2) -> Double.compare(e2.getValue(), e1.getValue()))
-                        .filter(e -> e.getValue() > 0.6)
-                        .limit(5)
+                        .filter(e -> e.getValue() > 0.65)
+                        .limit(3)
                         .map(AbstractMap.SimpleEntry::getKey)
                         .collect(Collectors.toList());
 
@@ -208,74 +204,48 @@ public class ChatServiceImpl implements ChatService {
             log.error("Vector Search failed: {}", e.getMessage());
         }
 
-        // Luôn bổ sung tìm kiếm theo từ khóa
-        String keyword = extractSearchKeyword(userQuery);
+        // Keyword search fallback
+        String keyword = extractSearchKeyword(content);
         if (keyword != null && !keyword.isBlank()) {
             contextEventsSet.addAll(eventRepository.searchByKeyword(keyword));
         }
 
-        // QUAN TRỌNG: Luôn lấy thêm 5 sự kiện mới nhất/nổi bật nhất để AI có dữ liệu so sánh
+        // Add latest events for context
         List<com.eventservice.entity.core.Event> latestEvents = eventRepository.findByIsDeletedFalseOrderByStartTimeDesc()
-                .stream().limit(5).collect(Collectors.toList());
+                .stream().limit(3).collect(Collectors.toList());
         contextEventsSet.addAll(latestEvents);
         
         List<com.eventservice.entity.core.Event> finalContextEvents = new ArrayList<>(contextEventsSet);
         String eventContext = buildEventContext(finalContextEvents);
 
-        String enhancedUserMessage = request.getContent();
+        // Build enhanced message
+        String userInfo = String.format("[CONTEXT: %s]\n", session.getContextType());
+        String enhancedUserMessage = userInfo + content;
         
-        // 1. INJECT MEMORY + CONTEXT
-        String userInfo = String.format("""
-            [THÔNG TIN NGƯỜI DÙNG HIỆN TẠI]
-            - Tên: %s
-            - Vai trò: %s
-            - Ngữ cảnh: %s
-            
-            """, "Người dùng", session.getContextType(), session.getContextType());
-        
-        if (!eventContext.isEmpty()) {
+        if (!eventContext.isEmpty() && !"FEEDBACK".equals(intent)) {
             enhancedUserMessage = userInfo + String.format("""
-                [DỮ LIỆU SỰ KIỆN HỆ THỐNG - RAG]
+                [DỮ LIỆU HỆ THỐNG]
                 %s
-                [KẾT THÚC DỮ LIỆU]
                 
-                Dựa trên dữ liệu trên, hãy trả lời câu hỏi của người dùng: "%s"
-                
-                YÊU CẦU QUAN TRỌNG:
-                1. NGÔN NGỮ CON NGƯỜI: Trả lời bằng giọng văn tự nhiên, thân thiện như một trợ lý thực thụ. Tránh liệt kê danh sách khô khan kiểu máy móc.
-                2. KHÔNG TIẾT LỘ KỸ THUẬT: Tuyệt đối không nhắc đến các từ như "JSON", "Dữ liệu hệ thống", "Thẻ" hay các mã ID dài ngoằng trong phần trả lời văn bản.
-                3. XỬ LÝ DỮ LIỆU: Chỉ trích xuất thông tin thật từ phần [DỮ LIỆU SỰ KIỆN] ở trên. Nếu không có dữ liệu thật, hãy trả lời là "Hiện tại tôi chưa tìm thấy sự kiện phù hợp", tuyệt đối không dùng "Sự kiện 123".
-                4. ĐỊNH DẠNG THẺ: Toàn bộ mã JSON phục vụ hiển thị thẻ sự kiện PHẢI nằm gọn trong cặp thẻ [EVENT_CARDS_START] và [EVENT_CARDS_END] ở cuối cùng. Mã JSON phải là một mảng hợp lệ dạng [{}, {}].
-                """, eventContext, request.getContent());
-        } else {
-            enhancedUserMessage = userInfo + request.getContent();
+                 Hãy trả lời câu hỏi: "%s"
+                (Chỉ dùng dữ liệu trên, trả lời tự nhiên, thân thiện. KHÔNG hiển thị các ID kỹ thuật (UUID) cho người dùng. JSON thẻ sự kiện nếu có để trong [EVENT_CARDS_START]...[EVENT_CARDS_END])
+                """, eventContext, content);
         }
 
         // Generate AI response
+        long startTime = System.currentTimeMillis();
         String aiResponse = geminiChatService.generateChatResponse(
                 enhancedUserMessage,
                 history,
                 session.getContextType()
         );
+        long duration = System.currentTimeMillis() - startTime;
+        log.info("AI Response generated in {}ms", duration);
 
-        
-        // Ghi lại log để theo dõi
-        if (enhancedUserMessage.length() > 250) {
-            log.info("Handled a long message via unified AI response to avoid double answers.");
-        }
-
-        // Fallback: Nếu AI trả về lỗi hoặc mã quá tải -> Dùng bộ phản hồi từ DB
-        if (aiResponse == null || aiResponse.isBlank() || aiResponse.contains("⚠️") || aiResponse.contains("gián đoạn")
-                || aiResponse.contains("quá tải") || aiResponse.contains("quota") || aiResponse.contains("503")
-                || aiResponse.contains("unavailable") || aiResponse.equals("ERROR_AI_OVERLOADED")) {
-            
-            log.warn("AI service failed (Response: {}), switching to smart database fallback", aiResponse);
-            
-            // Xóa sạch nội dung cũ, thay bằng nội dung từ DB
-            String fallbackContent = generateFallbackResponse(request.getContent(), finalContextEvents);
-            aiResponse = fallbackContent;
-            
-            log.info("Fallback response generated successfully");
+        // Fallback: If AI is slow/failed and returned a generic error
+        if (aiResponse == null || aiResponse.isBlank() || aiResponse.contains("gián đoạn") || aiResponse.equals("ERROR_AI_OVERLOADED")) {
+            log.warn("AI service failed, using smart database fallback");
+            aiResponse = generateFallbackResponse(content, finalContextEvents);
         }
 
         // Save AI message
@@ -288,26 +258,31 @@ public class ChatServiceImpl implements ChatService {
 
         aiMessage = chatMessageRepository.save(aiMessage);
 
-        // Generate quick replies (use default if AI is down)
+        // OPTIMIZATION: Quick Replies
         List<String> quickReplies;
-        try {
-            quickReplies = geminiChatService.generateQuickReplies(aiResponse, session.getContextType());
-        } catch (Exception e) {
-            quickReplies = List.of("Sự kiện nổi bật", "Cách đăng ký sự kiện", "Sự kiện sắp diễn ra");
+        // If the response took more than 5 seconds, it's likely local AI. Skip AI quick replies to save time.
+        if (duration > 5000 || aiResponse.length() > 1000) {
+            log.info("Response took long or is very detailed, using default quick replies to save time");
+            quickReplies = List.of("Tìm sự kiện nổi bật", "Cách đăng ký tham gia", "Xem lịch trình");
+        } else {
+            try {
+                quickReplies = geminiChatService.generateQuickReplies(aiResponse, session.getContextType());
+            } catch (Exception e) {
+                quickReplies = List.of("Sự kiện nổi bật", "Cách đăng ký tham gia");
+            }
         }
 
-        // Send via WebSocket if available
+        // Send via WebSocket
         try {
             ChatMessageResponse response = mapMessageToResponse(aiMessage, quickReplies);
-            messagingTemplate.convertAndSend(
-                    "/topic/chat/" + session.getSessionId(),
-                    response);
+            messagingTemplate.convertAndSend("/topic/chat/" + session.getSessionId(), response);
         } catch (Exception e) {
-            log.warn("Failed to send WebSocket message: {}", e.getMessage());
+            log.warn("WebSocket failed: {}", e.getMessage());
         }
 
         return mapMessageToResponse(aiMessage, quickReplies);
     }
+
 
     @Override
     @Transactional(readOnly = true)
@@ -609,7 +584,6 @@ public class ChatServiceImpl implements ChatService {
             long regCount = eventRegistrationRepository.countByEventIdAndIsDeletedFalse(e.getId());
             
             sb.append(String.format("- [%s] %s\n", e.getStatus(), e.getTitle()));
-            sb.append(String.format("  ID: %s\n", e.getId()));
             if (e.getSlug() != null) sb.append(String.format("  Slug: %s\n", e.getSlug()));
             if (e.getCoverImage() != null) sb.append(String.format("  Image: %s\n", e.getCoverImage()));
             if (e.getEventTopic() != null) sb.append(String.format("  Chủ đề: %s\n", e.getEventTopic()));
@@ -697,5 +671,11 @@ public class ChatServiceImpl implements ChatService {
         if (statsJson == null || statsJson.isBlank()) return null;
         log.info("Requesting AI to analyze event statistics");
         return geminiChatService.analyzeEventStatistics(statsJson);
+    }
+
+    @Override
+    public String generateMediaPost(String eventDetails) {
+        log.info("Requesting AI to generate media post content");
+        return geminiChatService.generateMediaPost(eventDetails);
     }
 }

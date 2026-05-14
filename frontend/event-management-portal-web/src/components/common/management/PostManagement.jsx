@@ -12,6 +12,9 @@ import {
   ThumbsUp,
   ChevronLeft,
   ChevronRight,
+  ChevronDown,
+  Layers,
+  BrainCircuit,
   Megaphone,
   Newspaper,
   RefreshCw,
@@ -19,7 +22,9 @@ import {
   Loader2,
   Eye,
   MoreVertical,
-  Send
+  Send,
+  Sparkles,
+  Image as ImageIcon
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "react-toastify";
@@ -73,6 +78,67 @@ const PostManagement = ({
   const [editingPostId, setEditingPostId] = useState(null);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [postToDelete, setPostToDelete] = useState(null);
+
+  const [isGeneratingAI, setIsGeneratingAI] = useState(false);
+  const [eventSearchTerm, setEventSearchTerm] = useState("");
+  const [isEventDropdownOpen, setIsEventDropdownOpen] = useState(false);
+
+  const handleAIGenerate = async () => {
+    if (!postFormData.eventId) {
+      toast.warning("Vui lòng chọn sự kiện trước khi sử dụng AI");
+      return;
+    }
+
+    setIsGeneratingAI(true);
+    try {
+      const eventRes = await eventService.getEventById(postFormData.eventId);
+      const event = eventRes.data;
+
+      // Giới hạn độ dài mô tả để tránh làm quá tải AI
+      const shortDesc = event.description?.length > 1000 
+        ? event.description.substring(0, 1000) + "..." 
+        : event.description;
+      
+      const eventDetails = `
+        Tên sự kiện: ${event.title}
+        Mô tả: ${shortDesc}
+        Địa điểm: ${event.location}
+        Thời gian: ${event.eventDate || "Đang cập nhật"} ${event.eventTime || ""}
+        Tổ chức bởi: ${event.organization?.name || "Đang cập nhật"}
+      `;
+
+      const aiRes = await eventService.chat.generateMediaPost(eventDetails);
+      const rawResult = aiRes.data.result;
+
+      if (rawResult === "ERROR_AI_OVERLOADED") {
+        toast.error("Hệ thống AI đang quá tải, vui lòng thử lại sau vài giây.");
+        return;
+      }
+
+      let result;
+      try {
+        result = JSON.parse(rawResult);
+      } catch (parseErr) {
+        console.error("JSON Parse Error:", parseErr, "Raw response:", rawResult);
+        toast.error("AI phản hồi không đúng định dạng. Vui lòng thử lại.");
+        return;
+      }
+
+      setPostFormData(prev => ({
+        ...prev,
+        title: result.title || prev.title,
+        content: result.content || prev.content
+      }));
+
+      toast.success("AI đã tạo nội dung bài viết thành công!");
+    } catch (err) {
+      console.error("AI Generation Error:", err);
+      const errorMsg = err.response?.data?.message || err.message || "Lỗi kết nối";
+      toast.error(`Không thể kết nối với dịch vụ AI: ${errorMsg}`);
+    } finally {
+      setIsGeneratingAI(false);
+    }
+  };
 
   const [postFormData, setPostFormData] = useState({
     title: "",
@@ -146,8 +212,12 @@ const PostManagement = ({
 
   const handleCreatePost = async (e) => {
     if (e) e.preventDefault();
-    if (!postFormData.title || !postFormData.content || !postFormData.eventId) {
-      toast.warning("Vui lòng điền đầy đủ các thông tin bắt buộc");
+    if (!postFormData.title || !postFormData.content) {
+      toast.warning("Vui lòng điền tiêu đề và nội dung bài viết");
+      return;
+    }
+    if (!postFormData.eventId) {
+      toast.warning("Vui lòng chọn một sự kiện để gắn bài viết");
       return;
     }
 
@@ -376,11 +446,13 @@ const PostManagement = ({
                     <tr key={post.id} className="hover:bg-slate-50/80 transition-colors">
                       <td className="p-4">
                         <div className="flex items-center gap-3">
-                          <img
-                            src={post.author?.avatarUrl || "https://ui-avatars.com/api/?name=" + (post.author?.fullName || "User")}
-                            alt="Avatar"
-                            className="w-8 h-8 rounded-full object-cover border border-slate-200"
-                          />
+                          <div className="w-10 h-10 rounded-xl overflow-hidden border-2 border-white shadow-sm ring-1 ring-slate-100 shrink-0">
+                            <img
+                              src={post.author?.avatarUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(post.author?.fullName || "User")}&background=random&color=fff`}
+                              alt="Avatar"
+                              className="w-full h-full object-cover"
+                            />
+                          </div>
                           <span className="font-medium text-slate-700 whitespace-nowrap">
                             {post.author?.fullName || "Người dùng"}
                           </span>
@@ -388,9 +460,19 @@ const PostManagement = ({
                       </td>
                       <td className="p-4"><p className="font-bold text-slate-800 truncate max-w-[200px]">{post.title}</p></td>
                       <td className="p-4">
-                        <p className="text-sm font-medium text-blue-600 bg-blue-50 px-2 py-1 rounded-md border border-blue-100 truncate max-w-[150px]">
-                          {post.eventTitle || "Sự kiện khác"}
-                        </p>
+                        <div className="flex items-center gap-2">
+                          <div className="w-10 h-10 rounded-lg overflow-hidden border border-slate-100 bg-slate-50 shrink-0 shadow-sm">
+                            <img 
+                              src={post.eventImageUrl || "https://images.unsplash.com/photo-1501281668745-f7f57925c3b4?auto=format&fit=crop&q=80&w=200"} 
+                              alt="Event" 
+                              className="w-full h-full object-cover"
+                              onError={(e) => { e.target.src = "https://images.unsplash.com/photo-1501281668745-f7f57925c3b4?auto=format&fit=crop&q=80&w=200" }}
+                            />
+                          </div>
+                          <p className="text-sm font-bold text-blue-600 bg-blue-50 px-2 py-1 rounded-md border border-blue-100 truncate max-w-[120px]">
+                            {post.eventTitle || "Sự kiện khác"}
+                          </p>
+                        </div>
                       </td>
                       <td className="p-4"><p className="text-sm text-gray-600 line-clamp-2 leading-relaxed max-w-[300px]">{post.content}</p></td>
                       <td className="p-4">
@@ -440,72 +522,271 @@ const PostManagement = ({
       {/* CREATE POST MODAL */}
       <AnimatePresence>
         {isCreateModalOpen && (
-          <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4 sm:p-6">
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setIsCreateModalOpen(false)} className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" />
-            <motion.div initial={{ opacity: 0, scale: 0.9, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.9, y: 20 }} className="relative bg-white w-full max-w-xl rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
-              <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
-                <div className="flex-1" />
-                <h2 className="text-lg font-bold text-slate-800 text-center flex-1">{editingPostId ? "Chỉnh sửa bài viết" : "Tạo bài đăng mới"}</h2>
-                <div className="flex-1 flex justify-end">
-                  <button onClick={() => { setIsCreateModalOpen(false); resetForm(); }} className="p-2 hover:bg-slate-100 rounded-full text-slate-400 transition-colors"><XCircle size={24} /></button>
-                </div>
-              </div>
-              <div className="flex-1 overflow-y-auto p-6 space-y-4 custom-scrollbar">
+          <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4 sm:p-6 overflow-hidden">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setIsCreateModalOpen(false)}
+              className="absolute inset-0 bg-slate-900/40 backdrop-blur-md"
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9, y: 20 }}
+              className="relative bg-white w-full max-w-2xl rounded-[2.5rem] shadow-2xl overflow-hidden flex flex-col max-h-[92vh] border border-white"
+            >
+              {/* MODAL HEADER */}
+              <div className="px-10 py-6 border-b border-slate-50 flex items-center justify-between bg-slate-50/50">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-blue-600 to-indigo-600 flex items-center justify-center text-white font-bold shadow-inner">{user?.fullName?.[0] || user?.username?.[0] || "A"}</div>
+                  <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center text-white shadow-lg shadow-blue-100">
+                    <FileText size={20} />
+                  </div>
                   <div>
-                    <p className="text-sm font-bold text-slate-800">{user?.fullName || user?.username}</p>
-                    <div className="flex flex-wrap gap-1.5 mt-1">
-                      <select value={postFormData.eventId} onChange={(e) => setPostFormData({ ...postFormData, eventId: e.target.value })} className="text-[10px] font-bold bg-slate-100 text-slate-600 px-2 py-1 rounded-md border-none focus:ring-0 cursor-pointer hover:bg-slate-200 transition-colors max-w-[150px] truncate">
-                        <option value="">Chọn sự kiện...</option>
-                        {console.log("eligibleEventsList: ", eligibleEvents)}
+                    <h2 className="text-lg font-black text-slate-800 uppercase tracking-tight">
+                      {editingPostId ? "Chỉnh sửa bài viết" : "Tạo bài đăng mới"}
+                    </h2>
+                    <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Truyền thông sự kiện</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => { setIsCreateModalOpen(false); resetForm(); }}
+                  className="w-10 h-10 flex items-center justify-center rounded-xl bg-white text-slate-400 hover:text-slate-800 hover:shadow-md transition-all border border-slate-100"
+                >
+                  <XCircle size={20} />
+                </button>
+              </div>
 
-                        {isFetchingEvents ? (
-                          <option disabled>Đang tải...</option>
-                        ) : eligibleEvents
-                          .filter(ev => {
-                            if (isSystemAdmin) return true;
-                            const role = ev.currentUserRole;
-                            const isInOrg = user?.organizationId === ev.organization?.id || user?.orgId === ev.organization?.id;
-                            // Hiện tất cả sự kiện có liên quan (BTC, Diễn giả, hoặc Người tạo)
-                            return isSystemAdmin || role?.organizerRole || role?.presented || role?.creator || isInOrg;
-                          })
-                          .map(ev => (
-                            <option key={ev.id} value={ev.id}>{ev.title}</option>
-                          ))
-                        }
-                      </select>
-                      <select value={postFormData.postType} onChange={(e) => setPostFormData({ ...postFormData, postType: e.target.value })} className="text-[10px] font-bold bg-slate-100 text-slate-600 px-2 py-1 rounded-md border-none focus:ring-0 cursor-pointer hover:bg-slate-200 transition-colors">{Object.entries(POST_TYPES).map(([key, value]) => (<option key={key} value={key}>{value.label.toUpperCase()}</option>))}</select>
-                      <select value={postFormData.status} onChange={(e) => setPostFormData({ ...postFormData, status: e.target.value })} className="text-[10px] font-bold bg-slate-100 text-slate-600 px-2 py-1 rounded-md border-none focus:ring-0 cursor-pointer hover:bg-slate-200 transition-colors uppercase">
-                        <option value="PUBLISHED">{needsApproval ? "GỬI DUYỆT" : "CÔNG KHAI"}</option>
-                        <option value="DRAFT">BẢN NHÁP</option>
-                      </select>
+              {/* MODAL CONTENT */}
+              <div className="flex-1 overflow-y-auto px-10 py-8 space-y-8 custom-scrollbar">
+                {/* USER & TARGET SECTION */}
+                <div className="flex flex-col sm:flex-row gap-6">
+                  <div className="w-14 h-14 rounded-2xl overflow-hidden shadow-xl shadow-blue-100 shrink-0 border-2 border-white">
+                    {user?.avatarUrl ? (
+                      <img src={user.avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
+                    ) : (
+                      <div className="w-full h-full bg-gradient-to-tr from-blue-600 to-indigo-600 flex items-center justify-center text-white font-black text-xl">
+                        {user?.fullName?.[0] || user?.username?.[0] || "A"}
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex-1 space-y-4">
+                    <div className="flex flex-wrap items-center gap-4">
+                      <p className="text-sm font-black text-slate-800 uppercase tracking-tight">{user?.fullName || user?.username}</p>
+                      
+                      <div className="flex flex-wrap gap-2">
+                        <div className="relative group">
+                          <div 
+                            onClick={() => setIsEventDropdownOpen(!isEventDropdownOpen)}
+                            className="flex items-center gap-2 pl-8 pr-10 py-2 bg-slate-50 border border-slate-100 rounded-xl text-xs font-bold text-slate-600 focus:outline-none cursor-pointer min-w-[200px] hover:bg-white transition-all relative"
+                          >
+                            <Calendar size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-blue-500" />
+                            <span className="truncate">
+                              {postFormData.eventId 
+                                ? eligibleEvents.find(e => e.id === postFormData.eventId)?.title 
+                                : "Tìm chọn sự kiện..."}
+                            </span>
+                            <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                          </div>
+
+                          <AnimatePresence>
+                            {isEventDropdownOpen && (
+                              <>
+                                <div className="fixed inset-0 z-[10]" onClick={() => setIsEventDropdownOpen(false)} />
+                                <motion.div
+                                  initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                                  exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                                  className="absolute left-0 top-full mt-2 w-72 bg-white rounded-2xl shadow-2xl border border-slate-100 z-[11] overflow-hidden"
+                                >
+                                  <div className="p-3 border-b border-slate-50 bg-slate-50/50">
+                                    <div className="relative">
+                                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
+                                      <input
+                                        autoFocus
+                                        type="text"
+                                        placeholder="Gõ để tìm nhanh..."
+                                        value={eventSearchTerm}
+                                        onChange={(e) => setEventSearchTerm(e.target.value)}
+                                        onClick={(e) => e.stopPropagation()}
+                                        className="w-full pl-9 pr-4 py-2 bg-white border border-slate-100 rounded-xl text-xs font-bold focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                                      />
+                                    </div>
+                                  </div>
+                                  <div className="max-h-60 overflow-y-auto p-2 custom-scrollbar">
+                                    {eligibleEvents
+                                      .filter(ev => {
+                                        const matchesSearch = ev.title.toLowerCase().includes(eventSearchTerm.toLowerCase());
+                                        if (isSystemAdmin) return matchesSearch;
+                                        const role = ev.currentUserRole;
+                                        const isInOrg = user?.organizationId === ev.organization?.id || user?.orgId === ev.organization?.id;
+                                        return matchesSearch && (isSystemAdmin || role?.organizerRole || role?.presented || role?.creator || isInOrg);
+                                      })
+                                      .map(ev => (
+                                        <button
+                                          key={ev.id}
+                                          type="button"
+                                          onClick={() => {
+                                            setPostFormData({ ...postFormData, eventId: ev.id });
+                                            setIsEventDropdownOpen(false);
+                                            setEventSearchTerm("");
+                                          }}
+                                          className={`w-full text-left px-3 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center justify-between group ${
+                                            postFormData.eventId === ev.id 
+                                              ? "bg-blue-50 text-blue-600" 
+                                              : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
+                                          }`}
+                                        >
+                                          <span className="truncate flex-1">{ev.title}</span>
+                                          {postFormData.eventId === ev.id && <CheckCircle size={12} />}
+                                        </button>
+                                      ))
+                                    }
+                                    {eligibleEvents.filter(ev => ev.title.toLowerCase().includes(eventSearchTerm.toLowerCase())).length === 0 && (
+                                      <div className="p-4 text-center">
+                                        <p className="text-[10px] font-bold text-slate-400 uppercase">Không tìm thấy sự kiện</p>
+                                      </div>
+                                    )}
+                                  </div>
+                                </motion.div>
+                              </>
+                            )}
+                          </AnimatePresence>
+                        </div>
+
+                        <div className="relative group">
+                          <select 
+                            value={postFormData.postType} 
+                            onChange={(e) => setPostFormData({ ...postFormData, postType: e.target.value })} 
+                            className="appearance-none pl-8 pr-10 py-2 bg-slate-50 border border-slate-100 rounded-xl text-xs font-bold text-slate-600 focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-400 focus:bg-white transition-all cursor-pointer uppercase"
+                          >
+                            {Object.entries(POST_TYPES).map(([key, value]) => (
+                              <option key={key} value={key}>{value.label.toUpperCase()}</option>
+                            ))}
+                          </select>
+                          <Layers size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-purple-500" />
+                          <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none group-hover:translate-y-[-40%] transition-transform" />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* AI ASSISTANT PANEL */}
+                    <div className="bg-gradient-to-r from-blue-50/50 to-indigo-50/50 rounded-[2rem] p-5 border border-blue-100/50 shadow-sm">
+                      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 bg-white rounded-2xl flex items-center justify-center text-indigo-600 shadow-sm border border-indigo-50">
+                            <Sparkles size={18} />
+                          </div>
+                          <div>
+                            <h4 className="text-[11px] font-black text-indigo-700 uppercase tracking-widest leading-none mb-1">AI Assistant</h4>
+                            <p className="text-[10px] text-slate-400 font-bold">Hỗ trợ lên nội dung bài viết chuyên nghiệp</p>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-4">
+
+
+                          <button
+                            type="button"
+                            onClick={handleAIGenerate}
+                            disabled={isGeneratingAI || !postFormData.eventId}
+                            className="flex items-center gap-2 px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-2xl text-[11px] font-black uppercase tracking-widest shadow-lg shadow-indigo-100 transition-all disabled:opacity-50 disabled:grayscale active:scale-95"
+                          >
+                            {isGeneratingAI ? <Loader2 size={14} className="animate-spin" /> : <Sparkles size={14} />}
+                            {isGeneratingAI ? "Đang tạo..." : "VIẾT BÀI NGAY"}
+                          </button>
+                        </div>
+                      </div>
+                      
+                      {isGeneratingAI && (
+                        <div className="mt-4 bg-white/60 rounded-2xl p-4 flex items-center gap-3 animate-pulse border border-white">
+                          <div className="w-8 h-8 bg-indigo-100 rounded-full flex items-center justify-center text-indigo-500">
+                            <BrainCircuit size={16} />
+                          </div>
+                          <div className="flex-1 space-y-2">
+                            <div className="h-2 bg-indigo-200 rounded-full w-3/4" />
+                            <div className="h-2 bg-indigo-100 rounded-full w-1/2" />
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>
-                <div className="space-y-4">
-                  <input type="text" placeholder="Tiêu đề bài viết..." value={postFormData.title} onChange={(e) => setPostFormData({ ...postFormData, title: e.target.value })} className="w-full text-lg font-bold text-slate-800 placeholder:text-slate-400 border-none focus:ring-0 outline-none p-0" />
-                  <textarea placeholder="Bạn đang nghĩ gì về sự kiện này?" value={postFormData.content} onChange={(e) => setPostFormData({ ...postFormData, content: e.target.value })} className="w-full text-slate-700 placeholder:text-slate-400 border-none focus:ring-0 outline-none p-0 resize-none min-h-[100px] text-base leading-relaxed" />
+
+                {/* POST CONTENT SECTION */}
+                <div className="space-y-6">
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-4">Tiêu đề bài viết</label>
+                    <input 
+                      type="text" 
+                      placeholder="Nhập tiêu đề thu hút người đọc..." 
+                      value={postFormData.title} 
+                      onChange={(e) => setPostFormData({ ...postFormData, title: e.target.value })} 
+                      className="w-full px-6 py-4 rounded-[1.5rem] bg-slate-50 border border-slate-100 text-slate-800 font-bold placeholder:text-slate-400 focus:outline-none focus:ring-4 focus:ring-blue-500/5 focus:bg-white focus:border-blue-300 transition-all shadow-sm" 
+                    />
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-4">Nội dung chi tiết</label>
+                    <textarea 
+                      placeholder="Chia sẻ những khoảnh khắc tuyệt vời của sự kiện..." 
+                      value={postFormData.content} 
+                      onChange={(e) => setPostFormData({ ...postFormData, content: e.target.value })} 
+                      className="w-full px-6 py-6 rounded-[2rem] bg-slate-50 border border-slate-100 text-slate-700 font-medium placeholder:text-slate-400 focus:outline-none focus:ring-4 focus:ring-blue-500/5 focus:bg-white focus:border-blue-300 transition-all shadow-sm min-h-[180px] resize-none leading-relaxed" 
+                    />
+                  </div>
+
+                  {/* IMAGES DISPLAY */}
                   {postFormData.imageUrls.length > 0 && (
-                    <div className="grid grid-cols-2 gap-2 mt-2">
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
                       {postFormData.imageUrls.map((url, index) => (
-                        <div key={index} className="relative aspect-video rounded-xl overflow-hidden group border border-slate-100 shadow-sm">
-                          <img src={url} alt="Preview" className="w-full h-full object-cover" />
-                          <button onClick={() => removeImage(index)} className="absolute top-2 right-2 p-1.5 bg-slate-900/50 hover:bg-slate-900/80 text-white rounded-full transition-colors opacity-0 group-hover:opacity-100"><XCircle size={16} /></button>
+                        <div key={index} className="relative aspect-square rounded-[1.5rem] overflow-hidden group border-2 border-white shadow-lg ring-1 ring-slate-100">
+                          <img src={url} alt="Preview" className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" />
+                          <div className="absolute inset-0 bg-slate-900/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                            <button 
+                              onClick={() => removeImage(index)} 
+                              className="p-2 bg-white/20 hover:bg-rose-500 text-white rounded-xl backdrop-blur-md transition-all transform translate-y-4 group-hover:translate-y-0"
+                            >
+                              <Trash2 size={18} />
+                            </button>
+                          </div>
                         </div>
                       ))}
                     </div>
                   )}
-                  <label className="block border-2 border-dashed border-slate-200 rounded-2xl p-6 text-center hover:bg-slate-50 transition-colors cursor-pointer group">
+
+                  {/* FILE UPLOAD */}
+                  <label className="block border-2 border-dashed border-slate-200 rounded-[2rem] p-8 text-center hover:bg-blue-50/50 hover:border-blue-300 transition-all cursor-pointer group shadow-inner bg-slate-50/50">
                     <input type="file" multiple accept="image/*" className="hidden" onChange={handleFileChange} disabled={isUploading} />
-                    <div className="w-10 h-10 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-2 group-hover:scale-110 transition-transform">{isUploading ? <Loader2 className="text-blue-600 animate-spin" size={20} /> : <Plus className="text-slate-400" size={20} />}</div>
-                    <p className="text-sm font-bold text-slate-500">{isUploading ? "Đang tải ảnh lên..." : "Thêm ảnh/video"}</p>
+                    <div className="w-14 h-14 bg-white rounded-2xl flex items-center justify-center mx-auto mb-4 group-hover:scale-110 group-hover:shadow-lg transition-all shadow-sm border border-slate-100">
+                      {isUploading ? <Loader2 className="text-blue-600 animate-spin" size={24} /> : <ImageIcon className="text-slate-400 group-hover:text-blue-500" size={24} />}
+                    </div>
+                    <p className="text-sm font-black text-slate-500 uppercase tracking-widest">{isUploading ? "Đang tải ảnh lên..." : "Đính kèm hình ảnh"}</p>
+                    <p className="text-[10px] text-slate-400 font-bold mt-1">Chọn tối đa 10 ảnh định dạng JPG, PNG</p>
                   </label>
                 </div>
               </div>
-              <div className="p-4 bg-white border-t border-slate-100">
-                <button onClick={handleCreatePost} disabled={isSubmitting || (postFormData.eventId && !canPostForSelectedEvent)} className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-slate-300 text-white py-3 rounded-xl font-bold shadow-lg transition-all flex items-center justify-center gap-2">
-                  {isSubmitting ? <Loader2 size={18} className="animate-spin" /> : <Send size={18} />}
+
+              {/* MODAL FOOTER */}
+              <div className="px-10 py-6 bg-slate-50 border-t border-slate-100 flex items-center justify-between gap-4">
+                <div className="hidden sm:block">
+                  <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Thiết lập trạng thái:</p>
+                  <select 
+                    value={postFormData.status} 
+                    onChange={(e) => setPostFormData({ ...postFormData, status: e.target.value })} 
+                    className="bg-transparent border-none focus:ring-0 text-xs font-black text-slate-600 cursor-pointer uppercase p-0"
+                  >
+                    <option value="PUBLISHED">{needsApproval ? "YÊU CẦU DUYỆT" : "CÔNG KHAI NGAY"}</option>
+                    <option value="DRAFT">BẢN NHÁP</option>
+                  </select>
+                </div>
+
+                <button 
+                  onClick={handleCreatePost} 
+                  disabled={isSubmitting || (postFormData.eventId && !canPostForSelectedEvent)} 
+                  className="flex-1 sm:flex-none flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-300 text-white px-10 py-4 rounded-2xl font-black text-xs uppercase tracking-[0.2em] shadow-xl shadow-blue-100 transition-all active:scale-95 disabled:shadow-none"
+                >
+                  {isSubmitting ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
                   {editingPostId
                     ? "Cập nhật bài viết"
                     : (postFormData.status === "PUBLISHED"

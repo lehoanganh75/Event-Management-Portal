@@ -63,4 +63,22 @@ public class AIPlanningController {
                 .result(suggestion)
                 .build());
     }
+    /**
+     * Generate media post content for event
+     */
+    @PostMapping("/generate-media-post")
+    public ResponseEntity<ApiResponse<String>> generateMediaPost(
+            @RequestBody java.util.Map<String, Object> request
+    ) {
+        log.info("AI Planning Controller: Request to generate media post content");
+        String eventDetails = (String) request.get("eventDetails");
+
+        String postJson = geminiChatService.generateMediaPost(eventDetails);
+
+        return ResponseEntity.ok(ApiResponse.<String>builder()
+                .code(1000)
+                .message("Media post generated successfully")
+                .result(postJson)
+                .build());
+    }
 }

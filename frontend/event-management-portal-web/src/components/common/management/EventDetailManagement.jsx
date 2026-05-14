@@ -409,6 +409,7 @@ const EventDetailManagement = ({
   const [showAllSurveyQuestions, setShowAllSurveyQuestions] = useState(false);
   const [loadingQR, setLoadingQR] = useState(false);
   const [showQRZoom, setShowQRZoom] = useState(false);
+  const [qrCountdown, setQrCountdown] = useState(30);
 
   // Quiz & Survey states
   const [showQuizModal, setShowQuizModal] = useState(false);
@@ -562,7 +563,14 @@ const EventDetailManagement = ({
   // 🔄 Tự động làm mới QR mỗi 30 giây khi modal đang mở và là loại DYNAMIC
   useEffect(() => {
     let interval;
+    let timer;
     if (showEventQRModal && !loadingQR && event?.qrType === "DYNAMIC") {
+      setQrCountdown(30);
+      
+      timer = setInterval(() => {
+        setQrCountdown(prev => (prev <= 1 ? 30 : prev - 1));
+      }, 1000);
+
       interval = setInterval(async () => {
         try {
           const res = await eventService.getEventQRToken(event.id);
@@ -571,8 +579,13 @@ const EventDetailManagement = ({
           console.error("Lỗi refresh QR:", err);
         }
       }, 30000); // 30 giây
+    } else {
+      setQrCountdown(30);
     }
-    return () => clearInterval(interval);
+    return () => {
+      clearInterval(interval);
+      clearInterval(timer);
+    };
   }, [showEventQRModal, event?.id, loadingQR, event?.qrType]);
 
   const handleToggleCheckIn = async (enabled) => {
@@ -1087,6 +1100,7 @@ const EventDetailManagement = ({
               <SettingsTab
                 event={event}
                 isAdmin={isAdmin}
+                isMember={isMember}
                 userPerms={up}
                 onEdit={onEditInfo}
                 onNavigateToLuckyDraw={() => {
@@ -1100,6 +1114,16 @@ const EventDetailManagement = ({
                 onResetStatistics={() => {
                   toast.success("Đang làm mới dữ liệu thống kê...");
                   onRefresh();
+                }}
+                onLeaveTeam={() => {
+                  setConfirmConfig({
+                    title: "Xác nhận rời ban tổ chức",
+                    message: "Bạn có chắc chắn muốn rời ban tổ chức sự kiện này? Hành động này sẽ gửi yêu cầu đến Leader và Coordinator để phê duyệt.",
+                    onConfirm: onLeaveTeam,
+                    icon: LogOut,
+                    color: "rose"
+                  });
+                  setShowConfirmModal(true);
                 }}
               />
             )}
@@ -1259,8 +1283,20 @@ const EventDetailManagement = ({
               className="bg-white rounded-[2.5rem] shadow-2xl w-full max-w-sm overflow-hidden relative z-10 border border-white"
             >
               <div className="p-8 text-center">
-                <div className="flex justify-between items-center mb-6">
-                  <h3 className="text-xl font-black text-slate-800 uppercase tracking-tight">QR Điểm Danh</h3>
+                <div className="flex justify-between items-start mb-6">
+                  <div className="text-left">
+                    <h3 className="text-xl font-black text-slate-800 uppercase tracking-tight">QR Điểm Danh</h3>
+                    <div className="flex items-center gap-2 mt-1">
+                      <span className={`px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-widest ${event?.qrType === "DYNAMIC" ? "bg-amber-100 text-amber-700" : "bg-emerald-100 text-emerald-700"}`}>
+                        {event?.qrType === "DYNAMIC" ? "Mã QR Động" : "Mã QR Tĩnh"}
+                      </span>
+                      {event?.qrType === "DYNAMIC" && (
+                        <span className="text-[9px] text-slate-400 font-bold tabular-nums">
+                          Làm mới sau {qrCountdown}s
+                        </span>
+                      )}
+                    </div>
+                  </div>
                   <div className="flex items-center gap-2">
                     {!loadingQR && eventQRToken && (
                       <button
@@ -1289,6 +1325,18 @@ const EventDetailManagement = ({
                   ) : (
                     <>
                       <QRCode id="event-qr-code" value={eventQRToken} size={200} />
+                      
+                      {event?.qrType === "DYNAMIC" && (
+                        <div className="absolute bottom-0 left-0 right-0 h-1 bg-slate-200 overflow-hidden rounded-b-[2rem]">
+                          <motion.div 
+                            initial={{ width: "100%" }}
+                            animate={{ width: "0%" }}
+                            transition={{ duration: 30, ease: "linear", repeat: Infinity }}
+                            className="h-full bg-indigo-600"
+                          />
+                        </div>
+                      )}
+
                       <div className="absolute inset-0 bg-slate-900/40 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center rounded-[2rem] text-white">
                         <Maximize2 size={32} className="mb-2" />
                         <span className="text-[10px] font-black uppercase tracking-widest">Phóng to</span>

@@ -47,4 +47,9 @@ public interface GeminiChatService {
      * Analyze event statistics and provide insights
      */
     String analyzeEventStatistics(String eventDataJson);
+
+    /**
+     * Generate media post content
+     */
+    String generateMediaPost(String eventDetails);
 }

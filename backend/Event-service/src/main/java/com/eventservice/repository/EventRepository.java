@@ -90,11 +90,10 @@ public interface EventRepository extends JpaRepository<Event, String> {
                         ")")
         List<Event> findInvolvedEventsByAccountId(@Param("accId") String accId);
 
-        @Query("SELECT e FROM Event e WHERE e.status IN :statuses " +
-                        "AND e.isDeleted = false " +
-                        "AND e.startTime <= :now " +
-                        "AND e.endTime >= :now " +
-                        "ORDER BY e.endTime ASC")
+        @Query("SELECT e FROM Event e WHERE e.isDeleted = false AND (" +
+                        "  (e.status = com.eventservice.entity.enums.EventStatus.ONGOING) OR " +
+                        "  (e.status = com.eventservice.entity.enums.EventStatus.PUBLISHED AND e.startTime <= :now AND e.endTime >= :now)" +
+                        ") ORDER BY e.endTime ASC")
         List<Event> findOngoingEvents(@Param("statuses") List<EventStatus> statuses, @Param("now") LocalDateTime now);
 
         List<Event> findByStatusInAndIsDeletedFalseOrderByStartTimeDesc(List<EventStatus> statuses);
@@ -153,6 +152,9 @@ public interface EventRepository extends JpaRepository<Event, String> {
         @Query("SELECT e.id FROM Event e WHERE e.status IN :sourceStatuses AND e.endTime < :now AND e.isDeleted = false")
         List<String> findExpiredEventIds(@Param("sourceStatuses") List<EventStatus> sourceStatuses,
                         @Param("now") LocalDateTime now);
+
+        @Query("SELECT e.id FROM Event e WHERE e.status = 'PUBLISHED' AND e.startTime <= :now AND e.endTime > :now AND e.isDeleted = false")
+        List<String> findEventsToStart(@Param("now") LocalDateTime now);
 
         @Modifying
         @Transactional

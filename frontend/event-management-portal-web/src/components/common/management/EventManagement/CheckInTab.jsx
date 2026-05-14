@@ -82,12 +82,19 @@ const CheckInTab = ({
               </div>
             )}
 
-            {canManage && (
+            {(canManage || isMember) && (
               <button
                 onClick={handleShowEventQR}
-                className="flex items-center gap-2 px-5 py-2.5 bg-slate-900 text-white rounded-xl text-[11px] font-black uppercase tracking-widest hover:bg-slate-800 transition-all shadow-md active:scale-95"
+                disabled={!event.checkInEnabled}
+                className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-[11px] font-black uppercase tracking-widest transition-all shadow-md active:scale-95 ${
+                  event.checkInEnabled 
+                    ? "bg-slate-900 text-white hover:bg-slate-800" 
+                    : "bg-slate-100 text-slate-400 cursor-not-allowed opacity-60 shadow-none"
+                }`}
+                title={!event.checkInEnabled ? "Điểm danh đang bị khóa bởi BTC" : "Hiển thị mã QR để người tham gia quét"}
               >
-                <QrCode size={16} /> Hiện mã QR
+                <QrCode size={16} /> 
+                {event.checkInEnabled ? "Hiện mã QR" : "Điểm danh đã đóng"}
               </button>
             )}
           </div>

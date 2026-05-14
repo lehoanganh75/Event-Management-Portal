@@ -113,8 +113,21 @@ export const AuthProvider = ({ children }) => {
     }, []);
 
     const updateAccount = async (id, updateData) => {
+        // 1. Cập nhật profile cơ bản
         const res = await authService.updateAccount(id, updateData);
-        setAccounts(prev => prev.map(acc => acc.id === id ? { ...acc, ...res.data } : acc));
+        
+        // 2. Nếu có role, cập nhật role riêng biệt
+        if (updateData.role) {
+            try {
+                await authService.updateAccountRoles(id, updateData.role);
+            } catch (roleError) {
+                console.error("Lỗi cập nhật vai trò:", roleError);
+                // Bạn có thể chọn throw lỗi này hoặc chỉ log tùy logic
+            }
+        }
+
+        // 3. Refresh danh sách để đảm bảo dữ liệu mới nhất
+        await fetchAccounts();
         return res.data;
     };
 

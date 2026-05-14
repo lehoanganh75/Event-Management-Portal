@@ -6,6 +6,7 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
+import org.springframework.security.config.annotation.web.configuration.WebSecurityCustomizer;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -45,6 +46,8 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/profiles/batch").permitAll()
                         .requestMatchers(HttpMethod.POST, "/profiles/batch").permitAll()
                         .requestMatchers(HttpMethod.GET, "/profiles/invite").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/profiles/by-emails").permitAll()
+                        .requestMatchers("/accounts/**").permitAll()
                         .requestMatchers("/admin/**").authenticated()
                         .requestMatchers("/profiles/**").authenticated()
                         .anyRequest().authenticated())
@@ -76,6 +79,17 @@ public class SecurityConfig {
                 .withSecretKey(secretKeySpec)
                 .macAlgorithm(MacAlgorithm.HS512)
                 .build();
+    }
+
+    @Bean
+    public WebSecurityCustomizer webSecurityCustomizer() {
+        return (web) -> web.ignoring().requestMatchers(
+                "/auth/**",
+                "/profiles/batch",
+                "/profiles/invite",
+                "/profiles/by-emails",
+                "/accounts/**",
+                "/files/**");
     }
 
     @Bean

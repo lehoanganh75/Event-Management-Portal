@@ -1,138 +1,47 @@
 // src/pages/LandingPage.jsx
-import React, { useEffect, useMemo, useRef } from "react";
+import React, { useEffect, useRef } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import {
-  Users, MapPin, Loader2, Gift, ChevronLeft, ChevronRight as ChevronRightIcon,
-  User, Clock, Sparkles, Calendar, BarChart3, QrCode
+  Loader2,
+  Gift,
+  ChevronLeft,
+  ChevronRight as ChevronRightIcon,
+  Sparkles,
+  Calendar,
+  BarChart3,
+  QrCode,
 } from "lucide-react";
 
 import Layout from "../../components/layout/Layout";
 import AIChatBot from "../../components/chat/AIChatBot";
+
 import { useEvents } from "../../context/EventContext";
 import { useLanguage } from "../../context/LanguageContext";
 
-const formatDate = (dateString, lang = 'VI') => {
-  if (!dateString) return "";
-  return new Intl.DateTimeFormat(lang === 'VI' ? 'vi-VN' : 'en-US', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric'
-  }).format(new Date(dateString));
-};
+import { motion } from "framer-motion";
 
-const formatTime = (dateString, lang = 'VI') => {
-  if (!dateString) return "";
-  return new Intl.DateTimeFormat(lang === 'VI' ? 'vi-VN' : 'en-US', {
-    hour: '2-digit',
-    minute: '2-digit'
-  }).format(new Date(dateString));
-};
-
-const EventCard = ({ event, onClick, t, language }) => {
-  const isOngoing = event.status === 'ONGOING';
-  
-  return (
-    <div
-      onClick={() => onClick(event.id)}
-      className="min-w-[300px] md:min-w-[340px] bg-white rounded-2xl overflow-hidden shadow-sm border border-slate-200/60 hover:shadow-md transition-all duration-300 cursor-pointer group flex flex-col snap-start"
-    >
-      {/* Image Container */}
-      <div className="relative h-48">
-        <img
-          src={event.coverImage || "https://images.unsplash.com/photo-1501281668745-f7f57925c3b4?q=80&w=2070&auto=format&fit=crop"}
-          alt={event.title}
-          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-        />
-        {/* Top Right Badge */}
-        <div className="absolute top-4 right-4">
-          <span className={`text-[10px] font-black uppercase px-3 py-1 rounded-full shadow-sm ${event.status === 'ONGOING' ? 'bg-emerald-100 text-emerald-600' : 'bg-blue-100 text-blue-600'
-            }`}>
-            {event.status === 'ONGOING' ? t('ongoing') : t('upcoming')}
-          </span>
-        </div>
-
-        {/* Category Badge overlay */}
-        <div className="absolute bottom-4 left-4">
-          <span className="bg-amber-500 text-white text-[10px] font-bold px-3 py-1 rounded-md shadow-md uppercase">
-            {event.type || t('event_type')}
-          </span>
-        </div>
-      </div>
-
-      {/* Content */}
-      <div className="p-5 flex-1 flex flex-col">
-        <div className="flex items-center gap-2 text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">
-          <span>{event.type || t('event_type')}</span>
-          <span>•</span>
-          <span>{formatDate(event.startTime, language)}</span>
-        </div>
-
-        <h3 className="font-bold text-slate-900 text-base leading-snug line-clamp-2 group-hover:text-blue-600 transition-colors mb-4">
-          {event.title}
-        </h3>
-
-        <div className="space-y-2 mb-6">
-          <div className="flex items-center gap-2 text-slate-500 text-xs">
-            <MapPin size={14} className="text-slate-400" />
-            <span className="line-clamp-1">{event.location || "IUH Campus"}</span>
-          </div>
-          <div className="flex items-center gap-2 text-slate-500 text-xs">
-            <Users size={14} className="text-slate-400" />
-            <span>{event.registeredCount || 0} / {event.maxParticipants || "∞"}</span>
-          </div>
-        </div>
-
-        <div className="mt-auto pt-4 border-t border-slate-50 flex items-center justify-between text-xs font-bold text-blue-600">
-          <span>{t('details')}</span>
-          <ChevronRightIcon size={16} className="group-hover:translate-x-1 transition-transform" />
-        </div>
-      </div>
-    </div>
-  );
-};
-
-const SectionHeader = ({ title, viewAllLink, t }) => (
-  <div className="flex items-center justify-between mb-8">
-    <div className="space-y-1">
-      <h2 className="text-3xl font-black text-slate-900 tracking-tight">{title}</h2>
-      <p className="text-slate-500 text-sm">{t('featured_events_subtitle')}</p>
-    </div>
-    <Link
-      to={viewAllLink}
-      className="text-blue-600 font-bold text-xs uppercase tracking-widest hover:text-blue-700 transition-colors"
-    >
-      {t('view_all')}
-    </Link>
-  </div>
-);
-
-const FeatureCard = ({ icon: Icon, title, description, colorClass }) => (
-  <div className="bg-white p-8 rounded-3xl border border-slate-100 shadow-sm hover:shadow-xl transition-all duration-300 group">
-    <div className={`w-14 h-14 ${colorClass} rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform`}>
-      <Icon size={28} />
-    </div>
-    <h3 className="text-lg font-black text-slate-800 mb-3">{title}</h3>
-    <p className="text-slate-500 text-sm leading-relaxed">{description}</p>
-  </div>
-);
+// Components
+import LandingEventCard from "../../components/common/landing/LandingEventCard";
+import LandingSectionHeader from "../../components/common/landing/LandingSectionHeader";
+import LandingFeatureCard from "../../components/common/landing/LandingFeatureCard";
 
 const LandingPage = () => {
   const navigate = useNavigate();
+
   const heroScrollRef = useRef(null);
+  const ongoingScrollRef = useRef(null);
   const upcomingScrollRef = useRef(null);
-  const featuredScrollRef = useRef(null);
 
   const {
     featured,
     ongoing,
     upcoming,
-    posts,
     fetchFeatured,
     fetchUpcoming,
     fetchOngoing,
-    fetchAllPosts,
-    loading: eventLoading
+    loading: eventLoading,
   } = useEvents();
+
   const { language, t } = useLanguage();
 
   useEffect(() => {
@@ -146,265 +55,528 @@ const LandingPage = () => {
   };
 
   const scroll = (ref, direction) => {
-    if (ref.current) {
-      const scrollAmount = direction === "left" ? -400 : 400;
-      ref.current.scrollBy({ left: scrollAmount, behavior: "smooth" });
-    }
+    if (!ref.current) return;
+
+    const amount = direction === "left" ? -400 : 400;
+
+    ref.current.scrollBy({
+      left: amount,
+      behavior: "smooth",
+    });
   };
 
   return (
     <Layout onLogin={() => navigate("/login")}>
       <AIChatBot />
 
-      <div className="bg-slate-50 min-h-screen pb-20">
-        {/* HERO SECTION */}
-        <section id="gioi-thieu" className="bg-white">
-          <div className="relative bg-[#245bb5] text-white overflow-hidden py-16 md:py-24 px-6 md:px-20">
-            <div className="absolute inset-0 opacity-10 pointer-events-none">
-              <div className="absolute right-[-5%] top-[-10%] w-[600px] h-[600px] rounded-full border-[40px] border-white"></div>
-            </div>
+      <div className="min-h-screen bg-[#F8FAFC]">
 
-            <div className="max-w-7xl mx-auto">
-              <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-center relative">
-                {/* CỘT TRÁI */}
-                <div className="lg:col-span-5 space-y-6">
-                  <div className="inline-flex items-center gap-2 bg-white/10 px-3 py-1 rounded-lg border border-white/10 backdrop-blur-sm">
-                    <span className="w-1.5 h-1.5 bg-blue-400 rounded-full animate-pulse"></span>
-                    <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/80">
-                      {t('hero_badge')}
+        {/* HERO */}
+        <section className="relative overflow-hidden bg-[#1E40AF]">
+          {/* Background */}
+          <div className="absolute inset-0 overflow-hidden pointer-events-none opacity-10">
+            <div className="absolute top-0 right-0 w-[420px] h-[420px] bg-blue-300 rounded-full blur-[120px]" />
+            <div className="absolute bottom-0 left-0 w-[320px] h-[320px] bg-indigo-300 rounded-full blur-[100px]" />
+          </div>
+
+          <div className="relative z-10 max-w-7xl mx-auto px-6 lg:px-20 pt-16 pb-24 md:pt-24 md:pb-28">
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-14 items-center">
+
+              {/* LEFT */}
+              <div className="lg:col-span-5">
+
+                <motion.div
+                  initial={{ opacity: 0, y: 16 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="
+                    inline-flex items-center gap-2
+                    bg-white/10
+                    border border-white/10
+                    px-4 py-1.5
+                    rounded-full
+                    text-[11px]
+                    font-medium
+                    tracking-wide
+                    backdrop-blur-sm
+                    text-white
+                  "
+                >
+                  <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
+
+                  {t("hero_badge")}
+                </motion.div>
+
+                <motion.div
+                  initial={{ opacity: 0, y: 16 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.1 }}
+                  className="mt-7"
+                >
+                  <h1
+                    className="
+                      text-5xl md:text-6xl lg:text-7xl
+                      font-semibold
+                      leading-[1]
+                      tracking-tight
+                      text-white
+                    "
+                  >
+                    {t("event_iuh")}
+
+                    <span className="block text-amber-300 mt-2">
+                      {new Date().getFullYear()}
                     </span>
-                  </div>
+                  </h1>
 
-                  <div className="space-y-2">
-                    <h1 className="text-4xl md:text-5xl font-extrabold leading-tight tracking-tight text-white">
-                      {t('event_iuh')}{" "}
-                      <span className="text-[#ffcc00] drop-shadow-md">
-                        {new Date().getFullYear()}
-                      </span>
-                    </h1>
-                    <p className="text-blue-100/90 text-base md:text-lg max-w-md font-medium leading-relaxed">
-                      {t('hero_desc')}
+                  <p
+                    className="
+                      mt-6
+                      text-blue-100/80
+                      text-base md:text-lg
+                      leading-relaxed
+                      max-w-xl
+                    "
+                  >
+                    {t("hero_desc")}
+                  </p>
+                </motion.div>
+
+                {/* Actions */}
+                <motion.div
+                  initial={{ opacity: 0, y: 16 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.2 }}
+                  className="flex flex-wrap gap-4 mt-10"
+                >
+                  <button
+                    onClick={() => {
+                      const el = document.getElementById("events-section");
+
+                      if (el) {
+                        el.scrollIntoView({
+                          behavior: "smooth",
+                        });
+                      }
+                    }}
+                    className="
+                      px-8 py-3.5
+                      bg-white
+                      text-[#1E40AF]
+                      rounded-xl
+                      font-medium
+                      text-sm
+                      hover:bg-blue-50
+                      transition-all
+                      shadow-sm
+                    "
+                  >
+                    {t("explore_events")}
+                  </button>
+
+                  <Link
+                    to="/news"
+                    className="
+                      px-8 py-3.5
+                      border border-white/20
+                      bg-white/5
+                      rounded-xl
+                      font-medium
+                      text-sm
+                      hover:bg-white/10
+                      transition-all
+                      backdrop-blur-sm
+                      text-white
+                    "
+                  >
+                    {t("news")}
+                  </Link>
+                </motion.div>
+
+                {/* Stats */}
+                <div className="flex items-center gap-8 mt-12">
+                  <div>
+                    <p className="text-2xl font-semibold text-white">
+                      50+
+                    </p>
+
+                    <p className="text-xs text-blue-100/60 mt-1">
+                      Sự kiện / năm
                     </p>
                   </div>
 
-                  <div className="flex flex-wrap gap-4 pt-4">
-                    <button
-                      onClick={() => {
-                        const el = document.getElementById("events-section");
-                        if (el) el.scrollIntoView({ behavior: "smooth" });
-                      }}
-                      className="group relative px-8 py-3.5 bg-[#ffcc00] text-[#1f4fa3] rounded-xl font-bold uppercase tracking-wide text-sm shadow-lg hover:shadow-xl hover:scale-[1.02] active:scale-[0.98] transition-all duration-300"
-                    >
-                      {t('explore_events')}
-                    </button>
-                    <Link
-                      to="/news"
-                      className="px-8 py-3.5 bg-white/10 text-white border border-white/20 rounded-xl font-bold uppercase tracking-wide text-sm hover:bg-white/20 transition-all duration-300"
-                    >
-                      {t('news')}
-                    </Link>
+                  <div className="w-px h-10 bg-white/10" />
+
+                  <div>
+                    <p className="text-2xl font-semibold text-white">
+                      10k+
+                    </p>
+
+                    <p className="text-xs text-blue-100/60 mt-1">
+                      Sinh viên tham gia
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* RIGHT */}
+              <div className="lg:col-span-7">
+
+                <div className="flex items-center justify-between mb-5 px-1">
+                  <h3 className="text-lg font-semibold text-white">
+                    {t("featured_events")}
+                  </h3>
+
+                  <div
+                    className="
+                      inline-flex items-center gap-2
+                      px-3 py-1.5
+                      rounded-full
+                      bg-white/10
+                      border border-white/10
+                      text-[11px]
+                      text-white
+                    "
+                  >
+                    <Sparkles size={12} />
+
+                    {t("highlight")}
                   </div>
                 </div>
 
-                {/* CỘT PHẢI - SLIDER SỰ KIỆN SẮP DIỄN RA */}
-                <div className="lg:col-span-7 relative">
-                  <div className="relative">
-                    {/* Nút điều hướng */}
-                    <button
-                      onClick={() => scroll(heroScrollRef, "left")}
-                      className="absolute -left-6 top-1/2 -translate-y-1/2 z-30 w-10 h-10 flex items-center justify-center bg-white/25 hover:bg-white/40 backdrop-blur-md text-white rounded-full shadow-xl transition-all hover:scale-110 active:scale-95 border border-white/30"
-                    >
-                      <ChevronLeft size={24} strokeWidth={3} />
-                    </button>
+                <div className="relative group/hero">
 
-                    <button
-                      onClick={() => scroll(heroScrollRef, "right")}
-                      className="absolute -right-6 top-1/2 -translate-y-1/2 z-30 w-10 h-10 flex items-center justify-center bg-white/25 hover:bg-white/40 backdrop-blur-md text-white rounded-full shadow-xl transition-all hover:scale-110 active:scale-95 border border-white/30"
-                    >
-                      <ChevronRightIcon size={24} strokeWidth={3} />
-                    </button>
-
-                    <div className="flex items-center justify-between mb-6 px-2 text-white">
-                      <h3 className="text-xl font-black tracking-tight uppercase">{t('featured_events')}</h3>
-                      <div className="bg-white/20 backdrop-blur-md px-4 py-2 rounded-2xl flex items-center gap-2 font-bold text-xs">
-                        <Sparkles size={14} className="text-amber-300" />
-                        <span>{t('highlight')}</span>
+                  <div
+                    ref={heroScrollRef}
+                    className="
+                      flex gap-6
+                      overflow-x-auto
+                      pb-8
+                      no-scrollbar
+                      snap-x snap-mandatory
+                      scroll-smooth
+                    "
+                  >
+                    {eventLoading ? (
+                      <div className="w-full py-20 flex justify-center">
+                        <Loader2
+                          className="animate-spin text-white"
+                          size={36}
+                        />
                       </div>
-                    </div>
-
-                    <div
-                      ref={heroScrollRef}
-                      className="flex gap-4 overflow-x-auto pb-4 no-scrollbar snap-x snap-mandatory scroll-smooth"
-                    >
-                      {eventLoading ? (
-                        <div className="w-full py-10 flex justify-center"><Loader2 className="animate-spin text-white" size={32} /></div>
-                      ) : featured && featured.length > 0 ? (
-                        featured.map((event) => (
-                          <div
-                            key={event.id}
-                            onClick={() => handleEventClick(event.id)}
-                            className="min-w-[300px] bg-white rounded-2xl overflow-hidden shadow-xl cursor-pointer group flex flex-col snap-start"
-                          >
-                            <div className="relative h-40">
-                              <img
-                                src={event.coverImage || "https://images.unsplash.com/photo-1492684223066-81342ee5ff30?q=80&w=2070&auto=format&fit=crop"}
-                                alt={event.title}
-                                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                              />
-                              <div className="absolute top-3 left-3">
-                                <span className="bg-[#245bb5] text-white text-[10px] font-bold px-3 py-1 rounded-full shadow">
-                                  {event.type || t('event_type')}
-                                </span>
-                              </div>
-                            </div>
-                            <div className="p-4 flex-1 flex flex-col">
-                              <h4 className="font-extrabold text-slate-800 line-clamp-2 text-sm mb-2 group-hover:text-blue-600 transition-colors">
-                                {event.title}
-                              </h4>
-                              <div className="mt-auto space-y-1.5">
-                                <div className="text-[#245bb5] font-bold text-[10px] flex items-center gap-1">
-                                  <Clock size={12} />
-                                  {formatDate(event.startTime, language)}
-                                </div>
-                                <div className="flex items-center gap-1.5 text-slate-500 text-[10px]">
-                                  <MapPin size={12} className="flex-shrink-0" />
-                                  <span className="line-clamp-1">{event.location}</span>
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-                        ))
-                      ) : (
-                        <div className="w-full py-10 text-center text-white/70 text-sm italic">
-                          {t('no_featured')}
-                        </div>
-                      )}
-                    </div>
+                    ) : featured?.length > 0 ? (
+                      featured.map((event) => (
+                        <LandingEventCard
+                          key={event.id}
+                          event={event}
+                          onClick={handleEventClick}
+                          t={t}
+                          language={language}
+                        />
+                      ))
+                    ) : (
+                      <div
+                        className="
+                          w-full py-16
+                          text-center
+                          rounded-2xl
+                          border border-white/10
+                          bg-white/5
+                          text-white/60
+                        "
+                      >
+                        {t("no_featured")}
+                      </div>
+                    )}
                   </div>
+
+                  {/* Nav */}
+                  <button
+                    onClick={() => scroll(heroScrollRef, "left")}
+                    className="
+                      hidden md:flex
+                      absolute left-0 top-1/2 -translate-y-1/2 -translate-x-5
+                      w-11 h-11
+                      items-center justify-center
+                      rounded-full
+                      bg-white
+                      text-slate-700
+                      shadow-lg
+                      border border-slate-200
+                      opacity-0
+                      group-hover/hero:opacity-100
+                      transition-all
+                    "
+                  >
+                    <ChevronLeft size={20} />
+                  </button>
+
+                  <button
+                    onClick={() => scroll(heroScrollRef, "right")}
+                    className="
+                      hidden md:flex
+                      absolute right-0 top-1/2 -translate-y-1/2 translate-x-5
+                      w-11 h-11
+                      items-center justify-center
+                      rounded-full
+                      bg-white
+                      text-slate-700
+                      shadow-lg
+                      border border-slate-200
+                      opacity-0
+                      group-hover/hero:opacity-100
+                      transition-all
+                    "
+                  >
+                    <ChevronRightIcon size={20} />
+                  </button>
                 </div>
               </div>
             </div>
           </div>
         </section>
 
-        <div id="events-section" className="pt-16 pb-16 px-6 md:px-20 max-w-7xl mx-auto">
+        {/* CONTENT */}
+        <div
+          id="events-section"
+          className="
+            max-w-7xl
+            mx-auto
+            px-6 lg:px-20
+            pt-20
+            pb-24
+          "
+        >
 
-          {/* SỰ KIỆN ĐANG DIỄN RA */}
+          {/* ONGOING */}
           <section className="mb-20">
-            <SectionHeader title={t('ongoing_events')} viewAllLink="/events" t={t} />
+
+            <LandingSectionHeader
+              title={t("ongoing_events")}
+              subtitle="Những sự kiện đang diễn ra ngay lúc này"
+              viewAllLink="/events"
+              t={t}
+            />
 
             <div className="relative group/scroll">
+
+              <div
+                ref={ongoingScrollRef}
+                className="
+                  flex gap-6
+                  overflow-x-auto
+                  pb-6
+                  no-scrollbar
+                  snap-x snap-mandatory
+                  scroll-smooth
+                "
+              >
+                {eventLoading ? (
+                  <div className="w-full py-20 flex justify-center">
+                    <Loader2
+                      className="animate-spin text-blue-600"
+                      size={36}
+                    />
+                  </div>
+                ) : ongoing?.length > 0 ? (
+                  ongoing.map((event) => (
+                    <LandingEventCard
+                      key={event.id}
+                      event={{
+                        ...event,
+                        status: "ONGOING",
+                      }}
+                      onClick={handleEventClick}
+                      t={t}
+                      language={language}
+                    />
+                  ))
+                ) : (
+                  <div
+                    className="
+                      w-full py-16
+                      bg-white
+                      border border-dashed border-slate-200
+                      rounded-2xl
+                      text-center
+                      text-slate-400
+                    "
+                  >
+                    {t("no_ongoing")}
+                  </div>
+                )}
+              </div>
+
+              {ongoing?.length > 3 && (
+                <>
+                  <button
+                    onClick={() => scroll(ongoingScrollRef, "left")}
+                    className="
+                      hidden md:flex
+                      absolute left-0 top-1/2 -translate-y-1/2 -translate-x-5
+                      w-11 h-11
+                      items-center justify-center
+                      rounded-full
+                      bg-white
+                      border border-slate-200
+                      shadow-lg
+                      text-slate-600
+                      opacity-0
+                      group-hover/scroll:opacity-100
+                      transition-all
+                    "
+                  >
+                    <ChevronLeft size={20} />
+                  </button>
+
+                  <button
+                    onClick={() => scroll(ongoingScrollRef, "right")}
+                    className="
+                      hidden md:flex
+                      absolute right-0 top-1/2 -translate-y-1/2 translate-x-5
+                      w-11 h-11
+                      items-center justify-center
+                      rounded-full
+                      bg-white
+                      border border-slate-200
+                      shadow-lg
+                      text-slate-600
+                      opacity-0
+                      group-hover/scroll:opacity-100
+                      transition-all
+                    "
+                  >
+                    <ChevronRightIcon size={20} />
+                  </button>
+                </>
+              )}
+            </div>
+          </section>
+
+          {/* UPCOMING */}
+          <section className="mb-20">
+
+            <LandingSectionHeader
+              title={t("upcoming_events")}
+              subtitle="Sắp diễn ra, đừng bỏ lỡ cơ hội tham gia"
+              viewAllLink="/events"
+              t={t}
+            />
+
+            <div className="relative group/scroll">
+
               <div
                 ref={upcomingScrollRef}
-                className="flex gap-6 overflow-x-auto pb-6 no-scrollbar snap-x snap-mandatory"
+                className="
+                  flex gap-6
+                  overflow-x-auto
+                  pb-6
+                  no-scrollbar
+                  snap-x snap-mandatory
+                  scroll-smooth
+                "
               >
                 {eventLoading ? (
-                  <div className="w-full py-20 flex justify-center"><Loader2 className="animate-spin text-blue-600" size={48} /></div>
-                ) : ongoing && ongoing.length > 0 ? (
-                  ongoing.map(event => (
-                    <EventCard key={event.id} event={{ ...event, status: 'ONGOING' }} onClick={handleEventClick} t={t} language={language} />
+                  <div className="w-full py-20 flex justify-center">
+                    <Loader2
+                      className="animate-spin text-blue-600"
+                      size={36}
+                    />
+                  </div>
+                ) : upcoming?.length > 0 ? (
+                  upcoming.map((event) => (
+                    <LandingEventCard
+                      key={event.id}
+                      event={{
+                        ...event,
+                        status: "UPCOMING",
+                      }}
+                      onClick={handleEventClick}
+                      t={t}
+                      language={language}
+                    />
                   ))
                 ) : (
-                  <div className="w-full py-20 text-center text-slate-400 font-medium bg-white rounded-3xl border border-dashed border-slate-200">{t('no_ongoing')}</div>
+                  <div
+                    className="
+                      w-full py-16
+                      bg-white
+                      border border-dashed border-slate-200
+                      rounded-2xl
+                      text-center
+                      text-slate-400
+                    "
+                  >
+                    {t("no_upcoming")}
+                  </div>
                 )}
               </div>
-
-              {ongoing && ongoing.length > 3 && (
-                <>
-                  <button
-                    onClick={() => scroll(upcomingScrollRef, "left")}
-                    className="absolute -left-6 top-1/2 -translate-y-1/2 w-12 h-12 bg-white rounded-full shadow-lg flex items-center justify-center text-slate-600 hover:bg-blue-600 hover:text-white transition-all opacity-0 group-hover/scroll:opacity-100 z-10"
-                  >
-                    <ChevronLeft size={24} />
-                  </button>
-                  <button
-                    onClick={() => scroll(upcomingScrollRef, "right")}
-                    className="absolute -right-6 top-1/2 -translate-y-1/2 w-12 h-12 bg-white rounded-full shadow-lg flex items-center justify-center text-slate-600 hover:bg-blue-600 hover:text-white transition-all opacity-0 group-hover/scroll:opacity-100 z-10"
-                  >
-                    <ChevronRightIcon size={24} />
-                  </button>
-                </>
-              )}
             </div>
           </section>
 
-          {/* SỰ KIỆN SẮP DIỄN RA (Second Section) */}
-          <section className="mb-20">
-            <SectionHeader title={t('upcoming_events')} viewAllLink="/events" t={t} />
+          {/* FEATURES */}
+          <section className="mt-24">
 
-            <div className="relative group/scroll">
-              <div
-                ref={featuredScrollRef}
-                className="flex gap-6 overflow-x-auto pb-6 no-scrollbar snap-x snap-mandatory"
+            <div className="text-center mb-16">
+
+
+
+              <h2
+                className="
+                  text-4xl md:text-5xl
+                  font-semibold
+                  text-slate-900
+                  tracking-tight
+                "
               >
-                {eventLoading ? (
-                  <div className="w-full py-20 flex justify-center"><Loader2 className="animate-spin text-blue-600" size={48} /></div>
-                ) : upcoming && upcoming.length > 0 ? (
-                  upcoming.map(event => (
-                    <EventCard key={event.id} event={{ ...event, status: 'UPCOMING' }} onClick={handleEventClick} t={t} language={language} />
-                  ))
-                ) : (
-                  <div className="w-full py-20 text-center text-slate-400 font-medium bg-white rounded-3xl border border-dashed border-slate-200">{t('no_upcoming')}</div>
-                )}
-              </div>
+                {t("features_title")}
+              </h2>
 
-              {upcoming && upcoming.length > 3 && (
-                <>
-                  <button
-                    onClick={() => scroll(featuredScrollRef, "left")}
-                    className="absolute -left-6 top-1/2 -translate-y-1/2 w-12 h-12 bg-white rounded-full shadow-lg flex items-center justify-center text-slate-600 hover:bg-blue-600 hover:text-white transition-all opacity-0 group-hover/scroll:opacity-100 z-10"
-                  >
-                    <ChevronLeft size={24} />
-                  </button>
-                  <button
-                    onClick={() => scroll(featuredScrollRef, "right")}
-                    className="absolute -right-6 top-1/2 -translate-y-1/2 w-12 h-12 bg-white rounded-full shadow-lg flex items-center justify-center text-slate-600 hover:bg-blue-600 hover:text-white transition-all opacity-0 group-hover/scroll:opacity-100 z-10"
-                  >
-                    <ChevronRightIcon size={24} />
-                  </button>
-                </>
-              )}
-            </div>
-          </section>
-
-
-
-          {/* TÍNH NĂNG NỔI BẬT */}
-          <section className="mt-10">
-            <div className="text-center mb-16 space-y-4">
-              <h2 className="text-4xl font-black text-slate-900 tracking-tight">{t('features_title')}</h2>
-              <p className="text-slate-500 text-sm max-w-2xl mx-auto leading-relaxed">
-                {t('features_desc')}
+              <p
+                className="
+                  mt-5
+                  max-w-3xl
+                  mx-auto
+                  text-slate-500
+                  text-base
+                  leading-relaxed
+                "
+              >
+                {t("features_desc")}
               </p>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
-              <FeatureCard
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+
+              <LandingFeatureCard
                 icon={Sparkles}
-                title={t('ai_feature')}
-                description={t('ai_feature_desc')}
-                colorClass="bg-blue-50 text-blue-600"
+                title={t("ai_feature")}
+                description={t("ai_feature_desc")}
+                colorClass="bg-blue-600 text-white"
               />
-              <FeatureCard
+
+              <LandingFeatureCard
                 icon={QrCode}
-                title={t('qr_feature')}
-                description={t('qr_feature_desc')}
-                colorClass="bg-purple-50 text-purple-600"
+                title={t("qr_feature")}
+                description={t("qr_feature_desc")}
+                colorClass="bg-indigo-600 text-white"
               />
-              <FeatureCard
+
+              <LandingFeatureCard
                 icon={Gift}
-                title={t('lucky_feature')}
-                description={t('lucky_feature_desc')}
-                colorClass="bg-amber-50 text-amber-600"
+                title={t("lucky_feature")}
+                description={t("lucky_feature_desc")}
+                colorClass="bg-amber-500 text-white"
               />
-              <FeatureCard
+
+              <LandingFeatureCard
                 icon={BarChart3}
-                title={t('stat_feature')}
-                description={t('stat_feature_desc')}
-                colorClass="bg-emerald-50 text-emerald-600"
+                title={t("stat_feature")}
+                description={t("stat_feature_desc")}
+                colorClass="bg-emerald-500 text-white"
               />
             </div>
           </section>
+
 
         </div>
       </div>

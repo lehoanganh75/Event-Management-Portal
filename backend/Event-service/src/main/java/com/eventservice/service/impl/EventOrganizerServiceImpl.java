@@ -16,6 +16,7 @@ import com.eventservice.kafka.NotificationProducer;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -74,20 +75,15 @@ public class EventOrganizerServiceImpl implements EventOrganizerService {
             organizerRepository.save(organizer);
             log.info("Member {} requested to leave event {}", accountId, eventId);
 
-            // Gửi thông báo cho người đã mời (addedByAccountId) hoặc Leader nếu không có
-            String recipientId = organizer.getAddedByAccountId();
-            if (recipientId == null) {
-                // Nếu không có người mời cụ thể, tìm Leader của sự kiện
-                recipientId = organizerRepository.findByEventId(eventId).stream()
-                        .filter(o -> o.getRole() == OrganizerRole.LEADER)
-                        .map(EventOrganizer::getAccountId)
-                        .findFirst()
-                        .orElse(null);
-            }
+            // Gửi thông báo cho tất cả Leader và Coordinator của sự kiện
+            List<EventOrganizer> approvers = organizerRepository.findByEventId(eventId).stream()
+                    .filter(o -> o.getRole() == OrganizerRole.LEADER || o.getRole() == OrganizerRole.COORDINATOR)
+                    .filter(o -> !o.getAccountId().equals(accountId)) // Không gửi cho chính mình
+                    .collect(Collectors.toList());
 
-            if (recipientId != null) {
+            for (EventOrganizer approver : approvers) {
                 notificationProducer.sendNotification(NotificationEventDto.builder()
-                        .recipientId(recipientId)
+                        .recipientId(approver.getAccountId())
                         .senderId(accountId)
                         .title("Yêu cầu rời ban tổ chức")
                         .message("Thành viên " + accountId + 
@@ -128,7 +124,7 @@ public class EventOrganizerServiceImpl implements EventOrganizerService {
 
     @Override
     @Transactional
-    public void rejectLeaveRequest(String organizerId, String approverAccountId) {
+    public void rejectLeaveRequest(String organizerId, String approverAccountId, String reason) {
         EventOrganizer organizer = organizerRepository.findById(organizerId)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy yêu cầu rời đi"));
 
@@ -149,6 +145,18 @@ public class EventOrganizerServiceImpl implements EventOrganizerService {
 
         organizer.setStatus(com.eventservice.entity.enums.OrganizerStatus.ACTIVE);
         organizerRepository.save(organizer);
-        log.info("Leave request for {} rejected by {}", organizerId, approverAccountId);
+        log.info("Leave request for {} rejected by {} with reason: {}", organizerId, approverAccountId, reason);
+
+        // Gửi thông báo cho người bị từ chối
+        notificationProducer.sendNotification(NotificationEventDto.builder()
+                .recipientId(organizer.getAccountId())
+                .senderId(approverAccountId)
+                .title("Yêu cầu rời nhóm bị từ chối")
+                .message("Yêu cầu rời ban tổ chức sự kiện " + organizer.getEvent().getTitle() + 
+                        " của bạn đã bị từ chối. Lý do: " + (reason != null ? reason : "Không có lý do cụ thể."))
+                .type("LEAVE_REQUEST_REJECTED")
+                .relatedEntityId(organizer.getId())
+                .actionUrl("/lecturer/events/" + organizer.getEvent().getId())
+                .build());
     }
 }

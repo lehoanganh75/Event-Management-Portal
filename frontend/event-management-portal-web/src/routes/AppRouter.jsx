@@ -13,7 +13,6 @@ import EventsPage from "../pages/public/EventsPage";
 import InvitationAcceptancePage from "../pages/public/InvitationAcceptancePage";
 import AttendancePage from "../pages/public/AttendancePage";
 import NewsPage from "../pages/public/NewsPage";
-import EventPostList from "../pages/public/EventPostList";
 import CalendarPage from "../pages/public/CalendarPage";
 import ResetPassword from "../pages/auth/ResetPassword";
 import ForgotPassword from "../pages/auth/ForgotPassword";
@@ -88,93 +87,94 @@ const AppRouter = () => {
       <ScrollToTop />
       <AnimatePresence mode="wait">
         <Routes location={location} key={location.pathname}>
-        {/* Public Routes */}
-        <Route path="/" element={<LandingPage />} />
-        <Route path="/calendar" element={<CalendarPage />} />
-        <Route path="/login" element={<LoginPage />} />
-        <Route path="/register" element={<RegisterPage />} />
-        <Route path="/forgot-password" element={<ForgotPassword />} />
-        <Route path="/attendance" element={<AttendancePage />} />
-        <Route path="/events" element={<EventsPage />} />
-        <Route path="/invitation/accept" element={<InvitationAcceptancePage />} />
-        <Route path="/events/:eventId" element={<EventDetail />} />
-        <Route path="/reset-password" element={<ResetPassword />} />
-        <Route path="/news" element={<NewsPage />} />
-        <Route path="/news/:eventId" element={<EventPostList />} />
-        <Route path="/posts/:id" element={<PostDetailPage />} />
-        <Route path="/profile" element={<PublicProfilePage />} />
-        <Route path="/guest-events" element={<GuestEventsPage />} />
-        <Route path="/notifications" element={<GuestNotificationsPage />} />
+          {/* Public Routes */}
+          <Route path="/" element={<LandingPage />} />
+          <Route path="/calendar" element={<CalendarPage />} />
+          <Route path="/login" element={<LoginPage />} />
+          <Route path="/register" element={<RegisterPage />} />
+          <Route path="/forgot-password" element={<ForgotPassword />} />
+          <Route path="/attendance" element={<AttendancePage />} />
+          <Route path="/events" element={<EventsPage />} />
+          <Route path="/invitation/accept" element={<InvitationAcceptancePage />} />
+          <Route path="/events/:eventId" element={<EventDetail />} />
+          <Route path="/reset-password" element={<ResetPassword />} />
+          <Route path="/news" element={<NewsPage />} />
+          <Route path="/news/:eventId" element={<EventsPage />} />
+          <Route path="/posts/:id" element={<PostDetailPage />} />
+          <Route path="/profile" element={<PublicProfilePage />} />
+          <Route path="/guest-events" element={<GuestEventsPage />} />
+          <Route path="/notifications" element={<GuestNotificationsPage />} />
 
-        {/* --- ROLE BASED DASHBOARD ROUTES --- */}
+          {/* --- ROLE BASED DASHBOARD ROUTES --- */}
 
-        {/* Student Routes */}
-        <Route path="/student" element={<DashboardLayout />}>
-          <Route index element={<Navigate to="dashboard" replace />} />
-          <Route path="dashboard" element={<Dashboard />} />
-          <Route path="events">
-            <Route index element={<StudentEventsPage />} />
-            <Route path=":id" element={<StudentEventDetailPage />} />
-            <Route path="edit/:id" element={<AdminEventCreatorPage onBack={() => window.history.back()} />} />
+          {/* Student Routes */}
+          <Route path="/student" element={<DashboardLayout />}>
+            <Route index element={<Navigate to="dashboard" replace />} />
+            <Route path="dashboard" element={<Dashboard />} />
+            <Route path="events">
+              <Route index element={<StudentEventsPage />} />
+              <Route path=":id" element={<StudentEventDetailPage />} />
+              <Route path="edit/:id" element={<AdminEventCreatorPage onBack={() => window.history.back()} />} />
+            </Route>
+            <Route path="posts" element={<StudentPostManagement />} />
+            <Route path="posts/:id" element={<StudentPostDetailPage />} />
+            <Route path="templates" element={<StudentTemplatesPage />} />
+            <Route path="notifications" element={<StudentNotificationsPage />} />
+            <Route path="spinner" element={<StudentLuckyDrawManagement />} />
+            <Route path="profile" element={<ProfileManagement />} />
           </Route>
-          <Route path="posts" element={<StudentPostManagement />} />
-          <Route path="posts/:id" element={<StudentPostDetailPage />} />
-          <Route path="templates" element={<StudentTemplatesPage />} />
-          <Route path="notifications" element={<StudentNotificationsPage />} />
-          <Route path="spinner" element={<StudentLuckyDrawManagement />} />
-          <Route path="profile" element={<ProfileManagement />} />
-        </Route>
 
-        {/* Lecturer Routes */}
-        <Route path="/lecturer" element={<DashboardLayout />}>
-          <Route index element={<Navigate to="dashboard" replace />} />
-          <Route path="dashboard" element={<Dashboard />} />
-          <Route path="plans" element={<LecturerPlansPage />} />
-          <Route path="events">
-            <Route index element={<LecturerEventsPage />} />
-            <Route path=":id" element={<LecturerEventDetailPage />} />
-            <Route path="edit/:id" element={<AdminEventCreatorPage onBack={() => window.history.back()} />} />
+          {/* Lecturer Routes */}
+          <Route path="/lecturer" element={<DashboardLayout />}>
+            <Route index element={<Navigate to="dashboard" replace />} />
+            <Route path="dashboard" element={<Dashboard />} />
+            <Route path="plans" element={<LecturerPlansPage />} />
+            <Route path="events">
+              <Route index element={<LecturerEventsPage />} />
+              <Route path=":id" element={<LecturerEventDetailPage />} />
+              <Route path="edit/:id" element={<AdminEventCreatorPage onBack={() => window.history.back()} />} />
+            </Route>
+            <Route path="posts" element={<LecturerPostManagement />} />
+            <Route path="posts/:id" element={<LecturerPostDetailPage />} />
+            <Route path="templates" element={<LecturerTemplatesPage />} />
+            <Route path="accounts" element={<AdminAccountsPage restrictRoles={["STUDENT", "MEMBER", "GUEST"]} />} />
+            <Route path="notifications" element={<LecturerNotificationsPage />} />
+            <Route path="spinner" element={<LecturerLuckyDrawManagement />} />
+            <Route path="profile" element={<ProfileManagement />} />
           </Route>
-          <Route path="posts" element={<LecturerPostManagement />} />
-          <Route path="posts/:id" element={<LecturerPostDetailPage />} />
-          <Route path="templates" element={<LecturerTemplatesPage />} />
-          <Route path="notifications" element={<LecturerNotificationsPage />} />
-          <Route path="spinner" element={<LecturerLuckyDrawManagement />} />
-          <Route path="profile" element={<ProfileManagement />} />
-        </Route>
 
-        {/* Admin/Super Admin Routes */}
-        <Route path="/admin" element={<DashboardLayout />}>
-          <Route index element={<Navigate to="dashboard" replace />} />
-          <Route path="dashboard" element={<Dashboard />} />
-          <Route path="plans" element={<AdminPlansPage />} />
-          <Route path="events" element={<AdminEventsPage />} />
-          <Route path="events/create" element={<AdminEventCreatorPage onBack={() => window.history.back()} />} />
-          <Route path="events/edit/:id" element={<AdminEventCreatorPage onBack={() => window.history.back()} />} />
-          <Route path="events/:id" element={<AdminEventDetailPage />} />
-          <Route path="posts" element={<AdminPostManagement />} />
-          <Route path="posts/:id" element={<AdminPostDetailPage />} />
-          <Route path="notifications" element={<AdminNotificationsPage />} />
-          <Route path="spinner" element={<AdminLuckyDrawManagement />} />
-          <Route path="events/:id/lucky-draw/setup" element={<LuckyDrawConfigPage userType="admin" />} />
-          <Route path="templates" element={<AdminTemplatesPage />} />
-          <Route path="departments" element={<AdminDepartmentsRolesPage />} />
-          <Route path="roles" element={<AdminDepartmentsRolesPage />} />
-          <Route path="accounts" element={<AdminAccountsPage />} />
-          <Route path="profile" element={<ProfileManagement />} />
-        </Route>
+          {/* Admin/Super Admin Routes */}
+          <Route path="/admin" element={<DashboardLayout />}>
+            <Route index element={<Navigate to="dashboard" replace />} />
+            <Route path="dashboard" element={<Dashboard />} />
+            <Route path="plans" element={<AdminPlansPage />} />
+            <Route path="events" element={<AdminEventsPage />} />
+            <Route path="events/create" element={<AdminEventCreatorPage onBack={() => window.history.back()} />} />
+            <Route path="events/edit/:id" element={<AdminEventCreatorPage onBack={() => window.history.back()} />} />
+            <Route path="events/:id" element={<AdminEventDetailPage />} />
+            <Route path="posts" element={<AdminPostManagement />} />
+            <Route path="posts/:id" element={<AdminPostDetailPage />} />
+            <Route path="notifications" element={<AdminNotificationsPage />} />
+            <Route path="spinner" element={<AdminLuckyDrawManagement />} />
+            <Route path="events/:id/lucky-draw/setup" element={<LuckyDrawConfigPage userType="admin" />} />
+            <Route path="templates" element={<AdminTemplatesPage />} />
+            <Route path="departments" element={<AdminDepartmentsRolesPage />} />
+            <Route path="roles" element={<AdminDepartmentsRolesPage />} />
+            <Route path="accounts" element={<AdminAccountsPage />} />
+            <Route path="profile" element={<ProfileManagement />} />
+          </Route>
 
-        {/* Role-Based Management Routes (Special Operations) */}
-        <Route path="/events/:eventId/v3">
-          <Route path="leader" element={<LeaderDashboard />} />
-          <Route path="coordinator" element={<CoordinatorPage />} />
-          <Route path="member" element={<MemberScanPage />} />
-          <Route path="advisor" element={<AdvisorPage />} />
-        </Route>
+          {/* Role-Based Management Routes (Special Operations) */}
+          <Route path="/events/:eventId/v3">
+            <Route path="leader" element={<LeaderDashboard />} />
+            <Route path="coordinator" element={<CoordinatorPage />} />
+            <Route path="member" element={<MemberScanPage />} />
+            <Route path="advisor" element={<AdvisorPage />} />
+          </Route>
 
-        <Route path="*" element={<NotFoundPage />} />
-      </Routes>
-    </AnimatePresence>
+          <Route path="*" element={<NotFoundPage />} />
+        </Routes>
+      </AnimatePresence>
     </>
   );
 };

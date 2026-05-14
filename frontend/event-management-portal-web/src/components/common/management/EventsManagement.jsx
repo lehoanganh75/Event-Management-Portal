@@ -194,7 +194,8 @@ const EventsManagement = ({ type = "lecturer", mode = "all" }) => {
         if (activeTab === "Chờ duyệt") return ["PLAN_PENDING_APPROVAL"].includes(e.status);
         if (activeTab === "Đã duyệt") return ["PLAN_APPROVED"].includes(e.status);
         if (activeTab === "Chờ duyệt sự kiện") return ["EVENT_PENDING_APPROVAL"].includes(e.status);
-        if (activeTab === "Công bố") return ["PUBLISHED", "ONGOING"].includes(e.status);
+        if (activeTab === "Công bố") return e.status === "PUBLISHED";
+        if (activeTab === "Đang diễn ra") return e.status === "ONGOING";
         if (activeTab === "Hoàn thành") return e.status === "COMPLETED";
         if (activeTab === "Đã hủy") return e.status === "CANCELLED";
         return true;
@@ -317,8 +318,8 @@ const EventsManagement = ({ type = "lecturer", mode = "all" }) => {
             break;
           case "PUBLISHED":
             await eventService.approveEvent(id);
-             // Send notification to creator
-             if (currentEvent.createdByAccountId) {
+            // Send notification to creator
+            if (currentEvent.createdByAccountId) {
               await notificationService.sendNotification({
                 userProfileId: currentEvent.createdByAccountId,
                 title: "Sự kiện đã xuất bản",
@@ -451,16 +452,16 @@ const EventsManagement = ({ type = "lecturer", mode = "all" }) => {
         hasLuckyDraw: extracted.additionalData?.hasLuckyDraw || false,
         aiReasoning: extracted.reasoning || ""
       } : {
-        eventTitle: (function() {
+        eventTitle: (function () {
           const lines = data.rawText?.split('\n') || [];
           // Tìm dòng có chứa V/v hoặc KẾ HOẠCH trước
           const targetLine = lines.find(l => l.includes("V/v") || l.includes("KẾ HOẠCH"));
           if (targetLine) return targetLine.replace(/V\/v:?\s*/i, "").trim().substring(0, 100);
           // Nếu không thấy, tìm dòng dài nhưng không phải thông tin hành chính
-          return lines.find(l => 
-            l.trim().length > 10 && 
-            !l.includes("TRƯỜNG") && 
-            !l.includes("KHOA") && 
+          return lines.find(l =>
+            l.trim().length > 10 &&
+            !l.includes("TRƯỜNG") &&
+            !l.includes("KHOA") &&
             !l.includes("CỘNG HÒA") &&
             !l.includes("Độc lập")
           )?.trim().substring(0, 70) || "Kế hoạch sự kiện mới";
@@ -482,7 +483,7 @@ const EventsManagement = ({ type = "lecturer", mode = "all" }) => {
           }
           const date = new Date(isoStr);
           if (isNaN(date)) return "";
-          
+
           const year = date.getFullYear();
           const month = String(date.getMonth() + 1).padStart(2, '0');
           const day = String(date.getDate()).padStart(2, '0');
@@ -521,7 +522,7 @@ const EventsManagement = ({ type = "lecturer", mode = "all" }) => {
 
       setShowEventCreator(true);
       showToast("✨ Đã trích xuất thông tin thành công!", "success");
-      
+
       // Force scroll fix
       setTimeout(() => {
         window.dispatchEvent(new Event('resize'));
@@ -615,8 +616,8 @@ const EventsManagement = ({ type = "lecturer", mode = "all" }) => {
         </div>
 
         <div className="flex gap-3">
-          {/* Hiển thị Import và Tạo mới cho Admin, Student, Lecturer hoặc trong mode Plan */}
-          {(isAdminMode || type === "student" || type === "lecturer" || mode === "plan" || mode === "all") && (
+          {/* Hiển thị Import và Tạo mới cho Admin, Lecturer, MEMBER hoặc trong mode Plan */}
+          {(isAdminMode || user?.role === "LECTURER" || user?.role === "MEMBER" || mode === "plan") && (
             <>
               <label className={`flex items-center gap-2 bg-indigo-50 text-indigo-600 hover:bg-indigo-100 px-5 py-2.5 rounded-lg text-sm font-bold transition-all cursor-pointer border border-indigo-200 shadow-sm ${isImporting ? 'opacity-50 pointer-events-none' : ''}`}>
                 <input
@@ -639,7 +640,7 @@ const EventsManagement = ({ type = "lecturer", mode = "all" }) => {
                 className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-lg text-sm font-medium transition-all shadow-sm"
               >
                 <Plus size={18} />
-                {mode === "plan" ? "Tạo kế hoạch mới" : (type === "student" ? "Đề xuất sự kiện" : "Tạo sự kiện mới")}
+                {mode === "plan" ? "Tạo kế hoạch mới" : (user?.role === "MEMBER" ? "Đề xuất sự kiện" : "Tạo sự kiện mới")}
               </button>
             </>
           )}
@@ -760,7 +761,8 @@ const EventsManagement = ({ type = "lecturer", mode = "all" }) => {
           ] : []),
           ...(mode === "all" || mode === "event" ? [
             { id: "Chờ duyệt sự kiện", label: "Chờ duyệt", icon: AlertCircle, count: events.filter(e => ["EVENT_PENDING_APPROVAL"].includes(e.status)).length },
-            { id: "Công bố", label: "Công bố", icon: Clock, count: events.filter(e => ["PUBLISHED", "ONGOING"].includes(e.status)).length },
+            { id: "Công bố", label: "Đã công bố", icon: Send, count: events.filter(e => e.status === "PUBLISHED").length },
+            { id: "Đang diễn ra", label: "Đang diễn ra", icon: PlayCircle, count: events.filter(e => e.status === "ONGOING").length },
             { id: "Hoàn thành", label: "Hoàn thành", icon: CheckCircle2, count: events.filter(e => e.status === "COMPLETED").length },
             { id: "Đã hủy", label: "Đã hủy", icon: XCircle, count: events.filter(e => e.status === "CANCELLED").length }
           ] : [])

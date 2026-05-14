@@ -10,25 +10,29 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from '../../context/AuthContext';
 import ConfirmModal from "../../components/common/ConfirmModal";
 
-const ROLES = ["SUPER_ADMIN", "ADMIN", "MEMBER", "GUEST"];
+const ROLES = ["SUPER_ADMIN", "ADMIN", "STUDENT", "MEMBER", "GUEST", "LECTURER"];
 
 const ROLE_LABELS = {
   SUPER_ADMIN: "Quản trị viên cấp cao",
   ADMIN: "Quản trị viên",
-  MEMBER: "Sinh viên",
+  LECTURER: "Giảng viên",
+  STUDENT: "Sinh viên",
+  MEMBER: "Thành viên",
   GUEST: "Khách",
 };
 
 const ROLE_COLORS = {
   SUPER_ADMIN: "bg-purple-100 text-purple-700 border-purple-200",
   ADMIN: "bg-blue-100 text-blue-700 border-blue-200",
+  LECTURER: "bg-teal-100 text-teal-700 border-teal-200",
+  STUDENT: "bg-indigo-100 text-indigo-700 border-indigo-200",
   MEMBER: "bg-indigo-100 text-indigo-700 border-indigo-200",
   GUEST: "bg-slate-100 text-slate-600 border-slate-200",
 };
 
 const ITEMS_PER_PAGE = 8;
 
-const AdminAccountsPage = () => {
+const AdminAccountsPage = ({ restrictRoles }) => {
   const { accounts, fetchAccounts, updateAccount, deleteAccount, updateAccountStatus } = useAuth();
 
   const [searchTerm, setSearchTerm] = useState("");
@@ -47,7 +51,7 @@ const AdminAccountsPage = () => {
     username: "",
     email: "",
     fullName: "",
-    role: "MEMBER",
+    role: "STUDENT",
     status: "ACTIVE",
   });
 
@@ -55,20 +59,21 @@ const AdminAccountsPage = () => {
     fetchAccounts();
   }, [fetchAccounts]);
 
-  // Remapped to use global showToast imported above
-  /* --- STATISTICS (Giống EventPage) --- */
-  const stats = useMemo(() => ({
-    total: accounts?.length || 0,
-    active: accounts?.filter(a => a.status === "ACTIVE").length || 0,
-    admin: accounts?.filter(a => ["ADMIN", "SUPER_ADMIN"].includes(a.role)).length || 0,
-    member: accounts?.filter(a => a.role === "MEMBER").length || 0,
-    locked: accounts?.filter(a => a.status !== "ACTIVE").length || 0,
-  }), [accounts]);
+  const displayRoles = restrictRoles ? ROLES.filter(r => restrictRoles.includes(r)) : ROLES;
+  const allowedAccounts = restrictRoles ? (accounts || []).filter(a => restrictRoles.includes(a.role)) : (accounts || []);
 
-  /* --- FILTER LOGIC (Giống EventPage) --- */
+  const stats = useMemo(() => ({
+    total: allowedAccounts.length,
+    active: allowedAccounts.filter(a => a.status === "ACTIVE").length,
+    admin: allowedAccounts.filter(a => ["ADMIN", "SUPER_ADMIN", "LECTURER"].includes(a.role)).length,
+    student: allowedAccounts.filter(a => a.role === "STUDENT").length,
+    member: allowedAccounts.filter(a => a.role === "MEMBER").length,
+    guest: allowedAccounts.filter(a => a.role === "GUEST").length,
+    locked: allowedAccounts.filter(a => a.status !== "ACTIVE").length,
+  }), [allowedAccounts]);
+
   const filtered = useMemo(() => {
-    const list = Array.isArray(accounts) ? accounts : [];
-    return list.filter((a) => {
+    return allowedAccounts.filter((a) => {
       const s = searchTerm.toLowerCase();
       const matchSearch = (a.fullName || "").toLowerCase().includes(s) ||
         (a.username || "").toLowerCase().includes(s) ||
@@ -77,12 +82,15 @@ const AdminAccountsPage = () => {
 
       let matchTab = true;
       if (activeTab === "Đang hoạt động") matchTab = a.status === "ACTIVE";
-      if (activeTab === "Bị khóa") matchTab = a.status !== "ACTIVE";
-      if (activeTab === "Quản trị") matchTab = ["ADMIN", "SUPER_ADMIN"].includes(a.role);
+      if (activeTab === "Đang bị khóa") matchTab = a.status !== "ACTIVE";
+      if (activeTab === "Quản trị") matchTab = ["ADMIN", "SUPER_ADMIN", "LECTURER"].includes(a.role);
+      if (activeTab === "Sinh viên") matchTab = a.role === "STUDENT";
+      if (activeTab === "Thành viên") matchTab = a.role === "MEMBER";
+      if (activeTab === "Khách") matchTab = a.role === "GUEST";
 
       return matchSearch && matchRole && matchTab;
     });
-  }, [accounts, searchTerm, roleFilter, activeTab]);
+  }, [allowedAccounts, searchTerm, roleFilter, activeTab]);
 
   const paginated = filtered.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
   const totalPages = Math.ceil(filtered.length / ITEMS_PER_PAGE);
@@ -215,11 +223,14 @@ const AdminAccountsPage = () => {
       {/* TABS (Giống EventPage) */}
       <div className="flex border-b border-slate-200 mb-6 overflow-x-auto pb-1 gap-2">
         {[
-          { id: "Tất cả", label: "Tất cả", icon: Users, count: stats.total },
-          { id: "Đang hoạt động", label: "Đang hoạt động", icon: CheckCircle2, count: stats.active },
-          { id: "Quản trị", label: "Quản trị", icon: ShieldCheck, count: stats.admin },
-          { id: "Bị khóa", label: "Bị khóa", icon: Lock, count: stats.locked },
-        ].map((tab) => (
+          { id: "Tất cả", label: "Tất cả", icon: Users, count: stats.total, show: true },
+          { id: "Quản trị", label: "Quản trị", icon: ShieldCheck, count: stats.admin, show: !restrictRoles || restrictRoles.some(r => ["ADMIN", "SUPER_ADMIN", "LECTURER"].includes(r)) },
+          { id: "Sinh viên", label: "Sinh viên", icon: User, count: stats.student, show: !restrictRoles || restrictRoles.includes("STUDENT") },
+          { id: "Thành viên", label: "Thành viên", icon: User, count: stats.member, show: !restrictRoles || restrictRoles.includes("MEMBER") },
+          { id: "Khách", label: "Khách", icon: User, count: stats.guest, show: !restrictRoles || restrictRoles.includes("GUEST") },
+          { id: "Đang hoạt động", label: "Đang hoạt động", icon: CheckCircle2, count: stats.active, show: true },
+          { id: "Đang bị khóa", label: "Đang bị khóa", icon: Lock, count: stats.locked, show: true },
+        ].filter(t => t.show).map((tab) => (
           <button
             key={tab.id}
             onClick={() => {
@@ -259,7 +270,7 @@ const AdminAccountsPage = () => {
           onChange={(e) => setRoleFilter(e.target.value)}
         >
           <option value="All">Tất cả vai trò</option>
-          {ROLES.map(r => <option key={r} value={r}>{ROLE_LABELS[r]}</option>)}
+          {displayRoles.map(r => <option key={r} value={r}>{ROLE_LABELS[r]}</option>)}
         </select>
 
         <button
@@ -417,7 +428,7 @@ const AdminAccountsPage = () => {
                 <div>
                   <label className="text-[10px] font-black text-slate-400 uppercase ml-2 mb-1.5 block tracking-widest">Vai trò hệ thống</label>
                   <select className="w-full px-5 py-3 bg-slate-50 border border-slate-100 rounded-2xl outline-none font-bold text-slate-700 cursor-pointer" value={formData.role} onChange={e => setFormData({ ...formData, role: e.target.value })}>
-                    {ROLES.map(r => <option key={r} value={r}>{ROLE_LABELS[r]}</option>)}
+                    {displayRoles.map(r => <option key={r} value={r}>{ROLE_LABELS[r]}</option>)}
                   </select>
                 </div>
                 <div className="pt-4">

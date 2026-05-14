@@ -69,5 +69,10 @@ public interface ChatService {
      * Analyze event statistics and provide insights
      */
     String analyzeStatistics(String statsJson);
+
+    /**
+     * Generate media post content via AI
+     */
+    String generateMediaPost(String eventDetails);
 }
 

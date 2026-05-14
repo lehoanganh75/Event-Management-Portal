@@ -12,6 +12,7 @@ import com.eventservice.entity.enums.OrganizerRole;
 import com.eventservice.service.EventOrganizerService;
 import com.eventservice.service.EventPresenterService;
 import com.eventservice.service.EventService;
+import com.eventservice.service.ChatService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -43,6 +44,7 @@ import java.util.Map;
 @Slf4j
 public class EventController {
     private final EventService eventService;
+    private final ChatService chatService;
     private final EventPresenterService presenterService;
     private final EventOrganizerService organizerService;
     private final OrganizationRepository organizationRepository;
@@ -96,12 +98,14 @@ public class EventController {
     @GetMapping("/my-events")
     public ResponseEntity<List<EventResponse>> getMyEvents(
             @AuthenticationPrincipal Jwt jwt) {
+        if (jwt == null) return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         String accountId = jwt.getSubject();
         return ResponseEntity.ok(eventService.findInvolvedEvents(accountId));
     }
 
     @GetMapping("/involved-ids")
     public ResponseEntity<List<String>> getInvolvedEventIds(@AuthenticationPrincipal Jwt jwt) {
+        if (jwt == null) return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         String accountId = jwt.getSubject();
         return ResponseEntity.ok(eventService.getInvolvedEventIdsByAccountId(accountId));
     }
@@ -143,14 +147,16 @@ public class EventController {
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<Void> rejectLeaveRequest(
             @PathVariable String organizerId,
+            @RequestParam(required = false) String reason,
             @AuthenticationPrincipal Jwt jwt) {
         String approverAccountId = jwt.getSubject();
-        organizerService.rejectLeaveRequest(organizerId, approverAccountId);
+        organizerService.rejectLeaveRequest(organizerId, approverAccountId, reason);
         return ResponseEntity.ok().build();
     }
 
     @GetMapping("/organizer-roles")
     public ResponseEntity<List<String>> getMyOrganizerRoles(@AuthenticationPrincipal Jwt jwt) {
+        if (jwt == null) return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         String accountId = jwt.getSubject();
         return ResponseEntity.ok(eventService.getOrganizerRoles(accountId));
     }
@@ -645,5 +651,19 @@ public class EventController {
     public ResponseEntity<Void> cancelInvitation(@PathVariable String invitationId) {
         eventService.cancelInvitation(invitationId);
         return ResponseEntity.noContent().build();
+    }
+    @PostMapping("/ai/generate-post")
+    public ResponseEntity<Map<String, Object>> generateMediaPost(
+            @RequestBody Map<String, Object> request) {
+        log.info("Event Controller: Request to generate AI post content");
+        String eventDetails = (String) request.get("eventDetails");
+
+        String postJson = chatService.generateMediaPost(eventDetails);
+
+        return ResponseEntity.ok(Map.of(
+                "code", 1000,
+                "message", "Media post generated successfully",
+                "result", postJson
+        ));
     }
 }
