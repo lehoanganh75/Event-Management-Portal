@@ -410,11 +410,12 @@ const eventService = {
             const api = token ? privateApi : publicApi;
             return api.post('/api/v1/chat/messages', data, { timeout: 60000 });
         },
+        // Các phương thức gọi trực tiếp tới AI-Event-Management qua Kong (/ai prefix)
         analyzeStats: (statsJson) => {
             const prompt = `Hãy phân tích dữ liệu thống kê sự kiện sau và đưa ra nhận xét chuyên sâu: ${statsJson}`;
             const token = localStorage.getItem('accessToken');
             const api = token ? privateApi : publicApi;
-            return api.post('/ai/api/chat', { prompt });
+            return api.post('/ai/api/chat', { prompt }, { timeout: 90000 });
         },
         extractFromText: (text) => {
             const prompt = `Trích xuất thông tin sự kiện từ văn bản sau và trả về DUY NHẤT định dạng JSON. 
@@ -422,16 +423,15 @@ const eventService = {
             Văn bản: ${text}`;
             const token = localStorage.getItem('accessToken');
             const api = token ? privateApi : publicApi;
-            return api.post('/ai/api/chat', { prompt });
+            return api.post('/ai/api/chat', { prompt, isExtraction: true }, { timeout: 90000 });
         },
         generateMediaPost: (eventDetails) => {
-            const prompt = `Trích xuất JSON bài viết truyền thông cho sự kiện sau. 
-            Yêu cầu: Trả về duy nhất 1 khối JSON hợp lệ có cấu trúc: {"title": "tiêu đề bài viết", "content": "nội dung chi tiết"}. 
-            Không giải thích gì thêm. 
-            Dữ liệu sự kiện: ${eventDetails}`;
+            const prompt = `Dựa trên thông tin sự kiện sau, hãy viết một bài đăng truyền thông (Facebook/LinkedIn) hấp dẫn. 
+            Yêu cầu: Trả về JSON có cấu trúc {"title": "...", "content": "..."}.
+            Dữ liệu: ${eventDetails}`;
             const token = localStorage.getItem('accessToken');
             const api = token ? privateApi : publicApi;
-            return api.post('/ai/api/chat', { prompt });
+            return api.post('/ai/api/chat', { prompt }, { timeout: 90000 });
         },
     },
 
