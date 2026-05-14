@@ -53,7 +53,8 @@ export const NotificationProvider = ({ children }) => {
         if (isAuthenticated && userId) {
             const wsBaseUrl = import.meta.env.VITE_API_BASE_URL || "http://localhost:8000";
             const wsBrokerUrl = wsBaseUrl.replace(/^http/, "ws") + "/notification/ws";
-            const sockJsUrl = wsBaseUrl + "/notification/ws";
+            // SockJS must use http/https
+            const sockJsUrl = wsBaseUrl.replace(/^ws/, "http") + "/notification/ws";
 
             const stompClient = new Client({
                 brokerURL: wsBrokerUrl,

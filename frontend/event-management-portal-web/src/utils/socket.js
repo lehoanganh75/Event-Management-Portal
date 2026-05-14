@@ -1,11 +1,13 @@
 import { Client } from '@stomp/stompjs';
 import SockJS from 'sockjs-client';
 
-const WS_URL = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000') + '/ws/chat';
+const WS_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
+// SockJS requires http/https, not ws/wss
+const SOCKJS_URL = WS_BASE_URL.replace(/^ws/, 'http') + '/ws/chat';
 
 export const createStompClient = (onConnect, onDisconnect) => {
   const client = new Client({
-    webSocketFactory: () => new SockJS(WS_URL),
+    webSocketFactory: () => new SockJS(SOCKJS_URL),
     debug: (str) => {
       // console.log('STOMP: ' + str);
     },
