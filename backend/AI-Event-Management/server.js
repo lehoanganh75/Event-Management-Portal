@@ -86,7 +86,7 @@ async function getDatabaseContext() {
     );
     if (rows.length === 0) return "Hiện tại chưa có sự kiện nào trong hệ thống.";
 
-    let context = "Dữ liệu từ hệ thống MariaDB (Sự kiện mới nhất):\n";
+    let context = "Dữ liệu từ hệ thống MariaDB (Sự kiện hiện có):\n";
     rows.forEach(ev => {
       context += `- Sự kiện: ${ev.title}, Địa điểm: ${ev.location}, Ngày: ${ev.start_time}, Mô tả: ${ev.description}\n`;
     });
@@ -126,7 +126,7 @@ Nếu trích xuất JSON, hãy CHỈ trả về code JSON.`;
 
     let finalResponse = "";
 
-    // --- CASE 1: USE GEMINI (TRY STABLE NAMES) ---
+    // --- CASE 1: USE GEMINI (STABLE MULTI-MODEL RETRY) ---
     if (genAI) {
       const modelsToTry = ["models/gemini-1.5-flash", "models/gemini-pro"];
       let success = false;
@@ -135,7 +135,7 @@ Nếu trích xuất JSON, hãy CHỈ trả về code JSON.`;
         try {
           console.log(`Trying Gemini AI (${modelName})...`);
           const model = genAI.getGenerativeModel({ model: modelName });
-          const result = await model.generateContent(systemInstruction + "\n\nUser: " + userPrompt);
+          const result = await model.generateContent(systemInstruction + "\n\nUser Prompt: " + userPrompt);
           finalResponse = result.response.text();
           success = true;
           break;
@@ -149,8 +149,8 @@ Nếu trích xuất JSON, hãy CHỈ trả về code JSON.`;
       }
     }
 
-    // --- CASE 2: OLLAMA CHAT API (Better Reasoning) ---
-    console.log("Using Ollama Chat API...");
+    // --- CASE 2: OLLAMA CHAT API (Advanced Logic) ---
+    console.log("Using Ollama Chat API (Fallback)...");
     const OLLAMA_URL = process.env.OLLAMA_URL || "http://ollama:11434";
     const response = await fetch(`${OLLAMA_URL}/api/chat`, {
       method: "POST",
