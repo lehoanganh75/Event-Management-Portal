@@ -136,7 +136,7 @@ Nếu là yêu cầu trích xuất JSON, hãy CHỈ trả về JSON nguyên bả
     if (genAI) {
       try {
         console.log("Using Gemini AI...");
-        const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+        const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash-latest" });
         const result = await model.generateContent([systemInstruction, userPrompt]);
         finalResponse = result.response.text();
       } catch (geminiError) {
