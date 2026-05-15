@@ -8,7 +8,7 @@ import LandingPage from "../pages/public/LandingPage";
 import LoginPage from "../pages/auth/LoginPage";
 import RegisterPage from "../pages/auth/RegisterPage";
 import NotFoundPage from "../pages/public/NotFoundPage";
-import EventDetail from "../pages/public/EventDetailPage";
+import EventDetailPage from "../pages/public/EventDetailPage";
 import EventsPage from "../pages/public/EventsPage";
 import InvitationAcceptancePage from "../pages/public/InvitationAcceptancePage";
 import AttendancePage from "../pages/public/AttendancePage";
@@ -96,7 +96,7 @@ const AppRouter = () => {
           <Route path="/attendance" element={<AttendancePage />} />
           <Route path="/events" element={<EventsPage />} />
           <Route path="/invitation/accept" element={<InvitationAcceptancePage />} />
-          <Route path="/events/:eventId" element={<EventDetail />} />
+          <Route path="/events/:eventId" element={<EventDetailPage />} />
           <Route path="/reset-password" element={<ResetPassword />} />
           <Route path="/news" element={<NewsPage />} />
           <Route path="/news/:eventId" element={<EventsPage />} />

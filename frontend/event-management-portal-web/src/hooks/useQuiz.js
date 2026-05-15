@@ -12,8 +12,15 @@ export const useQuiz = (eventId) => {
     useEffect(() => {
         if (!eventId) return;
 
+        const wsBaseUrl = import.meta.env.VITE_API_BASE_URL || "http://localhost:8000";
+        const token = localStorage.getItem('accessToken');
+        const wsUrl = token ? `${wsBaseUrl}/ws?token=${token}` : `${wsBaseUrl}/ws`;
+
         const client = new Client({
-            webSocketFactory: () => new SockJS("https://fitiuh-events.io.vn/ws/chat"),
+            webSocketFactory: () => new SockJS(wsUrl),
+            connectHeaders: {
+                Authorization: `Bearer ${token}`
+            },
             reconnectDelay: 5000,
             onConnect: () => {
                 console.log("✅ [Quiz WS] Connected for Event:", eventId);

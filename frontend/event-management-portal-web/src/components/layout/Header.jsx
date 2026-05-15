@@ -84,14 +84,16 @@ const Header = () => {
       fetchNotifications();
 
       const wsBaseUrl = import.meta.env.VITE_API_BASE_URL || "http://localhost:8000";
-      const wsUrl = wsBaseUrl.includes("https")
-        ? wsBaseUrl.replace("https", "wss") + "/ws"
-        : wsBaseUrl.replace("http", "ws") + "/ws";
+      const token = localStorage.getItem('accessToken');
+      const wsUrl = token ? `${wsBaseUrl}/ws?token=${token}` : `${wsBaseUrl}/ws`;
 
       const client = new Client({
         webSocketFactory: () => new SockJS(wsUrl),
+        connectHeaders: {
+          Authorization: `Bearer ${token}`
+        },
         onConnect: () => {
-          client.subscribe(`/user/${user.id}/topic/notifications`, (message) => {
+          client.subscribe(`/topic/notifications.${user.id}`, (message) => {
             const newNotif = JSON.parse(message.body);
             setNotifications((prev) => [newNotif, ...prev.slice(0, 4)]);
             setUnreadCount((prev) => prev + 1);

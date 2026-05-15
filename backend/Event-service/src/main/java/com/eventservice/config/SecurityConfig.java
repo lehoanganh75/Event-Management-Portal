@@ -39,6 +39,7 @@ public class SecurityConfig {
                 http
                                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                                 .csrf(csrf -> csrf.disable())
+                                .headers(headers -> headers.frameOptions(frame -> frame.disable()))
                                 .sessionManagement(session -> session
                                                 .sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                                 .authorizeHttpRequests(auth -> auth
@@ -75,7 +76,7 @@ public class SecurityConfig {
                                                                 "/surveys/**",
                                                                 "/posts/**",
                                                                 "/api/v1/feedbacks/event/**",
-                                                                "/ws/chat/**",
+                                                                "/ws/**",
                                                                 "/events/site-stats/**",
                                                                 "/error")
                                                 .permitAll()
@@ -155,7 +156,11 @@ public class SecurityConfig {
         @Bean
         public CorsConfigurationSource corsConfigurationSource() {
                 CorsConfiguration configuration = new CorsConfiguration();
-                configuration.setAllowedOriginPatterns(Arrays.asList("*"));
+                configuration.setAllowedOrigins(Arrays.asList(
+                                "http://localhost:5173",
+                                "http://localhost:5174",
+                                "https://fitiuh-events.io.vn",
+                                "http://fitiuh-events.io.vn"));
                 configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
                 configuration.setAllowedHeaders(Arrays.asList("*"));
                 configuration.setAllowCredentials(true);

@@ -15,8 +15,8 @@ services:
   - name: event-service
     url: http://event-service:8082
     connect_timeout: 60000
-    write_timeout: 60000
-    read_timeout: 60000
+    read_timeout: 180000
+    write_timeout: 180000
     routes:
       - name: event-route
         paths:
@@ -120,12 +120,15 @@ plugins:
         - PATCH
       headers:
         - Accept
+        - Accept-Control-Allow-Origin
         - Authorization
         - Content-Type
         - Origin
         - X-Requested-With
         - X-Auth-Token
         - App-Version
+        - Cookie
+        - Set-Cookie
       exposed_headers:
         - Content-Disposition
       credentials: true
@@ -135,5 +138,5 @@ plugins:
   # 2. Rate Limiting: 100 requests per minute per IP
   - name: rate-limiting
     config:
-      minute: 100
+      minute: 1000
       policy: local

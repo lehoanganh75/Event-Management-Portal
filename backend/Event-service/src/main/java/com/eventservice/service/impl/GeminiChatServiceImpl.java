@@ -76,37 +76,34 @@ public class GeminiChatServiceImpl implements GeminiChatService {
 
                             [RULES]
                             - Luôn trả lời bằng JSON hợp lệ.
-                            - Không bịa thông tin về địa điểm thực tế nếu không có trong dữ liệu.
                             - Thời gian phải logic (Start < End).
-                            - ProgramItems phải bao quát toàn bộ tiến trình sự kiện.
-                            - ConfidenceScore phản ánh mức độ đầy đủ của thông tin người dùng cung cấp.
+                            - ProgramItems: Tối đa 5-7 hạng mục quan trọng nhất để tránh quá tải dữ liệu.
+                            - Từng mô tả hạng mục nên súc tích (dưới 20 từ).
 
                             [OUTPUT FORMAT - JSON ONLY]
                             {
                               "title": "Tên sự kiện",
                               "subject": "Chủ đề chính",
                               "purpose": "Mục đích chiến lược",
-                              "description": "Mô tả chi tiết",
-                              "suggestedStartTime": "YYYY-MM-DDTHH:mm:ss (mặc định giờ là 08:00:00 nếu người dùng chỉ cung cấp ngày)",
-                              "suggestedEndTime": "YYYY-MM-DDTHH:mm:ss (mặc định giờ là 11:30:00 nếu người dùng chỉ cung cấp ngày)",
+                              "description": "Mô tả súc tích",
+                              "suggestedStartTime": "YYYY-MM-DDTHH:mm:ss",
+                              "suggestedEndTime": "YYYY-MM-DDTHH:mm:ss",
                               "suggestedLocation": "Địa điểm",
                               "estimatedParticipants": 100,
                               "programItems": [
                                 {
                                   "title": "Tên hạng mục",
-                                  "description": "Chi tiết",
+                                  "description": "Chi tiết súc tích",
                                   "startTime": "HH:mm",
                                   "endTime": "HH:mm",
                                   "durationMinutes": 60,
                                   "speaker": "Diễn giả",
-                                  "location": "Vị trí cụ thể",
-                                  "notes": "Ghi chú kỹ thuật"
+                                  "location": "Vị trí",
+                                  "notes": "Ghi chú"
                                 }
                               ],
-                              "requiredResources": [],
-                              "teamRoles": [],
                               "confidenceScore": 0.95,
-                              "reasoning": "Tại sao đề xuất phương án này"
+                              "reasoning": "Tại sao chọn phương án này"
                             }
                             """,
                     conversationContext, userInput);
@@ -399,9 +396,8 @@ public class GeminiChatServiceImpl implements GeminiChatService {
 
             String cleanJson;
             if (end <= start) {
-                // Attempt to repair truncated JSON by adding closing braces
-                log.warn("Detected truncated JSON, attempting repair...");
-                cleanJson = jsonResponse.substring(start) + "\n}\n}";
+                log.warn("Detected truncated or invalid JSON, attempting advanced repair...");
+                cleanJson = tryRepairTruncatedJson(jsonResponse.substring(start));
             } else {
                 cleanJson = jsonResponse.substring(start, end + 1);
             }
@@ -648,18 +644,15 @@ public class GeminiChatServiceImpl implements GeminiChatService {
                             Bạn là một chuyên gia truyền thông sự kiện xuất sắc.
 
                             [TASK]
-                            Dựa trên thông tin sự kiện dưới đây, hãy viết một bài đăng truyền thông hấp dẫn để thu hút người tham gia.
+                            Dựa trên thông tin sự kiện dưới đây, hãy viết một bài đăng truyền thông (Facebook/LinkedIn) hấp dẫn.
 
                             Thông tin sự kiện:
                             %s
 
-                            [OUTPUT FORMAT - JSON ONLY]
-                            {
-                              "title": "Tiêu đề bài đăng thật thu hút (khoảng 5-10 từ)",
-                              "content": "Nội dung bài đăng gồm 3 phần: Mở đầu gây chú ý, Thông tin cốt lõi, và Lời kêu gọi hành động (Call to action). Sử dụng emoji phù hợp."
-                            }
-
-                            Lưu ý: Chỉ trả về JSON hợp lệ.
+                            [RULES]
+                            - Trả về DUY NHẤT JSON.
+                            - Cấu trúc: {"title": "...", "content": "..."}
+                            - QUAN TRỌNG: Nếu trong nội dung có dùng dấu ngoặc kép, hãy dùng dấu ngoặc đơn '' hoặc dùng gạch chéo \\" để escape.
                             """,
                     eventDetails);
 
@@ -681,5 +674,31 @@ public class GeminiChatServiceImpl implements GeminiChatService {
             log.error("CRITICAL ERROR generating media post: {}", e.getMessage());
             return "ERROR_AI_OVERLOADED";
         }
+    }
+
+    private String tryRepairTruncatedJson(String truncatedJson) {
+        if (truncatedJson == null || truncatedJson.isEmpty())
+            return "{}";
+        StringBuilder repaired = new StringBuilder(truncatedJson.trim());
+        int obrs = 0, obkt = 0;
+        for (char c : repaired.toString().toCharArray()) {
+            if (c == '{')
+                obrs++;
+            else if (c == '}')
+                obrs--;
+            else if (c == '[')
+                obkt++;
+            else if (c == ']')
+                obkt--;
+        }
+        while (obkt > 0) {
+            repaired.append("]");
+            obkt--;
+        }
+        while (obrs > 0) {
+            repaired.append("}");
+            obrs--;
+        }
+        return repaired.toString();
     }
 }

@@ -166,7 +166,7 @@ const EventFeedback = ({ eventId, role }) => {
       : 0;
 
   return (
-    <section className="bg-white border border-slate-200 rounded-2xl mt-6 overflow-hidden">
+    <section id="feedbacks" className="bg-white border border-slate-200 rounded-2xl mt-6 overflow-hidden">
       {/* Header */}
       <div className="px-6 py-5 border-b border-slate-100 flex items-center justify-between bg-slate-50">
         <div>

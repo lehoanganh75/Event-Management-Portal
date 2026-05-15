@@ -6,13 +6,16 @@ import { useNavigate } from "react-router-dom";
 const EventHero = ({ event, language, t }) => {
   const navigate = useNavigate();
 
+  console.log(event);
+
+
   return (
     <section className="relative h-[65vh] min-h-[500px] w-full overflow-hidden">
       <motion.img
         initial={{ scale: 1.1 }}
         animate={{ scale: 1 }}
         transition={{ duration: 1.5 }}
-        src={event.imageurl || event.coverImage || "https://images.unsplash.com/photo-1540575861501-7ce0e220abb4?q=80&w=2070&auto=format&fit=crop"}
+        src={event.imageUrl || event.coverImage || "https://images.unsplash.com/photo-1540575861501-7ce0e220abb4?q=80&w=2070&auto=format&fit=crop"}
         alt={event.title}
         className="w-full h-full object-cover"
       />
