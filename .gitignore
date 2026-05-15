@@ -1,25 +1,33 @@
-# IDE
+# IDE and System Files
 .idea/
 .vscode/
 *.swp
 *.swo
+.DS_Store
+Thumbs.db
+*.log
 
-# Node
+# Environment Files (CRITICAL: Do not push these)
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+.env.sample
+!.env.example
+
+# Node.js
 node_modules/
+dist/
+build/
+.npm
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 package-lock.json
 yarn.lock
 
-# Environment
-.env
-.env.local
-.env.development.local
-.env.test.local
-.env.production.local
-
-# Java
+# Java / Maven
 target/
 *.class
 *.jar
@@ -28,11 +36,19 @@ target/
 .mvn/wrapper/
 mvnw
 mvnw.cmd
+.factorypath
+.project
+.settings/
+.classpath
 
-# OS
-.DS_Store
-Thumbs.db
+# Docker
+.docker/
 
-# Scratch
+# Application Specific
 scratch/
 .gemini/
+/BaoCaoKhoaLuanTotNghiep.docx
+/CSDL.pdf
+/Event_Management_Portal.mdj
+/UseCase.pdf
+/quiz_questions.docx

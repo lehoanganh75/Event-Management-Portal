@@ -353,7 +353,7 @@ const PostComments = ({
                     ) : (
                       <Send size={16} />
                     )}
-                    {t("send")}
+                    {language === "VI" ? "Gửi" : "Send"}
                   </button>
                 </div>
 

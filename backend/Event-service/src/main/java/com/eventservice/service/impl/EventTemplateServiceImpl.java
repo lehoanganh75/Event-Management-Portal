@@ -22,6 +22,7 @@ import com.eventservice.service.EventTemplateService;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 
 @Service
 @RequiredArgsConstructor
@@ -32,6 +33,7 @@ public class EventTemplateServiceImpl implements EventTemplateService {
     private final OrganizationRepository organizationRepository;
     private final UserStarredTemplateRepository starredTemplateRepository;
     private final NotificationProducer notificationProducer;
+    private final TemplateRecommendationService recommendationService;
 
     @Override
     public List<EventTemplate> getAllTemplates() {
@@ -118,6 +120,9 @@ public class EventTemplateServiceImpl implements EventTemplateService {
         template.setUpdatedAt(LocalDateTime.now());
         EventTemplate saved = templateRepository.save(template);
 
+        // Tạo embedding bất đồng bộ hoặc không chặn việc lưu
+        CompletableFuture.runAsync(() -> recommendationService.generateAndSaveEmbedding(saved));
+
         // Gửi thông báo real-time qua Kafka
         if (accountId != null && !accountId.equals("anonymous")) {
             NotificationEventDto event = NotificationEventDto.builder()
@@ -160,8 +165,12 @@ public class EventTemplateServiceImpl implements EventTemplateService {
         }
 
         template.setUpdatedAt(LocalDateTime.now());
+        EventTemplate updated = templateRepository.save(template);
+        
+        // Cập nhật lại embedding khi thông tin thay đổi
+        CompletableFuture.runAsync(() -> recommendationService.generateAndSaveEmbedding(updated));
 
-        return templateRepository.save(template);
+        return updated;
     }
 
     @Override

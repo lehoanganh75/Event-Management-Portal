@@ -49,13 +49,18 @@ public class TemplateRecommendationService {
                     .filter(t -> !t.isDeleted() && t.isPublic())
                     .collect(Collectors.toList());
 
-            // 3. Tính toán độ tương đồng Cosine và sắp xếp
+            // 3. Tính toán độ tương đồng Cosine kết hợp với độ phổ biến và đánh giá
             return allTemplates.stream()
                     .filter(t -> t.getEmbedding() != null && !t.getEmbedding().isEmpty())
                     .sorted((a, b) -> {
                         double simA = cosineSimilarity(userEmbedding, a.getEmbedding());
                         double simB = cosineSimilarity(userEmbedding, b.getEmbedding());
-                        return Double.compare(simB, simA);
+                        
+                        // Cộng thêm điểm thưởng cho độ phổ biến (log scale) và được đánh giá cao
+                        double scoreA = simA + (a.isStarred() ? 0.1 : 0) + (Math.log10(a.getUsageCount() + 1) * 0.05);
+                        double scoreB = simB + (b.isStarred() ? 0.1 : 0) + (Math.log10(b.getUsageCount() + 1) * 0.05);
+                        
+                        return Double.compare(scoreB, scoreA);
                     })
                     .limit(limit)
                     .collect(Collectors.toList());
@@ -113,6 +118,27 @@ public class TemplateRecommendationService {
             }
             return embedding;
         }
+    }
+
+    /**
+     * Tạo embedding cho tất cả các bản mẫu chưa có hoặc cần cập nhật
+     */
+    public int bulkGenerateEmbeddings() {
+        log.info("[BULK-EMBEDDING] Starting bulk generation for all templates...");
+        List<EventTemplate> templates = templateRepository.findAll().stream()
+                .filter(t -> !t.isDeleted())
+                .collect(Collectors.toList());
+        
+        int count = 0;
+        for (EventTemplate template : templates) {
+            try {
+                generateAndSaveEmbedding(template);
+                count++;
+            } catch (Exception e) {
+                log.error("Failed to generate embedding for template {}: {}", template.getId(), e.getMessage());
+            }
+        }
+        return count;
     }
 
     private double cosineSimilarity(List<Double> vec1, List<Double> vec2) {

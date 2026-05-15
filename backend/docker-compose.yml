@@ -70,17 +70,9 @@ services:
       - "8081:8081"
     env_file:
       - ./Analytics-service/.env
-    environment: 
-      SPRING_DATASOURCE_URL: jdbc:mariadb://mariadb:3306/analytics_db?createDatabaseIfNotExist=true
-      SPRING_DATASOURCE_USERNAME: root
-      SPRING_DATASOURCE_PASSWORD: root
-      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
-      APP_SERVICES_EVENT_SERVICE_URL: http://event-service:8082
-      APP_SERVICES_LUCKY_DRAW_SERVICE_URL: http://lucky-draw-service:8084
     depends_on:
       - mariadb
       - kafka
-
     networks:
       - micro-network
     extra_hosts:
@@ -94,18 +86,6 @@ services:
       - "8082:8082"
     env_file:
       - ./Event-service/.env
-    environment:
-      SPRING_DATASOURCE_URL: jdbc:mariadb://mariadb:3306/event_db?createDatabaseIfNotExist=true
-      SPRING_DATASOURCE_USERNAME: root
-      SPRING_DATASOURCE_PASSWORD: root
-      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
-      SPRING_DATA_REDIS_HOST: redis
-      SPRING_DATA_REDIS_PORT: 6379
-      IDENTITY_SERVICE_URL: http://identity-service:8083
-      LUCKY_DRAW_SERVICE_URL: http://lucky-draw-service:8084
-      LOCAL_AI_URL: http://ai-event-management:3000
-      JWT_SECRET: ouhPBmsFWNGn1/QKWEsm/2WMB4CAt4yFGv/3qYaWD4xa5DmoBD/ACvY3oVcBZmsVLl03mVuRLJ9QsKoA3Q0osg==
-      PORT: 8082
     depends_on:
       - mariadb
       - kafka
@@ -123,11 +103,6 @@ services:
       - "8083:8083"
     env_file:
       - ./Identity-service/.env
-    environment:
-      SPRING_DATASOURCE_URL: jdbc:mariadb://mariadb:3306/identity_db?createDatabaseIfNotExist=true
-      SPRING_DATASOURCE_USERNAME: root
-      SPRING_DATASOURCE_PASSWORD: root
-      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
     depends_on:
       - mariadb
     networks:
@@ -141,12 +116,6 @@ services:
       - "8084:8084"
     env_file:
       - ./Lucky-draw-service/.env
-    environment:
-      SPRING_DATASOURCE_URL: jdbc:mariadb://mariadb:3306/lucky_draw_db?createDatabaseIfNotExist=true
-      SPRING_DATASOURCE_USERNAME: root
-      SPRING_DATASOURCE_PASSWORD: root
-      IDENTITY_SERVICE_URL: http://identity-service:8083
-      EVENT_SERVICE_URL: http://event-service:8082
     depends_on:
       - mariadb
     networks:
@@ -160,11 +129,6 @@ services:
       - "8085:8085"
     env_file:
       - ./Notification-service/.env
-    environment:
-      SPRING_DATASOURCE_URL: jdbc:mariadb://mariadb:3306/notification_db?createDatabaseIfNotExist=true
-      SPRING_DATASOURCE_USERNAME: root
-      SPRING_DATASOURCE_PASSWORD: root
-      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
     depends_on:
       - mariadb
       - kafka

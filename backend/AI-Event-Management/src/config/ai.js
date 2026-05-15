@@ -1,9 +1,14 @@
 require("dotenv").config();
+
 const { GoogleGenerativeAI } = require("@google/generative-ai");
 
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
-const OLLAMA_URL = process.env.OLLAMA_URL || "http://ollama:11434";
-const OLLAMA_MODEL = process.env.OLLAMA_MODEL || "event-assistant";
+
+const OLLAMA_URL =
+  process.env.OLLAMA_URL || "http://ollama:11434";
+
+const OLLAMA_MODEL =
+  process.env.OLLAMA_MODEL || "qwen2.5:3b";
 
 const GEMINI_MODELS = [
   "gemini-2.5-flash",
@@ -12,29 +17,131 @@ const GEMINI_MODELS = [
   "gemini-3-flash-preview",
 ];
 
+const GEMINI_EMBEDDING_MODELS = [
+  "gemini-embedding-001",
+  "gemini-embedding-2-preview",
+];
+
 let genAI = null;
 
 if (GEMINI_API_KEY) {
   genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
+
   console.log("Gemini AI được khởi tạo");
 } else {
-  console.warn("Không tìm thấy GEMINI_API_KEY -> chuyển sang sử dụng Ollama");
+  console.warn(
+    "Không tìm thấy GEMINI_API_KEY -> sử dụng Ollama"
+  );
 }
 
-function getGeminiModel(modelName = GEMINI_MODELS[0], isExtraction = false) {
+function getGeminiModel(
+  modelName = GEMINI_MODELS[0],
+  isExtraction = false
+) {
   if (!genAI) return null;
 
   return genAI.getGenerativeModel({
     model: modelName,
+
     generationConfig: {
       temperature: isExtraction ? 0.1 : 0.7,
-      maxOutputTokens: 2048,
+
+      maxOutputTokens: isExtraction
+        ? 4096
+        : 2048,
     },
   });
 }
 
+async function generateGeminiEmbedding(text) {
+  if (!genAI || !text) return [];
+
+  for (const modelName of GEMINI_EMBEDDING_MODELS) {
+    try {
+      console.log(
+        `[Gemini-Embedding] Đang thử: ${modelName}`
+      );
+
+      const model = genAI.getGenerativeModel({
+        model: modelName,
+      });
+
+      const result = await model.embedContent(text);
+
+      return result.embedding.values || [];
+    } catch (error) {
+      console.warn(
+        `[Gemini-Embedding] ${modelName} thất bại:`,
+        error.message
+      );
+    }
+  }
+
+  return [];
+}
+
+async function generateOllamaEmbedding(text) {
+  try {
+    const response = await fetch(
+      `${OLLAMA_URL}/api/embeddings`,
+      {
+        method: "POST",
+
+        headers: {
+          "Content-Type": "application/json",
+        },
+
+        body: JSON.stringify({
+          model: OLLAMA_MODEL,
+          prompt: text,
+        }),
+      }
+    );
+
+    if (!response.ok) {
+      throw new Error(
+        `Ollama embedding error: ${response.status}`
+      );
+    }
+
+    const data = await response.json();
+
+    return data.embedding || [];
+  } catch (error) {
+    console.error(
+      "[Ollama-Embedding] Lỗi:",
+      error.message
+    );
+
+    return [];
+  }
+}
+
+async function generateEmbedding(text) {
+  if (!text) return [];
+
+  if (genAI) {
+    const geminiEmbedding =
+      await generateGeminiEmbedding(text);
+
+    if (
+      Array.isArray(geminiEmbedding) &&
+      geminiEmbedding.length > 0
+    ) {
+      return geminiEmbedding;
+    }
+  }
+
+  console.warn(
+    "Gemini Embedding lỗi -> chuyển sang Ollama"
+  );
+
+  return await generateOllamaEmbedding(text);
+}
+
 function isGeminiLimitError(error) {
-  const message = error?.message?.toLowerCase() || "";
+  const message =
+    error?.message?.toLowerCase() || "";
 
   return (
     message.includes("quota") ||
@@ -45,100 +152,22 @@ function isGeminiLimitError(error) {
   );
 }
 
-async function askOllama(systemInstruction, userPrompt, isExtraction = false) {
-  const response = await fetch(`${OLLAMA_URL}/api/chat`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      model: OLLAMA_MODEL,
-
-      messages: [
-        {
-          role: "system",
-          content: systemInstruction,
-        },
-        {
-          role: "user",
-          content: userPrompt,
-        },
-      ],
-
-      stream: false,
-      keep_alive: "30m",
-
-      options: {
-        temperature: isExtraction ? 0.1 : 0.35,
-
-        num_ctx: Number(process.env.OLLAMA_NUM_CTX) || 4096,
-
-        num_predict: isExtraction ? 512 : 768,
-
-        top_k: 20,
-        top_p: 0.8,
-
-        repeat_penalty: 1.12,
-
-        num_thread: Number(process.env.OLLAMA_NUM_THREAD) || 4,
-      },
-    }),
-  });
-
-  if (!response.ok) {
-    throw new Error(`Ollama error: ${response.status} ${response.statusText}`);
-  }
-
-  const data = await response.json();
-
-  return {
-    provider: "ollama",
-    model: OLLAMA_MODEL,
-    reply: data.message?.content || "",
-  };
-}
-
-async function askAI(systemInstruction, userPrompt, isExtraction = false) {
-  if (genAI) {
-    for (const modelName of GEMINI_MODELS) {
-      try {
-        console.log(`Đang thử Gemini model: ${modelName}`);
-
-        const model = getGeminiModel(modelName, isExtraction);
-
-        const result = await model.generateContent(
-          `${systemInstruction}\n\nUser Prompt: ${userPrompt}`
-        );
-
-        return {
-          provider: "gemini",
-          model: modelName,
-          reply: result.response.text(),
-        };
-      } catch (error) {
-        console.warn(`Gemini ${modelName} lỗi:`, error.message);
-
-        if (isGeminiLimitError(error)) {
-          console.warn(`Gemini ${modelName} hết quota/rate limit`);
-          continue;
-        }
-
-        continue;
-      }
-    }
-  }
-
-  console.warn("Tất cả Gemini model lỗi hoặc hết limit -> chuyển sang Ollama");
-
-  return await askOllama(systemInstruction, userPrompt, isExtraction);
-}
-
 module.exports = {
   genAI,
-  getGeminiModel,
-  askAI,
-  askOllama,
+
+  GEMINI_API_KEY,
+
   GEMINI_MODELS,
+
+  GEMINI_EMBEDDING_MODELS,
+
   OLLAMA_URL,
+
   OLLAMA_MODEL,
+
+  getGeminiModel,
+
+  generateEmbedding,
+
+  isGeminiLimitError,
 };

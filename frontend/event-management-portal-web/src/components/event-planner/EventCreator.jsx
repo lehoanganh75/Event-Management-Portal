@@ -923,7 +923,7 @@ export const EventCreator = ({
                 updateFormData(data);
                 setStep(isPlanMode ? 5 : 3);
               }}
-              activeSections={['details', 'description', 'image', 'attendees']}
+              activeSections={['details', 'description', 'image', 'attendees', 'sessions', 'presenters']}
               isPlanMode={isPlanMode}
             />
           )}

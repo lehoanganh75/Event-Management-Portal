@@ -261,9 +261,17 @@ const eventService = {
     // AI Planning
     aiPlanning: {
         generateFromTemplate: (template, userContext) => {
-            const prompt = `Bạn là một chuyên gia lập kế hoạch sự kiện. Dựa trên mẫu sự kiện "${template.templateName}" (Mô tả mẫu: ${template.description}) và yêu cầu bổ sung của người dùng: "${userContext}", hãy lập một kế hoạch chi tiết.
+            const prompt = `Bạn là một chuyên gia lập kế hoạch sự kiện chuyên nghiệp.
+            NHIỆM VỤ: Lập kế hoạch chi tiết cho sự kiện dựa trên MẪU (TEMPLATE) và YÊU CẦU NGƯỜI DÙNG.
+            
+            1. MẪU SỰ KIỆN BẮT BUỘC: "${template.templateName}"
+            2. MÔ TẢ MẪU: ${template.description}
+            3. YÊU CẦU BỔ SUNG TỪ NGƯỜI DÙNG: "${userContext}"
+            
             YÊU CẦU QUAN TRỌNG: 
-            1. Trả về DUY NHẤT một khối JSON hợp lệ. KHÔNG giải thích thêm.
+            - TÊN SỰ KIỆN và NỘI DUNG phải bám sát MẪU SỰ KIỆN "${template.templateName}". KHÔNG ĐƯỢC tự ý đổi sang loại hình sự kiện khác.
+            - Nếu yêu cầu người dùng có mâu thuẫn với Mẫu, hãy ưu tiên Mẫu nhưng cố gắng lồng ghép ý tưởng người dùng.
+            - Trả về DUY NHẤT một khối JSON hợp lệ. KHÔNG giải thích thêm.
             2. Tất cả thời gian (startTime, endTime) PHẢI ở tương lai (sau tháng 5 năm 2026).
             3. Nếu trong nội dung có dấu ngoặc kép, hãy dùng dấu nháy đơn hoặc escape nó bằng \\".
             

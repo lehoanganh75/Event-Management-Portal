@@ -162,4 +162,10 @@ public class EventTemplateController {
         templateService.incrementUsageCount(id);
         return ResponseEntity.ok().build();
     }
+
+    @PostMapping("/bulk-generate-embeddings")
+    public ResponseEntity<String> bulkGenerateEmbeddings() {
+        int count = recommendationService.bulkGenerateEmbeddings();
+        return ResponseEntity.ok("Successfully generated embeddings for " + count + " templates.");
+    }
 }
