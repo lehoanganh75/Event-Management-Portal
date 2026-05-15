@@ -8,6 +8,8 @@ const OLLAMA_MODEL = process.env.OLLAMA_MODEL || "event-assistant";
 const GEMINI_MODELS = [
   "gemini-2.5-flash",
   "gemini-2.5-flash-lite",
+  "gemini-3.1-flash-lite-preview",
+  "gemini-3-flash-preview",
 ];
 
 let genAI = null;
@@ -51,6 +53,7 @@ async function askOllama(systemInstruction, userPrompt, isExtraction = false) {
     },
     body: JSON.stringify({
       model: OLLAMA_MODEL,
+
       messages: [
         {
           role: "system",
@@ -61,10 +64,23 @@ async function askOllama(systemInstruction, userPrompt, isExtraction = false) {
           content: userPrompt,
         },
       ],
+
       stream: false,
+      keep_alive: "30m",
+
       options: {
-        temperature: isExtraction ? 0.1 : 0.7,
-        num_ctx: 4096,
+        temperature: isExtraction ? 0.1 : 0.35,
+
+        num_ctx: Number(process.env.OLLAMA_NUM_CTX) || 4096,
+
+        num_predict: isExtraction ? 512 : 768,
+
+        top_k: 20,
+        top_p: 0.8,
+
+        repeat_penalty: 1.12,
+
+        num_thread: Number(process.env.OLLAMA_NUM_THREAD) || 4,
       },
     }),
   });
@@ -78,7 +94,7 @@ async function askOllama(systemInstruction, userPrompt, isExtraction = false) {
   return {
     provider: "ollama",
     model: OLLAMA_MODEL,
-    reply: data.message.content,
+    reply: data.message?.content || "",
   };
 }
 

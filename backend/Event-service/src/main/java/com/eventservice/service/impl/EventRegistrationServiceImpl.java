@@ -42,6 +42,44 @@ public class EventRegistrationServiceImpl implements EventRegistrationService {
     private final QRTokenUtil qrTokenUtil;
     private final IdentityServiceClient identityServiceClient;
     private final com.eventservice.client.LuckyDrawClient luckyDrawClient;
+    private final com.eventservice.kafka.NotificationProducer notificationProducer;
+
+    private void notifyOrganizers(Event event, String participantId, String actionType) {
+        try {
+            // 1. Lấy thông tin người tham gia
+            UserResponse participant = identityServiceClient.getUsersById(participantId);
+            String participantName = (participant != null) ? participant.getFullName() : "Một người dùng";
+
+            // 2. Lấy danh sách ban tổ chức
+            List<EventOrganizer> organizers = organizerRepository.findByEventId(event.getId());
+
+            // 3. Soạn nội dung thông báo
+            String title = actionType.equals("REGISTER") ? "Có người đăng ký mới" : "Yêu cầu hủy đăng ký";
+            String message = actionType.equals("REGISTER") 
+                ? String.format("Sinh viên %s vừa đăng ký tham gia sự kiện '%s'", participantName, event.getTitle())
+                : String.format("Sinh viên %s vừa hủy đăng ký tham gia sự kiện '%s'", participantName, event.getTitle());
+
+            // 4. Gửi thông báo cho từng organizer
+            for (EventOrganizer organizer : organizers) {
+                // Không gửi cho chính mình nếu organizer là người thực hiện (trường hợp admin đăng ký hộ, nhưng ở đây thường là sinh viên tự đăng ký)
+                if (organizer.getAccountId().equals(participantId)) continue;
+
+                com.eventservice.dto.engagement.NotificationEventDto notification = com.eventservice.dto.engagement.NotificationEventDto.builder()
+                        .recipientId(organizer.getAccountId())
+                        .senderId(participantId)
+                        .title(title)
+                        .message(message)
+                        .type("EVENT_REGISTRATION")
+                        .relatedEntityId(event.getId())
+                        .actionUrl("/admin/events/" + event.getId() + "/registrations")
+                        .build();
+
+                notificationProducer.sendNotification(notification);
+            }
+        } catch (Exception e) {
+            log.error("Failed to notify organizers about {}: {}", actionType, e.getMessage());
+        }
+    }
 
     private String resolveEventId(String idOrSlug) {
         if (idOrSlug == null)
@@ -140,6 +178,7 @@ public class EventRegistrationServiceImpl implements EventRegistrationService {
             List.of(RegistrationStatus.REGISTERED, RegistrationStatus.ATTENDED));
         event.setRegisteredCount((int) actualCount);
         eventRepository.save(event);
+        notifyOrganizers(event, userId, "REGISTER");
 
         return savedRegistration;
     }
@@ -226,6 +265,7 @@ public class EventRegistrationServiceImpl implements EventRegistrationService {
             List.of(RegistrationStatus.REGISTERED, RegistrationStatus.ATTENDED));
         event.setRegisteredCount((int) actualCount);
         eventRepository.save(event);
+        notifyOrganizers(event, userRegistrationId, "REGISTER");
 
         return savedRegistration;
     }
@@ -490,6 +530,9 @@ public class EventRegistrationServiceImpl implements EventRegistrationService {
             List.of(RegistrationStatus.REGISTERED, RegistrationStatus.ATTENDED));
         event.setRegisteredCount((int) actualCount);
         eventRepository.save(event);
+        
+        // Gửi thông báo cho BTC
+        notifyOrganizers(event, userProfileId, "CANCEL");
 
         return saved;
     }

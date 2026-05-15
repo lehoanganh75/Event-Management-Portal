@@ -23,6 +23,71 @@ public class EventFeedbackServiceImpl implements EventFeedbackService {
     private final EventRepository eventRepository;
     private final com.eventservice.client.IdentityServiceClient identityServiceClient;
     private final org.springframework.messaging.simp.SimpMessagingTemplate messagingTemplate;
+    private final com.eventservice.repository.EventOrganizerRepository organizerRepository;
+    private final com.eventservice.kafka.NotificationProducer notificationProducer;
+
+    private void notifyOrganizers(Event event, String reviewerId, int rating, boolean isAnonymous) {
+        try {
+            // 1. Lấy thông tin người đánh giá (nếu không ẩn danh)
+            String reviewerName = "Một người dùng";
+            if (!isAnonymous) {
+                com.eventservice.dto.user.UserResponse reviewer = identityServiceClient.getUsersById(reviewerId);
+                if (reviewer != null) reviewerName = reviewer.getFullName();
+            } else {
+                reviewerName = "Một người dùng (ẩn danh)";
+            }
+
+            // 2. Lấy danh sách ban tổ chức
+            List<com.eventservice.entity.people.EventOrganizer> organizers = organizerRepository.findByEventId(event.getId());
+
+            // 3. Soạn nội dung thông báo
+            String title = "Đánh giá sự kiện mới";
+            String message = String.format("%s đã đánh giá %d sao cho sự kiện '%s'", 
+                reviewerName, rating, event.getTitle());
+
+            // 4. Gửi thông báo cho từng organizer
+            for (com.eventservice.entity.people.EventOrganizer organizer : organizers) {
+                // Không gửi cho chính mình nếu organizer là người đánh giá
+                if (organizer.getAccountId().equals(reviewerId)) continue;
+
+                com.eventservice.dto.engagement.NotificationEventDto notification = com.eventservice.dto.engagement.NotificationEventDto.builder()
+                        .recipientId(organizer.getAccountId())
+                        .senderId(reviewerId)
+                        .title(title)
+                        .message(message)
+                        .type("EVENT_FEEDBACK")
+                        .relatedEntityId(event.getId())
+                        .actionUrl("/admin/events/" + event.getId() + "/feedbacks")
+                        .build();
+
+                notificationProducer.sendNotification(notification);
+            }
+        } catch (Exception e) {
+            // log.error is not available here unless I add @Slf4j or use private static final Logger
+            System.err.println("Failed to notify organizers about feedback: " + e.getMessage());
+        }
+    }
+
+    private void notifyUserOfReply(EventFeedback feedback, String reply) {
+        if (feedback.isAnonymous()) return;
+
+        try {
+            com.eventservice.dto.engagement.NotificationEventDto notification = com.eventservice.dto.engagement.NotificationEventDto.builder()
+                    .recipientId(feedback.getReviewerAccountId())
+                    .senderId("SYSTEM")
+                    .title("Phản hồi đánh giá")
+                    .message(String.format("Ban tổ chức đã phản hồi đánh giá của bạn về sự kiện '%s'", 
+                        feedback.getEvent().getTitle()))
+                    .type("FEEDBACK_REPLY")
+                    .relatedEntityId(feedback.getEvent().getId())
+                    .actionUrl("/events/" + feedback.getEvent().getId() + "#feedbacks")
+                    .build();
+
+            notificationProducer.sendNotification(notification);
+        } catch (Exception e) {
+            System.err.println("Failed to notify user about feedback reply: " + e.getMessage());
+        }
+    }
 
     @Override
     @Transactional
@@ -41,6 +106,9 @@ public class EventFeedbackServiceImpl implements EventFeedbackService {
                 .build();
 
         feedback = feedbackRepository.save(feedback);
+        
+        // Gửi thông báo cho BTC
+        notifyOrganizers(event, feedback.getReviewerAccountId(), feedback.getRating(), feedback.isAnonymous());
 
         com.eventservice.dto.user.UserResponse user = null;
         if (!feedback.isAnonymous()) {
@@ -104,6 +172,9 @@ public class EventFeedbackServiceImpl implements EventFeedbackService {
         feedback.setOrganizerReply(reply);
         feedback.setRepliedAt(LocalDateTime.now());
         feedback = feedbackRepository.save(feedback);
+        
+        // Gửi thông báo cho người dùng
+        notifyUserOfReply(feedback, reply);
 
         com.eventservice.dto.user.UserResponse user = null;
         if (!feedback.isAnonymous()) {

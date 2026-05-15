@@ -410,7 +410,6 @@ const eventService = {
             const api = token ? privateApi : publicApi;
             return api.post('/api/v1/chat/messages', data, { timeout: 60000 });
         },
-        // Các phương thức gọi trực tiếp tới AI-Event-Management qua Kong (/ai prefix)
         analyzeStats: (statsJson) => {
             const prompt = `Hãy phân tích dữ liệu thống kê sự kiện sau và đưa ra nhận xét chuyên sâu: ${statsJson}`;
             const token = localStorage.getItem('accessToken');

@@ -24,13 +24,25 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
     
     @Override
     public void registerStompEndpoints(StompEndpointRegistry registry) {
+        String[] allowedOrigins = {
+            "http://localhost:5173",
+            "http://localhost:5174",
+            "https://fitiuh-events.io.vn",
+            "http://fitiuh-events.io.vn"
+        };
+
+        // General WebSocket endpoint
+        registry.addEndpoint("/ws")
+                .setAllowedOriginPatterns(allowedOrigins)
+                .withSockJS();
+
         // WebSocket endpoint for chat
         registry.addEndpoint("/ws/chat")
-                .setAllowedOriginPatterns("*")
+                .setAllowedOriginPatterns(allowedOrigins)
                 .withSockJS();
         
-        // Native WebSocket endpoint (without SockJS fallback)
+        // Native WebSocket endpoint
         registry.addEndpoint("/ws/chat")
-                .setAllowedOriginPatterns("*");
+                .setAllowedOriginPatterns(allowedOrigins);
     }
 }

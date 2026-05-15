@@ -677,15 +677,28 @@ public class GeminiChatServiceImpl implements GeminiChatService {
     }
 
     private String tryRepairTruncatedJson(String truncatedJson) {
-        if (truncatedJson == null || truncatedJson.isEmpty()) return "{}";
+        if (truncatedJson == null || truncatedJson.isEmpty())
+            return "{}";
         StringBuilder repaired = new StringBuilder(truncatedJson.trim());
         int obrs = 0, obkt = 0;
         for (char c : repaired.toString().toCharArray()) {
-            if (c == '{') obrs++; else if (c == '}') obrs--;
-            else if (c == '[') obkt++; else if (c == ']') obkt--;
+            if (c == '{')
+                obrs++;
+            else if (c == '}')
+                obrs--;
+            else if (c == '[')
+                obkt++;
+            else if (c == ']')
+                obkt--;
         }
-        while (obkt > 0) { repaired.append("]"); obkt--; }
-        while (obrs > 0) { repaired.append("}"); obrs--; }
+        while (obkt > 0) {
+            repaired.append("]");
+            obkt--;
+        }
+        while (obrs > 0) {
+            repaired.append("}");
+            obrs--;
+        }
         return repaired.toString();
     }
 }

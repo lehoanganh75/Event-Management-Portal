@@ -8,30 +8,63 @@ import eventService from "../../services/eventService";
 import PromptModal from "../common/PromptModal";
 
 // ✨ Helper to extract and parse JSON safely from AI response
+// ✨ Helper to extract and parse JSON safely from AI response
 const safeParseAIJson = (text) => {
   if (!text) return null;
   try {
-    // 1. Tìm khối JSON bằng Regex (giữa { và })
-    const jsonMatch = text.match(/\{[^]*\}/);
-    if (!jsonMatch) {
-      console.error("Không tìm thấy khối JSON trong văn bản:", text);
-      return null;
+    // 1. Tìm khối JSON bằng Regex (giữa { và cái cuối cùng có thể tìm thấy)
+    let cleanJson = "";
+    const firstBrace = text.indexOf('{');
+    if (firstBrace === -1) return null;
+
+    cleanJson = text.substring(firstBrace);
+    const lastBrace = cleanJson.lastIndexOf('}');
+
+    // Nếu không thấy dấu đóng }, chúng ta sẽ cố gắng tự vá
+    if (lastBrace === -1) {
+      console.warn("Dữ liệu AI bị cắt ngang, đang cố gắng sửa lỗi JSON...");
+    } else {
+      cleanJson = cleanJson.substring(0, lastBrace + 1);
     }
 
-    let cleanJson = jsonMatch[0];
-
-    // 2. Xử lý lỗi "Unterminated string" do xuống dòng trong giá trị chuỗi
-    // Chúng ta tìm các nội dung nằm trong "..." và escape các dấu xuống dòng bên trong đó
+    // 2. Xử lý lỗi "Unterminated string" do xuống dòng
     cleanJson = cleanJson.replace(/"([^"\\]*(?:\\.[^"\\]*)*)"/g, (match, p1) => {
-      // Thay thế xuống dòng thực tế bằng \n trong nội dung chuỗi
       return '"' + p1.replace(/\n/g, "\\n").replace(/\r/g, "\\r") + '"';
     });
 
+    // 3. Hàm vá lỗi JSON bị cắt ngang (tự đóng ngoặc)
+    const repairJson = (json) => {
+      let openBraces = 0;
+      let openBrackets = 0;
+      let inString = false;
+
+      for (let i = 0; i < json.length; i++) {
+        const char = json[i];
+        if (char === '"' && (i === 0 || json[i - 1] !== '\\')) {
+          inString = !inString;
+        }
+        if (!inString) {
+          if (char === '{') openBraces++;
+          else if (char === '}') openBraces--;
+          else if (char === '[') openBrackets++;
+          else if (char === ']') openBrackets--;
+        }
+      }
+
+      let repaired = json;
+      if (inString) repaired += '"';
+      while (openBrackets > 0) { repaired += ']'; openBrackets--; }
+      while (openBraces > 0) { repaired += '}'; openBraces--; }
+      return repaired;
+    };
+
+    const repairedJson = repairJson(cleanJson);
+
     try {
-      return JSON.parse(cleanJson);
+      return JSON.parse(repairedJson);
     } catch (e) {
-      console.warn("Thử parse lần 2 với dọn dẹp thô...");
-      const crude = cleanJson.replace(/[\u0000-\u001F\u007F-\u009F]/g, " ");
+      console.warn("Parse thất bại lần 1, dọn dẹp ký tự điều khiển...");
+      const crude = repairedJson.replace(/[\u0000-\u001F\u007F-\u009F]/g, " ");
       return JSON.parse(crude);
     }
   } catch (e) {
