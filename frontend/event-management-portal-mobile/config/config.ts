@@ -6,4 +6,4 @@ const expoExtra = (Constants.expoConfig ?? (Constants as any).manifest)
   | undefined;
 
 export const BASE_URL =
-  expoExtra?.BASE_URL || process.env.BASE_URL || "http://192.168.2.3:8083";
+  expoExtra?.BASE_URL || process.env.BASE_URL || "https://fitiuh-events.io.vn";

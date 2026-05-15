@@ -29,7 +29,7 @@ export const AIChatWidget = () => {
 
   const connectWebSocket = () => {
     // Sử dụng VITE_API_BASE_URL từ môi trường hoặc mặc định localhost:8000
-    const baseURL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
+    const baseURL = import.meta.env.VITE_API_BASE_URL || 'https://fitiuh-events.io.vn';
     const socket = new SockJS(`${baseURL}/ws`);
     const client = Stomp.over(socket);
 
@@ -126,7 +126,7 @@ export const AIChatWidget = () => {
     try {
       // Chúng ta cần thêm method này vào eventService nếu chưa có, 
       // tạm thời sử dụng axios trực tiếp qua baseApi nếu cần
-      const baseURL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
+      const baseURL = import.meta.env.VITE_API_BASE_URL || 'https://fitiuh-events.io.vn';
       const response = await fetch(`${baseURL}/api/v1/chat/sessions/${sessionId}/quick-replies`);
       const data = await response.json();
       setQuickReplies(data.result || []);
@@ -139,7 +139,7 @@ export const AIChatWidget = () => {
     if (!session) return;
     setIsLoading(true);
     try {
-      const baseURL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
+      const baseURL = import.meta.env.VITE_API_BASE_URL || 'https://fitiuh-events.io.vn';
       const response = await fetch(`${baseURL}/api/v1/chat/sessions/${session.sessionId}/generate-plan`, {
         method: 'POST'
       });
@@ -157,7 +157,7 @@ export const AIChatWidget = () => {
   const endSession = async () => {
     if (!session) return;
     try {
-      const baseURL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
+      const baseURL = import.meta.env.VITE_API_BASE_URL || 'https://fitiuh-events.io.vn';
       await fetch(`${baseURL}/api/v1/chat/sessions/${session.sessionId}/end`, {
         method: 'POST'
       });

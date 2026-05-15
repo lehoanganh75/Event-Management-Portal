@@ -42,7 +42,7 @@ services:
     restart: always
     ports:
       - "9092:9092"
-      - "29092:29092"   # cho host access nếu cần
+      - "29092:29092"   
     environment:
       KAFKA_NODE_ID: 1
       KAFKA_PROCESS_ROLES: broker,controller
@@ -241,7 +241,6 @@ services:
     image: cloudflare/cloudflared:latest
     container_name: cloudflared-tunnel
     restart: always
-    # Bạn sẽ cần truyền biến môi trường CLOUDFLARE_TUNNEL_TOKEN khi chạy
     command: tunnel --no-autoupdate run --token eyJhIjoiMzdkMjllMjAwZjg3NGUyYjM2ZTJiMjU2OWM1NWE0MGIiLCJ0IjoiOWYzZjc0MGEtNDFjOS00YzZjLThhOTEtNDgwZWU2NmNiMGZiIiwicyI6Ik5tWmpPVGhpWm1VdE5tVTNPQzAwWVRrekxXRXdPRGN0WW1Vd09ETTVObU5tTnpWbCJ9 --protocol http2
     networks:
       - micro-network

@@ -57,7 +57,7 @@ const QAModal = ({ isOpen, onClose, eventId }) => {
   };
 
   const connectWebSocket = () => {
-    const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || "http://localhost:8000";
+    const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || "https://fitiuh-events.io.vn";
     const socket = new SockJS(`${apiBaseUrl}/ws/chat`);
 
     const client = new Client({

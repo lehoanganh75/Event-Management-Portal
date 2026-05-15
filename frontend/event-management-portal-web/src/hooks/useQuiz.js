@@ -12,7 +12,7 @@ export const useQuiz = (eventId) => {
     useEffect(() => {
         if (!eventId) return;
 
-        const wsBaseUrl = import.meta.env.VITE_API_BASE_URL || "http://localhost:8000";
+        const wsBaseUrl = import.meta.env.VITE_API_BASE_URL || "https://fitiuh-events.io.vn";
         const token = localStorage.getItem('accessToken');
         const wsUrl = token ? `${wsBaseUrl}/ws?token=${token}` : `${wsBaseUrl}/ws`;
 
