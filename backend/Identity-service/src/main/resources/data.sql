@@ -1,4 +1,5 @@
 DELETE FROM refresh_tokens;
+DELETE FROM verification_tokens;
 DELETE FROM users;
 
 -- 1. Tạo 115 Users (Mật khẩu mặc định: 123456)
