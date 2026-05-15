@@ -1,6 +1,9 @@
 const {
+  genAI,
   getGeminiModel,
   GEMINI_MODELS,
+  GEMINI_EMBEDDING_MODELS,
+  GEMINI_API_KEY,
   OLLAMA_URL,
   OLLAMA_MODEL,
 } = require("../config/ai");
@@ -32,7 +35,7 @@ const isEventQuery = (prompt = "") => {
 };
 
 const isExternalDataPrompt = (prompt = "") => {
-  return /dữ liệu\s*:|dữ liệu sự kiện\s*:|eventdetails|thông tin sự kiện sau|hãy viết|bài đăng truyền thông|facebook|linkedin|trả về json|generate/i.test(
+  return /dữ liệu\s*:|dữ liệu sự kiện\s*:|eventdetails|thông tin sự kiện sau|hãy viết|bài đăng truyền thông|facebook|linkedin|trả về json|generate|lập kế hoạch|mẫu sự kiện|template/i.test(
     prompt
   );
 };
@@ -178,6 +181,48 @@ ${safePdfContext}
 `.trim();
 };
 
+const tryRepairTruncatedJson = (json) => {
+  if (!json || typeof json !== "string") return json;
+  let trimmed = json.trim();
+
+  // Basic attempt to close unclosed strings and braces
+  let openBraces = 0;
+  let openBrackets = 0;
+  let inString = false;
+
+  for (let i = 0; i < trimmed.length; i++) {
+    const char = trimmed[i];
+    if (char === '"' && (i === 0 || trimmed[i - 1] !== '\\')) {
+      inString = !inString;
+    }
+    if (!inString) {
+      if (char === '{') openBraces++;
+      else if (char === '}') openBraces--;
+      else if (char === '[') openBrackets++;
+      else if (char === ']') openBrackets--;
+    }
+  }
+
+  let repaired = trimmed;
+
+  if (inString) {
+    repaired += '"';
+  }
+
+  repaired = repaired.trim().replace(/,$/, "");
+
+  while (openBrackets > 0) {
+    repaired += "]";
+    openBrackets--;
+  }
+  while (openBraces > 0) {
+    repaired += "}";
+    openBraces--;
+  }
+
+  return repaired;
+};
+
 const askGemini = async ({ systemInstruction, userPrompt, isExtraction }) => {
   for (const modelName of GEMINI_MODELS) {
     try {
@@ -202,15 +247,20 @@ const askGemini = async ({ systemInstruction, userPrompt, isExtraction }) => {
           },
         ],
         generationConfig: {
-          maxOutputTokens: isExtraction ? 1024 : 2048,
+          maxOutputTokens: isExtraction ? 4096 : 2048,
           temperature: isExtraction ? 0.1 : 0.7,
         },
       });
 
+      let reply = result.response.text();
+      if (isExtraction) {
+        reply = tryRepairTruncatedJson(reply);
+      }
+
       return {
         provider: "gemini",
         model: modelName,
-        reply: result.response.text(),
+        reply: reply,
       };
     } catch (error) {
       console.warn(`[Gemini] Model ${modelName} thất bại: ${error.message}`);
@@ -251,8 +301,8 @@ const askOllama = async ({ systemInstruction, userPrompt, isExtraction }) => {
         keep_alive: "30m",
         options: {
           temperature: isExtraction ? 0.1 : 0.3,
-          num_ctx: Number(process.env.OLLAMA_NUM_CTX) || 4096,
-          num_predict: isExtraction ? 512 : 650,
+          num_ctx: Number(process.env.OLLAMA_NUM_CTX) || 8192,
+          num_predict: isExtraction ? 4096 : 1024,
           top_k: 20,
           top_p: 0.8,
           repeat_penalty: 1.15,
@@ -272,11 +322,15 @@ const askOllama = async ({ systemInstruction, userPrompt, isExtraction }) => {
 
     const data = await response.json();
 
-    const reply = (data.message?.content || "")
+    let reply = (data.message?.content || "")
       .replace(/^assistant\s*:/i, "")
       .replace(/^trợ lý\s*:/i, "")
       .replace(/\*\*/g, "")
       .trim();
+
+    if (isExtraction) {
+      reply = tryRepairTruncatedJson(reply);
+    }
 
     return {
       provider: "ollama",
@@ -363,6 +417,83 @@ const chatWithAI = async ({
   return ollamaResult;
 };
 
+const generateEmbedding = async (text) => {
+  if (!text) return [];
+
+  try {
+    if (genAI && GEMINI_API_KEY) {
+      for (const modelName of GEMINI_EMBEDDING_MODELS) {
+        try {
+          console.log(
+            `[Gemini-Embedding] Đang thử: ${modelName}`
+          );
+
+          const model = genAI.getGenerativeModel({
+            model: modelName,
+          });
+
+          const result = await model.embedContent(text);
+
+          const embedding =
+            result?.embedding?.values || [];
+
+          if (embedding.length > 0) {
+            return embedding;
+          }
+        } catch (error) {
+          console.warn(
+            `[Gemini-Embedding] ${modelName} thất bại:`,
+            error.message
+          );
+        }
+      }
+    }
+  } catch (error) {
+    console.warn(
+      "[Gemini-Embedding] Tổng lỗi:",
+      error.message
+    );
+  }
+
+  try {
+    console.log("[Ollama-Embedding] Fallback...");
+
+    const response = await fetch(
+      `${OLLAMA_URL}/api/embeddings`,
+      {
+        method: "POST",
+
+        headers: {
+          "Content-Type": "application/json",
+        },
+
+        body: JSON.stringify({
+          model: OLLAMA_MODEL || "qwen2.5:3b",
+          prompt: text,
+        }),
+      }
+    );
+
+    if (!response.ok) {
+      throw new Error(
+        `Ollama embedding error: ${response.status}`
+      );
+    }
+
+    const data = await response.json();
+
+    return data.embedding || [];
+  } catch (error) {
+    console.error(
+      "[Ollama-Embedding] Thất bại:",
+      error.message
+    );
+
+    return [];
+  }
+};
+
 module.exports = {
   chatWithAI,
+  generateEmbedding,
 };

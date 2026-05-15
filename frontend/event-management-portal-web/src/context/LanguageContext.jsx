@@ -415,6 +415,8 @@ const translations = {
     loading: "Đang tải...",
     cancel: "Hủy",
     confirm_logout: "Bạn có chắc chắn muốn đăng xuất khỏi tài khoản?",
+    send: "Gửi",
+    load_more_comments: "Xem thêm bình luận",
   },
   EN: {
     // Header
@@ -828,6 +830,8 @@ const translations = {
     loading: "Loading...",
     cancel: "Cancel",
     confirm_logout: "Are you sure you want to log out?",
+    send: "Send",
+    load_more_comments: "Load more comments",
   }
 };
 

@@ -68,6 +68,8 @@ public class SecurityConfig {
                                                                 "/events/plans",
                                                                 "/events/{id}",
                                                                 "/events/{id}/summary",
+                                                                "/templates/recommend",
+                                                                "/templates/bulk-generate-embeddings",
                                                                 "/registrations/event/**",
                                                                 "/events/{eventId}/invitations",
                                                                 "/events/{eventId}/accept-invite",

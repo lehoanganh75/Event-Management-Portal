@@ -146,6 +146,10 @@ const CreatePlanModal = ({ isOpen, onClose, onSelectPlan, onCreateNew, initialAi
   const [searchTerm, setSearchTerm] = useState("");
   const [selected, setSelected] = useState(null);
   const [isRecommending, setIsRecommending] = useState(false);
+  const [recommendedTemplates, setRecommendedTemplates] = useState([]);
+  const [isAIPlanning, setIsAIPlanning] = useState(false);
+  const [aiText, setAiText] = useState("");
+  const [showAiInput, setShowAiInput] = useState(false);
 
   useEffect(() => {
     if (isOpen && initialAiText) {
@@ -156,16 +160,25 @@ const CreatePlanModal = ({ isOpen, onClose, onSelectPlan, onCreateNew, initialAi
   }, [isOpen, initialAiText]);
 
   const handleAIRecommend = async (text = aiText) => {
-    if (!text.trim()) return;
+    console.log("handleAIRecommend called with text:", text);
+    if (!text.trim()) {
+      console.warn("Empty AI text, aborting.");
+      return;
+    }
     setIsRecommending(true);
+    setRecommendedTemplates([]); // Reset
     try {
-      const recommended = await eventService.recommendTemplates(text);
+      console.log("Calling eventService.recommendTemplates...");
+      const recommended = await eventService.recommendTemplates(text, 3);
+      console.log("Recommended templates received:", recommended);
       if (recommended && recommended.length > 0) {
-        setTemplates(recommended);
-        // Toast success if needed
+        setRecommendedTemplates(recommended.slice(0, 3));
+      } else {
+        console.warn("No templates recommended by AI.");
       }
     } catch (error) {
       console.error("Lỗi khi AI gợi ý mẫu:", error);
+      alert("Lỗi khi gọi AI gợi ý: " + (error.message || "Không xác định"));
     } finally {
       setIsRecommending(false);
     }
@@ -226,10 +239,6 @@ const CreatePlanModal = ({ isOpen, onClose, onSelectPlan, onCreateNew, initialAi
 
   const maxUsage = useMemo(() => Math.max(...templates.map(t => t.usageCount || 0), 1), [templates]);
 
-  const [isAIPlanning, setIsAIPlanning] = useState(false);
-  const [aiText, setAiText] = useState("");
-  const [showAiInput, setShowAiInput] = useState(false); // For raw text planning
-
   // AI Prompt Modal state
   const [showPromptModal, setShowPromptModal] = useState(false);
 
@@ -252,12 +261,15 @@ const CreatePlanModal = ({ isOpen, onClose, onSelectPlan, onCreateNew, initialAi
     setShowPromptModal(true);
   };
 
-  const confirmAIPlanFromTemplate = async (userContext) => {
+  const confirmAIPlanFromTemplate = async (userContext, overrideTemplate = null) => {
+    const targetTemplate = overrideTemplate || selected;
+    if (!targetTemplate) return;
+
     setShowPromptModal(false);
     setIsAIPlanning(true);
     try {
-      // ✨ Truyền cả đối tượng selected để AI có thêm context về mẫu
-      const res = await eventService.aiPlanning.generateFromTemplate(selected, userContext);
+      // ✨ Truyền cả đối tượng targetTemplate để AI có thêm context về mẫu
+      const res = await eventService.aiPlanning.generateFromTemplate(targetTemplate, userContext);
 
       let rawResult = res.data.reply?.reply || res.data.result;
       if (!rawResult) throw new Error("Không nhận được phản hồi từ AI.");
@@ -266,14 +278,14 @@ const CreatePlanModal = ({ isOpen, onClose, onSelectPlan, onCreateNew, initialAi
       if (!suggestion) throw new Error("AI trả về định dạng không hợp lệ cho mẫu này. Vui lòng thử lại.");
 
       const mappedData = {
-        ...mapTemplateToPrefill(selected),
-        eventTitle: suggestion.title || selected.defaultTitle,
-        title: suggestion.title || selected.defaultTitle,
-        eventPurpose: suggestion.purpose || suggestion.description || selected.description,
-        description: suggestion.description || selected.description,
+        ...mapTemplateToPrefill(targetTemplate),
+        eventTitle: suggestion.title || targetTemplate.defaultTitle,
+        title: suggestion.title || targetTemplate.defaultTitle,
+        eventPurpose: suggestion.purpose || suggestion.description || targetTemplate.description,
+        description: suggestion.description || targetTemplate.description,
         eventTopic: suggestion.subject || "",
-        location: suggestion.suggestedLocation || selected.defaultLocation,
-        maxParticipants: suggestion.estimatedParticipants || selected.defaultMaxParticipants,
+        location: suggestion.suggestedLocation || targetTemplate.defaultLocation,
+        maxParticipants: suggestion.estimatedParticipants || targetTemplate.defaultMaxParticipants,
         sessions: (suggestion.programItems || []).map((item, idx) => ({
           title: item.title || "Không tên",
           description: item.description || "",
@@ -472,12 +484,20 @@ const CreatePlanModal = ({ isOpen, onClose, onSelectPlan, onCreateNew, initialAi
                   />
                   <div className="flex justify-end mt-2 gap-2">
                     <button
-                      onClick={() => handleAIRecommend()}
+                      type="button"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        console.log("Button AI Gợi ý mẫu phù hợp clicked");
+                        handleAIRecommend();
+                      }}
                       disabled={!aiText.trim() || isRecommending}
-                      className="flex items-center gap-2 px-4 py-2 bg-emerald-50 text-emerald-600 rounded-lg font-bold text-xs hover:bg-emerald-100 disabled:opacity-50 transition-all border border-emerald-100"
+                      className={`flex items-center gap-2 px-4 py-2 rounded-lg font-bold text-xs transition-all border ${!aiText.trim() || isRecommending
+                        ? "bg-slate-50 text-slate-400 border-slate-100 cursor-not-allowed"
+                        : "bg-emerald-50 text-emerald-600 border-emerald-100 hover:bg-emerald-100 shadow-sm"
+                        }`}
                     >
                       {isRecommending ? <Loader2 size={14} className="animate-spin" /> : <Sparkles size={14} />}
-                      AI Gợi ý mẫu phù hợp
+                      {isRecommending ? "Đang phân tích..." : "AI Gợi ý mẫu phù hợp"}
                     </button>
                     <button
                       onClick={handleAIPlanFromRaw}
@@ -520,64 +540,109 @@ const CreatePlanModal = ({ isOpen, onClose, onSelectPlan, onCreateNew, initialAi
               <div className="flex justify-center py-12">
                 <Loader2 className="animate-spin text-blue-600" size={32} />
               </div>
-            ) : sortedTemplates.length === 0 ? (
+            ) : (recommendedTemplates.length === 0 && sortedTemplates.length === 0) ? (
               <div className="text-center py-12 text-slate-400">
                 <FileText size={40} className="mx-auto mb-3 opacity-30" />
                 <p className="text-sm font-medium">Không tìm thấy mẫu phù hợp</p>
               </div>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {sortedTemplates.map((template, index) => {
-                  const isSelected = selected?.id === template.id;
-                  const isPopular = (template.usageCount || 0) === maxUsage && maxUsage > 0;
+              <div className="space-y-6">
+                {recommendedTemplates.length > 0 && (
+                  <div className="bg-emerald-50/50 p-4 rounded-3xl border border-emerald-100/50">
+                    <div className="flex items-center gap-2 mb-4 px-2">
+                      <Sparkles className="text-emerald-500" size={18} />
+                      <h3 className="text-sm font-black text-emerald-800 uppercase tracking-wider">Top 3 gợi ý từ AI</h3>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      {recommendedTemplates.map((template, index) => (
+                        <button
+                          key={`rec-${template.id}-${index}`}
+                          onClick={() => {
+                            setSelected(template);
+                            // Tự động lập kế hoạch dựa trên ngữ cảnh aiText
+                            confirmAIPlanFromTemplate(aiText || "Sử dụng mẫu này để lập kế hoạch chi tiết", template);
+                          }}
+                          className="group relative bg-white p-4 rounded-2xl border-2 border-emerald-200 hover:border-emerald-500 hover:shadow-xl hover:shadow-emerald-100 transition-all text-left flex flex-col h-full"
+                        >
+                          <div className="absolute -top-2 -right-2 bg-emerald-500 text-white text-[10px] font-black px-2 py-1 rounded-lg shadow-sm">
+                            GỢI Ý #{index + 1}
+                          </div>
+                          <span className="font-bold text-slate-800 mb-2 line-clamp-2 text-sm group-hover:text-emerald-700">
+                            {template.templateName}
+                          </span>
+                          <p className="text-[11px] text-slate-500 line-clamp-3 mb-4 flex-grow">
+                            {template.description}
+                          </p>
+                          <div className="flex items-center justify-between mt-auto">
+                            <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded">
+                              Tỉ lệ khớp cao
+                            </span>
+                            <div className="flex items-center gap-1 text-[10px] text-slate-400">
+                              <TrendingUp size={10} />
+                              {template.usageCount}
+                            </div>
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
 
-                  return (
-                    <button
-                      key={template.id || `tpl-${index}`}
-                      onClick={() => { setSelected(template); setShowAiInput(false); }}
-                      className={`relative w-full text-left p-5 rounded-2xl border-2 transition-all ${isSelected
-                        ? "border-blue-500 bg-blue-50 shadow-md shadow-blue-100"
-                        : "border-slate-200 bg-white hover:border-blue-300 hover:shadow-sm"
-                        }`}
+                {sortedTemplates.length > 0 && (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {sortedTemplates.map((template, index) => {
+                      const isSelected = selected?.id === template.id;
+                      const isPopular = (template.usageCount || 0) === maxUsage && maxUsage > 0;
 
-                    >
-                      <div
-                        onClick={(e) => handleToggleStar(e, template)}
-                        className={`absolute top-4 right-4 p-1.5 rounded-full transition-all cursor-pointer z-10 ${template.isStarred ? "text-amber-400 bg-amber-50 hover:bg-amber-100" : "text-gray-300 hover:bg-gray-100 hover:text-amber-400"
-                          }`}
-                      >
-                        <Star size={18} fill={template.isStarred ? "currentColor" : "none"} />
-                      </div>
+                      return (
+                        <button
+                          key={template.id || `tpl-${index}`}
+                          onClick={() => { setSelected(template); setShowAiInput(false); }}
+                          className={`relative w-full text-left p-5 rounded-2xl border-2 transition-all ${isSelected
+                            ? "border-blue-500 bg-blue-50 shadow-md shadow-blue-100"
+                            : "border-slate-200 bg-white hover:border-blue-300 hover:shadow-sm"
+                            }`}
 
-                      <div className="flex items-start justify-between pr-8 mb-2">
-                        <span className={`font-black text-base line-clamp-2 ${isSelected ? "text-blue-700" : "text-slate-800"}`}>
-                          {template.templateName}
-                        </span>
-                      </div>
+                        >
+                          <div
+                            onClick={(e) => handleToggleStar(e, template)}
+                            className={`absolute top-4 right-4 p-1.5 rounded-full transition-all cursor-pointer z-10 ${template.isStarred ? "text-amber-400 bg-amber-50 hover:bg-amber-100" : "text-gray-300 hover:bg-gray-100 hover:text-amber-400"
+                              }`}
+                          >
+                            <Star size={18} fill={template.isStarred ? "currentColor" : "none"} />
+                          </div>
 
-                      {isPopular && (
-                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-rose-100 text-rose-600 text-[10px] font-black uppercase tracking-wider mb-3">
-                          <TrendingUp size={10} /> Phổ biến nhất
-                        </span>
-                      )}
+                          <div className="flex items-start justify-between pr-8 mb-2">
+                            <span className={`font-black text-base line-clamp-2 ${isSelected ? "text-blue-700" : "text-slate-800"}`}>
+                              {template.templateName}
+                            </span>
+                          </div>
 
-                      <p className="text-xs text-slate-500 line-clamp-2 mb-4 leading-relaxed">
-                        {template.description || "Không có mô tả."}
-                      </p>
+                          {isPopular && (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-rose-100 text-rose-600 text-[10px] font-black uppercase tracking-wider mb-3">
+                              <TrendingUp size={10} /> Phổ biến nhất
+                            </span>
+                          )}
 
-                      <div className="flex flex-wrap gap-2 text-[11px] text-slate-500">
-                        <span className="flex items-center gap-1 bg-slate-100 px-2 py-1 rounded-md">
-                          <Users size={12} className="text-emerald-500" />
-                          {template.defaultMaxParticipants || 0} người
-                        </span>
-                        <span className="flex items-center gap-1 bg-slate-100 px-2 py-1 rounded-md">
-                          <CheckCircle2 size={12} className="text-blue-500" />
-                          {template.usageCount || 0} lượt dùng
-                        </span>
-                      </div>
-                    </button>
-                  );
-                })}
+                          <p className="text-xs text-slate-500 line-clamp-2 mb-4 leading-relaxed">
+                            {template.description || "Không có mô tả."}
+                          </p>
+
+                          <div className="flex flex-wrap gap-2 text-[11px] text-slate-500">
+                            <span className="flex items-center gap-1 bg-slate-100 px-2 py-1 rounded-md">
+                              <Users size={12} className="text-emerald-500" />
+                              {template.defaultMaxParticipants || 0} người
+                            </span>
+                            <span className="flex items-center gap-1 bg-slate-100 px-2 py-1 rounded-md">
+                              <CheckCircle2 size={12} className="text-blue-500" />
+                              {template.usageCount || 0} lượt dùng
+                            </span>
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
             )}
           </div>
