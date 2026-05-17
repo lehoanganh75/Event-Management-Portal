@@ -109,6 +109,7 @@ plugins:
       origins:
         - "https://fitiuh-events.io.vn"
         - "http://fitiuh-events.io.vn"
+        - "http://localhost:5173"
       methods:
         - GET
         - POST

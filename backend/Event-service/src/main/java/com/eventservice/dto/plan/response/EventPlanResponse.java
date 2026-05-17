@@ -6,6 +6,7 @@ import lombok.Data;
 import com.eventservice.entity.core.Event;
 import com.eventservice.entity.people.EventOrganizer;
 import com.eventservice.entity.people.EventPresenter;
+import com.eventservice.entity.core.EventSession;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -50,13 +51,20 @@ public class EventPlanResponse {
     private String approvedByName;
     private String approvedByAccountId;
 
+    private String organizationId;
+    private String organizationName;
+    private String organizationEmail;
+    private String organizationLogo;
+
     private List<Map<String, Object>> targetObjects;
     private List<EventPresenter> presentersList;
     private List<EventOrganizer> organizersList;
+    private List<EventSession> sessionsList;
 
     public static EventPlanResponse from(Event event, UserResponse creator, UserResponse approver,
-                                      List<EventPresenter> presenters,
-                                      List<EventOrganizer> organizers) {
+            List<EventPresenter> presenters,
+            List<EventOrganizer> organizers,
+            List<EventSession> sessions) {
         EventPlanResponse dto = new EventPlanResponse();
         dto.setId(event.getId());
         dto.setTitle(event.getTitle());
@@ -64,7 +72,8 @@ public class EventPlanResponse {
         dto.setStatus(event.getStatus() != null ? event.getStatus().name() : null);
         dto.setStartTime(event.getStartTime() != null ? event.getStartTime().toString() : null);
         dto.setEndTime(event.getEndTime() != null ? event.getEndTime().toString() : null);
-        dto.setRegistrationDeadline(event.getRegistrationDeadline() != null ? event.getRegistrationDeadline().toString() : null);
+        dto.setRegistrationDeadline(
+                event.getRegistrationDeadline() != null ? event.getRegistrationDeadline().toString() : null);
         dto.setLocation(event.getLocation());
         dto.setType(event.getType() != null ? event.getType().name() : null);
         dto.setEventMode(event.getEventMode());
@@ -79,6 +88,13 @@ public class EventPlanResponse {
         dto.setApprovedByAccountId(event.getApprovedByAccountId());
         dto.setCreatedByAccountId(event.getCreatedByAccountId());
 
+        if (event.getOrganization() != null) {
+            dto.setOrganizationId(event.getOrganization().getId());
+            dto.setOrganizationName(event.getOrganization().getName());
+            dto.setOrganizationEmail(event.getOrganization().getEmail());
+            dto.setOrganizationLogo(event.getOrganization().getLogoUrl());
+        }
+
         if (event.getRecipients() != null) {
             List<String> recipientNames = event.getRecipients().stream()
                     .filter(Objects::nonNull)
@@ -92,10 +108,11 @@ public class EventPlanResponse {
         }
 
         dto.setTargetObjects(event.getTargetObjects());
-        
+
         // Use provided lists instead of entity collections
         dto.setPresentersList(presenters != null ? new ArrayList<>(presenters) : new ArrayList<>());
         dto.setOrganizersList(organizers != null ? new ArrayList<>(organizers) : new ArrayList<>());
+        dto.setSessionsList(sessions != null ? new ArrayList<>(sessions) : new ArrayList<>());
 
         if (approver != null) {
             dto.setApprovedByName(approver.getFullName());
@@ -107,11 +124,19 @@ public class EventPlanResponse {
         return dto;
     }
 
-    // Keep the old signature for backward compatibility if needed, calling the new one
+    public static EventPlanResponse from(Event event, UserResponse creator, UserResponse approver,
+            List<EventPresenter> presenters,
+            List<EventOrganizer> organizers) {
+        return from(event, creator, approver, presenters, organizers,
+                event.getSessions() != null ? new ArrayList<>(event.getSessions()) : null);
+    }
+
+    // Keep the old signature for backward compatibility if needed, calling the new
+    // one
     public static EventPlanResponse from(Event event, UserResponse creator, UserResponse approver) {
-        return from(event, creator, approver, 
-                   event.getPresenters() != null ? new ArrayList<>(event.getPresenters()) : null,
-                   event.getOrganizers() != null ? new ArrayList<>(event.getOrganizers()) : null);
+        return from(event, creator, approver,
+                event.getPresenters() != null ? new ArrayList<>(event.getPresenters()) : null,
+                event.getOrganizers() != null ? new ArrayList<>(event.getOrganizers()) : null,
+                event.getSessions() != null ? new ArrayList<>(event.getSessions()) : null);
     }
 }
-

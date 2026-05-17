@@ -32,6 +32,7 @@ import com.eventservice.constant.RedisConstant;
 import com.eventservice.dto.engagement.NotificationEventDto;
 import com.eventservice.kafka.NotificationProducer;
 import com.eventservice.dto.plan.response.EventPlanResponse;
+import com.eventservice.dto.registration.request.EventInvitationRequest;
 import com.eventservice.dto.user.UserResponse;
 import com.eventservice.service.EmailService;
 import com.eventservice.service.EventService;
@@ -695,7 +696,7 @@ public class EventServiceImpl implements EventService {
 
     @Override
     public Map<String, String> inviteParticipants(String eventId, String organizerId,
-            com.eventservice.dto.registration.request.EventInvitationRequest request) {
+            EventInvitationRequest request) {
         // 1. Kiểm tra sự tồn tại của sự kiện
         Event event = eventRepository.findById(eventId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Sự kiện không tồn tại"));
@@ -736,8 +737,8 @@ public class EventServiceImpl implements EventService {
                             .inviteeEmail(user.getEmail())
                             .message(inviteMessage)
                             .targetRole(request.getTargetRole() != null ? request.getTargetRole()
-                                    : com.eventservice.entity.enums.OrganizerRole.MEMBER)
-                            .status(com.eventservice.entity.enums.InvitationStatus.PENDING)
+                                    : OrganizerRole.MEMBER)
+                            .status(InvitationStatus.PENDING)
                             .expiredAt(expiryDate)
                             .token(inviteToken)
                             .build();
@@ -1244,12 +1245,30 @@ public class EventServiceImpl implements EventService {
         }
 
         // Lưu organizers
+        boolean creatorIsOrganizer = false;
         if (event.getOrganizers() != null && !event.getOrganizers().isEmpty()) {
             for (EventOrganizer organizer : event.getOrganizers()) {
+                if (event.getCreatedByAccountId() != null
+                        && event.getCreatedByAccountId().equals(organizer.getAccountId())) {
+                    creatorIsOrganizer = true;
+                    if (organizer.getRole() == null || organizer.getRole() != OrganizerRole.LEADER) {
+                        organizer.setRole(OrganizerRole.LEADER);
+                    }
+                }
                 organizer.setEvent(savedEvent);
                 organizer.setAssignedAt(LocalDateTime.now());
                 organizerRepository.save(organizer);
             }
+        }
+
+        if (!creatorIsOrganizer && event.getCreatedByAccountId() != null) {
+            EventOrganizer leader = EventOrganizer.builder()
+                    .accountId(event.getCreatedByAccountId())
+                    .role(OrganizerRole.LEADER)
+                    .event(savedEvent)
+                    .assignedAt(LocalDateTime.now())
+                    .build();
+            organizerRepository.save(leader);
         }
 
         // Lưu targetObjects và recipients (JSON fields)
@@ -1494,6 +1513,19 @@ public class EventServiceImpl implements EventService {
 
         Event savedEvent = eventRepository.save(newEvent);
 
+        // Copy Sessions from eventDetails if provided
+        log.info("#### [EVENT SERVICE] createEventFromPlan - Received {} sessions from eventDetails",
+                eventDetails.getSessions() != null ? eventDetails.getSessions().size() : "null");
+
+        if (eventDetails.getSessions() != null && !eventDetails.getSessions().isEmpty()) {
+            for (EventSession session : eventDetails.getSessions()) {
+                session.setId(null); // Ensure we create new sessions, not update existing ones
+                session.setEvent(savedEvent);
+                sessionRepository.save(session);
+                savedEvent.getSessions().add(session); // Add to memory so it's returned in response
+            }
+        }
+
         // Copy Presenters & Organizers from Plan if they exist
         List<EventPresenter> presenters = presenterRepository.findByEventId(plan.getId());
         for (EventPresenter p : presenters) {
@@ -1505,14 +1537,32 @@ public class EventServiceImpl implements EventService {
         }
 
         List<EventOrganizer> organizers = organizerRepository.findByEventId(plan.getId());
+        boolean creatorIsOrganizer = false;
         for (EventOrganizer o : organizers) {
+            OrganizerRole newRole = o.getRole();
+            if (eventDetails.getCreatedByAccountId() != null
+                    && eventDetails.getCreatedByAccountId().equals(o.getAccountId())) {
+                creatorIsOrganizer = true;
+                newRole = OrganizerRole.LEADER;
+            }
             EventOrganizer newO = EventOrganizer.builder()
                     .accountId(o.getAccountId())
-                    .role(o.getRole())
+                    .role(newRole)
                     .organization(o.getOrganization())
                     .event(savedEvent)
+                    .assignedAt(LocalDateTime.now())
                     .build();
             organizerRepository.save(newO);
+        }
+
+        if (!creatorIsOrganizer && eventDetails.getCreatedByAccountId() != null) {
+            EventOrganizer leader = EventOrganizer.builder()
+                    .accountId(eventDetails.getCreatedByAccountId())
+                    .role(OrganizerRole.LEADER)
+                    .event(savedEvent)
+                    .assignedAt(LocalDateTime.now())
+                    .build();
+            organizerRepository.save(leader);
         }
 
         // Hide old plan by changing status
@@ -2051,15 +2101,17 @@ public class EventServiceImpl implements EventService {
 
         // Không cho phép mời khi sự kiện đã kết thúc, bị hủy hoặc bị từ chối
         if (event.getStatus() == EventStatus.COMPLETED) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Không thể gửi lời mời vì sự kiện \"" + event.getTitle() + "\" đã kết thúc.");
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "Không thể gửi lời mời vì sự kiện \"" + event.getTitle() + "\" đã kết thúc.");
         }
         if (event.getStatus() == EventStatus.CANCELLED) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Không thể gửi lời mời vì sự kiện \"" + event.getTitle() + "\" đã bị hủy.");
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "Không thể gửi lời mời vì sự kiện \"" + event.getTitle() + "\" đã bị hủy.");
         }
         if (event.getStatus() == EventStatus.REJECTED) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Không thể gửi lời mời vì sự kiện \"" + event.getTitle() + "\" đã bị từ chối.");
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "Không thể gửi lời mời vì sự kiện \"" + event.getTitle() + "\" đã bị từ chối.");
         }
-
 
         for (Map<String, Object> invMap : invitations) {
             String rawEmail = (String) invMap.get("inviteeEmail");
@@ -2223,13 +2275,16 @@ public class EventServiceImpl implements EventService {
 
         // Không cho phép mời khi sự kiện đã kết thúc, bị hủy hoặc bị từ chối
         if (event.getStatus() == EventStatus.COMPLETED) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Không thể gửi lời mời vì sự kiện \"" + event.getTitle() + "\" đã kết thúc.");
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "Không thể gửi lời mời vì sự kiện \"" + event.getTitle() + "\" đã kết thúc.");
         }
         if (event.getStatus() == EventStatus.CANCELLED) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Không thể gửi lời mời vì sự kiện \"" + event.getTitle() + "\" đã bị hủy.");
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "Không thể gửi lời mời vì sự kiện \"" + event.getTitle() + "\" đã bị hủy.");
         }
         if (event.getStatus() == EventStatus.REJECTED) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Không thể gửi lời mời vì sự kiện \"" + event.getTitle() + "\" đã bị từ chối.");
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "Không thể gửi lời mời vì sự kiện \"" + event.getTitle() + "\" đã bị từ chối.");
         }
 
         for (Map<String, Object> invMap : invitations) {

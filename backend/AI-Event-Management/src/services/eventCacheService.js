@@ -19,7 +19,7 @@ const formatTime = (date) => {
     }
 };
 
-const loadEventDataOnce = async () => {
+const loadEventDataOnce = async (creatorId = null) => {
     try {
         const events = await query(
             `SELECT 
@@ -33,31 +33,76 @@ const loadEventDataOnce = async () => {
             ["PUBLISHED", "ONGOING", "COMPLETED"]
         );
 
-        if (!events || events.length === 0) {
-            eventCache = "Hiện tại hệ thống chưa có dữ liệu sự kiện.";
-            lastLoadedAt = new Date();
-            return eventCache;
-        }
+        let cacheText = "";
 
-        eventCache = events
-            .map((ev, index) => {
-                return `
+        if (!events || events.length === 0) {
+            cacheText = "Hiện tại hệ thống chưa có dữ liệu sự kiện.";
+        } else {
+            cacheText = events
+                .map((ev) => {
+                    return `
                     ID: ${ev.id}
                     Tên: ${ev.title}
                     Địa điểm: ${ev.location || "IUH"}
-                    Hạn đăng ký: ${formatTime(ev.registration_deadline)}
                     Bắt đầu: ${formatTime(ev.start_time)}
-                    Kết thúc: ${formatTime(ev.end_time)}
                     Trạng thái: ${ev.status}
                     Đã đăng ký: ${ev.registered_count || 0}/${ev.max_participants || "Không giới hạn"}
-                    Lucky Draw: ${ev.has_lucky_draw ? "Có" : "Không"}
-                    Check-in: ${ev.check_in_enabled ? "Có" : "Không"}
                     ---`.trim();
-            })
-            .join("\n\n");
+                })
+                .join("\n\n");
+        }
 
+        // --- Load Top Presenters Stats (Primary for presenter suggestions) ---
+        try {
+            const topPresenters = await query(
+                `SELECT p.presenter_account_id, COUNT(*) as count 
+                 FROM event_presenters p
+                 JOIN events e ON p.event_id = e.id
+                 WHERE p.is_deleted = false
+                 ${creatorId ? "AND e.created_by_account_id = ?" : ""}
+                 GROUP BY p.presenter_account_id 
+                 ORDER BY count DESC 
+                 LIMIT 10`,
+                creatorId ? [creatorId] : []
+            );
+
+            if (topPresenters && topPresenters.length > 0) {
+                cacheText += "\n\n[THỐNG KÊ DIỄN GIẢ THÂN QUEN]\n";
+                topPresenters.forEach((p, i) => {
+                    cacheText += `${i + 1}. AccountID: ${p.presenter_account_id} (Làm diễn giả ${p.count} lần)\n`;
+                });
+            }
+        } catch (e) {
+            console.error("Error loading top presenters:", e.message);
+        }
+
+        // --- Load Top Participants Stats ---
+        try {
+            const topParticipants = await query(
+                `SELECT r.participant_account_id, COUNT(*) as join_count 
+                 FROM event_registrations r
+                 JOIN events e ON r.event_id = e.id
+                 WHERE r.is_deleted = false AND r.status != 'CANCELLED'
+                 ${creatorId ? "AND e.created_by_account_id = ?" : ""}
+                 GROUP BY r.participant_account_id 
+                 ORDER BY join_count DESC 
+                 LIMIT 10`,
+                creatorId ? [creatorId] : []
+            );
+
+            if (topParticipants && topParticipants.length > 0) {
+                cacheText += "\n\n[THỐNG KÊ NGƯỜI THAM GIA NHIỀU NHẤT]\n";
+                topParticipants.forEach((p, i) => {
+                    cacheText += `${i + 1}. AccountID: ${p.participant_account_id} (Tham gia ${p.join_count} sự kiện)\n`;
+                });
+            }
+        } catch (e) {
+            console.error("Error loading top participants:", e.message);
+        }
+
+        eventCache = cacheText;
         lastLoadedAt = new Date();
-        console.log(`Cache Updated: ${events.length} events.`);
+        console.log(`Cache Updated: ${events.length} events and top participants.`);
         return eventCache;
     } catch (error) {
         console.error("Load event cache error:", error.message);

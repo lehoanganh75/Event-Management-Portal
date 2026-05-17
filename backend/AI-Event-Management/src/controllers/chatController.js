@@ -73,8 +73,9 @@ const handleChat = async (req, res) => {
     }
 
     const isExtraction =
-      prompt.includes("Trích xuất") ||
-      prompt.includes("JSON");
+      req.body.isExtraction !== undefined
+        ? req.body.isExtraction
+        : (prompt.includes("Trích xuất") || prompt.includes("JSON"));
 
     const relevantChunks = searchRelevantChunks(prompt);
 
@@ -86,6 +87,7 @@ const handleChat = async (req, res) => {
       userPrompt: prompt,
       pdfContext,
       isExtraction,
+      accountId: req.body.accountId,
     });
 
     res.json({

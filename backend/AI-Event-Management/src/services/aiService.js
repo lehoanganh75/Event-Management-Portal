@@ -29,13 +29,13 @@ const isLimitError = (error) => {
 };
 
 const isEventQuery = (prompt = "") => {
-  return /sự kiện|event|workshop|đăng ký|diễn ra|lịch|địa điểm|check-?in|lucky|hội thảo|tham gia|tổ chức/i.test(
+  return /sự kiện|event|workshop|đăng ký|diễn ra|lịch|địa điểm|check-?in|lucky|hội thảo|tham gia|tổ chức|diễn giả|người tham gia/i.test(
     prompt
   );
 };
 
 const isExternalDataPrompt = (prompt = "") => {
-  return /dữ liệu\s*:|dữ liệu sự kiện\s*:|eventdetails|thông tin sự kiện sau|hãy viết|bài đăng truyền thông|facebook|linkedin|trả về json|generate|lập kế hoạch|mẫu sự kiện|template/i.test(
+  return /dữ liệu\s*:|dữ liệu sự kiện\s*:|eventdetails|thông tin sự kiện sau|hãy viết|bài đăng truyền thông|facebook|linkedin|generate|lập kế hoạch|mẫu sự kiện|template/i.test(
     prompt
   );
 };
@@ -45,13 +45,18 @@ const pickRelevantEventsFromCache = (eventDbContext = "", userPrompt = "", limit
 
   if (!text) return "Hiện tại hệ thống chưa có dữ liệu sự kiện.";
 
-  const blocks = text
+  // Split but keep the stats block separate
+  const parts = text.split(/\[THỐNG KÊ NGƯỜI THAM GIA NHIỀU NHẤT\]/i);
+  const eventData = parts[0];
+  const statsData = parts.length > 1 ? "[THỐNG KÊ NGƯỜI THAM GIA NHIỀU NHẤT]" + parts[1] : "";
+
+  const blocks = eventData
     .split(/-+\n|\n-{5,}\n|\[SỰ KIỆN\s+\d+\]/i)
     .map((x) => x.trim())
     .filter(Boolean);
 
-  if (blocks.length <= limit) {
-    return blocks.join("\n\n---\n\n");
+  if (blocks.length === 0) {
+    return statsData || "Hiện tại hệ thống chưa có dữ liệu sự kiện.";
   }
 
   const lowerPrompt = userPrompt.toLowerCase();
@@ -74,7 +79,9 @@ const pickRelevantEventsFromCache = (eventDbContext = "", userPrompt = "", limit
     filtered = blocks;
   }
 
-  return filtered.slice(0, limit).join("\n\n---\n\n");
+  const result = filtered.slice(0, limit).join("\n\n---\n\n");
+  
+  return statsData ? result + "\n\n" + statsData : result;
 };
 
 const buildGeminiSystemInstruction = ({
@@ -391,6 +398,7 @@ const chatWithAI = async ({
   userPrompt,
   pdfContext = "",
   isExtraction = false,
+  accountId = null,
 }) => {
   console.log(`[AI-Process] Nhận yêu cầu - Trích xuất: ${isExtraction}`);
 
@@ -402,14 +410,19 @@ const chatWithAI = async ({
   let eventDbContext = "";
 
   if (shouldUseEventDb) {
-    eventDbContext = getEventCache();
-
-    if (!eventDbContext || eventDbContext.includes("chưa có dữ liệu")) {
-      console.log("[AI-Cache] Cache trống, đang tải lại dữ liệu sự kiện...");
-      eventDbContext = await loadEventDataOnce();
+    // Nếu có accountId, chúng ta nên load lại để lấy thống kê cá nhân hóa
+    if (accountId) {
+      console.log(`[AI-Cache] Đang tải dữ liệu cá nhân hóa cho Account: ${accountId}`);
+      eventDbContext = await loadEventDataOnce(accountId);
+    } else {
+      eventDbContext = getEventCache();
+      if (!eventDbContext || eventDbContext.includes("chưa có dữ liệu")) {
+        console.log("[AI-Cache] Cache trống, đang tải lại dữ liệu sự kiện...");
+        eventDbContext = await loadEventDataOnce();
+      }
     }
-
-    eventDbContext = pickRelevantEventsFromCache(eventDbContext, userPrompt, 5);
+    
+    eventDbContext = pickRelevantEventsFromCache(eventDbContext, userPrompt, 10);
   }
 
   const geminiSystemInstruction = buildGeminiSystemInstruction({

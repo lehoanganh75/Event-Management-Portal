@@ -214,10 +214,40 @@ const CreateEventModal = ({ isOpen, onClose, onSelectPlan, onCreateNew, initialA
       // Map plan data to prefill
       const prefill = {
         ...selectedPlan,
-        eventTitle: selectedPlan.title,
-        eventPurpose: selectedPlan.description,
-        startTime: selectedPlan.startTime ? new Date(selectedPlan.startTime).toISOString().slice(0, 16) : "",
-        endTime: selectedPlan.endTime ? new Date(selectedPlan.endTime).toISOString().slice(0, 16) : "",
+        eventTitle: selectedPlan.title || "",
+        eventPurpose: selectedPlan.description || "",
+        eventType: selectedPlan.type || "OTHER",
+        location: selectedPlan.location || "",
+        eventTopic: selectedPlan.eventTopic || "",
+        maxParticipants: selectedPlan.maxParticipants || 50,
+        startTime: selectedPlan.startTime ? (() => { const d = new Date(selectedPlan.startTime); const pad = (n) => String(n).padStart(2, '0'); return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`; })() : "",
+        endTime: selectedPlan.endTime ? (() => { const d = new Date(selectedPlan.endTime); const pad = (n) => String(n).padStart(2, '0'); return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`; })() : "",
+        registrationDeadline: selectedPlan.registrationDeadline ? (() => { const d = new Date(selectedPlan.registrationDeadline); const pad = (n) => String(n).padStart(2, '0'); return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`; })() : "",
+        targetObjects: selectedPlan.targetObjects || [],
+        recipients: selectedPlan.recipients || [],
+        presenters: (selectedPlan.presentersList || []).map(p => ({
+          accountId: p.accountId || p.presenterAccountId,
+          fullName: p.fullName || "",
+          email: p.email || "",
+          position: p.title || p.position || "",
+          session: p.session || "",
+          isConfirmed: true
+        })),
+        invitations: (selectedPlan.organizersList || []).map(o => ({
+          inviteeAccountId: o.accountId,
+          inviteeName: o.fullName || o.name || "",
+          inviteeEmail: o.email || "",
+          targetRole: o.role || "MEMBER",
+          isConfirmed: true
+        })),
+        sessions: (selectedPlan.sessionsList || selectedPlan.programItems || []).map((s, idx) => ({
+          title: s.title || "",
+          description: s.description || "",
+          startTime: s.startTime ? (() => { const d = new Date(s.startTime); const pad = (n) => String(n).padStart(2, '0'); return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`; })() : "",
+          endTime: s.endTime ? (() => { const d = new Date(s.endTime); const pad = (n) => String(n).padStart(2, '0'); return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`; })() : "",
+          orderIndex: idx + 1,
+          isConfirmed: true
+        })),
         fromPlan: true,
         planId: selectedPlan.id
       };

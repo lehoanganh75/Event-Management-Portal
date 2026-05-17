@@ -1,40 +1,22 @@
 import React, { useMemo, useState, useEffect, useRef } from "react";
 import { useAuth } from "../../../context/AuthContext";
 import {
-  Calendar, Clock, MapPin, Users, Award, TrendingUp, Settings, ArrowLeft,
-  Edit3, CheckCircle, Flag, XCircle, Trash2,
+  Calendar, Users, TrendingUp, Settings, ArrowLeft,
+  CheckCircle, Trash2,
   Star,
   Gift,
-  PlayCircle,
   Trophy,
-  Target,
-  UserPlus,
-  Sparkles,
-  Plus,
-  Search,
   UserCheck,
   X,
   List,
   Info,
   MessageSquare,
   MessageCircle,
-  AlertTriangle,
-  Mail,
-  Camera,
-  Phone,
-  FileText,
-  FileUp,
-  Send,
-  Trash,
   LogOut,
-  Loader2,
-  Check,
   QrCode,
   Download,
   Maximize2,
   ClipboardCheck,
-  ShieldCheck,
-  Waves,
   Bot
 } from "lucide-react";
 import { useNavigate, useParams } from "react-router-dom";
@@ -460,26 +442,45 @@ const EventDetailManagement = ({
 
   // --- AUTOMATIC QUIZ NOTIFICATION FOR PARTICIPANTS ---
   useEffect(() => {
-    if (quizState?.type === 'START' && quizState.data) {
+    if (quizState?.type === "START" && quizState.data) {
       const qId = quizState.data;
 
-      // If user is not already in the quiz modal, alert them
       if (!showQuizModal) {
         toast.info(
-          <div className="flex flex-col gap-1 text-left">
-            <div className="flex items-center gap-2 text-indigo-600 mb-1">
-              <Trophy size={16} />
-              <p className="font-black text-[11px] uppercase tracking-wider">Thử thách đã bắt đầu!</p>
+          <div className="text-left">
+            <div className="flex items-center gap-2 mb-2">
+              <div className="w-8 h-8 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center">
+                <Trophy size={16} />
+              </div>
+
+              <div>
+                <p className="text-sm font-semibold text-slate-800">
+                  Thử thách đã bắt đầu
+                </p>
+                <p className="text-xs text-slate-500">
+                  Ban tổ chức vừa mở một quiz mới
+                </p>
+              </div>
             </div>
-            <p className="text-[10px] text-slate-600 font-medium leading-relaxed">
-              Ban tổ chức vừa kích hoạt một thử thách mới. Hãy tham gia ngay để dành lấy những phần quà hấp dẫn!
+
+            <p className="text-sm text-slate-600 leading-relaxed mb-3">
+              Hãy tham gia ngay để trả lời câu hỏi và nhận phần thưởng từ sự kiện.
             </p>
+
             <button
               onClick={() => {
                 setActiveQuizId(qId);
                 setShowQuizModal(true);
               }}
-              className="mt-3 w-full py-2 bg-indigo-600 text-white rounded-lg text-[9px] font-black uppercase tracking-[0.2em] shadow-lg shadow-indigo-100 hover:bg-indigo-700 transition-all"
+              className="
+              w-full h-9
+              rounded-lg
+              bg-indigo-600
+              text-white
+              text-sm font-medium
+              hover:bg-indigo-700
+              transition-colors
+            "
             >
               Tham gia ngay
             </button>
@@ -491,12 +492,12 @@ const EventDetailManagement = ({
             closeOnClick: false,
             pauseOnHover: true,
             draggable: true,
-            theme: "light"
+            theme: "light",
           }
         );
       }
     }
-  }, [quizState, event?.id]);
+  }, [quizState, event?.id, showQuizModal]);
 
   const fetchQuizzes = async () => {
     try {
@@ -566,7 +567,7 @@ const EventDetailManagement = ({
     let timer;
     if (showEventQRModal && !loadingQR && event?.qrType === "DYNAMIC") {
       setQrCountdown(30);
-      
+
       timer = setInterval(() => {
         setQrCountdown(prev => (prev <= 1 ? 30 : prev - 1));
       }, 1000);
@@ -811,8 +812,6 @@ const EventDetailManagement = ({
   );
 
   const currentStatus = STATUS_CONFIG[event.status] || { label: event.status, color: "bg-gray-100 text-gray-600" };
-  const attendedCount = event.registrations?.filter(r => r.status === "ATTENDED").length || 0;
-  const pendingCount = event.registrations?.filter(r => r.status === "PENDING").length || 0;
   const checkedInCount = event.registrations?.filter(r => r.checkedIn === true).length || 0;
 
   const getAllUserRoles = () => {
@@ -852,75 +851,139 @@ const EventDetailManagement = ({
 
   const userRoles = getAllUserRoles();
 
-
   return (
-    <div className="w-full min-h-screen bg-gray-50 overflow-x-hidden">
+    <div className="w-full min-h-screen bg-slate-50 overflow-x-hidden">
       {/* Banner */}
-      <div className="relative h-80 w-full overflow-hidden">
-        <img src={event.coverImage || "https://picsum.photos/1200/400?tech"} alt={event.title} className="w-full h-full object-cover" />
-        <div className="absolute inset-0 bg-gradient-to-b from-black/40 to-black/70" />
+      <div className="relative h-72 w-full overflow-hidden bg-slate-900">
+        <img
+          src={event.coverImage || "https://picsum.photos/1200/400?tech"}
+          alt={event.title}
+          className="w-full h-full object-cover opacity-80"
+        />
+
+        <div className="absolute inset-0 bg-gradient-to-b from-black/30 to-black/60" />
+
         <button
-          onClick={() => onBack ? onBack() : navigate(-1)}
-          className="absolute top-6 left-6 flex items-center gap-2 bg-white/90 hover:bg-white px-5 py-2.5 rounded-2xl text-sm font-medium shadow transition-all"
+          onClick={() => (onBack ? onBack() : navigate(-1))}
+          className="
+          absolute top-5 left-5
+          inline-flex items-center gap-2
+          px-4 py-2
+          rounded-xl
+          bg-white
+          text-slate-700
+          text-sm font-medium
+          border border-white/80
+          hover:bg-slate-50
+          transition-colors
+        "
         >
-          <ArrowLeft size={18} /> {t('back_btn')}
+          <ArrowLeft size={17} />
+          {t("back_btn")}
         </button>
-        <div className="absolute top-6 right-6 flex items-center gap-3">
-          <span className={`px-5 py-2 rounded-2xl text-sm font-medium ${currentStatus.color}`}>{currentStatus.label}</span>
+
+        <div className="absolute top-5 right-5">
+          <span
+            className={`
+            inline-flex items-center
+            px-4 py-2
+            rounded-xl
+            text-sm font-medium
+            border
+            ${currentStatus.color}
+          `}
+          >
+            {currentStatus.label}
+          </span>
         </div>
       </div>
 
-      <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 relative -mt-12 pb-12">
+      <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 relative -mt-10 pb-12">
         {/* Header Info */}
-        <div className="bg-white rounded-3xl shadow-lg p-6 mb-6">
-          <div className="flex justify-between items-start">
-            <div className="flex flex-col gap-1">
-              <h1 className="text-3xl font-bold text-slate-900">{event.title}</h1>
-            </div>
+        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 mb-5">
+          <div className="flex flex-col gap-3">
+            <h1 className="text-2xl md:text-3xl font-semibold text-slate-900">
+              {event.title}
+            </h1>
+
+            <p className="text-sm md:text-base text-slate-600 leading-relaxed">
+              {event.description}
+            </p>
           </div>
-          <p className="text-base text-gray-600 leading-relaxed">{event.description}</p>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-5 mt-3">
-            <div className="flex gap-3"><div className="w-10 h-10 bg-blue-100 rounded-xl flex items-center justify-center"><Calendar className="text-blue-600" size={22} /></div><div><p className="text-gray-500 text-xs">Ngày tổ chức</p><p className="font-semibold text-sm">{formatDate(event.startTime)}</p></div></div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-5">
+            <div className="flex items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
+              <div className="w-10 h-10 bg-blue-50 rounded-lg flex items-center justify-center">
+                <Calendar className="text-blue-600" size={20} />
+              </div>
+
+              <div>
+                <p className="text-xs text-slate-500">
+                  Ngày tổ chức
+                </p>
+                <p className="text-sm font-medium text-slate-800">
+                  {formatDate(event.startTime)}
+                </p>
+              </div>
+            </div>
           </div>
         </div>
 
-        {/* Tabs */}
-        <div className="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden">
+        {/* Tabs Card */}
+        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
           <style>
             {`
-              .custom-tabs-scrollbar::-webkit-scrollbar {
-                height: 4px;
-              }
-              .custom-tabs-scrollbar::-webkit-scrollbar-track {
-                background: #f1f5f9;
-              }
-              .custom-tabs-scrollbar::-webkit-scrollbar-thumb {
-                background: #cbd5e1;
-                border-radius: 10px;
-              }
-              .custom-tabs-scrollbar::-webkit-scrollbar-thumb:hover {
-                background: #94a3b8;
-              }
-            `}
+            .custom-tabs-scrollbar::-webkit-scrollbar {
+              height: 4px;
+            }
+            .custom-tabs-scrollbar::-webkit-scrollbar-track {
+              background: #f1f5f9;
+            }
+            .custom-tabs-scrollbar::-webkit-scrollbar-thumb {
+              background: #cbd5e1;
+              border-radius: 999px;
+            }
+            .custom-tabs-scrollbar::-webkit-scrollbar-thumb:hover {
+              background: #94a3b8;
+            }
+          `}
           </style>
-          <div className="flex border-b border-slate-200 overflow-x-auto bg-slate-50/50 custom-tabs-scrollbar">
-            {dynamicTabs.map(tab => {
+
+          <div className="flex border-b border-slate-200 overflow-x-auto bg-slate-50 custom-tabs-scrollbar">
+            {dynamicTabs.map((tab) => {
               const Icon = tab.icon;
               const isActive = activeTab === tab.key;
+
               return (
                 <button
                   key={tab.key}
                   onClick={() => setActiveTab(tab.key)}
-                  className={`flex items-center justify-center gap-1.5 px-3 py-3.5 text-[12px] font-bold transition-all relative flex-1 min-w-fit ${isActive ? "text-blue-600 bg-white" : "text-slate-500 hover:text-slate-700 hover:bg-slate-50"}`}
+                  className={`
+                  relative
+                  min-w-fit
+                  flex items-center justify-center gap-2
+                  px-4 py-3
+                  text-sm font-medium
+                  transition-colors
+                  ${isActive
+                      ? "text-blue-600 bg-white"
+                      : "text-slate-500 hover:text-slate-800 hover:bg-slate-100"
+                    }
+                `}
                 >
-                  <Icon size={16} className={isActive ? "text-blue-600" : "text-slate-400"} />
+                  <Icon
+                    size={16}
+                    className={isActive ? "text-blue-600" : "text-slate-400"}
+                  />
+
                   {tab.label}
+
                   {isActive && (
                     <motion.div
                       layoutId="activeTabUnderline"
-                      className="absolute bottom-0 left-0 right-0 h-[3px] bg-blue-600 rounded-t-full"
+                      className="absolute bottom-0 left-0 right-0 h-[2px] bg-blue-600"
                       initial={false}
-                      transition={{ type: "spring", stiffness: 500, damping: 30 }}
+                      transition={{ duration: 0.2 }}
                     />
                   )}
                 </button>
@@ -928,7 +991,7 @@ const EventDetailManagement = ({
             })}
           </div>
 
-          <div className="p-6">
+          <div className="p-5 md:p-6">
             {/* TỔNG QUAN */}
             {activeTab === "Tổng quan" && (
               <OverviewTab
@@ -944,9 +1007,7 @@ const EventDetailManagement = ({
             )}
 
             {/* CHƯƠNG TRÌNH SỰ KIỆN */}
-            {activeTab === "Chương trình" && (
-              <ProgramTab event={event} />
-            )}
+            {activeTab === "Chương trình" && <ProgramTab event={event} />}
 
             {/* ĐĂNG KÝ */}
             {activeTab === "Đăng ký" && (
@@ -984,7 +1045,7 @@ const EventDetailManagement = ({
 
             {/* BAN TỔ CHỨC */}
             {activeTab === "Ban tổ chức" && (
-              <div className="space-y-8">
+              <div className="space-y-6">
                 <OrganizerInvitation
                   isAddingMember={isAddingMember}
                   setIsAddingMember={setIsAddingMember}
@@ -997,7 +1058,9 @@ const EventDetailManagement = ({
                   filteredUsers={filteredUsers}
                   invitations={invitations}
                   addInvite={addInvite}
-                  removeInvite={(idx) => setInvitations(invitations.filter((_, i) => i !== idx))}
+                  removeInvite={(idx) =>
+                    setInvitations(invitations.filter((_, i) => i !== idx))
+                  }
                   updateInvite={updateInvite}
                   handleSendInvites={handleSendInvites}
                   isInviting={isInviting}
@@ -1042,7 +1105,11 @@ const EventDetailManagement = ({
                 loadingUsers={loadingUsers}
                 filteredUsers={filteredUsers}
                 presenterInvitations={presenterInvitations}
-                removePresenterInvite={(idx) => setPresenterInvitations(presenterInvitations.filter((_, i) => i !== idx))}
+                removePresenterInvite={(idx) =>
+                  setPresenterInvitations(
+                    presenterInvitations.filter((_, i) => i !== idx)
+                  )
+                }
                 updatePresenterInvite={updatePresenterInvite}
                 handleSendPresenterInvites={handleSendPresenterInvites}
                 isInvitingPresenter={isInvitingPresenter}
@@ -1056,33 +1123,40 @@ const EventDetailManagement = ({
 
             {/* VÒNG QUAY MAY MẮN */}
             {activeTab === "Vòng quay may mắn" && (
-              <>
-                {console.log("Lucky Draw State:", luckyDraw)}
-                <LuckyDrawTab
-                  event={event}
-                  luckyDraw={luckyDraw}
-                  handleOpenDuckRace={handleOpenDuckRace}
-                  onRefresh={onRefresh}
-                  isAdmin={isAdmin}
-                  navigate={navigate}
-                  onOpenCreator={() => setShowLuckyDrawCreatorModal(true)}
-                />
-              </>
+              <LuckyDrawTab
+                event={event}
+                luckyDraw={luckyDraw}
+                handleOpenDuckRace={handleOpenDuckRace}
+                onRefresh={onRefresh}
+                isAdmin={isAdmin}
+                navigate={navigate}
+                onOpenCreator={() => setShowLuckyDrawCreatorModal(true)}
+              />
             )}
 
             {/* THỐNG KÊ */}
             {activeTab === "Thống kê" && (
-              <div className="space-y-8">
+              <div className="space-y-6">
                 <EventStatistics
-                  summary={eventSummary || {
-                    totalRegistered: event.registeredCount || event.registrations?.length || 0,
-                    totalCheckedIn: checkedInCount,
-                    attendanceRate: (event.registeredCount || event.registrations?.length) > 0
-                      ? (checkedInCount / (event.registeredCount || event.registrations?.length)) * 100
-                      : 0,
-                    detailedAnalysis: eventSummary?.detailedAnalysis || {},
-                    isLive: event.status === 'ONGOING'
-                  }}
+                  summary={
+                    eventSummary || {
+                      totalRegistered:
+                        event.registeredCount ||
+                        event.registrations?.length ||
+                        0,
+                      totalCheckedIn: checkedInCount,
+                      attendanceRate:
+                        (event.registeredCount ||
+                          event.registrations?.length) > 0
+                          ? (checkedInCount /
+                            (event.registeredCount ||
+                              event.registrations?.length)) *
+                          100
+                          : 0,
+                      detailedAnalysis: eventSummary?.detailedAnalysis || {},
+                      isLive: event.status === "ONGOING",
+                    }
+                  }
                   loading={loading}
                 />
               </div>
@@ -1090,7 +1164,7 @@ const EventDetailManagement = ({
 
             {/* PHÂN TÍCH AI */}
             {activeTab === "Phân tích AI" && (
-              <div className="space-y-8">
+              <div className="space-y-6">
                 <EventAIAnalysis eventId={event.id} />
               </div>
             )}
@@ -1118,15 +1192,17 @@ const EventDetailManagement = ({
                 onLeaveTeam={() => {
                   setConfirmConfig({
                     title: "Xác nhận rời ban tổ chức",
-                    message: "Bạn có chắc chắn muốn rời ban tổ chức sự kiện này? Hành động này sẽ gửi yêu cầu đến Leader và Coordinator để phê duyệt.",
+                    message:
+                      "Bạn có chắc chắn muốn rời ban tổ chức sự kiện này? Hành động này sẽ gửi yêu cầu đến Leader và Coordinator để phê duyệt.",
                     onConfirm: onLeaveTeam,
                     icon: LogOut,
-                    color: "rose"
+                    color: "rose",
                   });
                   setShowConfirmModal(true);
                 }}
               />
             )}
+
             {/* THỬ THÁCH */}
             {activeTab === "Thử thách" && (
               <QuizTab
@@ -1143,7 +1219,6 @@ const EventDetailManagement = ({
             {/* KHẢO SÁT */}
             {activeTab === "Khảo sát" && (
               <div className="space-y-6">
-
                 <SurveyTab
                   event={event}
                   surveyFileInputRef={surveyFileInputRef}
@@ -1157,14 +1232,10 @@ const EventDetailManagement = ({
             )}
 
             {/* PHẢN HỒI / ĐÁNH GIÁ */}
-            {activeTab === "feedback" && (
-              <FeedbackTab eventId={event.id} />
-            )}
+            {activeTab === "feedback" && <FeedbackTab eventId={event.id} />}
 
             {/* HỎI ĐÁP Q&A */}
-            {activeTab === "qa" && (
-              <QATab eventId={event.id} />
-            )}
+            {activeTab === "qa" && <QATab eventId={event.id} />}
 
             {/* FULL SCREEN JOIN MODAL */}
             <AnimatePresence>
@@ -1173,64 +1244,85 @@ const EventDetailManagement = ({
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   exit={{ opacity: 0 }}
-                  className="fixed inset-0 z-[9999] bg-[#46178F] flex flex-col items-center justify-center p-6"
+                  className="fixed inset-0 z-[9999] bg-slate-900 flex flex-col items-center justify-center p-6"
                 >
-                  {/* Close button */}
                   <button
                     onClick={() => setShowJoinCodeModal(false)}
-                    className="absolute top-8 right-8 p-3 bg-white/10 hover:bg-white/20 rounded-full text-white transition-all backdrop-blur-md"
+                    className="absolute top-6 right-6 p-2.5 bg-white/10 hover:bg-white/20 rounded-xl text-white transition-colors"
                   >
-                    <X size={28} />
+                    <X size={24} />
                   </button>
 
-                  <div className="relative z-10 w-full max-w-4xl flex flex-col items-center">
+                  <div className="relative z-10 w-full max-w-3xl flex flex-col items-center text-center">
                     <motion.div
-                      initial={{ scale: 0.5, opacity: 0 }}
+                      initial={{ scale: 0.95, opacity: 0 }}
                       animate={{ scale: 1, opacity: 1 }}
-                      className="w-32 h-32 bg-white/20 rounded-full flex items-center justify-center mb-12 border-4 border-white/30 shadow-2xl"
+                      className="w-20 h-20 bg-indigo-600 rounded-2xl flex items-center justify-center mb-8"
                     >
-                      <Trophy size={64} className="text-amber-300" fill="currentColor" />
+                      <Trophy size={40} className="text-amber-300" />
                     </motion.div>
 
-                    <h2 className="text-5xl font-black text-white uppercase tracking-tighter mb-4 text-center">Mã tham gia</h2>
-                    <p className="text-white/60 text-lg font-bold uppercase tracking-[0.3em] mb-16 text-center">Nhập PIN 6 số hoặc quét QR</p>
+                    <h2 className="text-3xl md:text-4xl font-semibold text-white mb-3">
+                      Mã tham gia
+                    </h2>
 
-                    <div className="flex flex-col md:flex-row items-center gap-8 w-full max-w-2xl">
-                      {/* CENTER: PIN INPUT */}
-                      <div className="flex-1 w-full">
-                        <input
-                          autoFocus
-                          type="text"
-                          placeholder="MÃ PIN"
-                          maxLength={6}
-                          className="w-full bg-white rounded-[2rem] px-8 py-8 text-4xl font-black text-center uppercase tracking-[0.4em] text-[#46178F] shadow-2xl outline-none"
-                          onChange={(e) => {
-                            const val = e.target.value.toUpperCase();
-                            if (val.length === 6) {
-                              const matched = quizzes.find(q => q.id?.startsWith(val.toLowerCase()));
-                              if (matched) {
-                                setActiveQuizId(matched.id);
-                                setShowQuizModal(true);
-                                setShowJoinCodeModal(false);
-                                toast.success("Đang kết nối...");
-                              } else {
-                                toast.error("Mã PIN không đúng");
-                              }
+                    <p className="text-slate-300 text-sm mb-10">
+                      Nhập PIN 6 số hoặc quét mã QR để tham gia thử thách
+                    </p>
+
+                    <div className="flex flex-col md:flex-row items-center gap-4 w-full max-w-xl">
+                      <input
+                        autoFocus
+                        type="text"
+                        placeholder="Mã PIN"
+                        maxLength={6}
+                        className="
+                        flex-1 w-full
+                        bg-white
+                        rounded-2xl
+                        px-6 py-5
+                        text-3xl font-semibold
+                        text-center uppercase tracking-[0.3em]
+                        text-indigo-700
+                        outline-none
+                      "
+                        onChange={(e) => {
+                          const val = e.target.value.toUpperCase();
+                          if (val.length === 6) {
+                            const matched = quizzes.find((q) =>
+                              q.id?.startsWith(val.toLowerCase())
+                            );
+                            if (matched) {
+                              setActiveQuizId(matched.id);
+                              setShowQuizModal(true);
+                              setShowJoinCodeModal(false);
+                              toast.success("Đang kết nối...");
+                            } else {
+                              toast.error("Mã PIN không đúng");
                             }
-                          }}
-                        />
-                      </div>
+                          }
+                        }}
+                      />
 
-                      {/* RIGHT: QR SCANNER BUTTON */}
-                      <div className="flex-shrink-0">
-                        <button
-                          onClick={() => { setShowJoinCodeModal(false); setShowScanner(true); }}
-                          className="w-24 h-24 md:w-32 md:h-32 bg-amber-400 text-slate-900 rounded-[2rem] flex flex-col items-center justify-center gap-2 hover:bg-amber-300 hover:scale-105 transition-all shadow-2xl"
-                        >
-                          <QrCode size={40} />
-                          <span className="text-[10px] font-black uppercase tracking-widest">Quét QR</span>
-                        </button>
-                      </div>
+                      <button
+                        onClick={() => {
+                          setShowJoinCodeModal(false);
+                          setShowScanner(true);
+                        }}
+                        className="
+                        w-full md:w-28 h-16 md:h-24
+                        bg-amber-400
+                        text-slate-900
+                        rounded-2xl
+                        flex md:flex-col items-center justify-center gap-2
+                        hover:bg-amber-300
+                        transition-colors
+                        font-medium
+                      "
+                      >
+                        <QrCode size={28} />
+                        <span className="text-xs">Quét QR</span>
+                      </button>
                     </div>
                   </div>
                 </motion.div>
@@ -1243,16 +1335,57 @@ const EventDetailManagement = ({
       {/* Delete Confirmation Modal */}
       {showDeleteConfirm && (
         <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={() => setShowDeleteConfirm(false)}></div>
-          <div className="relative bg-white w-full max-w-sm rounded-3xl p-8 text-center shadow-2xl animate-in zoom-in-95 duration-200">
-            <div className="w-16 h-16 bg-rose-100 text-rose-600 rounded-full flex items-center justify-center mx-auto mb-4"><Trash2 size={32} /></div>
-            <h3 className="text-xl font-bold text-slate-800 mb-2">Xác nhận xóa?</h3>
-            <p className="text-slate-500 text-sm mb-8 leading-relaxed">
-              Bạn có chắc chắn muốn xóa sự kiện này? Các thông tin liên quan như <strong>phiên họp (sessions)</strong> và <strong>bài viết (posts)</strong> cũng sẽ bị xóa mềm. Hành động này không thể hoàn tác.
-            </p>
-            <div className="flex gap-3">
-              <button onClick={() => setShowDeleteConfirm(false)} className="flex-1 py-3 bg-slate-100 text-slate-600 rounded-xl font-bold hover:bg-slate-200 transition-all">Hủy bỏ</button>
-              <button onClick={onDeleteEvent} disabled={isDeleting} className="flex-1 py-3 bg-rose-600 text-white rounded-xl font-bold hover:bg-rose-700 shadow-lg shadow-rose-100 disabled:opacity-50 transition-all">{isDeleting ? "Đang xóa..." : "Xác nhận xóa"}</button>
+          <div
+            className="absolute inset-0 bg-black/50"
+            onClick={() => setShowDeleteConfirm(false)}
+          />
+
+          <div className="relative w-full max-w-md bg-white rounded-2xl border border-slate-200 shadow-xl overflow-hidden">
+            <div className="p-6">
+              <div className="flex items-start gap-4 mb-5">
+                <div className="w-12 h-12 rounded-xl bg-rose-50 flex items-center justify-center text-rose-600 shrink-0">
+                  <Trash2 size={22} />
+                </div>
+
+                <div>
+                  <h3 className="text-lg font-semibold text-slate-800">
+                    Xác nhận xóa sự kiện
+                  </h3>
+
+                  <p className="text-sm text-slate-500 mt-1 leading-relaxed">
+                    Sự kiện cùng các dữ liệu liên quan sẽ bị xóa mềm và không còn hiển thị trong hệ thống.
+                  </p>
+                </div>
+              </div>
+
+              <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 mb-6">
+                <p className="text-sm text-amber-700 leading-relaxed">
+                  Bao gồm:
+                </p>
+
+                <ul className="mt-2 text-sm text-amber-700 space-y-1 list-disc pl-5">
+                  <li>Phiên họp (sessions)</li>
+                  <li>Bài viết liên quan (posts)</li>
+                  <li>Dữ liệu đăng ký tham gia</li>
+                </ul>
+              </div>
+
+              <div className="flex justify-end gap-3">
+                <button
+                  onClick={() => setShowDeleteConfirm(false)}
+                  className="px-5 py-2.5 rounded-xl border border-slate-200 bg-white text-slate-600 text-sm font-medium hover:bg-slate-50 transition-colors"
+                >
+                  Hủy bỏ
+                </button>
+
+                <button
+                  onClick={onDeleteEvent}
+                  disabled={isDeleting}
+                  className="px-5 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-700 disabled:opacity-50 text-white text-sm font-medium transition-colors"
+                >
+                  {isDeleting ? "Đang xóa..." : "Xác nhận xóa"}
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -1274,87 +1407,108 @@ const EventDetailManagement = ({
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => setShowEventQRModal(false)}
-              className="absolute inset-0 bg-slate-900/60 backdrop-blur-md"
+              className="absolute inset-0 bg-black/50"
             />
+
             <motion.div
-              initial={{ opacity: 0, scale: 0.9, y: 20 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.9, y: 20 }}
-              className="bg-white rounded-[2.5rem] shadow-2xl w-full max-w-sm overflow-hidden relative z-10 border border-white"
+              initial={{ opacity: 0, y: 16, scale: 0.98 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 16, scale: 0.98 }}
+              transition={{ duration: 0.18 }}
+              className="relative z-10 bg-white rounded-2xl shadow-xl w-full max-w-sm overflow-hidden border border-slate-200"
             >
-              <div className="p-8 text-center">
-                <div className="flex justify-between items-start mb-6">
+              <div className="p-6 text-center">
+                <div className="flex justify-between items-start mb-5">
                   <div className="text-left">
-                    <h3 className="text-xl font-black text-slate-800 uppercase tracking-tight">QR Điểm Danh</h3>
+                    <h3 className="text-lg font-semibold text-slate-800">
+                      QR điểm danh
+                    </h3>
+
                     <div className="flex items-center gap-2 mt-1">
-                      <span className={`px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-widest ${event?.qrType === "DYNAMIC" ? "bg-amber-100 text-amber-700" : "bg-emerald-100 text-emerald-700"}`}>
-                        {event?.qrType === "DYNAMIC" ? "Mã QR Động" : "Mã QR Tĩnh"}
+                      <span
+                        className={`px-2 py-0.5 rounded-md text-[11px] font-medium ${event?.qrType === "DYNAMIC"
+                          ? "bg-amber-50 text-amber-700 border border-amber-100"
+                          : "bg-emerald-50 text-emerald-700 border border-emerald-100"
+                          }`}
+                      >
+                        {event?.qrType === "DYNAMIC" ? "QR động" : "QR tĩnh"}
                       </span>
+
                       {event?.qrType === "DYNAMIC" && (
-                        <span className="text-[9px] text-slate-400 font-bold tabular-nums">
-                          Làm mới sau {qrCountdown}s
+                        <span className="text-xs text-slate-400">
+                          {qrCountdown}s
                         </span>
                       )}
                     </div>
                   </div>
-                  <div className="flex items-center gap-2">
+
+                  <div className="flex items-center gap-1">
                     {!loadingQR && eventQRToken && (
                       <button
                         onClick={downloadEventQR}
-                        className="p-2 hover:bg-slate-100 rounded-full transition-colors text-indigo-600"
+                        className="p-2 hover:bg-slate-100 rounded-lg transition-colors text-indigo-600"
                         title="Tải mã QR"
                       >
-                        <Download size={20} />
+                        <Download size={18} />
                       </button>
                     )}
-                    <button onClick={() => setShowEventQRModal(false)} className="p-2 hover:bg-slate-100 rounded-full transition-colors">
-                      <X size={20} />
+
+                    <button
+                      onClick={() => setShowEventQRModal(false)}
+                      className="p-2 hover:bg-slate-100 rounded-lg transition-colors text-slate-500"
+                    >
+                      <X size={18} />
                     </button>
                   </div>
                 </div>
 
                 <div
                   onClick={() => !loadingQR && setShowQRZoom(true)}
-                  className={`bg-slate-50 p-6 rounded-[2rem] border border-slate-100 mb-6 flex items-center justify-center min-h-[240px] relative group cursor-pointer transition-all hover:bg-slate-100 active:scale-95`}
+                  className="bg-slate-50 p-5 rounded-xl border border-slate-200 mb-5 flex items-center justify-center min-h-[230px] relative group cursor-pointer hover:bg-slate-100 transition-colors"
                 >
                   {loadingQR ? (
                     <div className="flex flex-col items-center gap-3">
-                      <div className="w-10 h-10 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin" />
-                      <p className="text-xs text-slate-500 font-medium">Đang tạo mã...</p>
+                      <div className="w-9 h-9 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin" />
+                      <p className="text-sm text-slate-500">Đang tạo mã...</p>
                     </div>
                   ) : (
                     <>
                       <QRCode id="event-qr-code" value={eventQRToken} size={200} />
-                      
+
                       {event?.qrType === "DYNAMIC" && (
-                        <div className="absolute bottom-0 left-0 right-0 h-1 bg-slate-200 overflow-hidden rounded-b-[2rem]">
-                          <motion.div 
+                        <div className="absolute bottom-0 left-0 right-0 h-1 bg-slate-200 overflow-hidden rounded-b-xl">
+                          <motion.div
                             initial={{ width: "100%" }}
                             animate={{ width: "0%" }}
-                            transition={{ duration: 30, ease: "linear", repeat: Infinity }}
+                            transition={{
+                              duration: 30,
+                              ease: "linear",
+                              repeat: Infinity,
+                            }}
                             className="h-full bg-indigo-600"
                           />
                         </div>
                       )}
 
-                      <div className="absolute inset-0 bg-slate-900/40 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center rounded-[2rem] text-white">
-                        <Maximize2 size={32} className="mb-2" />
-                        <span className="text-[10px] font-black uppercase tracking-widest">Phóng to</span>
+                      <div className="absolute inset-0 bg-black/35 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center rounded-xl text-white">
+                        <Maximize2 size={28} className="mb-2" />
+                        <span className="text-xs font-medium">Phóng to</span>
                       </div>
                     </>
                   )}
                 </div>
 
-                <div className="space-y-2">
-                  <p className="text-slate-800 font-bold text-sm uppercase">{event?.title}</p>
-                  <p className="text-slate-400 text-[10px] leading-relaxed px-4">
-                    Nhấp vào mã QR để phóng to hoặc tải về để in ấn và sử dụng.
-                  </p>
-                </div>
+                <p className="text-sm font-medium text-slate-800 line-clamp-2">
+                  {event?.title}
+                </p>
+
+                <p className="text-xs text-slate-400 leading-relaxed mt-1">
+                  Nhấp vào mã QR để phóng to hoặc tải về để in.
+                </p>
 
                 <button
                   onClick={() => setShowEventQRModal(false)}
-                  className="mt-8 w-full py-4 bg-slate-900 text-white rounded-2xl font-bold text-sm uppercase tracking-widest hover:bg-slate-800 transition-all shadow-lg shadow-slate-200"
+                  className="mt-6 w-full h-11 rounded-xl bg-slate-900 text-white text-sm font-medium hover:bg-slate-800 transition-colors"
                 >
                   Đóng
                 </button>
@@ -1373,26 +1527,36 @@ const EventDetailManagement = ({
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => setShowQRZoom(false)}
-              className="absolute inset-0 bg-slate-900/90 backdrop-blur-xl"
+              className="absolute inset-0 bg-black/70"
             />
+
             <motion.div
-              initial={{ opacity: 0, scale: 0.8 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.8 }}
-              className="relative z-10 flex flex-col items-center gap-8"
+              initial={{ opacity: 0, y: 16, scale: 0.98 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 16, scale: 0.98 }}
+              transition={{ duration: 0.18 }}
+              className="relative z-10 w-full max-w-md bg-white rounded-2xl border border-slate-200 shadow-xl p-6 text-center"
             >
-              <div className="bg-white p-12 rounded-[3rem] shadow-2xl border border-white">
-                <QRCode value={eventQRToken} size={360} />
+              <div className="flex justify-center mb-5">
+                <div className="p-4 rounded-xl bg-white border border-slate-200">
+                  <QRCode value={eventQRToken} size={300} />
+                </div>
               </div>
-              <div className="text-center text-white space-y-4">
-                <h4 className="text-2xl font-black uppercase tracking-tight">{event?.title}</h4>
-                <button
-                  onClick={() => setShowQRZoom(false)}
-                  className="px-12 py-4 bg-white text-slate-900 rounded-full font-black text-sm uppercase tracking-[3px] hover:bg-slate-100 transition-all active:scale-95"
-                >
-                  Đóng phóng to
-                </button>
-              </div>
+
+              <h4 className="text-lg font-semibold text-slate-800 mb-2 line-clamp-2">
+                {event?.title}
+              </h4>
+
+              <p className="text-sm text-slate-500 mb-6">
+                Quét mã QR để điểm danh sự kiện
+              </p>
+
+              <button
+                onClick={() => setShowQRZoom(false)}
+                className="w-full h-11 rounded-xl bg-slate-900 text-white text-sm font-medium hover:bg-slate-800 transition-colors"
+              >
+                Đóng
+              </button>
             </motion.div>
           </div>
         )}
@@ -1407,34 +1571,65 @@ const EventDetailManagement = ({
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => setShowConfirmModal(false)}
-              className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm"
+              className="absolute inset-0 bg-black/40"
             />
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95, y: 20 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              className="bg-white rounded-[2rem] shadow-2xl w-full max-w-md overflow-hidden relative z-10 border border-white"
-            >
-              <div className="p-8 text-center">
-                <div className={`w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-6 bg-${confirmConfig.color}-50`}>
-                  {confirmConfig.icon && <confirmConfig.icon className={`w-8 h-8 text-${confirmConfig.color}-500`} />}
-                </div>
-                <h3 className="text-xl font-black text-slate-800 mb-2 uppercase tracking-tight">{confirmConfig.title}</h3>
-                <p className="text-slate-500 text-sm leading-relaxed mb-8">{confirmConfig.message}</p>
 
-                <div className="grid grid-cols-2 gap-3">
+            <motion.div
+              initial={{ opacity: 0, y: 16, scale: 0.98 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 16, scale: 0.98 }}
+              transition={{ duration: 0.18 }}
+              className="relative z-10 w-full max-w-md bg-white rounded-2xl border border-slate-200 shadow-xl overflow-hidden"
+            >
+              <div className="p-6">
+                <div className="flex items-start gap-4">
+                  <div
+                    className={`w-12 h-12 rounded-xl flex items-center justify-center shrink-0 ${confirmConfig.color === "rose"
+                      ? "bg-rose-50 text-rose-600"
+                      : confirmConfig.color === "amber"
+                        ? "bg-amber-50 text-amber-600"
+                        : confirmConfig.color === "emerald"
+                          ? "bg-emerald-50 text-emerald-600"
+                          : "bg-blue-50 text-blue-600"
+                      }`}
+                  >
+                    {confirmConfig.icon && (
+                      <confirmConfig.icon className="w-6 h-6" />
+                    )}
+                  </div>
+
+                  <div className="flex-1">
+                    <h3 className="text-lg font-semibold text-slate-800">
+                      {confirmConfig.title}
+                    </h3>
+
+                    <p className="text-sm text-slate-500 leading-relaxed mt-1">
+                      {confirmConfig.message}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex justify-end gap-3 mt-6">
                   <button
                     onClick={() => setShowConfirmModal(false)}
-                    className="py-3.5 px-6 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl font-bold transition-all"
+                    className="px-5 py-2.5 rounded-xl border border-slate-200 bg-white text-slate-600 text-sm font-medium hover:bg-slate-50 transition-colors"
                   >
                     Hủy bỏ
                   </button>
+
                   <button
                     onClick={() => {
                       confirmConfig.onConfirm();
                       setShowConfirmModal(false);
                     }}
-                    className={`py-3.5 px-6 bg-${confirmConfig.color}-600 hover:bg-${confirmConfig.color}-700 text-white rounded-xl font-bold shadow-lg shadow-${confirmConfig.color}-100 transition-all`}
+                    className={`px-5 py-2.5 rounded-xl text-white text-sm font-medium transition-colors ${confirmConfig.color === "rose"
+                      ? "bg-rose-600 hover:bg-rose-700"
+                      : confirmConfig.color === "amber"
+                        ? "bg-amber-500 hover:bg-amber-600"
+                        : confirmConfig.color === "emerald"
+                          ? "bg-emerald-600 hover:bg-emerald-700"
+                          : "bg-blue-600 hover:bg-blue-700"
+                      }`}
                   >
                     Xác nhận
                   </button>
@@ -1456,7 +1651,6 @@ const EventDetailManagement = ({
         />
       )}
 
-      {/* QUIZ CREATOR MODAL */}
       <QuizCreatorModal
         isOpen={showQuizCreatorModal}
         onClose={() => setShowQuizCreatorModal(false)}
@@ -1464,12 +1658,11 @@ const EventDetailManagement = ({
         onCreated={fetchQuizzes}
       />
 
-      {/* DUCK RACE MODAL */}
       <DuckRaceLuckyDraw
         isOpen={showDuckRace}
         onClose={() => {
           setShowDuckRace(false);
-          onRefresh(); // Refresh to see new winners
+          onRefresh();
         }}
         participants={raceParticipants}
         onSpin={handleDuckSpin}
@@ -1478,7 +1671,6 @@ const EventDetailManagement = ({
         luckyDrawId={luckyDraw?.id || luckyDraw?.luckyDraw?.id}
       />
 
-      {/* SURVEY CREATOR MODAL */}
       <SurveyCreatorModal
         isOpen={showSurveyCreatorModal}
         onClose={() => setShowSurveyCreatorModal(false)}
@@ -1486,7 +1678,6 @@ const EventDetailManagement = ({
         onSaved={() => { }}
       />
 
-      {/* SURVEY MODAL (student view) */}
       <SurveyModal
         isOpen={showSurveyModal}
         onClose={() => setShowSurveyModal(false)}

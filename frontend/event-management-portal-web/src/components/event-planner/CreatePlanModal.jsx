@@ -6,72 +6,12 @@ import {
 } from "lucide-react";
 import eventService from "../../services/eventService";
 import PromptModal from "../common/PromptModal";
+import { useAuth } from "../../context/AuthContext";
+import { safeParseAIJson, formatAIDate, calculateSimilarity } from "../../utils/aiUtils";
 
 // ✨ Helper to extract and parse JSON safely from AI response
 // ✨ Helper to extract and parse JSON safely from AI response
-const safeParseAIJson = (text) => {
-  if (!text) return null;
-  try {
-    // 1. Tìm khối JSON bằng Regex (giữa { và cái cuối cùng có thể tìm thấy)
-    let cleanJson = "";
-    const firstBrace = text.indexOf('{');
-    if (firstBrace === -1) return null;
-
-    cleanJson = text.substring(firstBrace);
-    const lastBrace = cleanJson.lastIndexOf('}');
-
-    // Nếu không thấy dấu đóng }, chúng ta sẽ cố gắng tự vá
-    if (lastBrace === -1) {
-      console.warn("Dữ liệu AI bị cắt ngang, đang cố gắng sửa lỗi JSON...");
-    } else {
-      cleanJson = cleanJson.substring(0, lastBrace + 1);
-    }
-
-    // 2. Xử lý lỗi "Unterminated string" do xuống dòng
-    cleanJson = cleanJson.replace(/"([^"\\]*(?:\\.[^"\\]*)*)"/g, (match, p1) => {
-      return '"' + p1.replace(/\n/g, "\\n").replace(/\r/g, "\\r") + '"';
-    });
-
-    // 3. Hàm vá lỗi JSON bị cắt ngang (tự đóng ngoặc)
-    const repairJson = (json) => {
-      let openBraces = 0;
-      let openBrackets = 0;
-      let inString = false;
-
-      for (let i = 0; i < json.length; i++) {
-        const char = json[i];
-        if (char === '"' && (i === 0 || json[i - 1] !== '\\')) {
-          inString = !inString;
-        }
-        if (!inString) {
-          if (char === '{') openBraces++;
-          else if (char === '}') openBraces--;
-          else if (char === '[') openBrackets++;
-          else if (char === ']') openBrackets--;
-        }
-      }
-
-      let repaired = json;
-      if (inString) repaired += '"';
-      while (openBrackets > 0) { repaired += ']'; openBrackets--; }
-      while (openBraces > 0) { repaired += '}'; openBraces--; }
-      return repaired;
-    };
-
-    const repairedJson = repairJson(cleanJson);
-
-    try {
-      return JSON.parse(repairedJson);
-    } catch (e) {
-      console.warn("Parse thất bại lần 1, dọn dẹp ký tự điều khiển...");
-      const crude = repairedJson.replace(/[\u0000-\u001F\u007F-\u009F]/g, " ");
-      return JSON.parse(crude);
-    }
-  } catch (e) {
-    console.error("Lỗi parse JSON AI hoàn toàn:", e, "\nNội dung thô:", text);
-    return null;
-  }
-};
+// ✨ Utility helpers moved to aiUtils.js
 
 const mapTemplateToPrefill = (template) => {
   // Build AI-suggested sessions from configData if available
@@ -140,6 +80,36 @@ const mapTemplateToPrefill = (template) => {
   };
 };
 
+const fetchUserLocation = async () => {
+  return new Promise((resolve) => {
+    if (!navigator.geolocation) {
+      resolve("");
+      return;
+    }
+    navigator.geolocation.getCurrentPosition(
+      async (position) => {
+        try {
+          const { latitude, longitude } = position.coords;
+          const response = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}&zoom=18&addressdetails=1`);
+          const data = await response.json();
+          resolve(data.display_name || `${latitude}, ${longitude}`);
+        } catch (error) {
+          resolve(`${position.coords.latitude}, ${position.coords.longitude}`);
+        }
+      },
+      (error) => {
+        console.warn("Lỗi lấy vị trí:", error);
+        resolve("");
+      },
+      {
+        enableHighAccuracy: false,
+        maximumAge: 300000, // Reuse location cached up to 5 mins
+        timeout: 30000 // Wait max 30 seconds for user to click Allow
+      }
+    );
+  });
+};
+
 const CreatePlanModal = ({ isOpen, onClose, onSelectPlan, onCreateNew, initialAiText = "" }) => {
   const [templates, setTemplates] = useState([]);
   const [fetching, setFetching] = useState(true);
@@ -147,7 +117,21 @@ const CreatePlanModal = ({ isOpen, onClose, onSelectPlan, onCreateNew, initialAi
   const [selected, setSelected] = useState(null);
   const [isRecommending, setIsRecommending] = useState(false);
   const [recommendedTemplates, setRecommendedTemplates] = useState([]);
+  const { user } = useAuth();
   const [isAIPlanning, setIsAIPlanning] = useState(false);
+  const [organizations, setOrganizations] = useState([]);
+
+  useEffect(() => {
+    const fetchOrgs = async () => {
+      try {
+        const res = await eventService.getAllOrganizations();
+        setOrganizations(res.data || []);
+      } catch (err) {
+        console.error("Lỗi lấy danh sách đơn vị:", err);
+      }
+    };
+    if (isOpen) fetchOrgs();
+  }, [isOpen]);
   const [aiText, setAiText] = useState("");
   const [showAiInput, setShowAiInput] = useState(false);
 
@@ -286,28 +270,71 @@ const CreatePlanModal = ({ isOpen, onClose, onSelectPlan, onCreateNew, initialAi
         eventTopic: suggestion.subject || "",
         location: suggestion.suggestedLocation || targetTemplate.defaultLocation,
         maxParticipants: suggestion.estimatedParticipants || targetTemplate.defaultMaxParticipants,
+        registrationDeadline: formatAIDate(suggestion.registrationDeadline, "23:59"),
         sessions: (suggestion.programItems || []).map((item, idx) => ({
           title: item.title || "Không tên",
           description: item.description || "",
           durationMinutes: item.durationMinutes || 30,
-          startTime: item.startTime ? new Date(item.startTime).toISOString().slice(0, 16) : "",
-          endTime: item.endTime ? new Date(item.endTime).toISOString().slice(0, 16) : "",
+          startTime: formatAIDate(item.startTime),
+          endTime: formatAIDate(item.endTime),
           speaker: item.speaker || "",
           room: item.location || "",
           orderIndex: idx + 1
         })),
+        interactionSettings: {
+          enableQA: true,
+          enablePolls: false,
+          allowUserQuestions: true
+        },
+        hasLuckyDraw: false,
         aiReasoning: suggestion.reasoning || ""
       };
 
-      if (suggestion.suggestedStartTime) {
-        try {
-          mappedData.startTime = new Date(suggestion.suggestedStartTime).toISOString().slice(0, 16);
-        } catch (e) { console.warn("Invalid start time from AI"); }
-      }
-      if (suggestion.suggestedEndTime) {
-        try {
-          mappedData.endTime = new Date(suggestion.suggestedEndTime).toISOString().slice(0, 16);
-        } catch (e) { console.warn("Invalid end time from AI"); }
+      // Ensure Golden Times
+      mappedData.startTime = formatAIDate(suggestion.suggestedStartTime, "07:00");
+      mappedData.endTime = formatAIDate(suggestion.suggestedEndTime, "23:59");
+      mappedData.registrationDeadline = formatAIDate(suggestion.registrationDeadline, "23:59");
+
+      // Intelligent Fuzzy Organization Matching
+      const currentLocation = await fetchUserLocation();
+
+      if (suggestion.suggestedOrganizerName) {
+        let bestMatch = null;
+        let highestScore = 0;
+
+        organizations.forEach(o => {
+          const score = calculateSimilarity(suggestion.suggestedOrganizerName, o.organizationName);
+          if (score > highestScore) {
+            highestScore = score;
+            bestMatch = o;
+          }
+        });
+
+        if (bestMatch && highestScore > 0.4) {
+          console.log(`Fuzzy match found: ${bestMatch.organizationName} (Score: ${highestScore.toFixed(2)})`);
+          mappedData.orgSelectionMode = "existing";
+          mappedData.organizerId = bestMatch.id;
+        } else {
+          mappedData.orgSelectionMode = "new";
+          mappedData.newOrg = {
+            name: suggestion.suggestedOrganizerName || "",
+            description: suggestion.suggestedOrganizerDescription || "",
+            email: user?.email || "",
+            phone: user?.phone || "",
+            type: "OTHER",
+            officeLocation: currentLocation
+          };
+        }
+      } else {
+        mappedData.orgSelectionMode = "new";
+        mappedData.newOrg = {
+          name: "",
+          description: "",
+          email: user?.email || "",
+          phone: user?.phone || "",
+          type: "OTHER",
+          officeLocation: currentLocation
+        };
       }
 
       onSelectPlan({ fromPlan: false, initialFormData: mappedData, startAtStep: 1 });
@@ -332,6 +359,11 @@ const CreatePlanModal = ({ isOpen, onClose, onSelectPlan, onCreateNew, initialAi
       const suggestion = safeParseAIJson(rawResult);
       if (!suggestion) throw new Error("AI trả về định dạng không hợp lệ. Vui lòng thử lại.");
 
+      // Hậu xử lý để ép giờ theo quy tắc "Giờ Vàng" nếu AI trả về giờ mặc định (00:00)
+      const forceStartTime = (suggestion.suggestedStartTime && suggestion.suggestedStartTime.includes('00:00:00')) ? "07:00" : null;
+      const forceEndTime = (suggestion.suggestedEndTime && suggestion.suggestedEndTime.includes('00:00:00')) ? "23:59" : null;
+      const forceDeadline = (suggestion.registrationDeadline && suggestion.registrationDeadline.includes('00:00:00')) ? "23:59" : null;
+
       const mappedData = {
         eventTitle: suggestion.title || "",
         title: suggestion.title || "",
@@ -339,16 +371,18 @@ const CreatePlanModal = ({ isOpen, onClose, onSelectPlan, onCreateNew, initialAi
         description: suggestion.description || "",
         eventTopic: suggestion.subject || "",
         location: suggestion.suggestedLocation || "",
-        maxParticipants: suggestion.estimatedParticipants || 50,
+        maxParticipants: suggestion.estimatedParticipants || 200,
         eventType: "WORKSHOP",
         eventMode: "OFFLINE",
-        orgSelectionMode: "existing",
+        startTime: formatAIDate(suggestion.suggestedStartTime, forceStartTime || (suggestion.suggestedStartTime?.includes('T07:00') ? null : "07:00")),
+        endTime: formatAIDate(suggestion.suggestedEndTime, forceEndTime || "23:59"),
+        registrationDeadline: formatAIDate(suggestion.registrationDeadline, forceDeadline || "23:59"),
         sessions: (suggestion.programItems || []).map((item, idx) => ({
           title: item.title || "Không tên",
           description: item.description || "",
           durationMinutes: item.durationMinutes || 30,
-          startTime: item.startTime ? new Date(item.startTime).toISOString().slice(0, 16) : "",
-          endTime: item.endTime ? new Date(item.endTime).toISOString().slice(0, 16) : "",
+          startTime: formatAIDate(item.startTime),
+          endTime: formatAIDate(item.endTime),
           speaker: item.speaker || "",
           room: item.location || "",
           orderIndex: idx + 1
@@ -375,22 +409,56 @@ const CreatePlanModal = ({ isOpen, onClose, onSelectPlan, onCreateNew, initialAi
         aiReasoning: suggestion.reasoning || ""
       };
 
-      if (suggestion.suggestedStartTime) {
-        try {
-          mappedData.startTime = new Date(suggestion.suggestedStartTime).toISOString().slice(0, 16);
-        } catch (e) { console.warn("Invalid start time from AI"); }
+      // Intelligent Fuzzy Organization Matching
+      const currentLocation = await fetchUserLocation();
+
+      if (suggestion.suggestedOrganizerName) {
+        let bestMatch = null;
+        let highestScore = 0;
+
+        organizations.forEach(o => {
+          const score = calculateSimilarity(suggestion.suggestedOrganizerName, o.organizationName);
+          if (score > highestScore) {
+            highestScore = score;
+            bestMatch = o;
+          }
+        });
+
+        if (bestMatch && highestScore > 0.4) {
+          console.log(`Fuzzy match found: ${bestMatch.organizationName} (Score: ${highestScore.toFixed(2)})`);
+          mappedData.orgSelectionMode = "existing";
+          mappedData.organizerId = bestMatch.id;
+        } else {
+          mappedData.orgSelectionMode = "new";
+          mappedData.newOrg = {
+            name: suggestion.suggestedOrganizerName || "",
+            description: suggestion.suggestedOrganizerDescription || "",
+            email: user?.email || "",
+            phone: user?.phone || "",
+            type: "OTHER",
+            officeLocation: currentLocation
+          };
+        }
+      } else {
+        mappedData.orgSelectionMode = "new";
+        mappedData.newOrg = {
+          name: "",
+          description: "",
+          email: user?.email || "",
+          phone: user?.phone || "",
+          type: "OTHER",
+          officeLocation: currentLocation
+        };
       }
-      if (suggestion.suggestedEndTime) {
-        try {
-          mappedData.endTime = new Date(suggestion.suggestedEndTime).toISOString().slice(0, 16);
-        } catch (e) { console.warn("Invalid end time from AI"); }
-      }
+
+      console.log("Map data:", mappedData);
+
 
       onSelectPlan({ fromPlan: false, initialFormData: mappedData, startAtStep: 1 });
       onClose();
     } catch (err) {
       console.error("AI Planning Raw Error:", err);
-      alert("❌ " + (err.message || "Lỗi khi AI phân tích dữ liệu"));
+      alert(err.message || "Lỗi khi AI phân tích dữ liệu");
     } finally {
       setIsAIPlanning(false);
     }

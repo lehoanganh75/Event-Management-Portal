@@ -1,5 +1,15 @@
-import React, { useState } from "react";
-import { QrCode, CheckCircle, Loader2, Check, X, Edit3, Search, User, Undo2 } from "lucide-react";
+import React, { useMemo, useState } from "react";
+import {
+  QrCode,
+  CheckCircle,
+  Check,
+  Search,
+  User,
+  Undo2,
+  Edit3,
+  ChevronLeft,
+  ChevronRight,
+} from "lucide-react";
 
 const CheckInTab = ({
   event,
@@ -18,214 +28,307 @@ const CheckInTab = ({
   setEditingTimeId,
   newCheckInTime,
   setNewCheckInTime,
-  isUpdatingTime,
   onUpdateCheckInTime,
-  formatDateTime
+  formatDateTime,
 }) => {
   const [searchTerm, setSearchTerm] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
 
-  const filteredRegistrations = (event.registrations || []).filter(reg => 
-    (reg.profile?.fullName || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (reg.participantAccountId || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (reg.ticketCode || "").toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const itemsPerPage = 10;
 
-  const canManage = isAdmin || userPerms.canCheckIn || isLeader || isCoreTeam;
+  const filteredRegistrations = useMemo(() => {
+    return (event.registrations || []).filter(
+      (reg) =>
+        (reg.profile?.fullName || "")
+          .toLowerCase()
+          .includes(searchTerm.toLowerCase()) ||
+        (reg.participantAccountId || "")
+          .toLowerCase()
+          .includes(searchTerm.toLowerCase()) ||
+        (reg.ticketCode || "")
+          .toLowerCase()
+          .includes(searchTerm.toLowerCase())
+    );
+  }, [event.registrations, searchTerm]);
+
+  const totalPages = Math.ceil(filteredRegistrations.length / itemsPerPage);
+
+  const paginatedRegistrations = useMemo(() => {
+    const start = (currentPage - 1) * itemsPerPage;
+    return filteredRegistrations.slice(start, start + itemsPerPage);
+  }, [filteredRegistrations, currentPage]);
+
+  const handleSearchChange = (e) => {
+    setSearchTerm(e.target.value);
+    setCurrentPage(1);
+  };
+
+  const canManage =
+    isAdmin || userPerms.canCheckIn || isLeader || isCoreTeam;
 
   return (
-    <div className="space-y-6">
-      {/* 1. MANAGEMENT HEADER */}
-      <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+    <div className="space-y-5">
+      {/* Header */}
+      <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm">
+        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-5">
           <div>
             <div className="flex items-center gap-2 mb-1">
-              <h3 className="font-black text-slate-800 text-lg uppercase tracking-tight">Điều khiển Điểm danh</h3>
-              <span className="px-2 py-0.5 bg-indigo-100 text-indigo-700 text-[10px] font-black rounded-full">
-                {checkedInCount} / {event.registeredCount}
+              <h3 className="text-base font-semibold text-slate-800">
+                Quản lý điểm danh
+              </h3>
+
+              <span className="px-2 py-0.5 rounded-md bg-indigo-50 text-indigo-600 text-[11px] font-medium">
+                {checkedInCount}/{event.registeredCount}
               </span>
             </div>
-            <p className="text-[11px] text-slate-400 font-medium">Quản lý mã QR và trạng thái có mặt của người tham gia</p>
+
+            <p className="text-sm text-slate-500">
+              Kiểm soát trạng thái check-in người tham gia
+            </p>
           </div>
 
           <div className="flex flex-wrap items-center gap-3">
             {canManage && (
-              <div className="flex items-center gap-4 bg-slate-50 px-4 py-2 rounded-xl border border-slate-100">
-                <div className="flex items-center gap-2">
-                  <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Trạng thái</span>
+              <>
+                <div className="flex items-center gap-3 bg-slate-50 border border-slate-200 rounded-lg px-3 py-2">
+                  <span className="text-xs font-medium text-slate-600">
+                    Điểm danh
+                  </span>
+
                   <label className="relative inline-flex items-center cursor-pointer">
                     <input
                       type="checkbox"
                       className="sr-only peer"
                       checked={event.checkInEnabled}
-                      onChange={(e) => handleToggleCheckIn(e.target.checked)}
+                      onChange={(e) =>
+                        handleToggleCheckIn(e.target.checked)
+                      }
                     />
-                    <div className="w-10 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-indigo-600"></div>
+
+                    <div className="w-10 h-5 bg-slate-300 rounded-full peer-checked:bg-indigo-600 transition-colors after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:w-4 after:h-4 after:bg-white after:rounded-full after:transition-all peer-checked:after:translate-x-5" />
                   </label>
                 </div>
-                
-                <div className="w-px h-4 bg-slate-200" />
 
-                <div className="flex items-center gap-1.5 p-1 bg-white rounded-lg border border-slate-100 shadow-sm">
+                <div className="flex items-center border border-slate-200 rounded-lg overflow-hidden">
                   <button
                     onClick={() => handleUpdateQRType("DYNAMIC")}
-                    className={`px-3 py-1 rounded-md text-[9px] font-black transition-all ${event.qrType === "DYNAMIC" ? "bg-indigo-600 text-white" : "text-slate-400 hover:text-slate-600"}`}
+                    className={`px-3 py-2 text-xs font-medium transition-colors ${event.qrType === "DYNAMIC"
+                        ? "bg-indigo-600 text-white"
+                        : "bg-white text-slate-600 hover:bg-slate-50"
+                      }`}
                   >
-                    QR ĐỘNG
+                    QR động
                   </button>
+
                   <button
                     onClick={() => handleUpdateQRType("STATIC")}
-                    className={`px-3 py-1 rounded-md text-[9px] font-black transition-all ${event.qrType === "STATIC" ? "bg-indigo-600 text-white" : "text-slate-400 hover:text-slate-600"}`}
+                    className={`px-3 py-2 text-xs font-medium border-l border-slate-200 transition-colors ${event.qrType === "STATIC"
+                        ? "bg-indigo-600 text-white"
+                        : "bg-white text-slate-600 hover:bg-slate-50"
+                      }`}
                   >
-                    QR TĨNH
+                    QR tĩnh
                   </button>
                 </div>
-              </div>
+              </>
             )}
 
             {(canManage || isMember) && (
               <button
                 onClick={handleShowEventQR}
                 disabled={!event.checkInEnabled}
-                className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-[11px] font-black uppercase tracking-widest transition-all shadow-md active:scale-95 ${
-                  event.checkInEnabled 
-                    ? "bg-slate-900 text-white hover:bg-slate-800" 
-                    : "bg-slate-100 text-slate-400 cursor-not-allowed opacity-60 shadow-none"
-                }`}
-                title={!event.checkInEnabled ? "Điểm danh đang bị khóa bởi BTC" : "Hiển thị mã QR để người tham gia quét"}
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${event.checkInEnabled
+                    ? "bg-slate-900 text-white hover:bg-slate-800"
+                    : "bg-slate-100 text-slate-400 cursor-not-allowed"
+                  }`}
               >
-                <QrCode size={16} /> 
-                {event.checkInEnabled ? "Hiện mã QR" : "Điểm danh đã đóng"}
+                <QrCode size={16} />
+                Hiện QR
               </button>
             )}
           </div>
         </div>
       </div>
 
-      {/* 2. ATTENDANCE TABLE */}
-      <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
-        {/* Search Bar */}
-        <div className="p-4 border-b border-slate-100 bg-slate-50/50">
-          <div className="relative max-w-md">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
-            <input
-              type="text"
-              placeholder="Tìm theo tên, email hoặc MSSV..."
-              className="w-full pl-9 pr-4 py-2 bg-white border border-slate-200 rounded-xl text-xs font-medium focus:ring-2 focus:ring-indigo-500/20 transition-all"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
-          </div>
-        </div>
+      {/* Search Box */}
+      <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm">
+        <div className="relative max-w-sm">
+          <Search
+            size={15}
+            className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
+          />
 
+          <input
+            type="text"
+            placeholder="Tìm kiếm người tham gia..."
+            className="
+              w-full pl-9 pr-4 py-2.5
+              border border-slate-200
+              rounded-lg
+              text-sm
+              bg-white
+              outline-none
+              transition-colors
+              focus:border-indigo-500
+            "
+            value={searchTerm}
+            onChange={handleSearchChange}
+          />
+        </div>
+      </div>
+
+      {/* Table */}
+      <div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse">
+          <table className="w-full text-sm">
             <thead className="bg-slate-50 border-b border-slate-200">
               <tr>
-                <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Người tham gia</th>
-                <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Trạng thái</th>
-                <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Thời gian</th>
-                <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">Hành động</th>
+                <th className="px-5 py-3 text-left font-medium text-slate-600">
+                  Người tham gia
+                </th>
+                <th className="px-5 py-3 text-left font-medium text-slate-600">
+                  Trạng thái
+                </th>
+                <th className="px-5 py-3 text-left font-medium text-slate-600">
+                  Thời gian
+                </th>
+                <th className="px-5 py-3 text-right font-medium text-slate-600">
+                  Hành động
+                </th>
               </tr>
             </thead>
+
             <tbody className="divide-y divide-slate-100">
-              {filteredRegistrations.length > 0 ? (
-                filteredRegistrations.map((reg, idx) => {
+              {paginatedRegistrations.length > 0 ? (
+                paginatedRegistrations.map((reg, idx) => {
                   const isChecked = reg.checkedIn;
+
                   return (
-                    <tr key={idx} className="hover:bg-slate-50/50 transition-colors group">
-                      <td className="px-6 py-4">
+                    <tr
+                      key={reg.id || idx}
+                      className="hover:bg-slate-50 transition-colors"
+                    >
+                      <td className="px-5 py-4">
                         <div className="flex items-center gap-3">
-                          <div className="w-9 h-9 rounded-lg overflow-hidden border border-slate-100 bg-slate-50 flex-shrink-0 flex items-center justify-center text-slate-300">
+                          <div className="w-10 h-10 rounded-lg bg-slate-100 border border-slate-200 overflow-hidden flex items-center justify-center text-slate-400">
                             {reg.profile?.avatarUrl ? (
-                              <img src={reg.profile.avatarUrl} alt="" className="w-full h-full object-cover" />
+                              <img
+                                src={reg.profile.avatarUrl}
+                                alt=""
+                                className="w-full h-full object-cover"
+                              />
                             ) : (
                               <User size={18} />
                             )}
                           </div>
+
                           <div>
-                            <p className="text-xs font-bold text-slate-800">{reg.profile?.fullName || "—"}</p>
-                            <p className="text-[10px] text-slate-400 font-medium">{reg.participantAccountId} • <span className="font-mono">{reg.ticketCode || "N/A"}</span></p>
+                            <p className="font-medium text-slate-800">
+                              {reg.profile?.fullName || "—"}
+                            </p>
+
+                            <p className="text-xs text-slate-400">
+                              {reg.participantAccountId}
+                            </p>
                           </div>
                         </div>
                       </td>
-                      <td className="px-6 py-4">
+
+                      <td className="px-5 py-4">
                         {isChecked ? (
-                          <div className="flex flex-col gap-1">
-                            <span className="inline-flex items-center gap-1.5 text-[10px] font-black text-emerald-600 uppercase tracking-wider bg-emerald-50 px-2 py-0.5 rounded border border-emerald-100 w-fit">
-                              <CheckCircle size={12} /> Đã có mặt
-                            </span>
-                            {reg.checkedInBy && (
-                              <p className="text-[9px] text-slate-400 italic">Bởi: {reg.checkedInBy.fullName}</p>
-                            )}
+                          <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-emerald-50 text-emerald-600 text-xs font-medium border border-emerald-100">
+                            <CheckCircle size={14} />
+                            Đã check-in
                           </div>
                         ) : (
-                          <span className="text-[10px] font-black text-slate-300 uppercase tracking-wider italic">Chưa check-in</span>
+                          <div className="inline-flex items-center px-2.5 py-1 rounded-md bg-slate-100 text-slate-500 text-xs font-medium">
+                            Chưa check-in
+                          </div>
                         )}
                       </td>
-                      <td className="px-6 py-4">
-                        <div className="flex items-center gap-2">
-                          {editingTimeId === reg.id ? (
-                            <div className="flex items-center gap-1">
-                              <input
-                                type="datetime-local"
-                                value={newCheckInTime}
-                                onChange={(e) => setNewCheckInTime(e.target.value)}
-                                className="text-[10px] p-1 border border-slate-200 rounded outline-none focus:ring-1 focus:ring-indigo-500"
-                              />
+
+                      <td className="px-5 py-4">
+                        {editingTimeId === reg.id ? (
+                          <div className="flex items-center gap-2">
+                            <input
+                              type="datetime-local"
+                              value={newCheckInTime}
+                              onChange={(e) =>
+                                setNewCheckInTime(e.target.value)
+                              }
+                              className="border border-slate-200 rounded-md px-2 py-1 text-xs"
+                            />
+
+                            <button
+                              onClick={() =>
+                                onUpdateCheckInTime(
+                                  reg.id,
+                                  newCheckInTime
+                                ).then(() => setEditingTimeId(null))
+                              }
+                              className="p-1 text-emerald-600 hover:bg-emerald-50 rounded"
+                            >
+                              <Check size={14} />
+                            </button>
+                          </div>
+                        ) : (
+                          <div className="flex items-center gap-2">
+                            <span className="text-slate-600 text-sm">
+                              {reg.checkInTime
+                                ? formatDateTime(reg.checkInTime)
+                                : "—"}
+                            </span>
+
+                            {isChecked && canManage && (
                               <button
-                                onClick={() => onUpdateCheckInTime(reg.id, newCheckInTime).then(() => setEditingTimeId(null))}
-                                className="p-1 text-emerald-500 hover:bg-emerald-50 rounded transition-colors"
+                                onClick={() => {
+                                  setEditingTimeId(reg.id);
+                                  setNewCheckInTime(
+                                    reg.checkInTime
+                                      ? reg.checkInTime.substring(0, 16)
+                                      : new Date()
+                                        .toISOString()
+                                        .substring(0, 16)
+                                  );
+                                }}
+                                className="p-1 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded transition-colors"
                               >
-                                <Check size={14} />
+                                <Edit3 size={13} />
                               </button>
-                            </div>
-                          ) : (
-                            <>
-                              <span className="text-[11px] text-slate-600 font-medium">
-                                {reg.checkInTime ? formatDateTime(reg.checkInTime) : "—"}
-                              </span>
-                              {isChecked && canManage && (
-                                <button
-                                  onClick={() => {
-                                    setEditingTimeId(reg.id);
-                                    setNewCheckInTime(reg.checkInTime ? reg.checkInTime.substring(0, 16) : new Date().toISOString().substring(0, 16));
-                                  }}
-                                  className="p-1 text-slate-300 hover:text-indigo-600 opacity-0 group-hover:opacity-100 transition-all"
-                                >
-                                  <Edit3 size={12} />
-                                </button>
-                              )}
-                            </>
-                          )}
-                        </div>
+                            )}
+                          </div>
+                        )}
                       </td>
-                      <td className="px-6 py-4 text-right">
-                        {canManage && (
-                          isChecked ? (
+
+                      <td className="px-5 py-4 text-right">
+                        {canManage &&
+                          (isChecked ? (
                             <button
                               onClick={() => onUndoCheckIn(reg.id)}
-                              className="text-[9px] font-black text-rose-500 uppercase tracking-widest border border-rose-100 px-2 py-1 rounded-lg hover:bg-rose-50 transition-all opacity-0 group-hover:opacity-100"
-                              title="Hủy điểm danh"
+                              className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border border-rose-200 text-rose-600 text-xs font-medium hover:bg-rose-50 transition-colors"
                             >
-                              <Undo2 size={12} className="inline mr-1" /> Hủy
+                              <Undo2 size={13} />
+                              Hủy
                             </button>
                           ) : (
                             <button
                               onClick={() => onManualCheckIn(reg.id)}
-                              className="px-4 py-2 bg-indigo-600 text-white text-[9px] font-black uppercase tracking-widest rounded-lg hover:bg-indigo-700 shadow-sm shadow-indigo-100 transition-all active:scale-95"
+                              className="px-3 py-1.5 rounded-lg bg-indigo-600 text-white text-xs font-medium hover:bg-indigo-700 transition-colors"
                             >
-                              Điểm danh ngay
+                              Điểm danh
                             </button>
-                          )
-                        )}
+                          ))}
                       </td>
                     </tr>
                   );
                 })
               ) : (
                 <tr>
-                  <td colSpan="4" className="px-6 py-12 text-center text-slate-400 italic text-xs">
-                    Không tìm thấy dữ liệu phù hợp
+                  <td
+                    colSpan="4"
+                    className="py-12 text-center text-sm text-slate-400"
+                  >
+                    Không có dữ liệu phù hợp
                   </td>
                 </tr>
               )}
@@ -233,6 +336,73 @@ const CheckInTab = ({
           </table>
         </div>
       </div>
+
+      {/* Pagination */}
+      {totalPages > 1 && (
+        <div className="flex justify-center items-center gap-2 pt-2">
+          <button
+            onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+            disabled={currentPage === 1}
+            className="
+              w-10 h-10
+              rounded-xl
+              border border-slate-200
+              bg-white
+              text-slate-400
+              flex items-center justify-center
+              hover:bg-slate-50
+              hover:text-slate-700
+              disabled:opacity-50
+              disabled:cursor-not-allowed
+              transition-colors
+            "
+          >
+            <ChevronLeft size={18} />
+          </button>
+
+          {Array.from({ length: totalPages }, (_, i) => i + 1).map((num) => (
+            <button
+              key={num}
+              onClick={() => setCurrentPage(num)}
+              className={`
+                w-10 h-10
+                rounded-xl
+                border
+                text-sm font-medium
+                transition-colors
+                ${currentPage === num
+                  ? "bg-blue-700 text-white border-blue-700"
+                  : "bg-white text-slate-700 border-slate-200 hover:bg-slate-50"
+                }
+              `}
+            >
+              {num}
+            </button>
+          ))}
+
+          <button
+            onClick={() =>
+              setCurrentPage((p) => Math.min(totalPages, p + 1))
+            }
+            disabled={currentPage === totalPages}
+            className="
+              w-10 h-10
+              rounded-xl
+              border border-slate-200
+              bg-white
+              text-slate-400
+              flex items-center justify-center
+              hover:bg-slate-50
+              hover:text-slate-700
+              disabled:opacity-50
+              disabled:cursor-not-allowed
+              transition-colors
+            "
+          >
+            <ChevronRight size={18} />
+          </button>
+        </div>
+      )}
     </div>
   );
 };

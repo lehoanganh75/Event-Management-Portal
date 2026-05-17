@@ -21,10 +21,10 @@ public interface IdentityServiceClient {
     @GetMapping("/profiles/invite")
     UserResponse getUsersById(@RequestParam("id") String id);
 
-    @GetMapping("/accounts/admin-ids")
+    @GetMapping("/profiles/admin-ids")
     List<String> getAdminAccountIds();
     
-    @GetMapping("/accounts/super-admin-ids")
+    @GetMapping("/profiles/super-admin-ids")
     List<String> getSuperAdminAccountIds();
 
     @GetMapping("/profiles/by-emails")

@@ -114,51 +114,78 @@ export const EventCreator = ({
     return () => clearTimeout(timer);
   }, [formData, isPlanMode]);
 
+  const preparePlanPayload = (data) => {
+    const accountId = user?.id || null;
+    const toISO = (d) => {
+      if (!d) return null;
+      const dt = new Date(d);
+      if (isNaN(dt.getTime())) return null;
+      const pad = (n) => n < 10 ? '0' + n : n;
+      return dt.getFullYear() + '-' +
+        pad(dt.getMonth() + 1) + '-' +
+        pad(dt.getDate()) + 'T' +
+        pad(dt.getHours()) + ':' +
+        pad(dt.getMinutes()) + ':' +
+        pad(dt.getSeconds());
+    };
+
+    return {
+      organizationId: data.organizationId || null,
+      title: (data.eventTitle || data.title || "").trim(),
+      description: (data.eventPurpose || data.description || "").trim(),
+      eventTopic: (data.eventTopic || "").trim(),
+      location: (data.location || "").trim(),
+      eventMode: (data.eventMode || "OFFLINE").toUpperCase(),
+      type: data.eventType || data.type || "OTHER",
+      startTime: toISO(data.startTime),
+      endTime: toISO(data.endTime),
+      registrationDeadline: toISO(data.registrationDeadline),
+      maxParticipants: Number(data.maxParticipants) || 50,
+      faculty: data.faculty || "",
+      major: data.major || "",
+      createdByAccountId: accountId,
+      notes: (data.notes || "").trim(),
+      coverImage: data.coverImage || "",
+      presenters: (data.presenters || []).map(p => ({
+        accountId: p.accountId,
+        fullName: p.fullName,
+        email: p.email,
+        title: p.position || p.title,
+        session: p.session
+      })),
+      organizers: (data.invitations || []).map(inv => ({
+        accountId: inv.inviteeAccountId || inv.accountId,
+        fullName: inv.inviteeName || inv.fullName,
+        email: inv.inviteeEmail || inv.email,
+        role: inv.targetRole || "MEMBER"
+      })),
+      programItems: (data.sessions || []).map(s => ({
+        title: s.title,
+        description: s.description,
+        startTime: toISO(s.startTime),
+        endTime: toISO(s.endTime)
+      })),
+      targetObjects: Array.isArray(data.targetObjects)
+        ? data.targetObjects.map(obj => typeof obj === 'string' ? { type: 'CATEGORY', name: obj } : obj)
+        : [],
+      recipients: Array.isArray(data.recipients)
+        ? data.recipients.map(r => typeof r === 'string' ? { name: r } : r)
+        : [],
+      customFieldsJson: JSON.stringify(data.customFields || {}),
+    };
+  };
+
   const autoSaveDraft = async () => {
     if (isAutoSaving) return;
 
     try {
       setIsAutoSaving(true);
-      const accountId = user?.id || null;
-      const toISO = (d) => { if (!d) return null; const dt = new Date(d); return isNaN(dt) ? null : dt.toISOString(); };
-
-      const payload = {
-        title: (formData.eventTitle || formData.title || "").trim(),
-        description: (formData.eventPurpose || formData.description || "").trim(),
-        eventTopic: (formData.eventTopic || "").trim(),
-        location: (formData.location || "").trim(),
-        eventMode: (formData.eventMode || "OFFLINE").toUpperCase(),
-        type: formData.eventType || formData.type || "OTHER",
-        startTime: toISO(formData.startTime),
-        endTime: toISO(formData.endTime),
-        registrationDeadline: toISO(formData.registrationDeadline),
-        maxParticipants: Number(formData.maxParticipants) || 50,
-        hasLuckyDraw: false,
-        faculty: formData.faculty || "",
-        major: formData.major || "",
-        createdByAccountId: accountId,
-        status: 'DRAFT',
-        organization: formData.organizationId ? { id: formData.organizationId } : null,
-        invitations: formData.invitations || [],
-        presenters: (formData.presenters || []).map(p => ({
-          ...p,
-          email: p.email?.trim() || null // Avoid empty string email validation
-        })),
-        sessions: (formData.sessions || []).map(s => ({
-          ...s,
-          startTime: toISO(s.startTime),
-          endTime: toISO(s.endTime)
-        })),
-        targetObjects: Array.isArray(formData.targetObjects)
-          ? formData.targetObjects.map(obj => typeof obj === 'string' ? { type: 'CATEGORY', name: obj } : obj) : [],
-      };
+      const payload = preparePlanPayload(formData);
 
       let res;
       if (formData.id) {
-        // Update existing draft
         res = await eventService.updatePlan(formData.id, payload);
       } else {
-        // Create new draft
         res = await eventService.createPlan(payload);
         if (res.data?.id) {
           updateFormData({ id: res.data.id });
@@ -178,6 +205,11 @@ export const EventCreator = ({
   };
 
   const fillSampleData = () => {
+    const formatLocal = (d) => {
+      const pad = (n) => String(n).padStart(2, '0');
+      return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+    };
+
     const now = new Date();
     const startTime = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000); // 7 days later
     const endTime = new Date(startTime.getTime() + 3 * 60 * 60 * 1000); // 3 hours later
@@ -186,9 +218,9 @@ export const EventCreator = ({
     const sample = {
       eventTitle: "Hội thảo Công nghệ AI & Tương lai 2026",
       eventType: "WORKSHOP",
-      startTime: startTime.toISOString().slice(0, 16),
-      endTime: endTime.toISOString().slice(0, 16),
-      registrationDeadline: deadline.toISOString().slice(0, 16),
+      startTime: formatLocal(startTime),
+      endTime: formatLocal(endTime),
+      registrationDeadline: formatLocal(deadline),
       location: "Hội trường A, Cơ sở Nguyễn Văn Bảo",
       eventPurpose: "Chia sẻ các xu hướng mới nhất về Trí tuệ nhân tạo (AI) và cách ứng dụng vào học tập, nghiên cứu cho sinh viên IUH.",
       eventTopic: "Làm chủ AI để bứt phá trong học tập và sự nghiệp",
@@ -210,8 +242,8 @@ export const EventCreator = ({
         { fullName: "Nguyễn Văn A", email: "hiennguyenbuitan@gmail.com", position: "Chuyên gia AI", department: "Google Brain", session: "Tương lai của LLMs", bio: "Hơn 10 năm kinh nghiệm trong lĩnh vực học máy." }
       ],
       sessions: [
-        { title: "Đón khách", type: "BREAK", startTime: startTime.toISOString().slice(0, 16), endTime: new Date(startTime.getTime() + 30 * 60 * 1000).toISOString().slice(0, 16), room: "Sảnh", description: "Teabreak & Check-in", orderIndex: 1 },
-        { title: "Keynote: AI 2026", type: "KEYNOTE", startTime: new Date(startTime.getTime() + 30 * 60 * 1000).toISOString().slice(0, 16), endTime: new Date(startTime.getTime() + 90 * 60 * 1000).toISOString().slice(0, 16), room: "Hội trường A", description: "Bài phát biểu chính", orderIndex: 2 }
+        { title: "Đón khách", type: "BREAK", startTime: formatLocal(startTime), endTime: formatLocal(new Date(startTime.getTime() + 30 * 60 * 1000)), room: "Sảnh", description: "Teabreak & Check-in", orderIndex: 1 },
+        { title: "Keynote: AI 2026", type: "KEYNOTE", startTime: formatLocal(new Date(startTime.getTime() + 30 * 60 * 1000)), endTime: formatLocal(new Date(startTime.getTime() + 90 * 60 * 1000)), room: "Hội trường A", description: "Bài phát biểu chính", orderIndex: 2 }
       ],
       interactionSettings: {
         enableQA: false,
@@ -221,8 +253,8 @@ export const EventCreator = ({
       hasLuckyDraw: true,
       luckyDrawTitle: "Quay số may mắn: Đêm hội AI 2026",
       luckyDrawDescription: "Tham gia chương trình quay số để có cơ hội nhận được các phần quà công nghệ giá trị từ nhà tài trợ và ban tổ chức.",
-      luckyDrawStartTime: startTime.toISOString().slice(0, 16),
-      luckyDrawEndTime: endTime.toISOString().slice(0, 16),
+      luckyDrawStartTime: formatLocal(startTime),
+      luckyDrawEndTime: formatLocal(endTime),
       allowMultipleWins: false,
       prizes: [
         { id: 1, name: "iPad Pro M4", count: 1, description: "Máy tính bảng mạnh mẽ nhất với màn hình OLED Tandem và chip M4 siêu nhanh." },
@@ -447,20 +479,27 @@ export const EventCreator = ({
           );
 
           if (admins.length > 0) {
-            const adminNotifications = admins.map(admin => ({
-              userProfileId: admin.id,
+            const adminIds = admins.map(a => a.id);
+            const bulkPayload = {
+              userIds: adminIds,
               title: "Yêu cầu phê duyệt mới",
               message: `${user?.fullName || user?.username} đã gửi một ${isPlanMode ? 'kế hoạch' : 'sự kiện'} mới: "${eventTitle}"`,
               type: isPlanMode ? "PLAN_SUBMITTED" : "EVENT_SUBMITTED",
               actionUrl: isPlanMode ? '/admin/plans' : '/admin/events'
-            }));
+            };
 
             // Try bulk first, if not available or fails, send individually
             try {
-              await notificationService.sendBulk(adminNotifications);
+              await notificationService.sendBulk(bulkPayload);
             } catch (err) {
-              for (const n of adminNotifications) {
-                await notificationService.sendNotification(n).catch(() => { });
+              for (const adminId of adminIds) {
+                await notificationService.sendNotification({
+                  userProfileId: adminId,
+                  title: bulkPayload.title,
+                  message: bulkPayload.message,
+                  type: bulkPayload.type,
+                  actionUrl: bulkPayload.actionUrl
+                }).catch(() => { });
               }
             }
           }
@@ -471,44 +510,50 @@ export const EventCreator = ({
 
       // 3. Notify all invited members (Organizers & Presenters) - ONLY for Events, not Plans
       if (!isPlanMode) {
-        const memberNotifications = [];
-
         // Organizers
+        const organizerIds = [];
         if (formData.invitations && formData.invitations.length > 0) {
           formData.invitations.forEach(inv => {
-            if (inv.inviteeAccountId) {
-              memberNotifications.push({
-                userProfileId: inv.inviteeAccountId,
-                title: "Lời mời tham gia ban tổ chức",
-                message: `Bạn được mời tham gia ban tổ chức cho sự kiện: "${eventTitle}"`,
-                type: "INVITATION",
-                actionUrl: `/events/invitations?id=${eventId}`
-              });
-            }
+            if (inv.inviteeAccountId) organizerIds.push(inv.inviteeAccountId);
           });
+        }
+        if (organizerIds.length > 0) {
+          const orgBulk = {
+            userIds: organizerIds,
+            title: "Lời mời tham gia ban tổ chức",
+            message: `Bạn được mời tham gia ban tổ chức cho sự kiện: "${eventTitle}"`,
+            type: "INVITATION",
+            actionUrl: `/events/invitations?id=${eventId}`
+          };
+          try {
+            await notificationService.sendBulk(orgBulk);
+          } catch (err) {
+            for (const id of organizerIds) {
+              await notificationService.sendNotification({ ...orgBulk, userProfileId: id, userIds: undefined }).catch(() => { });
+            }
+          }
         }
 
         // Presenters
+        const presenterIds = [];
         if (formData.presenters && formData.presenters.length > 0) {
           formData.presenters.forEach(pres => {
-            if (pres.presenterAccountId) {
-              memberNotifications.push({
-                userProfileId: pres.presenterAccountId,
-                title: "Lời mời làm diễn giả",
-                message: `Bạn được mời làm diễn giả cho sự kiện: "${eventTitle}"`,
-                type: "INVITATION",
-                actionUrl: `/events/invitations?id=${eventId}`
-              });
-            }
+            if (pres.presenterAccountId) presenterIds.push(pres.presenterAccountId);
           });
         }
-
-        if (memberNotifications.length > 0) {
+        if (presenterIds.length > 0) {
+          const presBulk = {
+            userIds: presenterIds,
+            title: "Lời mời làm diễn giả",
+            message: `Bạn được mời làm diễn giả cho sự kiện: "${eventTitle}"`,
+            type: "INVITATION",
+            actionUrl: `/events/invitations?id=${eventId}`
+          };
           try {
-            await notificationService.sendBulk(memberNotifications);
-          } catch (memErr) {
-            for (const n of memberNotifications) {
-              await notificationService.sendNotification(n).catch(() => { });
+            await notificationService.sendBulk(presBulk);
+          } catch (err) {
+            for (const id of presenterIds) {
+              await notificationService.sendNotification({ ...presBulk, userProfileId: id, userIds: undefined }).catch(() => { });
             }
           }
         }
@@ -529,8 +574,15 @@ export const EventCreator = ({
 
       const toISO = (dateStr) => {
         if (!dateStr) return null;
-        const date = new Date(dateStr);
-        return isNaN(date.getTime()) ? null : date.toISOString();
+        const dt = new Date(dateStr);
+        if (isNaN(dt.getTime())) return null;
+        const pad = (n) => n < 10 ? '0' + n : n;
+        return dt.getFullYear() + '-' +
+          pad(dt.getMonth() + 1) + '-' +
+          pad(dt.getDate()) + 'T' +
+          pad(dt.getHours()) + ':' +
+          pad(dt.getMinutes()) + ':' +
+          pad(dt.getSeconds());
       };
 
       let organizationId = formData.organizationId;
@@ -609,7 +661,15 @@ export const EventCreator = ({
       let response;
       const isEditMode = formData.id && (formData.status && !formData.status.startsWith('PLAN_'));
 
-      if (isEditMode) {
+      if (isPlanMode) {
+        const planPayload = preparePlanPayload(data);
+        if (formData.id) {
+          response = await eventService.updatePlan(formData.id, planPayload);
+          await eventService.submitPlanForApproval(formData.id);
+        } else {
+          response = await eventService.createPlan(planPayload, true);
+        }
+      } else if (isEditMode) {
         response = await eventService.updateEvent(formData.id, payload);
       } else if (planId || fromPlan) {
         const id = planId || formData.planId || formData.id;
@@ -636,10 +696,13 @@ export const EventCreator = ({
 
         // Send Presenter Invitations
         if (payload.presenters && payload.presenters.length > 0) {
-          try {
-            await eventService.sendPresenterInvitations(eventId, payload.presenters);
-          } catch (presErr) {
-            console.error("Lỗi gửi lời mời diễn giả:", presErr);
+          const validPresenters = payload.presenters.filter(p => p.email && p.email.trim() !== "");
+          if (validPresenters.length > 0) {
+            try {
+              await eventService.sendPresenterInvitations(eventId, validPresenters);
+            } catch (presErr) {
+              console.error("Lỗi gửi lời mời diễn giả:", presErr);
+            }
           }
         }
 
@@ -688,40 +751,20 @@ export const EventCreator = ({
   // ===== PLAN-SPECIFIC HANDLERS =====
   const handleSaveDraft = async (data) => {
     try {
-      const accountId = user?.id || null;
-      const toISO = (d) => { if (!d) return null; const dt = new Date(d); return isNaN(dt) ? null : dt.toISOString(); };
       let organizationId = data.organizationId;
       if (data.orgSelectionMode === 'new' && data.newOrg) {
-        const orgRes = await eventService.createOrganization({ ...data.newOrg, ownerAccountId: accountId });
+        const orgRes = await eventService.createOrganization({ ...data.newOrg, ownerAccountId: user?.id });
         organizationId = orgRes.data.id;
       }
-      const payload = {
-        title: (data.eventTitle || data.title || "").trim(),
-        description: (data.eventPurpose || data.description || "").trim(),
-        eventTopic: (data.eventTopic || "").trim(),
-        location: (data.location || "").trim(),
-        eventMode: (data.eventMode || "OFFLINE").toUpperCase(),
-        type: data.eventType || data.type || "OTHER",
-        startTime: toISO(data.startTime),
-        endTime: toISO(data.endTime),
-        registrationDeadline: toISO(data.registrationDeadline),
-        maxParticipants: Number(data.maxParticipants) || 50,
-        hasLuckyDraw: false,
-        faculty: data.faculty || "",
-        major: data.major || "",
-        notes: (data.notes || "").trim(),
-        coverImage: data.coverImage || "",
-        createdByAccountId: accountId,
-        status: 'DRAFT',
-        organization: { id: organizationId },
-        invitations: data.invitations || [],
-        presenters: data.presenters || [],
-        sessions: data.sessions || [],
-        templateId: data.templateId || null,
-        targetObjects: Array.isArray(data.targetObjects)
-          ? data.targetObjects.map(obj => typeof obj === 'string' ? { type: 'CATEGORY', name: obj } : obj) : [],
-      };
-      await eventService.createEvent({ event: payload, invitations: payload.invitations });
+
+      const payload = preparePlanPayload({ ...data, organizationId });
+
+      if (data.id) {
+        await eventService.updatePlan(data.id, payload);
+      } else {
+        await eventService.createPlan(payload);
+      }
+
       toast.success("✅ Đã lưu bản nháp kế hoạch!");
       onBack();
     } catch (err) {

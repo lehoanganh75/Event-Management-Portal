@@ -12,6 +12,7 @@ const PresentersSection = ({
   showPresenterSuggestions,
   setShowPresenterSuggestions,
   fetchUsers,
+  handleAIPresenterSuggestion,
   addPresenter,
   updatePresenter,
   removePresenter,
@@ -27,8 +28,8 @@ const PresentersSection = ({
         <div style={{ display: "flex", gap: 12 }}>
           <button
             onClick={() => {
-              if (!showPresenterSuggestions) fetchUsers();
-              setShowPresenterSuggestions(!showPresenterSuggestions);
+              if (!showPresenterSuggestions) handleAIPresenterSuggestion();
+              else setShowPresenterSuggestions(false);
             }}
             style={{ background: "#fdfaff", border: "1px solid #ddd6fe", color: "#8b5cf6", padding: "6px 12px", borderRadius: 6, fontSize: 12, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: 4 }}
           >

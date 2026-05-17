@@ -10,21 +10,27 @@ import software.amazon.awssdk.services.s3.S3Client;
 
 @Configuration
 public class S3Config {
-    @Value("${aws.s3.access-key:}")
+    @Value("${aws.s3.access-key}")
     private String accessKey;
 
-    @Value("${aws.s3.secret-key:}")
+    @Value("${aws.s3.secret-key}")
     private String secretKey;
 
-    @Value("${aws.s3.region:ap-southeast-1}")
+    @Value("${aws.s3.region}")
     private String region;
 
     @Bean
     public S3Client s3Client() {
         if (accessKey == null || accessKey.isBlank() || secretKey == null || secretKey.isBlank()) {
-            System.err.println(">>> [Event-service] WARNING: AWS S3 credentials not configured. File upload will be unavailable.");
+            System.err.println(
+                    ">>> [Event-service] WARNING: AWS S3 credentials not configured. File upload will be unavailable.");
             return null;
         }
+
+        // Log obfuscated key to verify it's being loaded correctly
+        String maskedKey = accessKey.substring(0, 4) + "...." + accessKey.substring(accessKey.length() - 4);
+        System.out.println(">>> [Event-service] Initializing S3 Client with Access Key: " + maskedKey);
+
         AwsBasicCredentials credentials = AwsBasicCredentials.create(accessKey, secretKey);
         return S3Client.builder()
                 .region(Region.of(region))

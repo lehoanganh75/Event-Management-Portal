@@ -330,23 +330,7 @@ public class GeminiChatServiceImpl implements GeminiChatService {
 
     private String callLocalAI(String prompt) {
         try {
-            String localUrl = localAiUrl;
-            if (localUrl == null || localUrl.isEmpty()) {
-                localUrl = "http://ai-event-management:3000/api/chat";
-            }
-
-            // Đảm bảo URL kết thúc bằng /api/chat
-            if (!localUrl.contains("/api/chat")) {
-                if (localUrl.endsWith("/")) {
-                    localUrl = localUrl + "api/chat";
-                } else if (localUrl.endsWith("/api")) {
-                    localUrl = localUrl + "/chat";
-                } else {
-                    localUrl = localUrl + "/api/chat";
-                }
-            }
-
-            log.info(">>> CALLING AI NODEJS AT: {}", localUrl);
+            log.info(">>> CALLING AI NODEJS AT: {}", localAiUrl);
             // log.debug("Prompt length: {}", prompt.length());
 
             Map<String, String> request = new HashMap<>();
@@ -354,7 +338,7 @@ public class GeminiChatServiceImpl implements GeminiChatService {
 
             long start = System.currentTimeMillis();
             Map<String, Object> response = restTemplate.postForObject(
-                    localUrl,
+                    localAiUrl,
                     request,
                     Map.class);
             long end = System.currentTimeMillis();

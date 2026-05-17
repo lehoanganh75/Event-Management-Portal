@@ -142,16 +142,18 @@ public class GeminiAIService {
         return normalized.contains("REJECT");
     }
 
+    @Value("${app.ai.local-url}")
+    private String localAiUrl;
+
     private String callGemini(String prompt) {
-        String aiUrl = "http://ai-event-management:3000/api/chat";
-        log.info("GeminiAIService redirecting to Local AI: {}", aiUrl);
+        log.info("GeminiAIService redirecting to Local AI tại: {}", localAiUrl);
 
         try {
             Map<String, String> bodyMap = Map.of("prompt", prompt);
             String requestBody = objectMapper.writeValueAsString(bodyMap);
 
             Request request = new Request.Builder()
-                    .url(aiUrl)
+                    .url(localAiUrl)
                     .post(RequestBody.create(requestBody, MediaType.parse("application/json")))
                     .build();
 

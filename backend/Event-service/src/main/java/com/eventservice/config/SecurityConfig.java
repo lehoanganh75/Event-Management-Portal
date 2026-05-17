@@ -60,6 +60,7 @@ public class SecurityConfig {
                                                                 "/swagger-ui/**",
                                                                 "/swagger-ui.html",
                                                                 "/uploads/**",
+                                                                "/events/uploads/**",
                                                                 "/events",
                                                                 "/events/ongoing",
                                                                 "/events/upcoming-week",

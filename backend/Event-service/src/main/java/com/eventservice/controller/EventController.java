@@ -14,6 +14,7 @@ import com.eventservice.service.EventPresenterService;
 import com.eventservice.service.EventService;
 import com.eventservice.service.ChatService;
 import jakarta.validation.Valid;
+import com.eventservice.dto.registration.request.EventInvitationRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
@@ -31,6 +32,7 @@ import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.server.ResponseStatusException;
 import org.springframework.http.MediaType;
 
+import java.time.LocalDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -218,14 +220,15 @@ public class EventController {
     }
 
     @PostMapping("/plans")
-    public ResponseEntity<?> createPlan(@Valid @RequestBody EventPlanCreateRequest request) {
+    public ResponseEntity<?> createPlan(
+            @Valid @RequestBody EventPlanCreateRequest request,
+            @RequestParam(required = false, defaultValue = "false") boolean submit) {
         try {
             Event event = new Event();
 
-            // Mapping Organization (Required)
+            // Mapping OrganizationId
             String orgId = request.getOrganizationId();
             if (orgId == null || orgId.equals("org-it")) {
-                // Fallback: Tìm organization đầu tiên hoặc xử lý theo nghiệp vụ
                 orgId = organizationRepository.findAll().stream()
                         .findFirst()
                         .map(Organization::getId)
@@ -236,24 +239,24 @@ public class EventController {
                 organizationRepository.findById(orgId).ifPresent(event::setOrganization);
             }
 
+            if (event.getOrganization() == null) {
+                return ResponseEntity.badRequest().body(Map.of("error", "Sự kiện phải thuộc về một tổ chức"));
+            }
+
             // Mapping Template (Optional)
             if (request.getTemplateId() != null && !request.getTemplateId().equals("0")) {
                 templateRepository.findById(request.getTemplateId()).ifPresent(event::setTemplate);
             }
 
-            String title = request.getTitle();
-            if (title == null || title.trim().isEmpty()) {
-                title = request.getEventTopic();
-            }
+            // Basic Info
+            String title = request.getTitle() != null ? request.getTitle() : request.getEventTopic();
             event.setTitle(title);
-
             event.setDescription(request.getDescription());
             event.setCoverImage(request.getCoverImage());
             event.setEventTopic(request.getEventTopic());
             event.setLocation(request.getLocation());
             event.setEventMode(request.getEventMode());
-
-            // Safe Enum mapping
+            
             try {
                 event.setType(EventType.valueOf(request.getType().toUpperCase()));
             } catch (Exception e) {
@@ -268,62 +271,75 @@ public class EventController {
             event.setNotes(request.getNotes());
             event.setCustomFieldsJson(request.getCustomFieldsJson());
             event.setCreatedByAccountId(request.getCreatedByAccountId());
-
             event.setTargetObjects(request.getTargetObjects());
 
+            // Mapping Presenters
             if (request.getPresenters() != null) {
-                log.info("Converting {} presenters", request.getPresenters().size());
                 Set<EventPresenter> presenters = request.getPresenters().stream()
                         .map(dto -> {
                             EventPresenter p = new EventPresenter();
                             p.setPresenterAccountId(dto.getAccountId());
-                            // Bio and session mapping if needed
+                            p.setEvent(event);
+                            p.setAssignedAt(LocalDateTime.now());
                             return p;
                         })
                         .collect(Collectors.toSet());
                 event.setPresenters(presenters);
             }
 
+            // Mapping Organizers
             if (request.getOrganizers() != null) {
-                log.info("Converting {} organizers", request.getOrganizers().size());
                 Set<EventOrganizer> organizers = request.getOrganizers().stream()
                         .map(dto -> {
                             EventOrganizer o = new EventOrganizer();
                             o.setAccountId(dto.getAccountId());
-
-                            // Safe role mapping
+                            o.setOrganization(event.getOrganization());
+                            o.setEvent(event);
+                            o.setAssignedAt(LocalDateTime.now());
                             try {
                                 String roleStr = dto.getRole();
-                                if (roleStr != null) {
-                                    o.setRole(OrganizerRole.valueOf(roleStr.toUpperCase()));
-                                } else {
-                                    o.setRole(OrganizerRole.MEMBER);
-                                }
+                                o.setRole(roleStr != null ? OrganizerRole.valueOf(roleStr.toUpperCase()) : OrganizerRole.MEMBER);
                             } catch (Exception e) {
                                 o.setRole(OrganizerRole.MEMBER);
                             }
-
                             return o;
                         })
                         .collect(Collectors.toSet());
-
-                // Gán organization cho từng organizer
-                if (event.getOrganization() != null) {
-                    organizers.forEach(o -> o.setOrganization(event.getOrganization()));
-                }
-
                 event.setOrganizers(organizers);
             }
 
-            event.setStatus(EventStatus.DRAFT);
+            if (request.getProgramItems() != null) {
+                Set<EventSession> sessions = request.getProgramItems().stream()
+                        .map(item -> {
+                            EventSession s = new EventSession();
+                            s.setTitle((String) item.get("title"));
+                            s.setDescription((String) item.get("description"));
+                            s.setStartTime(parseDate(item.get("startTime")));
+                            s.setEndTime(parseDate(item.get("endTime")));
+                            s.setEvent(event);
+                            return s;
+                        })
+                        .collect(Collectors.toSet());
+                event.setSessions(sessions);
+            }
 
+            // Set Status based on submit flag
+            event.setStatus(submit ? EventStatus.PLAN_PENDING_APPROVAL : EventStatus.DRAFT);
+            
             Event created = eventService.createPlan(event);
-            log.info("Plan created successfully with ID: {}", created.getId());
             return new ResponseEntity<>(created, HttpStatus.CREATED);
         } catch (Exception e) {
             log.error("Error creating plan", e);
-            return ResponseEntity.badRequest()
-                    .body(Map.of("error", e.getMessage()));
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    private LocalDateTime parseDate(Object val) {
+        if (val == null) return null;
+        try {
+            return LocalDateTime.parse(val.toString());
+        } catch (Exception e) {
+            return null;
         }
     }
 
@@ -596,7 +612,7 @@ public class EventController {
     @PostMapping("/{eventId}/invite")
     public ResponseEntity<Map<String, String>> inviteParticipants(
             @PathVariable String eventId,
-            @RequestBody com.eventservice.dto.registration.request.EventInvitationRequest request,
+            @RequestBody EventInvitationRequest request,
             @AuthenticationPrincipal Jwt jwt) {
         String organizerId = jwt.getSubject();
         Map<String, String> response = eventService.inviteParticipants(eventId, organizerId, request);

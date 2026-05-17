@@ -16,7 +16,13 @@ import org.springframework.stereotype.Service;
 
 import java.util.List;
 import java.util.Map;
+import java.util.HashMap;
 import java.util.Optional;
+import java.io.ByteArrayOutputStream;
+import org.springframework.web.client.RestTemplate;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+import org.springframework.http.HttpEntity;
 
 @Service
 @RequiredArgsConstructor
@@ -29,6 +35,9 @@ public class AISummaryServiceImpl implements AISummaryService {
     private final ChatClient chatClient;
     private final com.analyticsservice.repository.EventAnalyticsRepository analyticsRepository;
     private final ObjectMapper objectMapper = new ObjectMapper();
+
+    @org.springframework.beans.factory.annotation.Value("${app.ai.local-url}")
+    private String localAiUrl;
 
     @Override
     public EventSummaryReport generateSummary(String eventId) {
@@ -86,23 +95,21 @@ public class AISummaryServiceImpl implements AISummaryService {
                     luckyDrawData, analytic);
 
             // 4. Gọi AI local (Node.js) để nhận xét, phân tích sâu
-            org.springframework.web.client.RestTemplate restTemplate = new org.springframework.web.client.RestTemplate();
-            org.springframework.http.HttpHeaders headers = new org.springframework.http.HttpHeaders();
-            headers.setContentType(org.springframework.http.MediaType.APPLICATION_JSON);
+            RestTemplate restTemplate = new RestTemplate();
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_JSON);
 
-            java.util.Map<String, String> body = new java.util.HashMap<>();
+            Map<String, String> body = new HashMap<>();
             body.put("prompt", prompt);
 
-            org.springframework.http.HttpEntity<java.util.Map<String, String>> request = new org.springframework.http.HttpEntity<>(
-                    body, headers);
+            HttpEntity<Map<String, String>> request = new HttpEntity<>(body, headers);
 
-            String aiUrl = "http://ai-event-management:3000/api/chat";
-            log.info("Đang gọi Local AI tại: {}", aiUrl);
+            log.info("Đang gọi Local AI tại: {}", localAiUrl);
 
-            java.util.Map<String, Object> response = restTemplate.postForObject(aiUrl, request, java.util.Map.class);
+            Map<String, Object> response = restTemplate.postForObject(localAiUrl, request, Map.class);
 
             // Extract reply from nested structure: { "reply": { "reply": "..." } }
-            java.util.Map<String, Object> replyWrapper = (java.util.Map<String, Object>) response.get("reply");
+            Map<String, Object> replyWrapper = (Map<String, Object>) response.get("reply");
             String aiResponseRaw = (String) replyWrapper.get("reply");
 
             log.info("Nhận được phản hồi từ AI Local");
@@ -207,7 +214,7 @@ public class AISummaryServiceImpl implements AISummaryService {
             addSection(document, "3. Báo cáo tổng hợp chi tiết", report.getSummaryReport());
             addSection(document, "4. Đề xuất cải tiến", report.getImprovementProposals());
 
-            java.io.ByteArrayOutputStream out = new java.io.ByteArrayOutputStream();
+            ByteArrayOutputStream out = new ByteArrayOutputStream();
             document.write(out);
             return out.toByteArray();
         } catch (Exception e) {

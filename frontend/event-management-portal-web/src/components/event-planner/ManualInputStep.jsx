@@ -9,6 +9,8 @@ import {
 } from "lucide-react";
 import eventService from "../../services/eventService";
 import authService from "../../services/authService";
+import { useAuth } from "../../context/AuthContext";
+import { safeParseAIJson, formatAIDate } from "../../utils/aiUtils";
 
 // Sub-components
 import BasicInfoSection from "./manual-input/components/BasicInfoSection";
@@ -25,6 +27,7 @@ export default function ManualInputStep({
   activeSections = [],
   isPlanMode = false,
 }) {
+  const { user } = useAuth();
   const term = isPlanMode ? "kế hoạch" : "sự kiện";
   const [errors, setErrors] = useState({});
   const [showOrgAISuggestions, setShowOrgAISuggestions] = useState(false);
@@ -48,7 +51,7 @@ export default function ManualInputStep({
   const fetchUsers = async () => {
     setLoadingUsers(true);
     try {
-      const res = await authService.getAllUsers();
+      const res = await authService.getAllAccounts();
       setSystemUsers(res.data || []);
     } catch (err) {
       console.error("Lỗi lấy danh sách người dùng:", err);
@@ -81,7 +84,12 @@ export default function ManualInputStep({
       const uploadRes = await eventService.localAi.parseFile(file);
       const text = uploadRes.data.message;
       const extractRes = await eventService.aiPlanning.generateFromRawText(text);
-      const data = extractRes.data.result;
+
+      const aiReply = extractRes.data?.reply;
+      const resultText = typeof aiReply === 'object' ? aiReply.reply : aiReply;
+
+      const data = safeParseAIJson(resultText);
+
       if (data) {
         setFormData(prev => ({
           ...prev,
@@ -89,9 +97,14 @@ export default function ManualInputStep({
           description: data.description || prev.description,
           location: data.suggestedLocation || prev.location,
           maxParticipants: data.estimatedParticipants || prev.maxParticipants,
-          startTime: data.suggestedStartTime || prev.startTime,
-          endTime: data.suggestedEndTime || prev.endTime,
-          sessions: data.programItems || prev.sessions
+          startTime: formatAIDate(data.suggestedStartTime) || prev.startTime,
+          endTime: formatAIDate(data.suggestedEndTime) || prev.endTime,
+          registrationDeadline: formatAIDate(data.registrationDeadline) || prev.registrationDeadline,
+          sessions: (data.programItems || prev.sessions).map(s => ({
+            ...s,
+            startTime: formatAIDate(s.startTime),
+            endTime: formatAIDate(s.endTime)
+          }))
         }));
         import("react-toastify").then(({ toast }) => toast.success("Đã tự động điền dữ liệu từ tài liệu!"));
       }
@@ -113,8 +126,13 @@ export default function ManualInputStep({
       const prompt = `Gợi ý mô tả và lịch trình cho sự kiện: "${formData.eventTitle}". 
                      Dữ liệu đã có: Địa điểm ${formData.location || 'chưa rõ'}.
                      Hãy trả về JSON gồm các trường: description, programItems (title, description, durationMinutes).`;
-      const res = await eventService.aiPlanning.generateFromRawText(prompt);
-      const data = res.data.result;
+
+      const res = await eventService.localAi.chat(prompt);
+      const aiReply = res.data?.reply;
+      const resultText = typeof aiReply === 'object' ? aiReply.reply : aiReply;
+
+      const data = safeParseAIJson(resultText);
+
       if (data) {
         setFormData(prev => ({
           ...prev,
@@ -130,7 +148,8 @@ export default function ManualInputStep({
         import("react-toastify").then(({ toast }) => toast.success("AI đã hoàn thiện nội dung cho bạn!"));
       }
     } catch (err) {
-      console.error(err);
+      console.error("Lỗi Smart Suggestion:", err);
+      import("react-toastify").then(({ toast }) => toast.error("Không thể lấy gợi ý từ AI."));
     } finally {
       setIsAILoading(false);
     }
@@ -146,9 +165,11 @@ export default function ManualInputStep({
     try {
       let prompt = customPrompt || `Dựa trên tiêu đề sự kiện: "${formData.eventTitle}", hãy gợi ý 3 lựa chọn ngắn gọn cho trường "${fieldLabel}". 
         Yêu cầu: Chỉ trả về 3 dòng, mỗi dòng là một lựa chọn, không có số thứ tự.`;
-      const res = await eventService.chat.extractFromText(prompt);
-      const result = res.data?.result;
-      const aiContent = result?.description || result?.purpose || "";
+
+      const res = await eventService.localAi.chat(prompt);
+      const aiReply = res.data?.reply;
+      const aiContent = typeof aiReply === 'object' ? aiReply.reply : aiReply;
+
       if (aiContent) {
         const suggestions = aiContent.split('\n')
           .map(s => s.replace(/^[0-9\.\-\*\s]+/, '').trim())
@@ -164,6 +185,49 @@ export default function ManualInputStep({
       setAiSuggestions(prev => ({ ...prev, [fieldName]: { show: true, items: ["Lỗi kết nối AI"] } }));
     } finally {
       setAiLoadingFields(prev => ({ ...prev, [fieldName]: false }));
+    }
+  };
+
+  const handleAIPresenterSuggestion = async () => {
+    setIsAILoading(true);
+    try {
+      const prompt = `Dựa trên dữ liệu thống kê EVENT_DB, đặc biệt là danh sách [THỐNG KÊ DIỄN GIẢ THÂN QUEN] (những người tôi đã từng mời làm diễn giả trong các sự kiện tôi đã tạo), 
+                     hãy gợi ý 5 người (AccountID) tham gia làm diễn giả nhiều nhất để tiếp tục mời cho sự kiện "${formData.eventTitle}".
+                     Yêu cầu: Trả về JSON duy nhất có cấu trúc: {"suggestedAccountIds": ["id1", "id2", ...]}.`;
+      
+      const res = await eventService.localAi.chat(prompt, true, user?.id || user?.accountId);
+      const aiReply = res.data?.reply;
+      const resultText = typeof aiReply === 'object' ? aiReply.reply : aiReply;
+      
+      let ids = [];
+      try {
+        const data = typeof resultText === 'string' ? JSON.parse(resultText) : resultText;
+        ids = data.suggestedAccountIds || [];
+      } catch (e) {
+        const match = resultText.match(/\["[\s\S]*"\]/);
+        if (match) ids = JSON.parse(match[0]);
+      }
+
+      if (ids.length > 0) {
+        setLoadingUsers(true);
+        setShowPresenterSuggestions(true);
+        try {
+          const profileRes = await authService.getUsersByIds(ids);
+          setSystemUsers(profileRes.data || []);
+          import("react-toastify").then(({ toast }) => toast.info("AI đã tìm thấy các gương mặt triển vọng dựa trên lịch sử tham gia!"));
+        } catch (err) {
+          console.error("Lỗi lấy profile diễn giả gợi ý:", err);
+        } finally {
+          setLoadingUsers(false);
+        }
+      } else {
+        import("react-toastify").then(({ toast }) => toast.warn("AI không tìm thấy người tham gia phù hợp để gợi ý."));
+      }
+    } catch (err) {
+      console.error("Lỗi gợi ý diễn giả AI:", err);
+      import("react-toastify").then(({ toast }) => toast.error("Lỗi kết nối AI khi gợi ý diễn giả."));
+    } finally {
+      setIsAILoading(false);
     }
   };
 
@@ -348,7 +412,10 @@ export default function ManualInputStep({
             formData={formData} setFormData={setFormData} systemUsers={systemUsers} loadingUsers={loadingUsers}
             presenterSearchKey={presenterSearchKey} setPresenterSearchKey={setPresenterSearchKey}
             showPresenterSuggestions={showPresenterSuggestions} setShowPresenterSuggestions={setShowPresenterSuggestions}
-            fetchUsers={fetchUsers} addPresenter={addPresenter} updatePresenter={updatePresenter} removePresenter={removePresenter} confirmPresenter={confirmPresenter}
+            fetchUsers={fetchUsers}
+            handleAIPresenterSuggestion={handleAIPresenterSuggestion}
+            addPresenter={addPresenter}
+            updatePresenter={updatePresenter} removePresenter={removePresenter} confirmPresenter={confirmPresenter}
           />
         )}
 

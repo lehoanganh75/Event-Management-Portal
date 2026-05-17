@@ -98,7 +98,32 @@ export const EventReviewStep = ({ formData, onBack, onSubmit, isSubmitting, isPl
 
   const org = orgSelectionMode === 'new' && newOrg
     ? { name: newOrg.name, email: newOrg.email, logo: newOrg.logoUrl }
-    : { name: formData.organizationName || "Đơn vị đã chọn", email: formData.organizationEmail || "Email liên hệ", logo: null };
+    : { 
+        name: formData.organization?.name || formData.organizationName || "Đơn vị đã chọn", 
+        email: formData.organization?.email || formData.organizationEmail || "Email liên hệ", 
+        logo: formData.organization?.logoUrl || formData.organizationLogo || null 
+      };
+
+  const STATUS_LABELS = {
+    DRAFT: { label: "BẢN NHÁP", color: "#64748b", bg: "#f8fafc" },
+    PLAN_PENDING_APPROVAL: { label: "CHỜ PHÊ DUYỆT", color: "#b45309", bg: "#fffbeb" },
+    PLAN_APPROVED: { label: "KẾ HOẠCH ĐÃ DUYỆT", color: "#16a34a", bg: "#f0fdf4" },
+    EVENT_PENDING_APPROVAL: { label: "SỰ KIỆN CHỜ DUYỆT", color: "#b45309", bg: "#fffbeb" },
+    PUBLISHED: { label: "ĐÃ CÔNG BỐ", color: "#1d4ed8", bg: "#eff6ff" },
+    ONGOING: { label: "ĐANG DIỄN RA", color: "#16a34a", bg: "#f0fdf4" },
+    COMPLETED: { label: "ĐÃ KẾT THÚC", color: "#4f46e5", bg: "#e0e7ff" },
+    CANCELLED: { label: "ĐÃ HỦY", color: "#ef4444", bg: "#fef2f2" },
+    REJECTED: { label: "TỪ CHỐI", color: "#ef4444", bg: "#fef2f2" },
+  };
+
+  const currentStatus = formData.status?.toUpperCase();
+  const statusInfo = currentStatus && STATUS_LABELS[currentStatus]
+    ? STATUS_LABELS[currentStatus]
+    : {
+      label: isAuthority ? "CÔNG KHAI NGAY" : "CHỜ PHÊ DUYỆT",
+      color: isAuthority ? "#16a34a" : "#b45309",
+      bg: isAuthority ? "#f0fdf4" : "#fffbeb"
+    };
 
   const handleSaveDraft = async () => {
     setSavingDraft(true);
@@ -126,8 +151,8 @@ export const EventReviewStep = ({ formData, onBack, onSubmit, isSubmitting, isPl
                     <span style={{ padding: "4px 10px", background: "#eff6ff", color: "#2563eb", fontSize: 11, fontWeight: 700, borderRadius: 6, textTransform: "uppercase" }}>
                       {eventType || "Sự kiện"}
                     </span>
-                    <span style={{ padding: "4px 10px", background: isAuthority ? "#f0fdf4" : "#fffbeb", color: isAuthority ? "#16a34a" : "#b45309", fontSize: 11, fontWeight: 700, borderRadius: 6 }}>
-                      {isAuthority ? "CÔNG KHAI NGAY" : "CHỜ PHÊ DUYỆT"}
+                    <span style={{ padding: "4px 10px", background: statusInfo.bg, color: statusInfo.color, fontSize: 11, fontWeight: 700, borderRadius: 6 }}>
+                      {statusInfo.label}
                     </span>
                   </div>
                   <h1 style={{ fontSize: 20, fontWeight: 800, color: "#1e293b", margin: "0 0 8px" }}>{eventTitle || "Tên sự kiện chưa nhập"}</h1>
@@ -237,33 +262,61 @@ export const EventReviewStep = ({ formData, onBack, onSubmit, isSubmitting, isPl
             </div>
 
             {/* Status Card */}
-            {isPlanMode ? (
-              <div style={{ background: isAuthority ? "#f0fdf4" : "#eff6ff", border: "1px solid", borderColor: isAuthority ? "#bbf7d0" : "#bfdbfe", borderRadius: 16, padding: "14px 16px" }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
-                  <div style={{ color: isAuthority ? "#16a34a" : "#2563eb" }}><Info size={18} /></div>
-                  <h4 style={{ fontSize: 14, fontWeight: 700, color: isAuthority ? "#166534" : "#1e40af", margin: 0 }}>
-                    {isAuthority ? "Tự động phê duyệt" : "Kế hoạch đang ở bản nháp"}
-                  </h4>
+            {(() => {
+              if (currentStatus === "PLAN_APPROVED") {
+                return (
+                  <div style={{ background: "#f0fdf4", border: "1px solid #bbf7d0", borderRadius: 16, padding: "14px 16px" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
+                      <div style={{ color: "#16a34a" }}><CheckCircle size={18} /></div>
+                      <h4 style={{ fontSize: 14, fontWeight: 700, color: "#166534", margin: 0 }}>Kế hoạch đã được duyệt</h4>
+                    </div>
+                    <p style={{ fontSize: 13, color: "#15803d", lineHeight: 1.5, margin: 0 }}>Kế hoạch này đã được ban lãnh đạo thông qua. Bạn có thể tiến hành tạo sự kiện chính thức.</p>
+                  </div>
+                );
+              }
+              if (currentStatus === "PLAN_PENDING_APPROVAL") {
+                return (
+                  <div style={{ background: "#fffbeb", border: "1px solid #fef3c7", borderRadius: 16, padding: "14px 16px" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
+                      <div style={{ color: "#b45309" }}><Clock size={18} /></div>
+                      <h4 style={{ fontSize: 14, fontWeight: 700, color: "#92400e", margin: 0 }}>Đang chờ phê duyệt</h4>
+                    </div>
+                    <p style={{ fontSize: 13, color: "#92400e", lineHeight: 1.5, margin: 0 }}>Kế hoạch đã được gửi và đang chờ ban quản trị xem xét phê duyệt.</p>
+                  </div>
+                );
+              }
+              // Default logic for new/draft
+              if (isPlanMode) {
+                return (
+                  <div style={{ background: isAuthority ? "#f0fdf4" : "#eff6ff", border: "1px solid", borderColor: isAuthority ? "#bbf7d0" : "#bfdbfe", borderRadius: 16, padding: "14px 16px" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
+                      <div style={{ color: isAuthority ? "#16a34a" : "#2563eb" }}><Info size={18} /></div>
+                      <h4 style={{ fontSize: 14, fontWeight: 700, color: isAuthority ? "#166534" : "#1e40af", margin: 0 }}>
+                        {isAuthority ? "Tự động phê duyệt" : "Kế hoạch đang ở bản nháp"}
+                      </h4>
+                    </div>
+                    <p style={{ fontSize: 13, color: isAuthority ? "#15803d" : "#1d4ed8", lineHeight: 1.5, margin: 0 }}>
+                      {isAuthority
+                        ? "Với quyền Quản trị, kế hoạch này sẽ được chuyển sang trạng thái 'Đã phê duyệt' ngay sau khi bạn xác nhận."
+                        : "Chọn một hành động phía dưới: lưu nháp, gửi phê duyệt hoặc xuất file Word."}
+                    </p>
+                  </div>
+                );
+              }
+              return (
+                <div style={{ background: isAuthority ? "#f0fdf4" : "#fffbeb", border: "1px solid", borderColor: isAuthority ? "#bbf7d0" : "#fef3c7", borderRadius: 16, padding: "14px 16px" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
+                    <div style={{ color: isAuthority ? "#16a34a" : "#b45309" }}><Info size={18} /></div>
+                    <h4 style={{ fontSize: 14, fontWeight: 700, color: isAuthority ? "#166534" : "#92400e", margin: 0 }}>{isAuthority ? "Xuất bản trực tiếp" : "Chờ phê duyệt"}</h4>
+                  </div>
+                  <p style={{ fontSize: 13, color: isAuthority ? "#15803d" : "#92400e", lineHeight: 1.5, margin: 0 }}>
+                    {isAuthority
+                      ? "Với quyền Quản trị, hệ thống sẽ công khai sự kiện ngay sau khi bạn xác nhận."
+                      : "Sự kiện sẽ được gửi đến Admin để kiểm tra và phê duyệt nội dung."}
+                  </p>
                 </div>
-                <p style={{ fontSize: 13, color: isAuthority ? "#15803d" : "#1d4ed8", lineHeight: 1.5, margin: 0 }}>
-                  {isAuthority 
-                    ? "Với quyền Quản trị, kế hoạch này sẽ được chuyển sang trạng thái 'Đã phê duyệt' ngay sau khi bạn xác nhận."
-                    : "Chọn một hành động phía dưới: lưu nháp, gửi phê duyệt hoặc xuất file Word."}
-                </p>
-              </div>
-            ) : (
-              <div style={{ background: isAuthority ? "#f0fdf4" : "#fffbeb", border: "1px solid", borderColor: isAuthority ? "#bbf7d0" : "#fef3c7", borderRadius: 16, padding: "14px 16px" }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
-                  <div style={{ color: isAuthority ? "#16a34a" : "#b45309" }}><Info size={18} /></div>
-                  <h4 style={{ fontSize: 14, fontWeight: 700, color: isAuthority ? "#166534" : "#92400e", margin: 0 }}>{isAuthority ? "Xuất bản trực tiếp" : "Chờ phê duyệt"}</h4>
-                </div>
-                <p style={{ fontSize: 13, color: isAuthority ? "#15803d" : "#92400e", lineHeight: 1.5, margin: 0 }}>
-                  {isAuthority 
-                    ? "Với quyền Quản trị, hệ thống sẽ công khai sự kiện ngay sau khi bạn xác nhận."
-                    : "Sự kiện sẽ được gửi đến Admin để kiểm tra và phê duyệt nội dung."}
-                </p>
-              </div>
-            )}
+              );
+            })()}
 
             {/* Quick Stats Sidebar */}
             <div style={{ background: "#1e1b4b", borderRadius: 16, padding: "14px 16px", color: "#fff" }}>
