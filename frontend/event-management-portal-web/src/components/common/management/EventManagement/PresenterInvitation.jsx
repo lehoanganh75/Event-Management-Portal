@@ -23,7 +23,7 @@ const PresenterInvitation = ({
   if (!isAddingPresenter) return null;
 
   return (
-    <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm space-y-5">
+    <div className="space-y-5 py-2">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
@@ -292,7 +292,14 @@ const PresenterInvitation = ({
       {presenterInvitations.length > 0 && (
         <div className="flex justify-end pt-2">
           <button
-            onClick={handleSendPresenterInvites}
+            onClick={() => {
+              const empty = presenterInvitations.find(inv => !inv.bio || inv.bio.trim() === "");
+              if (empty) {
+                import("react-toastify").then(({ toast }) => toast.error("Vui lòng nhập Lời nhắn cho tất cả diễn giả chuẩn bị mời!"));
+                return;
+              }
+              handleSendPresenterInvites();
+            }}
             disabled={isInvitingPresenter}
             className="
               px-6 py-3

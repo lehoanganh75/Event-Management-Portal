@@ -84,6 +84,7 @@ const PlanManagement = ({
     pending: plans.filter((p) => p.status?.toUpperCase() === "PLAN_PENDING_APPROVAL").length,
     published: plans.filter((p) => p.status?.toUpperCase() === "PLAN_APPROVED" || p.status?.toUpperCase() === "PUBLISHED").length,
     draft: plans.filter((p) => p.status?.toUpperCase() === "DRAFT").length,
+    converted: plans.filter((p) => p.status?.toUpperCase() === "CONVERTED").length,
   }), [plans]);
 
   const totalPages = Math.ceil(filtered.length / ITEMS_PER_PAGE);
@@ -97,7 +98,7 @@ const PlanManagement = ({
       </div>
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        {[{ label: "Tổng kế hoạch", value: stats.total, color: "blue" }, { label: "Chờ duyệt", value: stats.pending, color: "amber" }, { label: "Đã duyệt", value: stats.published, color: "emerald" }, { label: "Bản nháp", value: stats.draft, color: "slate" }].map(({ label, value, color }) => (
+        {[{ label: "Tổng kế hoạch", value: stats.total, color: "blue" }, { label: "Chờ duyệt", value: stats.pending, color: "amber" }, { label: "Đã duyệt", value: stats.published, color: "emerald" }, { label: "Bản nháp", value: stats.draft, color: "slate" }, { label: "Đã chuyển đổi", value: stats.converted, color: "purple" }].map(({ label, value, color }) => (
           <div key={label} className="bg-white rounded-2xl p-5 border border-slate-100 shadow-sm">
             <p className={`text-2xl font-black text-${color}-600`}>{value}</p>
             <p className="text-xs text-slate-500 font-medium mt-0.5">{label}</p>
@@ -116,6 +117,7 @@ const PlanManagement = ({
             <option value="DRAFT">Bản nháp</option>
             <option value="PLAN_PENDING_APPROVAL">Chờ duyệt kế hoạch</option>
             <option value="PLAN_APPROVED">Kế hoạch đã duyệt</option>
+            <option value="CONVERTED">Đã chuyển đổi</option>
             <option value="CANCELLED">Đã hủy</option>
           </select>
         </div>

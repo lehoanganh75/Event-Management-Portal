@@ -1,13 +1,21 @@
 import React from "react";
-import { Users, Plus, Sparkles, X, Check, Search, Briefcase } from "lucide-react";
+import {
+  Users,
+  Plus,
+  Sparkles,
+  X,
+  Check,
+  Search,
+  MessageSquare,
+} from "lucide-react";
 import { Field, Input, Select } from "./BaseUI";
 
-const PresentersSection = ({ 
-  formData, 
-  setFormData, 
-  systemUsers, 
-  loadingUsers, 
-  presenterSearchKey, 
+const PresentersSection = ({
+  formData,
+  setFormData,
+  systemUsers,
+  loadingUsers,
+  presenterSearchKey,
   setPresenterSearchKey,
   showPresenterSuggestions,
   setShowPresenterSuggestions,
@@ -16,177 +24,331 @@ const PresentersSection = ({
   addPresenter,
   updatePresenter,
   removePresenter,
-  confirmPresenter
+  confirmPresenter,
 }) => {
+  const filteredUsers = systemUsers.filter(
+    (u) =>
+      (u.profile?.fullName || "")
+        .toLowerCase()
+        .includes(presenterSearchKey.toLowerCase()) ||
+      (u.email || "")
+        .toLowerCase()
+        .includes(presenterSearchKey.toLowerCase())
+  );
+
   return (
-    <div style={{ marginTop: 20 }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
-        <h3 style={{ fontSize: 14, fontWeight: 700, color: "#1e293b", margin: 0, display: "flex", alignItems: "center", gap: 8 }}>
-          <Users size={18} className="text-indigo-500" />
-          Mời Diễn giả / Người thuyết trình
-        </h3>
-        <div style={{ display: "flex", gap: 12 }}>
+    <div className="space-y-5">
+      {/* HEADER */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h3 className="text-sm font-semibold text-slate-800 flex items-center gap-2">
+            <Users size={16} className="text-slate-500" />
+            Khách mời / Người trình bày
+          </h3>
+
+          <p className="text-xs text-slate-500 mt-1">
+            Thêm người trình bày cho sự kiện
+          </p>
+        </div>
+
+        <div className="flex items-center gap-2">
           <button
             onClick={() => {
-              if (!showPresenterSuggestions) handleAIPresenterSuggestion();
+              if (!showPresenterSuggestions)
+                handleAIPresenterSuggestion();
               else setShowPresenterSuggestions(false);
             }}
-            style={{ background: "#fdfaff", border: "1px solid #ddd6fe", color: "#8b5cf6", padding: "6px 12px", borderRadius: 6, fontSize: 12, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: 4 }}
+            className="
+              flex items-center gap-1.5
+              px-3 py-2
+              rounded-lg
+              border border-indigo-200
+              bg-white
+              text-indigo-600
+              text-xs font-medium
+              hover:bg-indigo-50
+              transition-colors
+            "
           >
-            <Sparkles size={14} /> AI gợi ý diễn giả
+            <Sparkles size={13} />
+            AI gợi ý
           </button>
+
           <button
             onClick={() => addPresenter()}
-            style={{ background: "#f1f5f9", border: "none", color: "#475569", padding: "6px 12px", borderRadius: 6, fontSize: 12, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: 4 }}
+            className="
+              flex items-center gap-1.5
+              px-3 py-2
+              rounded-lg
+              bg-slate-100
+              text-slate-700
+              text-xs font-medium
+              hover:bg-slate-200
+              transition-colors
+            "
           >
-            <Plus size={14} /> Thêm diễn giả
+            <Plus size={13} />
+            Thêm
           </button>
         </div>
       </div>
 
+      {/* SEARCH */}
       {showPresenterSuggestions && (
-        <div style={{ background: "#fdfaff", border: "1px solid #f3e8ff", borderRadius: 12, padding: "20px", marginBottom: 20 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 8, color: "#8b5cf6", fontSize: 13, fontWeight: 700, marginBottom: 16 }}>
-            <Search size={16} />
-            Tìm kiếm diễn giả từ hệ thống
+        <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+          <div className="relative mb-4">
+            <Search
+              size={15}
+              className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
+            />
+
+            <Input
+              placeholder="Tìm kiếm theo tên hoặc email..."
+              value={presenterSearchKey}
+              onChange={(e) =>
+                setPresenterSearchKey(e.target.value)
+              }
+              className="pl-10"
+            />
           </div>
-          <Input
-            placeholder="Nhập tên, email hoặc username để tìm..."
-            value={presenterSearchKey}
-            onChange={(e) => setPresenterSearchKey(e.target.value)}
-            style={{ marginBottom: 16 }}
-          />
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, maxHeight: 300, overflowY: "auto", padding: 4 }}>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-h-[300px] overflow-y-auto">
             {loadingUsers ? (
-              <div style={{ gridColumn: "span 2", textAlign: "center", padding: 20, color: "#94a3b8", fontSize: 13 }}>Đang tải danh sách...</div>
-            ) : systemUsers.filter(u =>
-              (u.profile?.fullName || "").toLowerCase().includes(presenterSearchKey.toLowerCase()) ||
-              (u.email || "").toLowerCase().includes(presenterSearchKey.toLowerCase())
-            ).length > 0 ? (
-              systemUsers.filter(u =>
-                (u.profile?.fullName || "").toLowerCase().includes(presenterSearchKey.toLowerCase()) ||
-                (u.email || "").toLowerCase().includes(presenterSearchKey.toLowerCase())
-              ).map(u => (
-                <div
+              <div className="md:col-span-2 text-center py-6 text-sm text-slate-400">
+                Đang tải danh sách...
+              </div>
+            ) : filteredUsers.length > 0 ? (
+              filteredUsers.map((u) => (
+                <button
                   key={u.id}
                   onClick={() => {
                     addPresenter(u);
                     setShowPresenterSuggestions(false);
                     setPresenterSearchKey("");
                   }}
-                  style={{ background: "#fff", border: "1px solid #f1f5f9", padding: 12, borderRadius: 10, cursor: "pointer", display: "flex", alignItems: "center", gap: 12, transition: "all .15s" }}
-                  onMouseEnter={e => e.currentTarget.style.borderColor = "#ddd6fe"}
-                  onMouseLeave={e => e.currentTarget.style.borderColor = "#f1f5f9"}
+                  className="
+                    flex items-center gap-3
+                    p-3 rounded-xl
+                    border border-slate-200
+                    bg-white
+                    hover:border-indigo-300
+                    hover:bg-indigo-50/30
+                    transition-colors
+                    text-left
+                  "
                 >
-                  <div style={{ width: 36, height: 36, borderRadius: "50%", background: "#f1f5f9", display: "flex", alignItems: "center", justifyContent: "center", color: "#64748b" }}>
-                    <Briefcase size={18} />
+                  <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center text-slate-500">
+                    <MessageSquare size={16} />
                   </div>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: 13, fontWeight: 700, color: "#1e293b", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{u.profile?.fullName || u.username}</div>
-                    <div style={{ fontSize: 11, color: "#94a3b8", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{u.email}</div>
+
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium text-slate-800 truncate">
+                      {u.profile?.fullName || u.username}
+                    </p>
+
+                    <p className="text-xs text-slate-500 truncate">
+                      {u.email}
+                    </p>
                   </div>
-                </div>
+                </button>
               ))
             ) : (
-              <div style={{ gridColumn: "span 2", textAlign: "center", padding: 20, color: "#94a3b8", fontSize: 13 }}>Không tìm thấy diễn giả phù hợp</div>
+              <div className="md:col-span-2 text-center py-6 text-sm text-slate-400">
+                Không tìm thấy người phù hợp
+              </div>
             )}
           </div>
         </div>
       )}
 
-      <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-        {(formData.presenters || []).map((presenter, idx) => (
-          presenter.isConfirmed ? (
-            <div key={idx} style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 12, padding: "12px 16px", display: "flex", alignItems: "center", gap: 12, animation: "fadeIn 0.3s ease" }}>
-              <div style={{ width: 40, height: 40, borderRadius: "50%", background: "#eef2ff", display: "flex", alignItems: "center", justifyContent: "center", color: "#6366f1" }}>
-                <Briefcase size={20} />
-              </div>
-              <div style={{ flex: 1 }}>
-                <div style={{ fontSize: 14, fontWeight: 700, color: "#1e293b" }}>{presenter.fullName || presenter.email.split('@')[0]}</div>
-                <div style={{ fontSize: 12, color: "#64748b" }}>
-                  {presenter.targetSessionName === 'ALL' ? 'Thuyết trình tất cả' : presenter.targetSessionName ? `Phiên: ${presenter.targetSessionName}` : 'Chưa gán phiên'} • {presenter.email}
+      {/* LIST */}
+      <div className="space-y-4">
+        {(formData.presenters || []).map(
+          (presenter, idx) =>
+            presenter.isConfirmed ? (
+              <div
+                key={idx}
+                className="flex items-center gap-4 py-4 border-b border-slate-100"
+              >
+                <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center text-slate-500">
+                  <MessageSquare size={16} />
                 </div>
-              </div>
-              <div style={{ display: "flex", gap: 8 }}>
+
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-slate-800">
+                    {presenter.fullName ||
+                      presenter.email?.split("@")[0]}
+                  </p>
+
+                  <p className="text-xs text-slate-500">
+                    {presenter.email}
+                  </p>
+                </div>
+
+                {presenter.targetSessionName && (
+                  <span className="px-2 py-1 rounded-md bg-slate-100 text-slate-600 text-xs">
+                    {presenter.targetSessionName === "ALL"
+                      ? "Tất cả phiên"
+                      : presenter.targetSessionName}
+                  </span>
+                )}
+
                 <button
-                  onClick={() => updatePresenter(idx, 'isConfirmed', false)}
-                  style={{ background: "none", border: "none", color: "#3b82f6", fontSize: 12, fontWeight: 700, cursor: "pointer", padding: "4px 8px" }}
+                  onClick={() =>
+                    updatePresenter(
+                      idx,
+                      "isConfirmed",
+                      false
+                    )
+                  }
+                  className="text-sm text-blue-600 hover:text-blue-700"
                 >
-                  Chỉnh sửa
+                  Sửa
                 </button>
+
                 <button
                   onClick={() => removePresenter(idx)}
-                  style={{ background: "none", border: "none", color: "#ef4444", fontSize: 12, fontWeight: 700, cursor: "pointer", padding: "4px 8px" }}
+                  className="text-rose-500 hover:text-rose-600"
                 >
-                  Xóa
+                  <X size={15} />
                 </button>
               </div>
-            </div>
-          ) : (
-            <div key={idx} style={{ background: "#fafafa", padding: 20, borderRadius: 14, border: "2px solid #6366f1", display: "flex", flexDirection: "column", gap: 16, position: "relative", boxShadow: "0 4px 12px rgba(99, 102, 241, 0.08)" }}>
-              <button
-                onClick={() => removePresenter(idx)}
-                style={{ position: "absolute", top: 12, right: 12, background: "#fee2e2", border: "none", color: "#ef4444", padding: "6px", borderRadius: 8, cursor: "pointer" }}
+            ) : (
+              <div
+                key={idx}
+                className="space-y-4 py-2"
               >
-                <X size={14} />
-              </button>
-
-              <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: 16 }}>
-                <Field label="Email diễn giả" required>
+                <Field label="Email người trình bày" required>
                   <Input
                     type="email"
                     value={presenter.email}
-                    onChange={(e) => updatePresenter(idx, 'email', e.target.value)}
-                    onKeyDown={(e) => e.key === 'Enter' && confirmPresenter(idx)}
-                    placeholder="Nhập email để hệ thống tự tìm thông tin"
+                    onChange={(e) =>
+                      updatePresenter(
+                        idx,
+                        "email",
+                        e.target.value
+                      )
+                    }
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        if (!presenter.message || presenter.message.trim() === "") {
+                          import("react-toastify").then(({ toast }) => toast.error("Vui lòng nhập Lời nhắn cho diễn giả!"));
+                          return;
+                        }
+                        confirmPresenter(idx);
+                      }
+                    }}
+                    placeholder="email@iuh.edu.vn"
                     autoFocus
                   />
                 </Field>
-              </div>
 
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
-                <Field label="Tên diễn giả">
-                  <Input value={presenter.fullName} onChange={(e) => updatePresenter(idx, 'fullName', e.target.value)} onKeyDown={(e) => e.key === 'Enter' && confirmPresenter(idx)} placeholder="Hệ thống tự điền nếu tìm thấy" />
-                </Field>
-                <Field label="Phiên đảm nhiệm">
-                  <Select value={presenter.targetSessionId} onChange={(e) => {
-                    const sid = e.target.value;
-                    const sname = sid === 'ALL' ? 'ALL' : formData.sessions?.find(s => s.id === sid || s.orderIndex === parseInt(sid))?.title || '';
-                    updatePresenter(idx, 'targetSessionId', sid);
-                    updatePresenter(idx, 'targetSessionName', sname);
-                  }}>
-                    <option value="">-- Chưa gán --</option>
-                    <option value="ALL">Tất cả các phiên</option>
-                    {(formData.sessions || []).map((s, i) => (
-                      <option key={i} value={s.id || s.orderIndex}>{s.title}</option>
-                    ))}
-                  </Select>
-                </Field>
-              </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <Field label="Lời nhắn">
+                    <Input
+                      value={presenter.message || ""}
+                      onChange={(e) => {
+                        updatePresenter(idx, "message", e.target.value);
+                        updatePresenter(idx, "bio", e.target.value);
+                      }}
+                      placeholder="Mời làm diễn giả..."
+                    />
+                  </Field>
 
-              <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 4 }}>
-                <button
-                  onClick={() => confirmPresenter(idx)}
-                  style={{
-                    background: "#1e1b4b",
-                    color: "#fff",
-                    border: "none",
-                    padding: "10px 20px",
-                    borderRadius: 8,
-                    fontSize: 13,
-                    fontWeight: 700,
-                    cursor: "pointer",
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 8
-                  }}
-                >
-                  <Check size={16} /> Xác nhận diễn giả
-                </button>
+                  <Field label="Phiên đảm nhiệm">
+                    <Select
+                      value={presenter.targetSessionId}
+                      onChange={(e) => {
+                        const sid = e.target.value;
+
+                        const sname =
+                          sid === "ALL"
+                            ? "ALL"
+                            : formData.sessions?.find(
+                              (s) =>
+                                s.id === sid ||
+                                s.orderIndex ===
+                                parseInt(sid)
+                            )?.title || "";
+
+                        updatePresenter(
+                          idx,
+                          "targetSessionId",
+                          sid
+                        );
+
+                        updatePresenter(
+                          idx,
+                          "targetSessionName",
+                          sname
+                        );
+                      }}
+                    >
+                      <option value="">
+                        -- Chưa gán --
+                      </option>
+
+                      <option value="ALL">
+                        Tất cả các phiên
+                      </option>
+
+                      {(formData.sessions || []).map(
+                        (s, i) => (
+                          <option
+                            key={i}
+                            value={
+                              s.id || s.orderIndex
+                            }
+                          >
+                            {s.title}
+                          </option>
+                        )
+                      )}
+                    </Select>
+                  </Field>
+                </div>
+
+                <div className="flex justify-end gap-2 pt-1">
+                  <button
+                    onClick={() =>
+                      removePresenter(idx)
+                    }
+                    className="
+                      px-4 py-2
+                      rounded-lg
+                      border border-rose-200
+                      text-sm text-rose-600
+                      hover:bg-rose-50
+                    "
+                  >
+                    Xóa
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      if (!presenter.message || presenter.message.trim() === "") {
+                        import("react-toastify").then(({ toast }) => toast.error("Vui lòng nhập Lời nhắn cho diễn giả!"));
+                        return;
+                      }
+                      confirmPresenter(idx);
+                    }}
+                    className="
+                      flex items-center gap-2
+                      px-4 py-2
+                      rounded-lg
+                      bg-indigo-600
+                      text-white
+                      text-sm
+                      hover:bg-indigo-700
+                    "
+                  >
+                    <Check size={14} />
+                    Xác nhận
+                  </button>
+                </div>
               </div>
-            </div>
-          )
-        ))}
+            )
+        )}
       </div>
     </div>
   );

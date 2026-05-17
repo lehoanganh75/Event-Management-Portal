@@ -4,9 +4,6 @@ import {
   Plus,
   Trash2,
   Sparkles,
-  Check,
-  ArrowLeft,
-  X,
   HelpCircle,
   BarChart2,
 } from "lucide-react";
@@ -79,80 +76,63 @@ export default function InteractionStep({ formData, setFormData, onNext, onBack 
   const showInteractionList = settings.enableQA || settings.enablePolls;
 
   return (
-    <div style={{ width: "100%", margin: "0 auto", padding: "20px 0" }}>
-      <div style={{ background: "#fff", border: "1px solid #f1f5f9", borderRadius: 16, padding: "32px", display: "flex", flexDirection: "column", gap: 32 }}>
+    <div className="w-full mx-auto p-0">
+      <div className="bg-white border border-slate-100 rounded-2xl p-8 flex flex-col gap-8">
 
-        <h2 style={{ fontSize: 18, fontWeight: 800, color: "#1e293b", margin: 0 }}>Tương tác & Q&A</h2>
+        {/* HEADER */}
+        <div>
+          <h2 className="text-lg font-semibold text-slate-800">
+            Tương tác & Q&A
+          </h2>
+          <p className="text-sm text-slate-500 mt-1">
+            Thiết lập câu hỏi và cuộc bình chọn trực tiếp để tăng tương tác trong sự kiện
+          </p>
+        </div>
 
         {/* Settings Box */}
-        <div style={{
-          background: "#eff6ff",
-          border: "1px solid #dbeafe",
-          borderRadius: 16,
-          padding: "24px",
-          display: "flex",
-          gap: 20,
-          alignItems: "flex-start"
-        }}>
-          <div style={{
-            width: 48,
-            height: 48,
-            background: "#dbeafe",
-            borderRadius: 12,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            color: "#2563eb"
-          }}>
-            <MessageSquare size={24} />
+        <div className="flex items-start gap-4 p-5 bg-blue-50/40 border border-blue-100 rounded-xl">
+          <div className="w-10 h-10 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center shrink-0">
+            <MessageSquare size={20} />
           </div>
-          <div style={{ flex: 1 }}>
-            <h3 style={{ fontSize: 15, fontWeight: 700, color: "#1e3a8a", margin: "0 0 4px" }}>Tương tác với người tham dự</h3>
-            <p style={{ fontSize: 13, color: "#3b82f6", margin: "0 0 16px", lineHeight: 1.5 }}>
-              Tạo câu hỏi Q&A và bình chọn để tăng tương tác trong sự kiện. AI sẽ gợi ý câu hỏi phù hợp dựa trên loại sự kiện.
-            </p>
-            <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-              <label style={{ display: "flex", alignItems: "center", gap: 10, cursor: "pointer" }}>
-                <div
-                  onClick={() => handleSettingToggle('enableQA')}
-                  style={{
-                    width: 18, height: 18, borderRadius: 4,
-                    border: `2px solid ${settings.enableQA ? "#2563eb" : "#cbd5e1"}`,
-                    background: settings.enableQA ? "#2563eb" : "#fff",
-                    display: "flex", alignItems: "center", justifyContent: "center"
-                  }}
-                >
-                  {settings.enableQA && <Check size={12} color="#fff" strokeWidth={4} />}
-                </div>
-                <span style={{ fontSize: 13, fontWeight: 600, color: "#1e293b" }}>Bật tính năng Q&A</span>
+          <div className="flex-1 space-y-4">
+            <div>
+              <h3 className="text-sm font-semibold text-blue-900">
+                Tương tác với người tham dự
+              </h3>
+              <p className="text-xs text-blue-700/80 mt-1 leading-relaxed">
+                Kích hoạt hệ thống gửi câu hỏi cho diễn giả và tạo các cuộc biểu quyết/bình chọn nhanh để giữ sự kiện luôn sinh động.
+              </p>
+            </div>
+            
+            <div className="flex flex-col md:flex-row gap-4 md:gap-8 pt-1">
+              <label className="flex items-center gap-2.5 text-sm text-slate-700 font-medium cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  checked={settings.enableQA}
+                  onChange={() => handleSettingToggle('enableQA')}
+                  className="w-4 h-4 text-indigo-600 border-slate-300 rounded focus:ring-indigo-500 cursor-pointer"
+                />
+                Bật tính năng Q&A
               </label>
-              <label style={{ display: "flex", alignItems: "center", gap: 10, cursor: "pointer" }}>
-                <div
-                  onClick={() => handleSettingToggle('enablePolls')}
-                  style={{
-                    width: 18, height: 18, borderRadius: 4,
-                    border: `2px solid ${settings.enablePolls ? "#2563eb" : "#cbd5e1"}`,
-                    background: settings.enablePolls ? "#2563eb" : "#fff",
-                    display: "flex", alignItems: "center", justifyContent: "center"
-                  }}
-                >
-                  {settings.enablePolls && <Check size={12} color="#fff" strokeWidth={4} />}
-                </div>
-                <span style={{ fontSize: 13, fontWeight: 600, color: "#1e293b" }}>Bật tính năng bình chọn</span>
+
+              <label className="flex items-center gap-2.5 text-sm text-slate-700 font-medium cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  checked={settings.enablePolls}
+                  onChange={() => handleSettingToggle('enablePolls')}
+                  className="w-4 h-4 text-indigo-600 border-slate-300 rounded focus:ring-indigo-500 cursor-pointer"
+                />
+                Bật tính năng bình chọn
               </label>
-              <label style={{ display: "flex", alignItems: "center", gap: 10, cursor: "pointer" }}>
-                <div
-                  onClick={() => handleSettingToggle('allowUserQuestions')}
-                  style={{
-                    width: 18, height: 18, borderRadius: 4,
-                    border: `2px solid ${settings.allowUserQuestions ? "#2563eb" : "#cbd5e1"}`,
-                    background: settings.allowUserQuestions ? "#2563eb" : "#fff",
-                    display: "flex", alignItems: "center", justifyContent: "center"
-                  }}
-                >
-                  {settings.allowUserQuestions && <Check size={12} color="#fff" strokeWidth={4} />}
-                </div>
-                <span style={{ fontSize: 13, fontWeight: 600, color: "#1e293b" }}>Cho phép người tham dự đặt câu hỏi</span>
+
+              <label className="flex items-center gap-2.5 text-sm text-slate-700 font-medium cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  checked={settings.allowUserQuestions}
+                  onChange={() => handleSettingToggle('allowUserQuestions')}
+                  className="w-4 h-4 text-indigo-600 border-slate-300 rounded focus:ring-indigo-500 cursor-pointer"
+                />
+                Cho phép khán giả đặt câu hỏi
               </label>
             </div>
           </div>
@@ -161,32 +141,38 @@ export default function InteractionStep({ formData, setFormData, onNext, onBack 
         {showInteractionList ? (
           <>
             {/* List Section */}
-            <div>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
-                <h3 style={{ fontSize: 14, fontWeight: 700, color: "#1e293b", margin: 0 }}>Câu hỏi & Bình chọn</h3>
+            <div className="space-y-4">
+              <div className="flex justify-between items-center border-b border-slate-100 pb-2">
+                <h3 className="text-sm font-semibold text-slate-800">Câu hỏi & Bình chọn đã tạo</h3>
                 <button
                   onClick={() => setShowAiSuggestions(!showAiSuggestions)}
-                  style={{ background: "none", border: "none", color: "#8b5cf6", fontSize: 13, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-indigo-200 bg-white text-indigo-600 text-xs font-medium hover:bg-indigo-50 transition-colors"
                 >
-                  <Sparkles size={16} /> AI gợi ý câu hỏi
+                  <Sparkles size={14} />
+                  AI gợi ý câu hỏi
                 </button>
               </div>
 
               {showAiSuggestions && (
-                <div style={{ background: "#fdfaff", border: "1px solid #f3e8ff", borderRadius: 16, padding: "24px", display: "flex", flexDirection: "column", gap: 20 }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 8, color: "#8b5cf6", fontSize: 13, fontWeight: 700 }}>
-                    <Sparkles size={14} />
-                    Gợi ý từ AI cho sự kiện
+                <div className="rounded-xl border border-indigo-100 bg-indigo-50/20 p-4 space-y-4">
+                  <div className="flex items-center gap-2 text-indigo-700 text-xs font-semibold">
+                    <Sparkles size={13} />
+                    Gợi ý từ AI phù hợp với sự kiện của bạn
                   </div>
 
                   {settings.enableQA && (
-                    <div>
-                      <h4 style={{ fontSize: 12, fontWeight: 800, color: "#1e293b", textTransform: "uppercase", marginBottom: 12, letterSpacing: "0.05em" }}>Câu hỏi Q&A</h4>
-                      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                    <div className="space-y-2">
+                      <h4 className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Câu hỏi Q&A gợi ý</h4>
+                      <div className="space-y-2">
                         {aiSuggestions.questions.map((q, i) => (
-                          <div key={i} style={{ background: "#fff", padding: "12px 16px", borderRadius: 12, display: "flex", justifyContent: "space-between", alignItems: "center", border: "1px solid #f1f5f9" }}>
-                            <span style={{ fontSize: 13, color: "#1e293b", fontWeight: 500 }}>{q}</span>
-                            <button onClick={() => addInteraction('question', q)} style={{ background: "#8b5cf6", color: "#fff", border: "none", padding: "6px 16px", borderRadius: 8, fontSize: 12, fontWeight: 700, cursor: "pointer" }}>Thêm</button>
+                          <div key={i} className="flex justify-between items-center p-3 rounded-lg border border-slate-200 bg-white">
+                            <span className="text-xs text-slate-700 font-medium">{q}</span>
+                            <button
+                              onClick={() => addInteraction('question', q)}
+                              className="px-3 py-1 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold rounded-lg transition-colors"
+                            >
+                              Thêm
+                            </button>
                           </div>
                         ))}
                       </div>
@@ -194,16 +180,21 @@ export default function InteractionStep({ formData, setFormData, onNext, onBack 
                   )}
 
                   {settings.enablePolls && (
-                    <div>
-                      <h4 style={{ fontSize: 12, fontWeight: 800, color: "#1e293b", textTransform: "uppercase", marginBottom: 12, letterSpacing: "0.05em" }}>Bình chọn</h4>
-                      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                    <div className="space-y-2 pt-2 border-t border-slate-100/50">
+                      <h4 className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Bình chọn gợi ý</h4>
+                      <div className="space-y-2">
                         {aiSuggestions.polls.map((p, i) => (
-                          <div key={i} style={{ background: "#fff", padding: "16px", borderRadius: 12, display: "flex", justifyContent: "space-between", alignItems: "center", border: "1px solid #f1f5f9" }}>
-                            <div>
-                              <div style={{ fontSize: 13, color: "#1e293b", fontWeight: 700 }}>{p.text}</div>
-                              <div style={{ fontSize: 11, color: "#94a3b8", marginTop: 4 }}>{p.options.join(' • ')}</div>
+                          <div key={i} className="flex justify-between items-center p-3 rounded-lg border border-slate-200 bg-white">
+                            <div className="min-w-0 pr-2">
+                              <p className="text-xs font-bold text-slate-800 truncate">{p.text}</p>
+                              <p className="text-[10px] text-slate-400 mt-0.5 truncate">{p.options.join(' • ')}</p>
                             </div>
-                            <button onClick={() => addInteraction('poll', p.text, p.options)} style={{ background: "#8b5cf6", color: "#fff", border: "none", padding: "6px 16px", borderRadius: 8, fontSize: 12, fontWeight: 700, cursor: "pointer" }}>Thêm</button>
+                            <button
+                              onClick={() => addInteraction('poll', p.text, p.options)}
+                              className="px-3 py-1 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold rounded-lg shrink-0 transition-colors"
+                            >
+                              Thêm
+                            </button>
                           </div>
                         ))}
                       </div>
@@ -212,78 +203,90 @@ export default function InteractionStep({ formData, setFormData, onNext, onBack 
                 </div>
               )}
 
-              <div style={{ marginTop: 24, display: "flex", flexDirection: "column", gap: 12 }}>
+              {/* Added Items List */}
+              <div className="space-y-3">
                 {interactions.map((item) => (
-                  <div key={item.id} style={{ background: "#fafafa", padding: "16px 20px", borderRadius: 14, border: "1px solid #f1f5f9", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                      <div style={{ width: 32, height: 32, borderRadius: 8, background: "#fff", border: "1px solid #e2e8f0", display: "flex", alignItems: "center", justifyContent: "center", color: "#64748b" }}>
+                  <div key={item.id} className="flex justify-between items-center p-4 rounded-xl border border-slate-100 bg-slate-50/50">
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-lg bg-white border border-slate-200 flex items-center justify-center text-slate-500 shrink-0">
                         {item.type === 'question' ? <HelpCircle size={16} /> : <BarChart2 size={16} />}
                       </div>
-                      <div>
-                        <div style={{ fontSize: 13, fontWeight: 700, color: "#1e293b" }}>{item.text}</div>
+                      <div className="min-w-0">
+                        <p className="text-sm font-semibold text-slate-800">{item.text}</p>
                         {item.type === 'poll' && (
-                          <div style={{ fontSize: 11, color: "#94a3b8", marginTop: 2 }}>{item.options.join(' • ')}</div>
+                          <p className="text-xs text-slate-400 mt-0.5">{item.options.join(' • ')}</p>
                         )}
                       </div>
                     </div>
-                    <button onClick={() => removeInteraction(item.id)} style={{ background: "none", border: "none", color: "#94a3b8", cursor: "pointer" }}>
-                      <Trash2 size={16} />
+                    <button
+                      onClick={() => removeInteraction(item.id)}
+                      className="p-1 rounded text-slate-400 hover:text-rose-500 transition-colors shrink-0"
+                    >
+                      <Trash2 size={15} />
                     </button>
                   </div>
                 ))}
               </div>
             </div>
 
-            {/* Add Manual Section */}
-            <div style={{ background: "#f8fafc", padding: "24px", borderRadius: 16, border: "1px solid #e2e8f0" }}>
-              <h3 style={{ fontSize: 14, fontWeight: 700, color: "#1e293b", margin: "0 0 16px" }}>Thêm nội dung mới</h3>
-              <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
-                <div style={{ display: "flex", gap: 24 }}>
+            {/* Add Manual Section - Bỏ viền bên ngoài */}
+            <div className="space-y-4 pt-6 border-t border-slate-100">
+              <h3 className="text-sm font-semibold text-slate-800">Thêm nội dung tương tác mới</h3>
+              
+              <div className="flex flex-col gap-4">
+                <div className="flex gap-6">
                   {settings.enableQA && (
-                    <label style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer", fontSize: 13, fontWeight: 600, color: "#475569" }}>
-                      <input type="radio" checked={newType === 'question'} onChange={() => setNewType('question')} style={{ width: 16, height: 16 }} />
+                    <label className="flex items-center gap-2 text-sm text-slate-600 cursor-pointer select-none">
+                      <input
+                        type="radio"
+                        checked={newType === 'question'}
+                        onChange={() => setNewType('question')}
+                        className="w-4 h-4 text-indigo-600 border-slate-300 rounded-full focus:ring-indigo-500 cursor-pointer"
+                      />
                       Câu hỏi văn bản
                     </label>
                   )}
                   {settings.enablePolls && (
-                    <label style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer", fontSize: 13, fontWeight: 600, color: "#475569" }}>
-                      <input type="radio" checked={newType === 'poll'} onChange={() => setNewType('poll')} style={{ width: 16, height: 16 }} />
-                      Bình chọn
+                    <label className="flex items-center gap-2 text-sm text-slate-600 cursor-pointer select-none">
+                      <input
+                        type="radio"
+                        checked={newType === 'poll'}
+                        onChange={() => setNewType('poll')}
+                        className="w-4 h-4 text-indigo-600 border-slate-300 rounded-full focus:ring-indigo-500 cursor-pointer"
+                      />
+                      Cuộc bình chọn nhanh
                     </label>
                   )}
                 </div>
-                <input
-                  placeholder="Nhập nội dung..."
-                  value={newText}
-                  onChange={(e) => setNewText(e.target.value)}
-                  style={{ width: "100%", padding: "12px 16px", borderRadius: 10, border: "1px solid #e2e8f0", outline: "none", fontSize: 14 }}
-                />
-                <button
-                  onClick={handleAddManual}
-                  style={{ width: "100%", padding: "12px", background: "#1e1b4b", color: "#fff", border: "none", borderRadius: 12, fontSize: 14, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}
-                >
-                  <Plus size={18} /> Thêm vào danh sách
-                </button>
+                
+                <div className="flex gap-2">
+                  <input
+                    className="flex-1 px-4 py-2.5 rounded-lg border border-slate-200 text-sm outline-none focus:border-indigo-500 transition-colors"
+                    placeholder="Nhập câu hỏi hoặc câu hỏi biểu quyết..."
+                    value={newText}
+                    onChange={(e) => setNewText(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && handleAddManual()}
+                  />
+                  
+                  <button
+                    onClick={handleAddManual}
+                    className="flex items-center gap-1.5 px-5 py-2.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold transition-colors shrink-0"
+                  >
+                    <Plus size={16} />
+                    Thêm
+                  </button>
+                </div>
               </div>
             </div>
           </>
         ) : (
-          <div style={{ padding: "40px", textAlign: "center", border: "1px dashed #e2e8f0", borderRadius: 16, background: "#fcfcfc" }}>
-            <MessageSquare size={32} style={{ color: "#cbd5e1", marginBottom: 12, opacity: 0.5 }} />
-            <p style={{ margin: 0, fontSize: 14, color: "#94a3b8", fontWeight: 500 }}>
-              Kích hoạt tính năng Q&A hoặc Bình chọn để thiết lập nội dung tương tác.
+          <div className="py-12 text-center border border-dashed border-slate-200 rounded-xl bg-slate-50/50">
+            <MessageSquare size={32} className="mx-auto mb-3 text-slate-300" />
+            <p className="text-sm text-slate-400 font-medium">
+              Hãy kích hoạt Q&A hoặc Bình chọn ở trên để thiết lập nội dung tương tác.
             </p>
           </div>
         )}
-      </div>
-
-      <div style={{ marginTop: 32, display: 'flex', justifyContent: 'flex-end', gap: 16 }}>
-        <button onClick={onBack} style={{ padding: "10px 24px", borderRadius: 8, border: "1px solid #e2e8f0", background: "#fff", color: "#64748b", fontSize: 14, fontWeight: 600, cursor: "pointer" }}>
-          Quay lại
-        </button>
-        <button onClick={() => onNext(formData)} style={{ padding: "10px 32px", borderRadius: 8, border: "none", background: "#1e1b4b", color: "#fff", fontSize: 14, fontWeight: 600, cursor: "pointer", boxShadow: "0 4px 6px -1px rgba(0,0,0,0.1)" }}>
-          Tiếp theo
-        </button>
       </div>
     </div>
   );

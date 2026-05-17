@@ -1168,7 +1168,7 @@ public class EventServiceImpl implements EventService {
     public List<EventResponse> getAllPlans() {
         List<EventStatus> statuses = List.of(
                 EventStatus.DRAFT, EventStatus.PLAN_PENDING_APPROVAL,
-                EventStatus.PLAN_APPROVED, EventStatus.CANCELLED);
+                EventStatus.PLAN_APPROVED, EventStatus.CANCELLED, EventStatus.CONVERTED);
         List<Event> plans = eventRepository.findByStatusInAndIsDeletedFalse(statuses);
         return enrichEvents(plans, null);
     }
@@ -1896,7 +1896,8 @@ public class EventServiceImpl implements EventService {
     private boolean isPlanStatus(EventStatus status) {
         return status == EventStatus.DRAFT
                 || status == EventStatus.PLAN_PENDING_APPROVAL
-                || status == EventStatus.PLAN_APPROVED;
+                || status == EventStatus.PLAN_APPROVED
+                || status == EventStatus.CONVERTED;
     }
 
     @Override
@@ -1905,7 +1906,8 @@ public class EventServiceImpl implements EventService {
                 EventStatus.DRAFT,
                 EventStatus.PLAN_PENDING_APPROVAL,
                 EventStatus.PLAN_APPROVED,
-                EventStatus.REJECTED);
+                EventStatus.REJECTED,
+                EventStatus.CONVERTED);
 
         List<Event> plans = eventRepository.findByStatusInAndIsDeletedFalse(statuses);
 
@@ -1954,7 +1956,8 @@ public class EventServiceImpl implements EventService {
                 EventStatus.DRAFT,
                 EventStatus.PLAN_PENDING_APPROVAL,
                 EventStatus.PLAN_APPROVED,
-                EventStatus.REJECTED);
+                EventStatus.REJECTED,
+                EventStatus.CONVERTED);
 
         List<Event> plans = eventRepository.findInvolvedPlansByAccountId(accountId, planStatuses);
 

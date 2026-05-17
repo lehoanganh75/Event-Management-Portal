@@ -9,23 +9,15 @@ import PromptModal from "../common/PromptModal";
 import { useAuth } from "../../context/AuthContext";
 import { safeParseAIJson, formatAIDate, calculateSimilarity } from "../../utils/aiUtils";
 
-// ✨ Helper to extract and parse JSON safely from AI response
-// ✨ Helper to extract and parse JSON safely from AI response
-// ✨ Utility helpers moved to aiUtils.js
-
 const mapTemplateToPrefill = (template) => {
-  // Build AI-suggested sessions from configData if available
   const sessions = template.configData?.sessions || [];
   const presenters = template.configData?.presenters || [];
   const targetObjects = template.configData?.targetObjects ||
     (template.faculty ? [{ type: 'FACULTY', name: template.faculty }] : []);
 
   return {
-    // Template metadata
     templateId: template.id,
     _templateName: template.templateName,
-
-    // Basic info from template
     eventTitle: template.defaultTitle || "",
     title: template.defaultTitle || "",
     description: template.description || "",
@@ -33,19 +25,15 @@ const mapTemplateToPrefill = (template) => {
     eventTopic: template.themes?.join(", ") || "",
     themes: template.themes || [],
 
-    // Location & logistics
     location: template.defaultLocation || "",
     eventMode: template.defaultEventMode || "OFFLINE",
     maxParticipants: template.defaultMaxParticipants || 50,
 
-    // IUH specific
     faculty: template.faculty || "",
     major: template.major || "",
 
-    // Cover
     coverImage: template.defaultCoverImage || "",
 
-    // Prefilled structured data
     sessions: sessions.map((s, i) => ({
       title: s.title || "",
       type: s.type || "KEYNOTE",
@@ -70,7 +58,6 @@ const mapTemplateToPrefill = (template) => {
     notes: template.configData?.notes || "",
     additionalInfo: template.configData?.additionalInfo || "",
 
-    // Config
     hasLuckyDraw: template.configData?.hasLuckyDraw || false,
     interactionSettings: template.configData?.interactionSettings || {
       enableQA: false,
@@ -468,283 +455,495 @@ const CreatePlanModal = ({ isOpen, onClose, onSelectPlan, onCreateNew, initialAi
 
   return (
     <AnimatePresence>
-      <div className="fixed inset-0 z-[200] flex items-center justify-center p-4" key="plan-modal-container">
+      <div
+        className="fixed inset-0 z-[200] flex items-center justify-center p-4"
+        key="plan-modal-container"
+      >
+        {/* Overlay */}
         <motion.div
           key="plan-modal-overlay"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           onClick={onClose}
-          className="absolute inset-0 bg-slate-900/50 backdrop-blur-sm"
+          className="absolute inset-0 bg-black/40"
         />
+
+        {/* Modal */}
         <motion.div
           key="plan-modal-content"
-          initial={{ scale: 0.95, opacity: 0, y: 16 }}
-          animate={{ scale: 1, opacity: 1, y: 0 }}
-          exit={{ scale: 0.95, opacity: 0, y: 16 }}
-          transition={{ type: "spring", damping: 25, stiffness: 300 }}
-          className="relative bg-white w-full max-w-3xl rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]"
+          initial={{ opacity: 0, y: 12, scale: 0.98 }}
+          animate={{ opacity: 1, y: 0, scale: 1 }}
+          exit={{ opacity: 0, y: 12, scale: 0.98 }}
+          transition={{ duration: 0.18 }}
+          className="
+          relative bg-white w-full max-w-3xl
+          rounded-2xl border border-slate-200
+          shadow-lg overflow-hidden
+          flex flex-col max-h-[90vh]
+        "
         >
+          {/* Close */}
           <button
             onClick={onClose}
-            className="absolute top-4 right-4 z-10 p-2 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-full transition-all"
+            className="
+            absolute top-4 right-4 z-10
+            p-2 rounded-lg
+            text-slate-400
+            hover:bg-slate-100
+            hover:text-slate-700
+            transition-colors
+          "
           >
             <X size={18} />
           </button>
 
-          <div className="p-8 pb-4 shrink-0 border-b border-gray-100 text-left">
-            <h2 className="text-2xl font-black text-slate-800 mb-1">Tạo kế hoạch mới</h2>
-            <p className="text-slate-500 text-sm mb-6">
-              Bắt đầu từ một mẫu có sẵn, tạo trống, hoặc để AI giúp bạn phác thảo.
+          {/* Header */}
+          <div className="px-6 py-5 border-b border-slate-200 bg-white shrink-0">
+            <h2 className="text-xl font-semibold text-slate-800">
+              Tạo kế hoạch mới
+            </h2>
+
+            <p className="text-sm text-slate-500 mt-1">
+              Chọn mẫu có sẵn, tạo mới hoặc sử dụng AI hỗ trợ.
             </p>
 
-            <div className="flex flex-wrap gap-2 mb-6">
+            {/* Actions */}
+            <div className="flex flex-wrap gap-3 mt-5">
               <button
-                onClick={() => { setSelected(null); setShowAiInput(false); handleNext(); }}
-                className="flex items-center gap-2 px-4 py-2 bg-slate-100 text-slate-600 hover:bg-slate-200 rounded-xl font-bold transition-all text-sm"
+                onClick={() => {
+                  setSelected(null);
+                  setShowAiInput(false);
+                  handleNext();
+                }}
+                className="
+    flex items-center gap-2
+    px-4 py-2
+    rounded-lg
+    border border-slate-200
+    bg-white
+    text-slate-600
+    text-xs font-medium
+    hover:bg-slate-50
+    transition-colors
+  "
               >
-                <PlusCircle size={16} /> Tạo trống
+                <PlusCircle size={14} />
+                Tạo trống
               </button>
 
               <button
-                onClick={() => { setSelected(null); setShowAiInput(!showAiInput); }}
-                className={`flex items-center gap-2 px-4 py-2 rounded-xl font-bold transition-all text-sm ${showAiInput ? "bg-indigo-600 text-white" : "bg-indigo-50 text-indigo-600 hover:bg-indigo-100"
-                  }`}
+                onClick={() => {
+                  setSelected(null);
+                  setShowAiInput(!showAiInput);
+                }}
+                className={`
+                  flex items-center gap-2
+                  px-4 py-2
+                  rounded-lg
+                  border
+                  text-xs font-medium
+                  transition-colors
+                  ${showAiInput
+                    ? "bg-indigo-50 text-indigo-700 border-indigo-200"
+                    : "bg-white text-indigo-600 border-indigo-200 hover:bg-indigo-50"
+                  }
+                `}
               >
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <path d="M12 2L14.8 9.2L22 12L14.8 14.8L12 22L9.2 14.8L2 12L9.2 9.2L12 2Z" fill="url(#gemini_grad)" />
-                  <defs>
-                    <linearGradient id="gemini_grad" x1="2" y1="12" x2="22" y2="12" gradientUnits="userSpaceOnUse">
-                      <stop stopColor="#4E8AFF" />
-                      <stop offset="0.5" stopColor="#A06FFF" />
-                      <stop offset="1" stopColor="#FF7D9F" />
-                    </linearGradient>
-                  </defs>
-                </svg>
+                <Sparkles size={14} />
                 Phân tích AI
               </button>
 
-              <div className="relative flex-1 min-w-[200px]">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+              {/* Search */}
+              <div className="relative flex-1 min-w-[220px]">
+                <Search
+                  className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
+                  size={16}
+                />
+
                 <input
                   type="text"
                   placeholder="Tìm kiếm mẫu..."
                   value={searchTerm}
-                  onChange={(e) => { setSearchTerm(e.target.value); setShowAiInput(false); }}
-                  className="w-full pl-9 pr-4 py-2 border-2 border-slate-200 rounded-xl text-sm font-medium outline-none focus:border-blue-500 transition-all"
+                  onChange={(e) => {
+                    setSearchTerm(e.target.value);
+                    setShowAiInput(false);
+                  }}
+                  className="
+                  w-full pl-10 pr-4 py-2.5
+                  bg-white
+                  border border-slate-200
+                  rounded-xl
+                  text-sm text-slate-700
+                  outline-none
+                  focus:border-blue-500
+                  transition-colors
+                "
                 />
               </div>
             </div>
 
+            {/* AI Input */}
             {showAiInput && (
               <motion.div
-                initial={{ height: 0, opacity: 0 }}
-                animate={{ height: "auto", opacity: 1 }}
-                className="mb-6 overflow-hidden"
+                initial={{ opacity: 0, y: -4 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="
+                mt-5
+                bg-slate-50
+                border border-slate-200
+                rounded-xl
+                p-4
+              "
               >
-                <div className="bg-indigo-50 p-4 rounded-2xl border border-indigo-100">
-                  <textarea
-                    className="w-full p-3 rounded-xl border border-indigo-200 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                    placeholder="Mô tả ý tưởng sự kiện của bạn (ví dụ: Tổ chức workshop AI cho 200 sinh viên, có tea break, diễn giả từ Google...)"
-                    rows={3}
-                    value={aiText}
-                    onChange={(e) => setAiText(e.target.value)}
-                  />
-                  <div className="flex justify-end mt-2 gap-2">
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.preventDefault();
-                        console.log("Button AI Gợi ý mẫu phù hợp clicked");
-                        handleAIRecommend();
-                      }}
-                      disabled={!aiText.trim() || isRecommending}
-                      className={`flex items-center gap-2 px-4 py-2 rounded-lg font-bold text-xs transition-all border ${!aiText.trim() || isRecommending
-                        ? "bg-slate-50 text-slate-400 border-slate-100 cursor-not-allowed"
-                        : "bg-emerald-50 text-emerald-600 border-emerald-100 hover:bg-emerald-100 shadow-sm"
-                        }`}
-                    >
-                      {isRecommending ? <Loader2 size={14} className="animate-spin" /> : <Sparkles size={14} />}
-                      {isRecommending ? "Đang phân tích..." : "AI Gợi ý mẫu phù hợp"}
-                    </button>
-                    <button
-                      onClick={handleAIPlanFromRaw}
-                      disabled={!aiText.trim() || isAIPlanning}
-                      className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg font-bold text-xs hover:bg-indigo-700 disabled:bg-indigo-300 transition-all shadow-md shadow-indigo-100"
-                    >
-                      {isAIPlanning ? <Loader2 size={14} className="animate-spin" /> : <TrendingUp size={14} />}
-                      AI Tự lập kế hoạch ngay
-                    </button>
-                  </div>
+                <textarea
+                  className="
+                  w-full p-3
+                  rounded-xl
+                  border border-slate-200
+                  bg-white
+                  text-sm text-slate-700
+                  placeholder:text-slate-400
+                  outline-none
+                  resize-none
+                  focus:border-indigo-500
+                  transition-colors
+                "
+                  placeholder="Mô tả ý tưởng sự kiện của bạn..."
+                  rows={3}
+                  value={aiText}
+                  onChange={(e) => setAiText(e.target.value)}
+                />
+
+                <div className="flex justify-end gap-2 mt-3">
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      handleAIRecommend();
+                    }}
+                    disabled={!aiText.trim() || isRecommending}
+                    className={`
+                    flex items-center gap-2
+                    px-4 py-2
+                    rounded-lg
+                    text-xs font-medium
+                    border
+                    transition-colors
+                    ${!aiText.trim() || isRecommending
+                        ? "bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed"
+                        : "bg-white text-emerald-700 border-emerald-200 hover:bg-emerald-50"
+                      }
+                  `}
+                  >
+                    {isRecommending ? (
+                      <Loader2 size={14} className="animate-spin" />
+                    ) : (
+                      <Sparkles size={14} />
+                    )}
+
+                    {isRecommending
+                      ? "Đang phân tích..."
+                      : "AI gợi ý mẫu"}
+                  </button>
+
+                  <button
+                    onClick={handleAIPlanFromRaw}
+                    disabled={!aiText.trim() || isAIPlanning}
+                    className="
+                    flex items-center gap-2
+                    px-4 py-2
+                    rounded-lg
+                    bg-indigo-600
+                    hover:bg-indigo-700
+                    text-white
+                    text-xs font-medium
+                    disabled:bg-slate-300
+                    transition-colors
+                  "
+                  >
+                    {isAIPlanning ? (
+                      <Loader2 size={14} className="animate-spin" />
+                    ) : (
+                      <TrendingUp size={14} />
+                    )}
+
+                    AI lập kế hoạch
+                  </button>
                 </div>
               </motion.div>
             )}
           </div>
 
-          <div className="p-8 pt-4 overflow-y-auto custom-scrollbar bg-slate-50 relative min-h-[300px]">
+          {/* Body */}
+          <div className="flex-1 overflow-y-auto bg-slate-50 px-6 py-5 relative">
+            {/* AI Loading */}
             {isAIPlanning && (
-              <div className="absolute inset-0 z-20 bg-white/90 backdrop-blur-md flex flex-col items-center justify-center">
-                <div className="relative mb-8">
-                  <div className="w-24 h-24 border-4 border-indigo-100 rounded-full"></div>
-                  <div className="absolute top-0 left-0 w-24 h-24 border-4 border-t-indigo-600 rounded-full animate-spin"></div>
-                  <div className="absolute inset-0 flex items-center justify-center">
-                    <Sparkles className="text-indigo-600 animate-pulse" size={32} />
-                  </div>
-                </div>
+              <div className="absolute inset-0 z-20 bg-white/80 flex items-center justify-center">
+                <div className="text-center">
+                  <Loader2
+                    className="animate-spin text-indigo-600 mx-auto mb-4"
+                    size={36}
+                  />
 
-                <h4 className="text-xl font-black text-indigo-900 mb-2">AI Thiên tài đang làm việc</h4>
-                <div className="flex flex-col items-center">
-                  <p className="text-indigo-600 font-bold">Đang kiến tạo kế hoạch hoàn hảo cho bạn...</p>
-                  <div className="flex gap-1 mt-4">
-                    {[0, 1, 2].map(i => (
-                      <div key={`bounce-dot-${i}`} className="w-1.5 h-1.5 bg-indigo-600 rounded-full animate-bounce" style={{ animationDelay: `${i * 0.2}s` }}></div>
-                    ))}
-                  </div>
+                  <h4 className="text-base font-semibold text-slate-800">
+                    AI đang tạo kế hoạch
+                  </h4>
+
+                  <p className="text-sm text-slate-500 mt-1">
+                    Quá trình này có thể mất vài giây...
+                  </p>
                 </div>
               </div>
             )}
 
+            {/* Fetching */}
             {fetching ? (
-              <div className="flex justify-center py-12">
-                <Loader2 className="animate-spin text-blue-600" size={32} />
+              <div className="flex justify-center py-16">
+                <Loader2
+                  className="animate-spin text-blue-600"
+                  size={32}
+                />
               </div>
-            ) : (recommendedTemplates.length === 0 && sortedTemplates.length === 0) ? (
-              <div className="text-center py-12 text-slate-400">
-                <FileText size={40} className="mx-auto mb-3 opacity-30" />
-                <p className="text-sm font-medium">Không tìm thấy mẫu phù hợp</p>
+            ) : recommendedTemplates.length === 0 &&
+              sortedTemplates.length === 0 ? (
+              <div className="text-center py-16">
+                <FileText
+                  size={40}
+                  className="mx-auto mb-3 text-slate-300"
+                />
+
+                <p className="text-sm text-slate-500">
+                  Không tìm thấy mẫu phù hợp
+                </p>
               </div>
             ) : (
               <div className="space-y-6">
+                {/* Recommended */}
                 {recommendedTemplates.length > 0 && (
-                  <div className="bg-emerald-50/50 p-4 rounded-3xl border border-emerald-100/50">
-                    <div className="flex items-center gap-2 mb-4 px-2">
-                      <Sparkles className="text-emerald-500" size={18} />
-                      <h3 className="text-sm font-black text-emerald-800 uppercase tracking-wider">Top 3 gợi ý từ AI</h3>
+                  <div>
+                    <div className="flex items-center gap-2 mb-4">
+                      <Sparkles
+                        className="text-emerald-600"
+                        size={16}
+                      />
+
+                      <h3 className="text-sm font-semibold text-slate-800">
+                        Gợi ý từ AI
+                      </h3>
                     </div>
+
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                      {recommendedTemplates.map((template, index) => (
-                        <button
-                          key={`rec-${template.id}-${index}`}
-                          onClick={() => {
-                            setSelected(template);
-                            // Tự động lập kế hoạch dựa trên ngữ cảnh aiText
-                            confirmAIPlanFromTemplate(aiText || "Sử dụng mẫu này để lập kế hoạch chi tiết", template);
-                          }}
-                          className="group relative bg-white p-4 rounded-2xl border-2 border-emerald-200 hover:border-emerald-500 hover:shadow-xl hover:shadow-emerald-100 transition-all text-left flex flex-col h-full"
-                        >
-                          <div className="absolute -top-2 -right-2 bg-emerald-500 text-white text-[10px] font-black px-2 py-1 rounded-lg shadow-sm">
-                            GỢI Ý #{index + 1}
-                          </div>
-                          <span className="font-bold text-slate-800 mb-2 line-clamp-2 text-sm group-hover:text-emerald-700">
-                            {template.templateName}
-                          </span>
-                          <p className="text-[11px] text-slate-500 line-clamp-3 mb-4 flex-grow">
-                            {template.description}
-                          </p>
-                          <div className="flex items-center justify-between mt-auto">
-                            <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded">
-                              Tỉ lệ khớp cao
-                            </span>
-                            <div className="flex items-center gap-1 text-[10px] text-slate-400">
-                              <TrendingUp size={10} />
-                              {template.usageCount}
+                      {recommendedTemplates.map(
+                        (template, index) => (
+                          <button
+                            key={`rec-${template.id}-${index}`}
+                            onClick={() => {
+                              setSelected(template);
+
+                              confirmAIPlanFromTemplate(
+                                aiText ||
+                                "Sử dụng mẫu này",
+                                template
+                              );
+                            }}
+                            className="
+                            bg-white border border-slate-200
+                            rounded-xl p-4
+                            text-left
+                            hover:border-emerald-300
+                            hover:bg-emerald-50/30
+                            transition-colors
+                          "
+                          >
+                            <div className="flex items-center justify-between mb-3">
+                              <span className="text-xs font-medium text-emerald-700 bg-emerald-50 px-2 py-1 rounded-md">
+                                Gợi ý #{index + 1}
+                              </span>
+
+                              <span className="text-xs text-slate-400">
+                                {template.usageCount}
+                              </span>
                             </div>
-                          </div>
-                        </button>
-                      ))}
+
+                            <h4 className="font-semibold text-slate-800 text-sm line-clamp-2">
+                              {template.templateName}
+                            </h4>
+
+                            <p className="text-xs text-slate-500 mt-2 line-clamp-3">
+                              {template.description}
+                            </p>
+                          </button>
+                        )
+                      )}
                     </div>
                   </div>
                 )}
 
+                {/* Templates */}
                 {sortedTemplates.length > 0 && (
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {sortedTemplates.map((template, index) => {
-                      const isSelected = selected?.id === template.id;
-                      const isPopular = (template.usageCount || 0) === maxUsage && maxUsage > 0;
+                    {sortedTemplates.map(
+                      (template, index) => {
+                        const isSelected =
+                          selected?.id === template.id;
 
-                      return (
-                        <button
-                          key={template.id || `tpl-${index}`}
-                          onClick={() => { setSelected(template); setShowAiInput(false); }}
-                          className={`relative w-full text-left p-5 rounded-2xl border-2 transition-all ${isSelected
-                            ? "border-blue-500 bg-blue-50 shadow-md shadow-blue-100"
-                            : "border-slate-200 bg-white hover:border-blue-300 hover:shadow-sm"
-                            }`}
+                        const isPopular =
+                          (template.usageCount || 0) ===
+                          maxUsage && maxUsage > 0;
 
-                        >
-                          <div
-                            onClick={(e) => handleToggleStar(e, template)}
-                            className={`absolute top-4 right-4 p-1.5 rounded-full transition-all cursor-pointer z-10 ${template.isStarred ? "text-amber-400 bg-amber-50 hover:bg-amber-100" : "text-gray-300 hover:bg-gray-100 hover:text-amber-400"
-                              }`}
+                        return (
+                          <button
+                            key={
+                              template.id ||
+                              `tpl-${index}`
+                            }
+                            onClick={() => {
+                              setSelected(template);
+                              setShowAiInput(false);
+                            }}
+                            className={`
+                            relative w-full text-left
+                            p-5 rounded-xl border
+                            transition-colors
+                            ${isSelected
+                                ? "border-blue-500 bg-blue-50/40"
+                                : "border-slate-200 bg-white hover:border-blue-300 hover:bg-slate-50"
+                              }
+                          `}
                           >
-                            <Star size={18} fill={template.isStarred ? "currentColor" : "none"} />
-                          </div>
+                            {/* Star */}
+                            <div
+                              onClick={(e) =>
+                                handleToggleStar(
+                                  e,
+                                  template
+                                )
+                              }
+                              className={`
+                              absolute top-4 right-4
+                              p-1 rounded-md
+                              transition-colors
+                              ${template.isStarred
+                                  ? "text-amber-500 bg-amber-50"
+                                  : "text-slate-300 hover:bg-slate-100 hover:text-amber-500"
+                                }
+                            `}
+                            >
+                              <Star
+                                size={16}
+                                fill={
+                                  template.isStarred
+                                    ? "currentColor"
+                                    : "none"
+                                }
+                              />
+                            </div>
 
-                          <div className="flex items-start justify-between pr-8 mb-2">
-                            <span className={`font-black text-base line-clamp-2 ${isSelected ? "text-blue-700" : "text-slate-800"}`}>
-                              {template.templateName}
-                            </span>
-                          </div>
+                            <div className="pr-8">
+                              <h4
+                                className={`
+                                font-semibold text-sm line-clamp-2
+                                ${isSelected
+                                    ? "text-blue-700"
+                                    : "text-slate-800"
+                                  }
+                              `}
+                              >
+                                {template.templateName}
+                              </h4>
+                            </div>
 
-                          {isPopular && (
-                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-rose-100 text-rose-600 text-[10px] font-black uppercase tracking-wider mb-3">
-                              <TrendingUp size={10} /> Phổ biến nhất
-                            </span>
-                          )}
+                            {isPopular && (
+                              <span className="inline-flex items-center gap-1 mt-3 px-2 py-1 rounded-md bg-rose-50 text-rose-600 text-[11px] font-medium">
+                                <TrendingUp size={11} />
+                                Phổ biến
+                              </span>
+                            )}
 
-                          <p className="text-xs text-slate-500 line-clamp-2 mb-4 leading-relaxed">
-                            {template.description || "Không có mô tả."}
-                          </p>
+                            <p className="text-xs text-slate-500 mt-3 line-clamp-2 leading-relaxed">
+                              {template.description ||
+                                "Không có mô tả"}
+                            </p>
 
-                          <div className="flex flex-wrap gap-2 text-[11px] text-slate-500">
-                            <span className="flex items-center gap-1 bg-slate-100 px-2 py-1 rounded-md">
-                              <Users size={12} className="text-emerald-500" />
-                              {template.defaultMaxParticipants || 0} người
-                            </span>
-                            <span className="flex items-center gap-1 bg-slate-100 px-2 py-1 rounded-md">
-                              <CheckCircle2 size={12} className="text-blue-500" />
-                              {template.usageCount || 0} lượt dùng
-                            </span>
-                          </div>
-                        </button>
-                      );
-                    })}
+                            <div className="flex flex-wrap gap-2 mt-4 text-[11px]">
+                              <span className="flex items-center gap-1 bg-slate-100 text-slate-600 px-2 py-1 rounded-md">
+                                <Users
+                                  size={11}
+                                  className="text-emerald-600"
+                                />
+                                {template.defaultMaxParticipants ||
+                                  0}{" "}
+                                người
+                              </span>
+
+                              <span className="flex items-center gap-1 bg-slate-100 text-slate-600 px-2 py-1 rounded-md">
+                                <CheckCircle2
+                                  size={11}
+                                  className="text-blue-600"
+                                />
+                                {template.usageCount ||
+                                  0}{" "}
+                                lượt dùng
+                              </span>
+                            </div>
+                          </button>
+                        );
+                      }
+                    )}
                   </div>
                 )}
               </div>
             )}
           </div>
 
-          <div className="p-6 border-t border-gray-100 flex flex-wrap gap-3 items-center justify-between bg-white shrink-0 text-left">
+          {/* Footer */}
+          <div className="px-6 py-4 border-t border-slate-200 bg-white flex items-center justify-between gap-4 shrink-0">
             <div className="flex-1">
-              <span className="text-sm font-bold text-slate-800 block">
-                {selected ? selected.templateName : "Hãy chọn một mẫu"}
-              </span>
-              <span className="text-[11px] text-slate-500">
-                {selected ? "Bạn có thể dùng mẫu này hoặc nhờ AI tối ưu" : "Hoặc dùng AI Thiên tài ở trên"}
-              </span>
+              <p className="text-sm font-medium text-slate-800">
+                {selected
+                  ? selected.templateName
+                  : "Chưa chọn mẫu"}
+              </p>
+
+              <p className="text-xs text-slate-500 mt-1">
+                {selected
+                  ? "Bạn có thể tiếp tục với mẫu này"
+                  : "Hãy chọn một mẫu hoặc dùng AI"}
+              </p>
             </div>
 
-            <div className="flex gap-2">
-              <button
-                disabled={!selected || isAIPlanning}
-                onClick={handleNext}
-                className="flex items-center gap-2 px-8 py-3 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 disabled:bg-slate-100 disabled:text-slate-400 transition-all shadow-lg shadow-blue-100 disabled:shadow-none"
-              >
-                Dùng mẫu gốc <ChevronRight size={16} />
-              </button>
-            </div>
+            <button
+              disabled={!selected || isAIPlanning}
+              onClick={handleNext}
+              className="
+              flex items-center gap-2
+              px-6 py-2.5
+              rounded-xl
+              bg-blue-600
+              hover:bg-blue-700
+              text-white
+              text-sm font-medium
+              disabled:bg-slate-200
+              disabled:text-slate-500
+              transition-colors
+            "
+            >
+              Dùng mẫu
+              <ChevronRight size={16} />
+            </button>
           </div>
         </motion.div>
       </div>
 
+      {/* Prompt Modal */}
       <PromptModal
         isOpen={showPromptModal}
         onClose={() => setShowPromptModal(false)}
         onConfirm={confirmAIPlanFromTemplate}
         title="Yêu cầu đặc biệt cho AI"
-        message="Hãy cho AI biết thêm chi tiết để kế hoạch được tối ưu nhất cho bạn (ví dụ: số lượng khách, phong cách trang trí, ngân sách...)"
-        placeholder="Nhập yêu cầu của bạn ở đây..."
+        message="Nhập thêm thông tin để AI tối ưu kế hoạch tốt hơn."
+        placeholder="Ví dụ: quy mô 300 người, có tea break..."
       />
     </AnimatePresence>
   );

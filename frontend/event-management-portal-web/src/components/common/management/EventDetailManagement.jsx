@@ -243,6 +243,22 @@ const EventDetailManagement = ({
     try {
       const validInvites = invitations.filter(inv => inv.inviteeEmail?.trim() !== "");
       if (validInvites.length === 0) return;
+
+      const emptyMessageInvite = validInvites.find(inv => !inv.message?.trim());
+      if (emptyMessageInvite) {
+        toast.error("Vui lòng nhập Lời nhắn mời tham gia cho tất cả thành viên chuẩn bị mời!");
+        return;
+      }
+
+      const myEmail = authUser?.email || authUser?.account?.email;
+      if (myEmail) {
+        const selfInvite = validInvites.find(inv => inv.inviteeEmail?.toLowerCase() === myEmail.toLowerCase());
+        if (selfInvite) {
+          toast.error("Không thể mời chính bạn vì bạn đã là thành viên trong ban tổ chức!");
+          return;
+        }
+      }
+
       setIsInviting(true);
       await eventService.sendOrganizerInvitations(event.id, { invitations: validInvites });
       toast.success("Đã gửi lời mời!");
@@ -300,6 +316,13 @@ const EventDetailManagement = ({
     try {
       const validInvites = presenterInvitations.filter(inv => inv.inviteeEmail?.trim() !== "");
       if (validInvites.length === 0) return;
+
+      const emptyBioInvite = validInvites.find(inv => !inv.bio?.trim());
+      if (emptyBioInvite) {
+        toast.error("Vui lòng nhập Lời nhắn cho tất cả diễn giả chuẩn bị mời!");
+        return;
+      }
+
       setIsInvitingPresenter(true);
       await eventService.sendPresenterInvitations(event.id, { invitations: validInvites });
       toast.success("Đã gửi lời mời diễn giả!");

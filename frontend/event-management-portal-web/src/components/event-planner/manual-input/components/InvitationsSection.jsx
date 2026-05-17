@@ -10,9 +10,9 @@ export const ORGANIZER_ROLES = [
   { value: "ADVISOR", label: "Cố vấn" }
 ];
 
-const InvitationsSection = ({ 
-  formData, 
-  setFormData, 
+const InvitationsSection = ({
+  formData,
+  setFormData,
   term,
   showUserSuggestions,
   setShowUserSuggestions,
@@ -134,7 +134,7 @@ const InvitationsSection = ({
               </div>
             </div>
           ) : (
-            <div key={idx} style={{ background: "#fafafa", padding: 20, borderRadius: 14, border: "2px solid #8b5cf6", display: "flex", flexDirection: "column", gap: 16, position: "relative", boxShadow: "0 4px 12px rgba(139, 92, 246, 0.08)" }}>
+            <div key={idx} style={{ display: "flex", flexDirection: "column", gap: 16, position: "relative" }}>
               <button
                 onClick={() => removeInvite(idx)}
                 style={{ position: "absolute", top: 12, right: 12, background: "#fee2e2", border: "none", color: "#ef4444", padding: "6px", borderRadius: 8, cursor: "pointer" }}

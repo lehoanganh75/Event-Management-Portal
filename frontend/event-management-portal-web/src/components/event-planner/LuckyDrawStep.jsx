@@ -5,10 +5,6 @@ import {
   Trash2,
   Sparkles,
   Info,
-  ChevronRight,
-  ArrowLeft,
-  ArrowRight,
-  Check,
 } from "lucide-react";
 
 export default function LuckyDrawStep({ formData, setFormData, onNext, onBack }) {
@@ -64,290 +60,221 @@ export default function LuckyDrawStep({ formData, setFormData, onNext, onBack })
   };
 
   return (
-    <div style={{ width: "100%", margin: "0 auto", padding: "20px 0" }}>
-      <div style={{ background: "#fff", border: "1px solid #f1f5f9", borderRadius: 16, padding: "32px", display: "flex", flexDirection: "column", gap: 32 }}>
+    <div className="w-full mx-auto p-0">
+      <div className="bg-white border border-slate-100 rounded-2xl p-8 flex flex-col gap-8">
 
-        <h2 style={{ fontSize: 18, fontWeight: 800, color: "#1e293b", margin: 0 }}>Vòng quay may mắn</h2>
+        {/* HEADER */}
+        <div>
+          <h2 className="text-lg font-semibold text-slate-800">
+            Vòng quay may mắn
+          </h2>
+          <p className="text-sm text-slate-500 mt-1">
+            Cấu hình chương trình rút thăm trúng thưởng cho sự kiện
+          </p>
+        </div>
 
         {/* Toggle Activation Box */}
-        <div style={{
-          background: "#fffbeb",
-          border: "1px solid #fef3c7",
-          borderRadius: 12,
-          padding: "24px",
-          display: "flex",
-          gap: 20,
-          alignItems: "flex-start"
-        }}>
-          <div style={{
-            width: 48,
-            height: 48,
-            background: "#fef9c3",
-            borderRadius: 12,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            color: "#d97706"
-          }}>
-            <Gift size={24} />
+        <div className="flex items-start gap-4 p-5 bg-amber-50/50 border border-amber-100 rounded-xl">
+          <div className="w-10 h-10 rounded-full bg-amber-100 text-amber-600 flex items-center justify-center shrink-0">
+            <Gift size={20} />
           </div>
-          <div style={{ flex: 1 }}>
-            <h3 style={{ fontSize: 15, fontWeight: 700, color: "#92400e", margin: "0 0 4px" }}>Vòng quay may mắn</h3>
-            <p style={{ fontSize: 13, color: "#b45309", margin: "0 0 16px", lineHeight: 1.5 }}>
-              Tăng tương tác và tạo sự hứng thú cho người tham dự với vòng quay may mắn. AI sẽ gợi ý các giải thưởng phù hợp với quy mô sự kiện.
-            </p>
-            <label style={{ display: "flex", alignItems: "center", gap: 10, cursor: "pointer", userSelect: "none" }}>
-              <div
-                onClick={handleToggle}
-                style={{
-                  width: 20,
-                  height: 20,
-                  borderRadius: 6,
-                  border: `2px solid ${isActive ? "#2563eb" : "#d1d5db"}`,
-                  background: isActive ? "#2563eb" : "#fff",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  transition: "all .15s"
-                }}
-              >
-                {isActive && <Check size={14} color="#fff" strokeWidth={4} />}
-              </div>
-              <span style={{ fontSize: 14, fontWeight: 600, color: "#1e293b" }}>Kích hoạt vòng quay may mắn cho sự kiện này</span>
+          <div className="flex-1 space-y-3">
+            <div>
+              <h3 className="text-sm font-semibold text-amber-900">
+                Kích hoạt Vòng quay may mắn
+              </h3>
+              <p className="text-xs text-amber-700/80 mt-1 leading-relaxed">
+                Tạo sự hứng thú và tăng tương tác của người tham gia. Bạn có thể tự định nghĩa hoặc sử dụng AI để gợi ý danh sách quà tặng phù hợp.
+              </p>
+            </div>
+
+            <label className="flex items-center gap-2.5 text-sm text-slate-700 font-medium cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={isActive}
+                onChange={handleToggle}
+                className="w-4 h-4 text-indigo-600 border-slate-300 rounded focus:ring-indigo-500 cursor-pointer"
+              />
+              Sử dụng vòng quay may mắn trong sự kiện này
             </label>
           </div>
         </div>
+
         {isActive && (
-          <div style={{ display: "flex", flexDirection: "column", gap: 20, padding: "24px", background: "#f8fafc", borderRadius: 16, border: "1px solid #e2e8f0", animateIn: "fade-in" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
-              <Info size={16} className="text-indigo-600" />
-              <h3 style={{ fontSize: 14, fontWeight: 700, color: "#1e293b", margin: 0 }}>Cấu hình chi tiết vòng quay</h3>
-            </div>
+          <div className="space-y-6">
 
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
-              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                <label style={{ fontSize: 11, fontWeight: 800, color: "#64748b", uppercase: true, letterSpacing: "0.05em" }}>Tiêu đề vòng quay</label>
-                <input
-                  style={{ padding: "12px 16px", borderRadius: 10, border: "1px solid #e2e8f0", fontSize: 14, outline: "none", transition: "border-color 0.2s" }}
-                  placeholder="VD: Quay số may mắn IUH 2024"
-                  value={formData.luckyDrawTitle || ""}
-                  onChange={(e) => setFormData({ ...formData, luckyDrawTitle: e.target.value })}
-                />
+            {/* Cấu hình chi tiết - Bỏ viền bên ngoài */}
+            <div className="space-y-4">
+              <div className="flex items-center gap-2 border-b border-slate-100 pb-2">
+                <Info size={16} className="text-slate-400" />
+                <h3 className="text-sm font-semibold text-slate-850">Cấu hình chi tiết vòng quay</h3>
               </div>
-              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                <label style={{ fontSize: 11, fontWeight: 800, color: "#64748b", uppercase: true, letterSpacing: "0.05em" }}>Cơ chế trúng giải</label>
-                <label style={{ display: "flex", alignItems: "center", gap: 10, cursor: "pointer", height: "100%", marginTop: 4 }}>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Tiêu đề vòng quay</label>
                   <input
-                    type="checkbox"
-                    style={{ width: 18, height: 18, cursor: "pointer" }}
-                    checked={formData.allowMultipleWins || false}
-                    onChange={(e) => setFormData({ ...formData, allowMultipleWins: e.target.checked })}
+                    className="px-4 py-2.5 rounded-lg border border-slate-200 text-sm outline-none focus:border-indigo-500 transition-colors"
+                    placeholder="VD: Quay số may mắn IUH 2024"
+                    value={formData.luckyDrawTitle || ""}
+                    onChange={(e) => setFormData({ ...formData, luckyDrawTitle: e.target.value })}
                   />
-                  <span style={{ fontSize: 14, fontWeight: 600, color: "#475569" }}>Cho phép trúng nhiều giải</span>
-                </label>
+                </div>
+
+                <div className="flex flex-col gap-1.5 justify-end pb-2">
+                  <label className="flex items-center gap-2.5 text-sm text-slate-600 cursor-pointer select-none">
+                    <input
+                      type="checkbox"
+                      className="w-4 h-4 text-indigo-600 border-slate-300 rounded focus:ring-indigo-500 cursor-pointer"
+                      checked={formData.allowMultipleWins || false}
+                      onChange={(e) => setFormData({ ...formData, allowMultipleWins: e.target.checked })}
+                    />
+                    <span>Cho phép một người trúng nhiều giải</span>
+                  </label>
+                </div>
+              </div>
+
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Mô tả chương trình</label>
+                <textarea
+                  className="px-4 py-2.5 rounded-lg border border-slate-200 text-sm outline-none resize-none h-20 focus:border-indigo-500 transition-colors"
+                  placeholder="Nhập mô tả ngắn gọn về chương trình quay số..."
+                  value={formData.luckyDrawDescription || ""}
+                  onChange={(e) => setFormData({ ...formData, luckyDrawDescription: e.target.value })}
+                />
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Thời gian bắt đầu</label>
+                  <input
+                    type="datetime-local"
+                    className="px-4 py-2.5 rounded-lg border border-slate-200 text-sm outline-none focus:border-indigo-500 transition-colors"
+                    value={formData.luckyDrawStartTime || ""}
+                    onChange={(e) => setFormData({ ...formData, luckyDrawStartTime: e.target.value })}
+                  />
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Thời gian kết thúc</label>
+                  <input
+                    type="datetime-local"
+                    className="px-4 py-2.5 rounded-lg border border-slate-200 text-sm outline-none focus:border-indigo-500 transition-colors"
+                    value={formData.luckyDrawEndTime || ""}
+                    onChange={(e) => setFormData({ ...formData, luckyDrawEndTime: e.target.value })}
+                  />
+                </div>
               </div>
             </div>
 
-            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-              <label style={{ fontSize: 11, fontWeight: 800, color: "#64748b", uppercase: true, letterSpacing: "0.05em" }}>Mô tả chương trình</label>
-              <textarea
-                style={{ padding: "12px 16px", borderRadius: 10, border: "1px solid #e2e8f0", fontSize: 14, minHeight: 80, resize: "none", outline: "none" }}
-                placeholder="Nhập mô tả ngắn gọn về chương trình quay số..."
-                value={formData.luckyDrawDescription || ""}
-                onChange={(e) => setFormData({ ...formData, luckyDrawDescription: e.target.value })}
-              />
-            </div>
-
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
-              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                <label style={{ fontSize: 11, fontWeight: 800, color: "#64748b", uppercase: true, letterSpacing: "0.05em" }}>Thời gian bắt đầu</label>
-                <input
-                  type="datetime-local"
-                  style={{ padding: "12px 16px", borderRadius: 10, border: "1px solid #e2e8f0", fontSize: 14, outline: "none" }}
-                  value={formData.luckyDrawStartTime || ""}
-                  onChange={(e) => setFormData({ ...formData, luckyDrawStartTime: e.target.value })}
-                />
+            {/* Danh sách giải thưởng */}
+            <div className="space-y-4 pt-6 border-t border-slate-100">
+              <div className="flex items-center justify-between">
+                <h3 className="text-sm font-semibold text-slate-800">Danh sách giải thưởng</h3>
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={addManualPrize}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-50 border border-slate-200 text-slate-600 text-xs font-medium hover:bg-slate-100 transition-colors"
+                  >
+                    <Plus size={14} />
+                    Thêm thủ công
+                  </button>
+                  <button
+                    onClick={() => setShowAiSuggestions(!showAiSuggestions)}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-indigo-200 bg-white text-indigo-600 text-xs font-medium hover:bg-indigo-50 transition-colors"
+                  >
+                    <Sparkles size={14} />
+                    AI gợi ý
+                  </button>
+                </div>
               </div>
-              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                <label style={{ fontSize: 11, fontWeight: 800, color: "#64748b", uppercase: true, letterSpacing: "0.05em" }}>Thời gian kết thúc</label>
-                <input
-                  type="datetime-local"
-                  style={{ padding: "12px 16px", borderRadius: 10, border: "1px solid #e2e8f0", fontSize: 14, outline: "none" }}
-                  value={formData.luckyDrawEndTime || ""}
-                  onChange={(e) => setFormData({ ...formData, luckyDrawEndTime: e.target.value })}
-                />
+
+              {/* AI Suggestions Box */}
+              {showAiSuggestions && (
+                <div className="rounded-xl border border-indigo-100 bg-indigo-50/20 p-4 space-y-3">
+                  <div className="flex items-center gap-2 text-indigo-700 text-xs font-semibold">
+                    <Sparkles size={13} />
+                    Gợi ý giải thưởng từ AI (quy mô {formData.maxParticipants || 500} người)
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-h-[300px] overflow-y-auto">
+                    {aiSuggestions.map((s, i) => (
+                      <div key={i} className="flex justify-between items-center p-3 rounded-lg border border-slate-200 bg-white">
+                        <div className="min-w-0 pr-2">
+                          <p className="text-xs font-bold text-slate-800 truncate">{s.name}</p>
+                          <p className="text-[11px] text-slate-500 truncate mt-0.5">SL: {s.count} • {s.description}</p>
+                        </div>
+                        <button
+                          onClick={() => addPrize(s)}
+                          className="px-3 py-1 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold rounded-lg shrink-0 transition-colors"
+                        >
+                          Thêm
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Prize Table / List - Modern Sleek design */}
+              <div className="border border-slate-100 rounded-xl overflow-hidden">
+                <table className="w-full border-collapse text-left text-sm">
+                  <thead>
+                    <tr className="bg-slate-50 border-b border-slate-100 text-slate-600 text-xs font-bold">
+                      <th className="px-4 py-3 w-1/3">Tên giải thưởng</th>
+                      <th className="px-4 py-3 w-5/12">Mô tả chi tiết</th>
+                      <th className="px-4 py-3 text-center w-20">Số lượng</th>
+                      <th className="px-4 py-3 text-center w-16">Thao tác</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 bg-white">
+                    {prizes.length > 0 ? (
+                      prizes.map((p) => (
+                        <tr key={p.id}>
+                          <td className="px-4 py-3">
+                            <input
+                              className="w-full border-none outline-none text-sm text-slate-800 font-medium bg-transparent focus:bg-slate-50 rounded px-1 py-0.5"
+                              value={p.name}
+                              onChange={(e) => updatePrize(p.id, 'name', e.target.value)}
+                            />
+                          </td>
+                          <td className="px-4 py-3">
+                            <input
+                              className="w-full border border-transparent outline-none text-xs text-slate-500 bg-slate-50 hover:bg-slate-100/50 focus:bg-white focus:border-slate-200 px-2 py-1.5 rounded-lg transition-colors"
+                              placeholder="Nhập mô tả giải thưởng..."
+                              value={p.description || ""}
+                              onChange={(e) => updatePrize(p.id, 'description', e.target.value)}
+                            />
+                          </td>
+                          <td className="px-4 py-3 text-center">
+                            <input
+                              type="number"
+                              className="w-16 border border-slate-200 rounded-lg py-1 text-center text-sm font-medium focus:border-indigo-500 focus:outline-none"
+                              value={p.count}
+                              onChange={(e) => updatePrize(p.id, 'count', parseInt(e.target.value) || 1)}
+                            />
+                          </td>
+                          <td className="px-4 py-3 text-center">
+                            <button
+                              onClick={() => removePrize(p.id)}
+                              className="p-1 rounded text-slate-400 hover:text-rose-500 transition-colors"
+                            >
+                              <Trash2 size={15} />
+                            </button>
+                          </td>
+                        </tr>
+                      ))
+                    ) : (
+                      <tr>
+                        <td colSpan="4" className="py-12 text-center text-slate-400 text-sm">
+                          Chưa có giải thưởng nào. Click "AI gợi ý" hoặc thêm thủ công.
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
               </div>
             </div>
           </div>
         )}
-
-        {isActive && (
-          <>
-            {/* Prize List Header */}
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <h3 style={{ fontSize: 14, fontWeight: 700, color: "#1e293b", margin: 0 }}>Danh sách giải thưởng</h3>
-              <div style={{ display: "flex", gap: 16 }}>
-                <button
-                  onClick={addManualPrize}
-                  style={{
-                    background: "none",
-                    border: "none",
-                    color: "#2563eb",
-                    fontSize: 13,
-                    fontWeight: 700,
-                    cursor: "pointer",
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 6
-                  }}
-                >
-                  <Plus size={16} /> Thêm thủ công
-                </button>
-                <button
-                  onClick={() => setShowAiSuggestions(!showAiSuggestions)}
-                  style={{
-                    background: "none",
-                    border: "none",
-                    color: "#8b5cf6",
-                    fontSize: 13,
-                    fontWeight: 700,
-                    cursor: "pointer",
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 6
-                  }}
-                >
-                  <Sparkles size={16} /> AI gợi ý
-                </button>
-              </div>
-            </div>
-
-            {/* AI Suggestions Box */}
-            {showAiSuggestions && (
-              <div style={{
-                background: "#fdfaff",
-                border: "1px solid #f3e8ff",
-                borderRadius: 16,
-                padding: "24px",
-                display: "flex",
-                flexDirection: "column",
-                gap: 16
-              }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 8, color: "#8b5cf6", fontSize: 13, fontWeight: 700 }}>
-                  <Sparkles size={14} />
-                  Gợi ý giải thưởng từ AI (dựa trên quy mô {formData.maxParticipants || 500} người)
-                </div>
-                <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-                  {aiSuggestions.map((s, i) => (
-                    <div key={i} style={{
-                      background: "#fff",
-                      padding: "12px 16px",
-                      borderRadius: 12,
-                      display: "flex",
-                      justifyContent: "space-between",
-                      alignItems: "center",
-                      border: "1px solid #f1f5f9"
-                    }}>
-                      <div>
-                        <div style={{ fontSize: 14, fontWeight: 700, color: "#1e293b" }}>{s.name}</div>
-                        <div style={{ fontSize: 12, color: "#64748b", marginTop: 2 }}>
-                          Số lượng: {s.count} • {s.description}
-                        </div>
-                      </div>
-                      <button
-                        onClick={() => addPrize(s)}
-                        style={{
-                          background: "#8b5cf6",
-                          color: "#fff",
-                          border: "none",
-                          padding: "6px 16px",
-                          borderRadius: 8,
-                          fontSize: 12,
-                          fontWeight: 700,
-                          cursor: "pointer"
-                        }}
-                      >
-                        Thêm
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Prize Table */}
-            <div style={{ border: "1px solid #f1f5f9", borderRadius: 12, overflow: "hidden" }}>
-              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
-                <thead style={{ background: "#f8fafc", borderBottom: "1px solid #f1f5f9" }}>
-                  <tr>
-                    <th style={{ textAlign: "left", padding: "12px 16px", color: "#475569", fontWeight: 700, width: "30%" }}>Tên giải thưởng</th>
-                    <th style={{ textAlign: "left", padding: "12px 16px", color: "#475569", fontWeight: 700, width: "45%" }}>Mô tả chi tiết</th>
-                    <th style={{ textAlign: "center", padding: "12px 16px", color: "#475569", fontWeight: 700 }}>Số lượng</th>
-                    <th style={{ textAlign: "center", padding: "12px 16px", color: "#475569", fontWeight: 700 }}>Thao tác</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {prizes.length > 0 ? (
-                    prizes.map((p) => (
-                      <tr key={p.id} style={{ borderBottom: "1px solid #f1f5f9" }}>
-                        <td style={{ padding: "12px 16px" }}>
-                          <input
-                            style={{ width: "100%", border: "none", outline: "none", fontSize: 13, color: "#1e293b", fontWeight: 600, background: "#fff" }}
-                            value={p.name}
-                            onChange={(e) => updatePrize(p.id, 'name', e.target.value)}
-                          />
-                        </td>
-                        <td style={{ padding: "12px 16px" }}>
-                          <input
-                            style={{ width: "100%", border: "1px solid transparent", outline: "none", fontSize: 12, color: "#64748b", background: "#f8fafc", padding: "4px 8px", borderRadius: 6, transition: "all 0.2s" }}
-                            placeholder="Nhập mô tả giải thưởng..."
-                            value={p.description || ""}
-                            onChange={(e) => updatePrize(p.id, 'description', e.target.value)}
-                            onFocus={(e) => (e.target.style.borderColor = "#cbd5e1")}
-                            onBlur={(e) => (e.target.style.borderColor = "transparent")}
-                          />
-                        </td>
-                        <td style={{ padding: "12px 16px", textAlign: "center" }}>
-                          <input
-                            type="number"
-                            style={{ width: 60, border: "1px solid #e2e8f0", borderRadius: 4, padding: "4px 8px", textAlign: "center", background: "#fff" }}
-                            value={p.count}
-                            onChange={(e) => updatePrize(p.id, 'count', parseInt(e.target.value))}
-                          />
-                        </td>
-                        <td style={{ padding: "12px 16px", textAlign: "center" }}>
-                          <button
-                            onClick={() => removePrize(p.id)}
-                            style={{ background: "none", border: "none", color: "#94a3b8", cursor: "pointer" }}
-                          >
-                            <Trash2 size={16} />
-                          </button>
-                        </td>
-                      </tr>
-                    ))
-                  ) : (
-                    <tr>
-                      <td colSpan="4" style={{ padding: "40px", textAlign: "center", color: "#94a3b8" }}>
-                        Chưa có giải thưởng nào. Click "AI gợi ý" hoặc thêm thủ công.
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-
-
-          </>
-        )}
-      </div>
-
-      <div style={{ marginTop: 32, display: 'flex', justifyContent: 'flex-end', gap: 16 }}>
-        <button onClick={onBack} style={{ padding: "10px 24px", borderRadius: 8, border: "1px solid #e2e8f0", background: "#fff", color: "#64748b", fontSize: 14, fontWeight: 600, cursor: "pointer" }}>
-          Quay lại
-        </button>
-        <button onClick={() => onNext(formData)} style={{ padding: "10px 32px", borderRadius: 8, border: "none", background: "#1e1b4b", color: "#fff", fontSize: 14, fontWeight: 600, cursor: "pointer", boxShadow: "0 4px 6px -1px rgba(0,0,0,0.1)" }}>
-          Tiếp theo
-        </button>
       </div>
     </div>
   );

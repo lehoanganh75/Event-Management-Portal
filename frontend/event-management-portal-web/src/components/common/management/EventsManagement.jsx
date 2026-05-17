@@ -110,7 +110,6 @@ const EventsManagement = ({ type = "lecturer", mode = "all" }) => {
         "ONGOING",
         "COMPLETED",
         "CANCELLED",
-        "CONVERTED",
         "REJECTED",
       ];
     }
@@ -265,6 +264,10 @@ const EventsManagement = ({ type = "lecturer", mode = "all" }) => {
 
         if (activeTab === "Đã duyệt") {
           return ["PLAN_APPROVED"].includes(e.status);
+        }
+
+        if (activeTab === "Đã chuyển đổi") {
+          return ["CONVERTED"].includes(e.status);
         }
 
         if (activeTab === "Chờ duyệt sự kiện") {

@@ -49,6 +49,14 @@ const EventTabs = ({
             ["PLAN_APPROVED"].includes(e.status)
           ).length,
         },
+        {
+          id: "Đã chuyển đổi",
+          label: "Đã chuyển đổi",
+          icon: CheckCircle2,
+          count: events.filter((e) =>
+            ["CONVERTED"].includes(e.status)
+          ).length,
+        },
       ]
       : []),
     ...(mode === "all" || mode === "event"

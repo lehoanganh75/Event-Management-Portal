@@ -2,8 +2,6 @@ import React, { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { toast } from "react-toastify";
 import ManualInputStep from "./ManualInputStep";
-import LuckyDrawStep from "./LuckyDrawStep";
-import InteractionStep from "./InteractionStep";
 import EventReviewStep from "./EventReviewstep";
 import EventProgramStep from "./Eventprogramstep";
 import { exportToWord } from "./WordExporter";
@@ -14,6 +12,7 @@ import authService from "../../services/authService";
 import { useAuth } from "../../context/AuthContext";
 import {
   ArrowLeft,
+  ArrowRight,
   Check,
   Award,
   Users,
@@ -28,16 +27,20 @@ import {
   FileUp,
   Loader2,
   Type,
-  X
+  X,
+  Save,
+  Download,
+  RefreshCw,
+  Send,
+  BookmarkPlus,
+  FileDown
 } from "lucide-react";
 import { extractDataFromDocx } from "../../services/docxImportService";
 
 const STEPS = [
   { id: 1, label: "Thông tin cơ bản", icon: FileText },
   { id: 2, label: "Mô tả & Cài đặt", icon: Info },
-  { id: 3, label: "Vòng quay may mắn", icon: Gift },
-  { id: 4, label: "Tương tác & Q&A", icon: MessageSquare },
-  { id: 5, label: "Xem trước & Hoàn tất", icon: CheckCircle },
+  { id: 3, label: "Xem trước & Hoàn tất", icon: CheckCircle },
 ];
 
 const StepIcon = ({ id, active, completed, icon: Icon }) => {
@@ -69,19 +72,15 @@ export const EventCreator = ({
   startAtStep = 1,
   forceEventMode = false
 }) => {
-  // Unified to 5 steps
   const { user } = useAuth();
+  const isAuthority = user?.role === 'SUPER_ADMIN' || user?.role === 'ADMIN';
   const isPlanMode = !forceEventMode && (
     (initialFormData?.status?.startsWith('PLAN_')) ||
     (!planId && !fromPlan && (!initialFormData?.id || initialFormData?.status?.startsWith('PLAN_')))
   );
 
-  const activeSteps = STEPS.filter(s => {
-    if (isPlanMode && (s.id === 3 || s.id === 4)) return false;
-    return true;
-  }).map(s => {
-    if (s.id === 5) {
-      const isAuthority = user?.role === 'SUPER_ADMIN' || user?.role === 'ADMIN';
+  const activeSteps = STEPS.map(s => {
+    if (s.id === 3) {
       const label = isAuthority
         ? (isPlanMode ? "Xem trước & Phê duyệt" : "Xem trước & Xuất bản")
         : "Xem trước & Gửi duyệt";
@@ -146,19 +145,23 @@ export const EventCreator = ({
       createdByAccountId: accountId,
       notes: (data.notes || "").trim(),
       coverImage: data.coverImage || "",
-      presenters: (data.presenters || []).map(p => ({
-        accountId: p.accountId,
-        fullName: p.fullName,
-        email: p.email,
-        title: p.position || p.title,
-        session: p.session
-      })),
-      organizers: (data.invitations || []).map(inv => ({
-        accountId: inv.inviteeAccountId || inv.accountId,
-        fullName: inv.inviteeName || inv.fullName,
-        email: inv.inviteeEmail || inv.email,
-        role: inv.targetRole || "MEMBER"
-      })),
+      presenters: (data.presenters || [])
+        .filter(p => p.isConfirmed)
+        .map(p => ({
+          accountId: p.accountId,
+          fullName: p.fullName,
+          email: p.email,
+          title: p.position || p.title,
+          session: p.session
+        })),
+      organizers: (data.invitations || [])
+        .filter(inv => inv.isConfirmed)
+        .map(inv => ({
+          accountId: inv.inviteeAccountId || inv.accountId,
+          fullName: inv.inviteeName || inv.fullName,
+          email: inv.inviteeEmail || inv.email,
+          role: inv.targetRole || "MEMBER"
+        })),
       programItems: (data.sessions || []).map(s => ({
         title: s.title,
         description: s.description,
@@ -264,7 +267,7 @@ export const EventCreator = ({
       ],
     };
     setFormData(sample);
-    toast.info("✨ Đã tự động điền dữ liệu mẫu!");
+    toast.info("Đã tự động điền dữ liệu mẫu!");
   };
 
   const [showRawTextInput, setShowRawTextInput] = useState(false);
@@ -563,7 +566,7 @@ export const EventCreator = ({
     }
   };
 
-  const handleSubmit = async (finalData) => {
+  const handleSubmit = async (finalData = null, isDraft = false) => {
     setIsSubmitting(true);
     try {
       const accountId = user ? user.id : null;
@@ -625,10 +628,12 @@ export const EventCreator = ({
         coverImage: data.coverImage || "",
         createdByAccountId: accountId,
         // Auto-approval logic for Admin/SuperAdmin
-        status: isPlanMode
-          ? (isAdmin ? 'PLAN_APPROVED' : 'PLAN_PENDING_APPROVAL')
-          : (isAdmin ? 'PUBLISHED' : 'EVENT_PENDING_APPROVAL'),
-        approvedByAccountId: isAdmin ? accountId : null,
+        status: isDraft
+          ? 'DRAFT'
+          : isPlanMode
+            ? (isAdmin ? 'PLAN_APPROVED' : 'PLAN_PENDING_APPROVAL')
+            : (isAdmin ? 'PUBLISHED' : 'EVENT_PENDING_APPROVAL'),
+        approvedByAccountId: (isAdmin && !isDraft) ? accountId : null,
         targetObjects: Array.isArray(data.targetObjects)
           ? data.targetObjects.map(obj => typeof obj === 'string' ? { type: 'CATEGORY', name: obj } : obj)
           : [],
@@ -636,11 +641,13 @@ export const EventCreator = ({
           ? data.recipients.map(r => typeof r === 'string' ? { name: r } : r)
           : [],
         organization: { id: organizationId },
-        invitations: data.invitations || [],
-        presenters: (data.presenters || []).map(p => ({
-          ...p,
-          email: p.email?.trim() || null
-        })),
+        invitations: (data.invitations || []).filter(inv => inv.isConfirmed),
+        presenters: (data.presenters || [])
+          .filter(p => p.isConfirmed)
+          .map(p => ({
+            ...p,
+            email: p.email?.trim() || null
+          })),
         sessions: (data.sessions || []).map(s => ({
           ...s,
           startTime: toISO(s.startTime),
@@ -665,9 +672,11 @@ export const EventCreator = ({
         const planPayload = preparePlanPayload(data);
         if (formData.id) {
           response = await eventService.updatePlan(formData.id, planPayload);
-          await eventService.submitPlanForApproval(formData.id);
+          if (!isDraft) {
+            await eventService.submitPlanForApproval(formData.id);
+          }
         } else {
-          response = await eventService.createPlan(planPayload, true);
+          response = await eventService.createPlan(planPayload, !isDraft);
         }
       } else if (isEditMode) {
         response = await eventService.updateEvent(formData.id, payload);
@@ -681,12 +690,12 @@ export const EventCreator = ({
         });
       }
 
-      if (response.data?.id) {
+      if (response.data?.id && !isDraft) {
         const eventId = response.data.id;
         await sendNotifications(eventId, payload.title, isSuperAdmin);
 
         // Send Organizer Invitations
-        if (payload.invitations && payload.invitations.length > 0) {
+        if (!isPlanMode && payload.invitations && payload.invitations.length > 0) {
           try {
             await eventService.sendOrganizerInvitations(eventId, payload.invitations);
           } catch (invErr) {
@@ -695,7 +704,7 @@ export const EventCreator = ({
         }
 
         // Send Presenter Invitations
-        if (payload.presenters && payload.presenters.length > 0) {
+        if (!isPlanMode && payload.presenters && payload.presenters.length > 0) {
           const validPresenters = payload.presenters.filter(p => p.email && p.email.trim() !== "");
           if (validPresenters.length > 0) {
             try {
@@ -730,21 +739,35 @@ export const EventCreator = ({
         }
       }
 
-      if (isPlanMode) {
-        toast.success("✅ Kế hoạch đã được xử lý!");
+      if (isDraft) {
+        toast.success(isPlanMode ? "✅ Đã lưu bản nháp kế hoạch!" : "✅ Đã lưu bản nháp sự kiện thành công!");
+      } else if (isPlanMode) {
+        toast.success("Kế hoạch đã được xử lý!");
       } else if (isEditMode) {
-        toast.success("✅ Đã cập nhật thông tin sự kiện!");
+        toast.success("Đã cập nhật thông tin sự kiện!");
       } else if (isSuperAdmin) {
-        toast.success("✅ Sự kiện đã được xuất bản trực tiếp!");
+        toast.success("Sự kiện đã được xuất bản trực tiếp!");
       } else {
-        toast.success("✅ Gửi phê duyệt thành công!");
+        toast.success("Gửi phê duyệt thành công!");
       }
       onBack();
     } catch (error) {
-      console.error("❌ Lỗi:", error.response?.data || error);
-      toast.error("❌ Lỗi: " + (error.response?.data?.message || error.message || "Lỗi không xác định"));
+      console.error("Lỗi:", error.response?.data || error);
+      toast.error("Lỗi: " + (error.response?.data?.message || error.message || "Lỗi không xác định"));
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const handleSaveDraftClick = async () => {
+    try {
+      if (isPlanMode) {
+        await handleSaveDraft(formData);
+      } else {
+        await handleSubmit(formData, true);
+      }
+    } catch (err) {
+      console.error("Lỗi khi lưu nháp:", err);
     }
   };
 
@@ -788,7 +811,7 @@ export const EventCreator = ({
         visibility: "PRIVATE",
         configData: {
           sessions: data.sessions || [],
-          presenters: data.presenters || [],
+          presenters: (data.presenters || []).filter(p => p.isConfirmed),
           targetObjects: data.targetObjects || [],
           interactionSettings: data.interactionSettings || {},
           hasLuckyDraw: data.hasLuckyDraw || false,
@@ -796,7 +819,8 @@ export const EventCreator = ({
         },
       };
       await eventService.createTemplate(templatePayload);
-      toast.success("✅ Đã lưu bản mẫu từ kế hoạch hiện tại!");
+      toast.success("Đã lưu bản mẫu từ kế hoạch hiện tại!");
+      onBack();
     } catch (err) {
       toast.error("Lỗi lưu mẫu: " + (err.response?.data?.message || err.message));
       throw err;
@@ -810,6 +834,8 @@ export const EventCreator = ({
         eventTitle: data.eventTitle || data.title,
         eventPurpose: data.eventPurpose || data.description,
         createdByName: user?.profile?.fullName || user?.username || "",
+        presenters: (data.presenters || []).filter(p => p.isConfirmed),
+        invitations: (data.invitations || []).filter(inv => inv.isConfirmed),
       }, user?.accountId || user?.id);
       toast.success("✅ Đã xuất file Word!");
     } catch (err) {
@@ -820,53 +846,101 @@ export const EventCreator = ({
   const handleReset = () => {
     setFormData(initialFormData);
     setStep(1);
-    toast.info("🔄 Đã làm mới toàn bộ form!");
+    toast.info("Đã làm mới toàn bộ form!");
+  };
+
+  const handleGlobalBack = () => {
+    if (step === 1) {
+      onBack();
+    } else if (step === 2) {
+      setStep(1);
+    } else if (step === 3) {
+      setStep(2);
+    }
+  };
+
+  const handleGlobalNext = () => {
+    if (step === 1) {
+      if (!formData.eventTitle?.trim()) {
+        toast.error("Vui lòng nhập tên sự kiện/kế hoạch!");
+        return;
+      }
+      if (!formData.startTime) {
+        toast.error("Vui lòng chọn thời gian bắt đầu!");
+        return;
+      }
+      if (!formData.endTime) {
+        toast.error("Vui lòng chọn thời gian kết thúc!");
+        return;
+      }
+      setStep(2);
+    } else if (step === 2) {
+      setStep(3);
+    } else if (step === 3) {
+      handleSubmit(formData);
+    }
   };
 
   return (
-    <div className="min-h-screen bg-[#f8fafc]">
-      <div className="fixed top-20 left-72 right-0 z-40 bg-white border-b border-slate-200">
-        <div className="max-w-7xl mx-auto p-6">
-          <div className="max-w-7xl mx-auto flex justify-between items-center">
-            <div>
-              <h1 className="text-xl font-extrabold text-indigo-950 flex items-center gap-3">
-                <div className="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center text-white shadow-lg shadow-indigo-200">
-                  <Sparkles size={22} fill="currentColor" />
-                </div>
-                {isEdit ? "Cập nhật sự kiện" : (isPlanMode ? "Tạo Kế Hoạch Mới" : "Tạo Sự Kiện Mới")}
-              </h1>
-              <div className="flex items-center gap-4 mt-1">
-                {isPlanMode && formData._templateName && (
-                  <span className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-bold">
-                    📌 Từ mẫu: {formData._templateName}
-                  </span>
-                )}
-                {isPlanMode && (
-                  <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest">
-                    {isAutoSaving ? (
-                      <span className="text-indigo-500 flex items-center gap-1.5">
-                        <Loader2 size={10} className="animate-spin" /> Đang tự động lưu...
-                      </span>
-                    ) : lastSavedTime ? (
-                      <span className="text-slate-400 flex items-center gap-1.5">
-                        <Check size={10} /> Đã lưu lúc {lastSavedTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
-                      </span>
-                    ) : null}
-                  </div>
-                )}
-              </div>
-            </div>
-            <div className="flex items-center gap-3">
-              {user?.role === 'SUPER_ADMIN' && (
-                <button
-                  onClick={fillSampleData}
-                  className="flex items-center gap-2 px-4 py-2 bg-indigo-50 text-indigo-700 rounded-lg text-sm font-bold hover:bg-indigo-100 transition-all"
-                >
-                  <Sparkles size={16} /> Dữ liệu mẫu
-                </button>
-              )}
+    <div className="min-h-screen bg-slate-50">
+      {/* HEADER */}
+      <div className="bg-white border-b border-slate-200">
+        <div className="px-6 py-5">
+          <button
+            onClick={onBack}
+            className="mb-4 flex items-center gap-2 text-sm text-slate-500 hover:text-slate-800"
+          >
+            <ArrowLeft size={16} />
+            Quay lại
+          </button>
 
-              <label className={`flex items-center gap-2 px-4 py-2 bg-amber-50 text-amber-700 rounded-lg text-sm font-bold hover:bg-amber-100 transition-all cursor-pointer shadow-sm ${isImporting ? 'opacity-50 pointer-events-none' : ''}`}>
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <h1 className="text-xl font-semibold text-slate-800">
+                {isEdit
+                  ? "Cập nhật sự kiện"
+                  : isPlanMode
+                    ? "Tạo kế hoạch mới"
+                    : "Tạo sự kiện mới"}
+              </h1>
+
+              <p className="text-sm text-slate-500 mt-1">
+                Điền thông tin và cấu hình nội dung sự kiện
+              </p>
+
+              {isPlanMode && (
+                <div className="flex items-center gap-3 mt-3">
+                  {formData._templateName && (
+                    <span className="px-2.5 py-1 rounded-md bg-blue-50 text-blue-700 text-xs border border-blue-100">
+                      Từ mẫu: {formData._templateName}
+                    </span>
+                  )}
+
+                  {isAutoSaving ? (
+                    <span className="flex items-center gap-1.5 text-xs text-indigo-600">
+                      <Loader2 size={12} className="animate-spin" />
+                      Đang tự động lưu...
+                    </span>
+                  ) : lastSavedTime ? (
+                    <span className="flex items-center gap-1.5 text-xs text-slate-500">
+                      <Check size={12} />
+                      Đã lưu lúc{" "}
+                      {lastSavedTime.toLocaleTimeString([], {
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })}
+                    </span>
+                  ) : null}
+                </div>
+              )}
+            </div>
+
+            <div className="flex items-center gap-2 flex-wrap justify-end">
+
+              <label
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg border border-amber-200 bg-amber-50 text-amber-700 text-sm hover:bg-amber-100 cursor-pointer ${isImporting ? "opacity-60 pointer-events-none" : ""
+                  }`}
+              >
                 <input
                   type="file"
                   className="hidden"
@@ -874,74 +948,83 @@ export const EventCreator = ({
                   onChange={handleDocxImport}
                   disabled={isImporting}
                 />
+
                 {isImporting ? (
-                  <><Loader2 size={16} className="animate-spin" /> Đang xử lý...</>
+                  <>
+                    <Loader2 size={15} className="animate-spin" />
+                    Đang xử lý...
+                  </>
                 ) : (
-                  <><FileUp size={16} /> Nhập từ Docx (AI)</>
+                  <>
+                    <FileUp size={15} />
+                    Nhập Docx
+                  </>
                 )}
               </label>
 
               <button
                 onClick={() => setShowRawTextInput(true)}
-                className="flex items-center gap-2 px-4 py-2 bg-indigo-50 text-indigo-700 rounded-lg text-sm font-bold hover:bg-indigo-100 transition-all shadow-sm"
+                className="flex items-center gap-2 px-4 py-2 rounded-lg border border-indigo-200 bg-white text-indigo-600 text-sm hover:bg-indigo-50"
               >
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <path d="M12 2L14.8 9.2L22 12L14.8 14.8L12 22L9.2 14.8L2 12L9.2 9.2L12 2Z" fill="url(#gemini_header_grad)" />
-                  <defs>
-                    <linearGradient id="gemini_header_grad" x1="2" y1="12" x2="22" y2="12" gradientUnits="userSpaceOnUse">
-                      <stop stopColor="#4E8AFF" />
-                      <stop offset="0.5" stopColor="#A06FFF" />
-                      <stop offset="1" stopColor="#FF7D9F" />
-                    </linearGradient>
-                  </defs>
-                </svg>
+                <Sparkles size={15} />
                 Phân tích AI
               </button>
-              <button
-                onClick={onBack}
-                className="flex items-center gap-2 px-4 py-2 text-slate-500 hover:bg-slate-100 rounded-lg text-sm font-bold transition-all"
-              >
-                <ArrowLeft size={16} /> Quay lại
-              </button>
-            </div>
-          </div>
-        </div>
-
-        {/* Stepper Section */}
-        <div className="px-8 pb-4">
-          <div className="max-w-5xl mx-auto pt-4 px-4">
-            <div className="relative flex justify-between">
-              {activeSteps.map((s, idx) => {
-                const active = step === s.id;
-                const completed = step > s.id;
-                const isLast = idx === activeSteps.length - 1;
-
-                return (
-                  <div key={s.id} className="relative z-10 flex items-center group" style={{ flex: isLast ? '0 0 auto' : '1' }}>
-                    <div className="flex flex-col items-center">
-                      <StepIcon id={s.id} active={active} completed={completed} icon={s.icon} />
-                      <span className={`mt-2 text-[10px] font-bold uppercase tracking-wider text-center transition-colors duration-300 ${active ? "text-indigo-900" : completed ? "text-emerald-600" : "text-slate-500"}`}>
-                        {s.label}
-                      </span>
-                    </div>
-
-                    {!isLast && (
-                      <div className="flex-1 px-2 flex items-center justify-center mb-6">
-                        <ChevronRight
-                          size={16}
-                          className={`transition-all duration-500 ${completed ? "text-emerald-500" : "text-slate-300"}`}
-                        />
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
             </div>
           </div>
         </div>
       </div>
 
-      <div className="px-6 pt-[210px] pb-6 w-full">
+      {/* STEPPER */}
+      <div className="sticky top-0 z-30 bg-white border-b border-slate-200 px-6 py-4">
+        <div className="flex justify-center overflow-x-auto">
+          <div className="flex items-start gap-6 min-w-max">
+            {activeSteps.map((s, idx) => {
+              const active = step === s.id;
+              const completed = step > s.id;
+
+              return (
+                <React.Fragment key={s.id}>
+                  <div className="flex flex-col items-center min-w-[88px]">
+                    <div
+                      className={`w-9 h-9 rounded-full flex items-center justify-center border ${active
+                        ? "bg-indigo-600 border-indigo-600 text-white"
+                        : completed
+                          ? "bg-emerald-500 border-emerald-500 text-white"
+                          : "bg-white border-slate-300 text-slate-500"
+                        }`}
+                    >
+                      <s.icon size={16} />
+                    </div>
+
+                    <p
+                      className={`mt-2 text-xs text-center ${active
+                        ? "text-indigo-700 font-medium"
+                        : completed
+                          ? "text-emerald-600"
+                          : "text-slate-500"
+                        }`}
+                    >
+                      {s.label}
+                    </p>
+                  </div>
+
+                  {idx !== activeSteps.length - 1 && (
+                    <div className="pt-3">
+                      <ChevronRight
+                        size={16}
+                        className={completed ? "text-emerald-400" : "text-slate-300"}
+                      />
+                    </div>
+                  )}
+                </React.Fragment>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+
+      {/* CONTENT */}
+      <div className="px-6 pt-6 pb-24">
         <div className="min-h-[600px]">
           {step === 1 && (
             <ManualInputStep
@@ -952,7 +1035,7 @@ export const EventCreator = ({
                 updateFormData(data);
                 setStep(2);
               }}
-              activeSections={['organization', 'basic']}
+              activeSections={["organization", "basic"]}
               isPlanMode={isPlanMode}
             />
           )}
@@ -964,41 +1047,24 @@ export const EventCreator = ({
               onBack={() => setStep(1)}
               onNext={(data) => {
                 updateFormData(data);
-                setStep(isPlanMode ? 5 : 3);
+                setStep(3);
               }}
-              activeSections={['details', 'description', 'image', 'attendees', 'sessions', 'presenters']}
+              activeSections={[
+                "details",
+                "description",
+                "image",
+                "attendees",
+                "sessions",
+                "presenters",
+              ]}
               isPlanMode={isPlanMode}
             />
           )}
 
           {step === 3 && (
-            <LuckyDrawStep
-              formData={formData}
-              setFormData={updateFormData}
-              onBack={() => setStep(2)}
-              onNext={(data) => {
-                updateFormData(data);
-                setStep(4);
-              }}
-            />
-          )}
-
-          {step === 4 && (
-            <InteractionStep
-              formData={formData}
-              setFormData={updateFormData}
-              onBack={() => setStep(3)}
-              onNext={(data) => {
-                updateFormData(data);
-                setStep(5);
-              }}
-            />
-          )}
-
-          {step === 5 && (
             <EventReviewStep
               formData={formData}
-              onBack={() => setStep(isPlanMode ? 2 : 4)}
+              onBack={() => setStep(2)}
               onSubmit={handleSubmit}
               isSubmitting={isSubmitting}
               isEdit={isEdit}
@@ -1011,49 +1077,147 @@ export const EventCreator = ({
           )}
         </div>
       </div>
-      {/* Raw Text Input Modal */}
-      {showRawTextInput && (
-        <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm">
-          <motion.div
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            className="bg-white w-full max-w-2xl rounded-3xl shadow-2xl overflow-hidden"
+
+      {/* FOOTER ACTIONS */}
+      <div className="fixed bottom-0 left-0 md:left-72 right-0 z-50 bg-white border-t border-slate-200 px-6 py-4 flex justify-between items-center">
+        <div className="flex gap-2">
+          <button
+            onClick={handleGlobalBack}
+            className="flex items-center gap-2 px-4 py-2 rounded-lg border border-slate-200 text-slate-600 text-sm hover:bg-slate-50"
           >
-            <div className="p-6 border-b border-slate-100 flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-indigo-100 text-indigo-600 rounded-lg">
-                  <Sparkles size={20} />
-                </div>
-                <h3 className="text-xl font-black text-slate-800">AI Phân tích văn bản</h3>
+            <ArrowLeft size={15} />
+            Quay lại
+          </button>
+
+          <button
+            onClick={handleReset}
+            className="flex items-center gap-2 px-4 py-2 rounded-lg border border-rose-200 bg-rose-50 text-rose-600 text-sm hover:bg-rose-100"
+          >
+            <RefreshCw size={15} />
+            Làm mới
+          </button>
+        </div>
+
+        <div className="flex gap-2 items-center">
+          {step === 3 && (
+            <>
+              <button
+                onClick={handleSaveDraftClick}
+                disabled={isSubmitting}
+                className="flex items-center gap-2 px-4 py-2 rounded-lg border border-blue-200 bg-blue-50 text-blue-600 text-sm hover:bg-blue-100 transition-colors disabled:opacity-50"
+              >
+                <Save size={15} />
+                Lưu nháp
+              </button>
+
+              {isPlanMode && (
+                <>
+                  <button
+                    onClick={() => handleSaveTemplate(formData)}
+                    disabled={isSubmitting}
+                    className="flex items-center gap-2 px-4 py-2 rounded-lg border border-amber-200 bg-amber-50 text-amber-600 text-sm hover:bg-amber-100 transition-colors disabled:opacity-50"
+                  >
+                    <BookmarkPlus size={15} />
+                    Lưu mẫu
+                  </button>
+
+                  <button
+                    onClick={() => handleExportWord(formData)}
+                    disabled={isSubmitting}
+                    className="flex items-center gap-2 px-4 py-2 rounded-lg border border-emerald-200 bg-emerald-50 text-emerald-600 text-sm hover:bg-emerald-100 transition-colors disabled:opacity-50"
+                  >
+                    <FileDown size={15} />
+                    Xuất Word
+                  </button>
+                </>
+              )}
+            </>
+          )}
+
+          <button
+            onClick={handleGlobalNext}
+            disabled={isSubmitting}
+            className="flex items-center gap-2 px-6 py-2 rounded-lg bg-indigo-700 text-white text-sm hover:bg-indigo-800 disabled:opacity-50"
+          >
+            {isSubmitting ? (
+              <>
+                <Loader2 size={16} className="animate-spin" />
+                Đang xử lý...
+              </>
+            ) : step === 3 ? (
+              <>
+                <Send size={15} />
+                {isEdit
+                  ? "Cập nhật sự kiện"
+                  : isAuthority
+                    ? isPlanMode
+                      ? "Duyệt & Lưu"
+                      : "Tạo & Xuất bản"
+                    : "Gửi phê duyệt"}
+              </>
+            ) : (
+              <>
+                Tiếp theo
+                <ArrowRight size={16} />
+              </>
+            )}
+          </button>
+        </div>
+      </div>
+
+      {/* AI MODAL */}
+      {showRawTextInput && (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/40">
+          <motion.div
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="bg-white w-full max-w-2xl rounded-xl border border-slate-200 overflow-hidden"
+          >
+            <div className="px-6 py-4 border-b border-slate-200 flex items-center justify-between">
+              <div>
+                <h3 className="text-lg font-semibold text-slate-800">
+                  Phân tích bằng AI
+                </h3>
+                <p className="text-sm text-slate-500">
+                  AI sẽ hỗ trợ điền dữ liệu ban đầu
+                </p>
               </div>
-              <button onClick={() => setShowRawTextInput(false)} className="text-slate-400 hover:text-slate-600">
-                <X size={20} />
+
+              <button
+                onClick={() => setShowRawTextInput(false)}
+                className="p-2 rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-700"
+              >
+                <X size={18} />
               </button>
             </div>
+
             <div className="p-6">
-              <p className="text-sm text-slate-500 mb-4 font-medium">
-                Dán đoạn văn bản mô tả kế hoạch sự kiện của bạn vào đây. AI sẽ tự động điền các trường thông tin trong form.
-              </p>
               <textarea
-                className="w-full p-4 rounded-2xl border-2 border-slate-100 focus:border-indigo-500 outline-none transition-all text-sm font-medium h-60 custom-scrollbar"
-                placeholder="Ví dụ: Kế hoạch tổ chức Hội thảo Career Path IT cho sinh viên CNTT vào ngày 20/4/2026 tại hội trường A7..."
+                className="w-full h-60 rounded-lg border border-slate-200 px-4 py-3 text-sm outline-none resize-none focus:border-indigo-500"
+                placeholder="Ví dụ: Hội thảo AI cho sinh viên CNTT..."
                 value={rawText}
                 onChange={(e) => setRawText(e.target.value)}
               />
             </div>
-            <div className="p-6 bg-slate-50 flex justify-end gap-3">
+
+            <div className="px-6 py-4 border-t border-slate-200 flex justify-end gap-2 bg-slate-50">
               <button
                 onClick={() => setShowRawTextInput(false)}
-                className="px-6 py-2 text-slate-600 font-bold hover:bg-slate-200 rounded-xl transition-all"
+                className="px-4 py-2 rounded-lg border border-slate-200 bg-white text-slate-600 text-sm hover:bg-slate-50"
               >
-                Hủy bỏ
+                Hủy
               </button>
+
               <button
                 disabled={!rawText.trim() || isAnalysingRaw}
                 onClick={handleRawTextImport}
-                className="flex items-center gap-2 px-8 py-2 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 disabled:bg-indigo-300 transition-all shadow-lg shadow-indigo-100"
+                className="flex items-center gap-2 px-5 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-sm disabled:bg-slate-300"
               >
-                {isAnalysingRaw ? <Loader2 size={18} className="animate-spin" /> : <Sparkles size={18} />}
+                {isAnalysingRaw ? (
+                  <Loader2 size={16} className="animate-spin" />
+                ) : (
+                  <Sparkles size={16} />
+                )}
                 Bắt đầu phân tích
               </button>
             </div>

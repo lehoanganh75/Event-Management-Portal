@@ -11,6 +11,7 @@ import eventService from "../../services/eventService";
 import authService from "../../services/authService";
 import { useAuth } from "../../context/AuthContext";
 import { safeParseAIJson, formatAIDate } from "../../utils/aiUtils";
+import { toast } from "react-toastify";
 
 // Sub-components
 import BasicInfoSection from "./manual-input/components/BasicInfoSection";
@@ -194,11 +195,11 @@ export default function ManualInputStep({
       const prompt = `Dựa trên dữ liệu thống kê EVENT_DB, đặc biệt là danh sách [THỐNG KÊ DIỄN GIẢ THÂN QUEN] (những người tôi đã từng mời làm diễn giả trong các sự kiện tôi đã tạo), 
                      hãy gợi ý 5 người (AccountID) tham gia làm diễn giả nhiều nhất để tiếp tục mời cho sự kiện "${formData.eventTitle}".
                      Yêu cầu: Trả về JSON duy nhất có cấu trúc: {"suggestedAccountIds": ["id1", "id2", ...]}.`;
-      
+
       const res = await eventService.localAi.chat(prompt, true, user?.id || user?.accountId);
       const aiReply = res.data?.reply;
       const resultText = typeof aiReply === 'object' ? aiReply.reply : aiReply;
-      
+
       let ids = [];
       try {
         const data = typeof resultText === 'string' ? JSON.parse(resultText) : resultText;
@@ -251,11 +252,59 @@ export default function ManualInputStep({
     setFormData({ ...formData, invitations: [...invites, newInvite] });
   };
 
-  const confirmInvite = (index) => {
+  const confirmInvite = async (index) => {
     const invites = [...(formData.invitations || [])];
-    if (!invites[index].inviteeEmail) return;
-    invites[index].isConfirmed = true;
-    setFormData({ ...formData, invitations: invites });
+    const email = invites[index].inviteeEmail?.trim();
+    if (!email) {
+      toast.error("Vui lòng nhập Email người được mời!");
+      return;
+    }
+
+    const invite = invites[index];
+    if (!invite.message?.trim()) {
+      toast.error("Vui lòng nhập Lời nhắn cho thành viên!");
+      return;
+    }
+
+    const myEmail = user?.email || user?.account?.email;
+    if (myEmail && email.toLowerCase() === myEmail.toLowerCase()) {
+      toast.error("Không thể mời chính bạn vì bạn là người tạo sự kiện!");
+      return;
+    }
+
+    try {
+      const checkRes = await authService.checkEmail(email);
+      const exists = checkRes.data === true;
+
+      if (!exists) {
+        toast.error(`Email ${email} không tồn tại trong hệ thống!`);
+        return;
+      }
+
+      try {
+        const searchRes = await authService.searchUsers(email);
+        const users = searchRes.data || [];
+        const exactUser = users.find(u =>
+          (u.email || "").toLowerCase() === email.toLowerCase() ||
+          (u.account?.email || "").toLowerCase() === email.toLowerCase()
+        );
+
+        if (exactUser) {
+          invites[index].inviteeAccountId = exactUser.id || exactUser.accountId;
+          invites[index].inviteeName = exactUser.fullName || exactUser.username || email.split("@")[0] || "";
+        }
+      } catch (err) {
+        console.warn("Không thể tải profile cho email", email);
+      }
+
+      invites[index].isConfirmed = true;
+      setFormData({ ...formData, invitations: invites });
+
+      toast.success(`Đã xác nhận thành viên: ${email}`);
+    } catch (err) {
+      console.error("Lỗi xác thực email:", err);
+      toast.error(`Lỗi khi kiểm tra email ${email}. Vui lòng thử lại!`);
+    }
   };
 
   const updateInvite = (index, field, value) => {
@@ -274,16 +323,66 @@ export default function ManualInputStep({
       presenterAccountId: user.id,
       email: user.email || "",
       fullName: user.profile?.fullName || user.username || "",
+      message: "",
+      bio: "",
       isConfirmed: true
-    } : { email: "", fullName: "", isConfirmed: false };
+    } : { email: "", fullName: "", message: "", bio: "", isConfirmed: false };
     setFormData({ ...formData, presenters: [...presenters, newPresenter] });
   };
 
-  const confirmPresenter = (index) => {
+  const confirmPresenter = async (index) => {
     const presenters = [...(formData.presenters || [])];
-    if (!presenters[index].email) return;
-    presenters[index].isConfirmed = true;
-    setFormData({ ...formData, presenters: presenters });
+    const email = presenters[index].email?.trim();
+    if (!email) {
+      toast.error("Vui lòng nhập Email người trình bày!");
+      return;
+    }
+
+    const presenter = presenters[index];
+
+    if (!presenter.message?.trim() && !presenter.bio?.trim()) {
+      toast.error("Vui lòng nhập Lời nhắn cho diễn giả!");
+      return;
+    }
+
+    if (!presenter.targetSessionId || presenter.targetSessionId === "") {
+      toast.error("Vui lòng chọn Phiên đảm nhiệm cho diễn giả!");
+      return;
+    }
+
+    try {
+      const checkRes = await authService.checkEmail(email);
+      const exists = checkRes.data === true;
+
+      if (!exists) {
+        toast.error(`Email ${email} không tồn tại trong hệ thống!`);
+        return;
+      }
+
+      try {
+        const searchRes = await authService.searchUsers(email);
+        const users = searchRes.data || [];
+        const exactUser = users.find(u =>
+          (u.email || "").toLowerCase() === email.toLowerCase() ||
+          (u.account?.email || "").toLowerCase() === email.toLowerCase()
+        );
+
+        if (exactUser) {
+          presenters[index].presenterAccountId = exactUser.id || exactUser.accountId;
+          presenters[index].fullName = exactUser.fullName || exactUser.username || email.split("@")[0] || "";
+        }
+      } catch (err) {
+        console.warn("Không thể tải profile cho diễn giả", email);
+      }
+
+      presenters[index].isConfirmed = true;
+      setFormData({ ...formData, presenters });
+
+      toast.success(`Đã xác nhận diễn giả: ${email}`);
+    } catch (err) {
+      console.error("Lỗi xác thực email diễn giả:", err);
+      toast.error(`Lỗi khi kiểm tra email ${email}. Vui lòng thử lại!`);
+    }
   };
 
   const updatePresenter = (index, field, value) => {
@@ -344,7 +443,7 @@ export default function ManualInputStep({
   };
 
   return (
-    <div style={{ width: "100%", margin: "0 auto", padding: "20px 0" }}>
+    <div style={{ width: "100%", margin: "0 auto", padding: "0" }}>
       <div style={{ background: "#fff", border: "1px solid #f1f5f9", borderRadius: 16, padding: "32px", display: "flex", flexDirection: "column", gap: 32 }}>
 
         {/* AI TOOLBAR */}
@@ -418,16 +517,6 @@ export default function ManualInputStep({
             updatePresenter={updatePresenter} removePresenter={removePresenter} confirmPresenter={confirmPresenter}
           />
         )}
-
-        {/* NAV BUTTONS */}
-        <div style={{ marginTop: 32, display: 'flex', justifyContent: 'flex-end', gap: 16 }}>
-          <button onClick={onBack} style={{ display: "flex", alignItems: "center", gap: 8, padding: "12px 24px", borderRadius: 10, border: "1px solid #e2e8f0", background: "#fff", color: "#64748b", fontSize: 14, fontWeight: 700, cursor: "pointer" }}>
-            <ArrowLeft size={18} /> Quay lại
-          </button>
-          <button onClick={handleNext} style={{ display: "flex", alignItems: "center", gap: 8, padding: "12px 32px", borderRadius: 10, border: "none", background: "#1e1b4b", color: "#fff", fontSize: 14, fontWeight: 700, cursor: "pointer", boxShadow: "0 10px 15px -3px rgba(30, 27, 75, 0.2)" }}>
-            Tiếp theo <ArrowRight size={18} />
-          </button>
-        </div>
       </div>
     </div>
   );
