@@ -58,7 +58,7 @@ export const NotificationProvider = ({ children }) => {
 
             const stompClient = new Client({
                 brokerURL: wsBrokerUrl,
-                webSocketFactory: () => new SockJS(sockJsUrl),
+                webSocketFactory: typeof WebSocket !== "undefined" ? null : () => new SockJS(sockJsUrl),
                 reconnectDelay: 5000,
                 heartbeatIncoming: 4000,
                 heartbeatOutgoing: 4000,

@@ -49,6 +49,8 @@ const translations = {
     views: "lượt xem",
     comments: "bình luận",
     write_comment: "Viết bình luận...",
+    comment: "Bình luận",
+    write_reply: "Phản hồi",
     view_all_comments: "Xem tất cả bình luận",
 
     // Notifications
@@ -453,6 +455,8 @@ const translations = {
     views: "views",
     comments: "comments",
     write_comment: "Write a comment...",
+    comment: "Comment",
+    write_reply: "Reply to",
     view_all_comments: "View all comments",
 
     // Notifications

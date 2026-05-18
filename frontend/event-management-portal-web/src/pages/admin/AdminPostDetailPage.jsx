@@ -65,7 +65,8 @@ const AdminPostDetailPage = () => {
       const res = await eventService.createComment(id, payload);
       setComments(prev => [res.data, ...prev]);
     } catch (err) {
-      toast.error("Không thể gửi bình luận");
+      const errMsg = err.response?.data?.message || "Không thể gửi bình luận";
+      toast.error(errMsg);
     } finally {
       setIsSubmittingComment(false);
     }
@@ -81,7 +82,8 @@ const AdminPostDetailPage = () => {
         replies: [...(parent.replies || []), res.data]
       })));
     } catch (err) {
-      toast.error("Không thể gửi phản hồi");
+      const errMsg = err.response?.data?.message || "Không thể gửi phản hồi";
+      toast.error(errMsg);
     } finally {
       setIsSubmittingComment(false);
     }

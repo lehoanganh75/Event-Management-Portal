@@ -107,6 +107,8 @@ services:
       - mariadb
     networks:
       - micro-network
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
 
   lucky-draw-service:
     build: ./Lucky-draw-service
@@ -120,6 +122,8 @@ services:
       - mariadb
     networks:
       - micro-network
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
 
   notification-service:
     build: ./Notification-service
@@ -135,6 +139,8 @@ services:
       - kafka
     networks:
       - micro-network
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
 
   # ========================
   # AI & OLLAMA SERVICES
@@ -191,6 +197,8 @@ services:
       - ollama-setup
     networks:
       - micro-network
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
 
 # ========================
 # KONG API GATEWAY

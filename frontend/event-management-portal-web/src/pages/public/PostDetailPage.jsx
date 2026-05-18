@@ -151,7 +151,8 @@ export default function PostDetailPage() {
         return [newComment, ...prev];
       });
     } catch (err) {
-      toast.error("Không thể gửi bình luận");
+      const errMsg = err.response?.data?.message || "Không thể gửi bình luận";
+      toast.error(errMsg);
     } finally {
       setIsSubmittingComment(false);
     }
@@ -177,7 +178,8 @@ export default function PostDetailPage() {
         };
       }));
     } catch (err) {
-      toast.error("Không thể gửi phản hồi");
+      const errMsg = err.response?.data?.message || "Không thể gửi phản hồi";
+      toast.error(errMsg);
     } finally {
       setIsSubmittingComment(false);
     }

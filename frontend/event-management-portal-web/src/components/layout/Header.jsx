@@ -87,11 +87,17 @@ const Header = () => {
       const token = localStorage.getItem('accessToken');
       const wsUrl = token ? `${wsBaseUrl}/ws?token=${token}` : `${wsBaseUrl}/ws`;
 
+      const wsBrokerUrl = wsUrl.replace(/^http/, "ws");
+
       const client = new Client({
-        webSocketFactory: () => new SockJS(wsUrl),
+        brokerURL: wsBrokerUrl,
+        webSocketFactory: typeof WebSocket !== "undefined" ? null : () => new SockJS(wsUrl),
         connectHeaders: {
           Authorization: `Bearer ${token}`
         },
+        reconnectDelay: 5000,
+        heartbeatIncoming: 4000,
+        heartbeatOutgoing: 4000,
         onConnect: () => {
           client.subscribe(`/topic/notifications.${user.id}`, (message) => {
             const newNotif = JSON.parse(message.body);

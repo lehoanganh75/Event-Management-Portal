@@ -27,6 +27,7 @@ import Layout from "../../components/layout/Layout";
 import { useEvents } from "../../context/EventContext";
 import { useAuth } from "../../context/AuthContext";
 import { useLanguage } from "../../context/LanguageContext";
+import { toast } from "react-toastify";
 
 import eventService from "../../services/eventService";
 
@@ -137,7 +138,8 @@ const EventsPage = () => {
       await eventService.createComment(postId, payload);
       loadComments(postId);
     } catch (err) {
-      console.error("Error submitting comment:", err);
+      const errMsg = err.response?.data?.message || "Không thể gửi bình luận";
+      toast.error(errMsg);
     } finally {
       setSubmittingComments(prev => ({ ...prev, [postId]: false }));
     }
@@ -161,7 +163,8 @@ const EventsPage = () => {
       await eventService.createComment(postId, payload);
       loadComments(postId);
     } catch (err) {
-      console.error("Error submitting reply:", err);
+      const errMsg = err.response?.data?.message || "Không thể gửi phản hồi";
+      toast.error(errMsg);
     } finally {
       setSubmittingComments(prev => ({ ...prev, [postId]: false }));
     }
