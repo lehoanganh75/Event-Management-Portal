@@ -85,6 +85,7 @@ export const EventReviewStep = ({
     sessions = [],
     presenters = [],
     invitations = [],
+    organizers = [],
   } = formData;
 
   const org =
@@ -170,8 +171,24 @@ export const EventReviewStep = ({
           : "bg-amber-50 border-amber-200",
       };
 
-  const confirmedPresenters = (presenters || []).filter((p) => p.isConfirmed);
-  const confirmedInvitations = (invitations || []).filter((i) => i.isConfirmed);
+  const confirmedPresenters = isReadOnly
+    ? (presenters || []).map(p => ({
+        ...p,
+        fullName: p.fullName || p.name || "Khách mời"
+      }))
+    : (presenters || []).filter((p) => p.isConfirmed);
+
+  const confirmedInvitations = isReadOnly
+    ? (organizers && organizers.length > 0
+        ? organizers.map(o => ({
+            inviteeAccountId: o.accountId,
+            inviteeName: o.fullName || o.name || "Thành viên",
+            inviteeEmail: o.email || "",
+            targetRole: o.role || "MEMBER",
+            isConfirmed: true
+          }))
+        : (invitations || []))
+    : (invitations || []).filter((i) => i.isConfirmed);
 
   return (
     <div className="w-full pb-10">
@@ -213,7 +230,7 @@ export const EventReviewStep = ({
           {/* Time */}
           <div className="bg-white border border-slate-200 rounded-xl p-5">
             <SectionHeader
-              title="Thời gian & Địa điểm"
+              title="Thời gian và địa điểm"
               icon={Calendar}
               color="text-indigo-600"
               bg="bg-indigo-50"
@@ -230,7 +247,7 @@ export const EventReviewStep = ({
           {/* Description */}
           <div className="bg-white border border-slate-200 rounded-xl p-5">
             <SectionHeader
-              title="Mô tả & Mục tiêu"
+              title="Mô tả và mục tiêu"
               icon={FileText}
               color="text-blue-600"
               bg="bg-blue-50"
@@ -341,7 +358,7 @@ export const EventReviewStep = ({
           {/* Presenters */}
           <div className="bg-white border border-slate-200 rounded-xl p-5">
             <SectionHeader
-              title="Khách mời & Người trình bày"
+              title="Khách mời và người trình bày"
               icon={Users}
               color="text-pink-600"
               bg="bg-pink-50"
@@ -385,7 +402,7 @@ export const EventReviewStep = ({
           {/* Members */}
           <div className="bg-white border border-slate-200 rounded-xl p-5">
             <SectionHeader
-              title="Thành viên tổ chức & Thành viên mời"
+              title="Thành viên tổ chức và thành viên mời"
               icon={UserCheck}
               color="text-emerald-600"
               bg="bg-emerald-50"
@@ -416,7 +433,13 @@ export const EventReviewStep = ({
                     </div>
 
                     <span className="px-2 py-1 rounded-md bg-emerald-50 text-emerald-700 border border-emerald-100 text-xs shrink-0">
-                      {invite.targetRole || "MEMBER"}
+                      {{
+                        ORGANIZER: "Người tổ chức",
+                        LEADER: "Trưởng ban",
+                        COORDINATOR: "Điều phối viên",
+                        MEMBER: "Thành viên",
+                        ADVISOR: "Cố vấn"
+                      }[(invite.targetRole || invite.role || "MEMBER").toUpperCase()] || invite.targetRole || invite.role || "Thành viên"}
                     </span>
                   </div>
                 ))}

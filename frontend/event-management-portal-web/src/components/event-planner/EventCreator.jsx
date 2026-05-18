@@ -183,7 +183,26 @@ export const EventCreator = ({
 
     try {
       setIsAutoSaving(true);
-      const payload = preparePlanPayload(formData);
+      
+      let organizationId = formData.organizationId;
+      if (formData.orgSelectionMode === 'new' && formData.newOrg) {
+        try {
+          const orgRes = await eventService.createOrganization({
+            ...formData.newOrg,
+            ownerAccountId: user?.id
+          });
+          organizationId = orgRes.data.id;
+          updateFormData({
+            organizationId,
+            orgSelectionMode: 'existing'
+          });
+        } catch (orgError) {
+          console.warn("Auto-save failed to create organization:", orgError);
+          return; // Abort this auto-save run if organization creation fails
+        }
+      }
+
+      const payload = preparePlanPayload({ ...formData, organizationId });
 
       let res;
       if (formData.id) {
@@ -1151,8 +1170,8 @@ export const EventCreator = ({
                   ? "Cập nhật sự kiện"
                   : isAuthority
                     ? isPlanMode
-                      ? "Duyệt & Lưu"
-                      : "Tạo & Xuất bản"
+                      ? "Lưu"
+                      : "Xuất bản"
                     : "Gửi phê duyệt"}
               </>
             ) : (

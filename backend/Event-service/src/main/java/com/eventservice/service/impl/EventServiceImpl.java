@@ -1235,6 +1235,14 @@ public class EventServiceImpl implements EventService {
         // ===== LƯU EVENT TRƯỚC =====
         Event savedEvent = eventRepository.save(event);
 
+        // Lưu sessions
+        if (event.getSessions() != null && !event.getSessions().isEmpty()) {
+            for (EventSession session : event.getSessions()) {
+                session.setEvent(savedEvent);
+                sessionRepository.save(session);
+            }
+        }
+
         // Lưu presenters
         if (event.getPresenters() != null && !event.getPresenters().isEmpty()) {
             for (EventPresenter presenter : event.getPresenters()) {
@@ -1304,6 +1312,13 @@ public class EventServiceImpl implements EventService {
         existing.setStartTime(planDetails.getStartTime());
         existing.setEndTime(planDetails.getEndTime());
         existing.setLocation(planDetails.getLocation());
+        existing.setEventTopic(planDetails.getEventTopic());
+        existing.setCoverImage(planDetails.getCoverImage());
+        existing.setEventMode(planDetails.getEventMode());
+        existing.setMaxParticipants(planDetails.getMaxParticipants());
+        existing.setNotes(planDetails.getNotes());
+        existing.setAdditionalInfo(planDetails.getAdditionalInfo());
+        existing.setCustomFieldsJson(planDetails.getCustomFieldsJson());
 
         if (planDetails.getTargetObjects() != null) {
             existing.setTargetObjects(planDetails.getTargetObjects());
@@ -1311,6 +1326,35 @@ public class EventServiceImpl implements EventService {
 
         if (planDetails.getRecipients() != null) {
             existing.setRecipients(planDetails.getRecipients());
+        }
+
+        // Update Sessions
+        if (planDetails.getSessions() != null) {
+            existing.getSessions().clear();
+            for (EventSession s : planDetails.getSessions()) {
+                s.setEvent(existing);
+                existing.getSessions().add(s);
+            }
+        }
+
+        // Update Presenters
+        if (planDetails.getPresenters() != null) {
+            existing.getPresenters().clear();
+            for (EventPresenter p : planDetails.getPresenters()) {
+                p.setEvent(existing);
+                p.setAssignedAt(LocalDateTime.now());
+                existing.getPresenters().add(p);
+            }
+        }
+
+        // Update Organizers (Members)
+        if (planDetails.getOrganizers() != null) {
+            existing.getOrganizers().clear();
+            for (EventOrganizer o : planDetails.getOrganizers()) {
+                o.setEvent(existing);
+                o.setAssignedAt(LocalDateTime.now());
+                existing.getOrganizers().add(o);
+            }
         }
 
         existing.setUpdatedAt(LocalDateTime.now());

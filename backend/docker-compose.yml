@@ -21,7 +21,7 @@ services:
     container_name: mongodb-server
     restart: always
     ports:
-      - "27020:27017"
+      - "27018:27017"
     volumes:
       - mongo_data:/data/db
     networks:
@@ -130,7 +130,8 @@ services:
     env_file:
       - ./Notification-service/.env
     depends_on:
-      - mariadb
+      - mongodb
+      - redis
       - kafka
     networks:
       - micro-network

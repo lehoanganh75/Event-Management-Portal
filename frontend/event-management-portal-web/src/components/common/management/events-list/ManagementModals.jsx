@@ -312,7 +312,7 @@ const ManagementModals = ({
                         "
                       >
                         <CheckCircle size={17} />
-                        Duyệt & Đăng tải
+                        Đăng tải
                       </button>
                     </>
                   )}

@@ -284,8 +284,9 @@ const CreatePlanModal = ({ isOpen, onClose, onSelectPlan, onCreateNew, initialAi
 
       // Intelligent Fuzzy Organization Matching
       const currentLocation = await fetchUserLocation();
+      const fallbackOrg = organizations.find(o => o.id === user?.organizationId) || organizations[0];
 
-      if (suggestion.suggestedOrganizerName) {
+      if (suggestion.suggestedOrganizerName && suggestion.suggestedOrganizerName.trim()) {
         let bestMatch = null;
         let highestScore = 0;
 
@@ -300,11 +301,12 @@ const CreatePlanModal = ({ isOpen, onClose, onSelectPlan, onCreateNew, initialAi
         if (bestMatch && highestScore > 0.4) {
           console.log(`Fuzzy match found: ${bestMatch.organizationName} (Score: ${highestScore.toFixed(2)})`);
           mappedData.orgSelectionMode = "existing";
+          mappedData.organizationId = bestMatch.id;
           mappedData.organizerId = bestMatch.id;
         } else {
           mappedData.orgSelectionMode = "new";
           mappedData.newOrg = {
-            name: suggestion.suggestedOrganizerName || "",
+            name: suggestion.suggestedOrganizerName.trim(),
             description: suggestion.suggestedOrganizerDescription || "",
             email: user?.email || "",
             phone: user?.phone || "",
@@ -313,15 +315,21 @@ const CreatePlanModal = ({ isOpen, onClose, onSelectPlan, onCreateNew, initialAi
           };
         }
       } else {
-        mappedData.orgSelectionMode = "new";
-        mappedData.newOrg = {
-          name: "",
-          description: "",
-          email: user?.email || "",
-          phone: user?.phone || "",
-          type: "OTHER",
-          officeLocation: currentLocation
-        };
+        if (fallbackOrg) {
+          mappedData.orgSelectionMode = "existing";
+          mappedData.organizationId = fallbackOrg.id;
+          mappedData.organizerId = fallbackOrg.id;
+        } else {
+          mappedData.orgSelectionMode = "new";
+          mappedData.newOrg = {
+            name: "",
+            description: "",
+            email: user?.email || "",
+            phone: user?.phone || "",
+            type: "OTHER",
+            officeLocation: currentLocation
+          };
+        }
       }
 
       onSelectPlan({ fromPlan: false, initialFormData: mappedData, startAtStep: 1 });
@@ -398,8 +406,9 @@ const CreatePlanModal = ({ isOpen, onClose, onSelectPlan, onCreateNew, initialAi
 
       // Intelligent Fuzzy Organization Matching
       const currentLocation = await fetchUserLocation();
+      const fallbackOrg = organizations.find(o => o.id === user?.organizationId) || organizations[0];
 
-      if (suggestion.suggestedOrganizerName) {
+      if (suggestion.suggestedOrganizerName && suggestion.suggestedOrganizerName.trim()) {
         let bestMatch = null;
         let highestScore = 0;
 
@@ -414,11 +423,12 @@ const CreatePlanModal = ({ isOpen, onClose, onSelectPlan, onCreateNew, initialAi
         if (bestMatch && highestScore > 0.4) {
           console.log(`Fuzzy match found: ${bestMatch.organizationName} (Score: ${highestScore.toFixed(2)})`);
           mappedData.orgSelectionMode = "existing";
+          mappedData.organizationId = bestMatch.id;
           mappedData.organizerId = bestMatch.id;
         } else {
           mappedData.orgSelectionMode = "new";
           mappedData.newOrg = {
-            name: suggestion.suggestedOrganizerName || "",
+            name: suggestion.suggestedOrganizerName.trim(),
             description: suggestion.suggestedOrganizerDescription || "",
             email: user?.email || "",
             phone: user?.phone || "",
@@ -427,15 +437,21 @@ const CreatePlanModal = ({ isOpen, onClose, onSelectPlan, onCreateNew, initialAi
           };
         }
       } else {
-        mappedData.orgSelectionMode = "new";
-        mappedData.newOrg = {
-          name: "",
-          description: "",
-          email: user?.email || "",
-          phone: user?.phone || "",
-          type: "OTHER",
-          officeLocation: currentLocation
-        };
+        if (fallbackOrg) {
+          mappedData.orgSelectionMode = "existing";
+          mappedData.organizationId = fallbackOrg.id;
+          mappedData.organizerId = fallbackOrg.id;
+        } else {
+          mappedData.orgSelectionMode = "new";
+          mappedData.newOrg = {
+            name: "",
+            description: "",
+            email: user?.email || "",
+            phone: user?.phone || "",
+            type: "OTHER",
+            officeLocation: currentLocation
+          };
+        }
       }
 
       console.log("Map data:", mappedData);
