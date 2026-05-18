@@ -193,12 +193,23 @@ public class PostCommentServiceImpl implements PostCommentService {
 
     private Map<String, UserResponse> fetchUsersMap(Set<String> ids) {
         try {
+            if (ids == null || ids.isEmpty()) {
+                return new HashMap<>();
+            }
+            List<String> validIds = ids.stream()
+                    .filter(id -> id != null && !id.trim().isEmpty())
+                    .collect(Collectors.toList());
+            if (validIds.isEmpty()) {
+                return new HashMap<>();
+            }
+            List<UserResponse> users = identityServiceClient.getUsersByIds(validIds);
             Map<String, UserResponse> map = new HashMap<>();
-            for (String id : ids) {
-                try {
-                    UserResponse user = identityServiceClient.getUsersById(id);
-                    if (user != null) map.put(id, user);
-                } catch (Exception e) {}
+            if (users != null) {
+                for (UserResponse u : users) {
+                    if (u != null && u.getId() != null) {
+                        map.put(u.getId(), u);
+                    }
+                }
             }
             return map;
         } catch (Exception e) {

@@ -6,8 +6,10 @@ const WS_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://api.fitiuh-eve
 const SOCKJS_URL = WS_BASE_URL.replace(/^ws/, 'http') + '/ws/chat';
 
 export const createStompClient = (onConnect, onDisconnect) => {
+  const wsBrokerUrl = WS_BASE_URL.replace(/^http/, 'ws') + '/ws/chat';
   const client = new Client({
-    webSocketFactory: () => new SockJS(SOCKJS_URL),
+    brokerURL: wsBrokerUrl,
+    webSocketFactory: typeof WebSocket !== 'undefined' ? null : () => new SockJS(SOCKJS_URL),
     debug: (str) => {
       // console.log('STOMP: ' + str);
     },

@@ -39,13 +39,10 @@ const CommentItem = ({
 }) => {
   const [showLocalEmojiPicker, setShowLocalEmojiPicker] = useState(false);
   const [showReplies, setShowReplies] = useState(false);
+  const [isSubmittingLocal, setIsSubmittingLocal] = useState(false);
 
   const localEmojiPickerRef = useRef(null);
   const replyTextareaRef = useRef(null);
-  const fileInputRef = useRef(null);
-
-  const [selectedImages, setSelectedImages] = useState([]);
-  const [imagePreviews, setImagePreviews] = useState([]);
 
   useEffect(() => {
     if (replyTextareaRef.current && activeReplyId === comment.id) {
@@ -80,7 +77,7 @@ const CommentItem = ({
           ? "Người dùng ẩn danh"
           : "Anonymous User"),
     }
-    : comment.commenter || comment.author;
+    : comment.commenter || comment.author || (String(comment.commenterAccountId) === String(currentUser?.id) ? currentUser : null);
 
   const avatar = isAnon
     ? null
@@ -182,8 +179,8 @@ const CommentItem = ({
               )
             }
             className={`flex items-center gap-1 transition ${hasLikedComment
-                ? "text-blue-600 font-medium"
-                : "text-slate-500 hover:text-slate-700"
+              ? "text-blue-600 font-medium"
+              : "text-slate-500 hover:text-slate-700"
               }`}
           >
             <ThumbsUp size={13} />
@@ -195,7 +192,7 @@ const CommentItem = ({
               setActiveReplyId(comment.id);
               setReplyContent("");
             }}
-            className="flex items-center gap-1 text-slate-500 hover:text-slate-700 transition"
+            className="flex items-center gap-1 text-slate-500 hover:text-slate-700 transition btn-reply-trigger"
           >
             <MessageCircle size={13} />
             {language === "VI" ? "Trả lời" : t("reply")}
@@ -219,9 +216,9 @@ const CommentItem = ({
           </button>
         )}
 
-        {comment.replies?.length > 0 && showReplies && (
+        {((comment.replies?.length > 0 && showReplies) || isSubmittingLocal) && (
           <div className="mt-2 space-y-1 border-l border-slate-200 pl-4">
-            {comment.replies.map((reply) => (
+            {comment.replies?.map((reply) => (
               <CommentItem
                 key={reply.id}
                 comment={reply}
@@ -250,22 +247,51 @@ const CommentItem = ({
               />
             ))}
 
-            <button
-              onClick={() => setShowReplies(false)}
-              className="ml-2 text-[12px] text-slate-400 hover:text-slate-600"
-            >
-              {t("hide_replies")}
-            </button>
+            {/* Custom local loading reply placeholder */}
+            {isSubmittingLocal && (
+              <div className="flex gap-3 ml-8 mt-3 animate-pulse opacity-70">
+                <div className="w-8 h-8 rounded-xl overflow-hidden border border-slate-200">
+                  <img
+                    src={currentUser?.avatarUrl || `https://api.dicebear.com/7.x/initials/svg?seed=${currentUser?.fullName || "User"}`}
+                    alt="avatar"
+                    className="w-full h-full object-cover"
+                  />
+                </div>
+                <div className="flex-1">
+                  <div className="bg-slate-50 rounded-2xl px-4 py-3 max-w-[85%] border border-slate-200">
+                    <p className="text-[13px] font-semibold text-slate-500">
+                      {currentUser?.fullName || "Bạn"}
+                    </p>
+                    <p className="text-[13px] text-slate-400 mt-1 italic flex items-center gap-1.5">
+                      <Loader2 size={13} className="animate-spin text-slate-400" />
+                      {language === "VI" ? "Đang gửi phản hồi..." : "Sending reply..."}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {comment.replies?.length > 0 && (
+              <button
+                onClick={() => setShowReplies(false)}
+                className="ml-2 text-[12px] text-slate-400 hover:text-slate-600 block mt-2"
+              >
+                {t("hide_replies")}
+              </button>
+            )}
           </div>
         )}
 
         {/* Reply Input */}
         {activeReplyId === comment.id && (
-          <div className="mt-3 flex gap-2">
+          <div className="mt-3 flex gap-2 reply-input-container">
             <div className="w-8 h-8 rounded-xl overflow-hidden border border-slate-200">
               <img
-                src={`https://api.dicebear.com/7.x/initials/svg?seed=${currentUser?.fullName || "User"
-                  }`}
+                src={
+                  currentUser?.avatarUrl ||
+                  `https://api.dicebear.com/7.x/initials/svg?seed=${currentUser?.fullName || "User"
+                  }`
+                }
                 alt="user"
                 className="w-full h-full object-cover"
               />
@@ -279,7 +305,7 @@ const CommentItem = ({
                 onChange={(e) =>
                   setReplyContent(e.target.value)
                 }
-                placeholder={`${t("write_reply")}${author?.fullName}...`}
+                placeholder={`${t("write_reply")} ${author?.fullName}...`}
                 className="w-full bg-white border border-slate-300 rounded-2xl px-4 py-3 text-sm resize-none outline-none focus:border-slate-400 min-h-[42px]"
               />
 
@@ -306,21 +332,29 @@ const CommentItem = ({
                 </div>
 
                 <button
-                  onClick={() => {
-                    handleSubmitReply(comment.id, {
-                      content: replyContent,
-                    });
-
+                  onClick={async () => {
+                    const contentToSend = replyContent;
                     setReplyContent("");
                     setActiveReplyId(null);
+                    setShowReplies(true);
+                    setIsSubmittingLocal(true);
+                    try {
+                      await handleSubmitReply(comment.id, {
+                        content: contentToSend,
+                      });
+                    } catch (err) {
+                      // Handled by parent toast
+                    } finally {
+                      setIsSubmittingLocal(false);
+                    }
                   }}
                   disabled={
                     !replyContent.trim() ||
-                    isSubmittingComment
+                    isSubmittingLocal
                   }
                   className="px-4 py-2 rounded-xl bg-[#1E40AF] text-white text-sm font-medium hover:bg-[#1d4ed8] disabled:bg-slate-200 disabled:text-slate-500 transition"
                 >
-                  {isSubmittingComment ? (
+                  {isSubmittingLocal ? (
                     <Loader2
                       size={16}
                       className="animate-spin"

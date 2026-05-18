@@ -224,7 +224,8 @@ export default function NewsPage() {
         };
       });
     } catch (err) {
-      toast.error("Không thể gửi bình luận");
+      const errMsg = err.response?.data?.message || "Không thể gửi bình luận";
+      toast.error(errMsg);
     } finally {
       setSubmittingComments(prev => ({ ...prev, [postId]: false }));
     }
@@ -251,6 +252,9 @@ export default function NewsPage() {
           };
         })
       }));
+    } catch (err) {
+      const errMsg = err.response?.data?.message || "Không thể gửi phản hồi";
+      toast.error(errMsg);
     } finally {
       setSubmittingComments(prev => ({ ...prev, [postId]: false }));
     }
