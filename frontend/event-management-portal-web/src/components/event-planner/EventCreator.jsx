@@ -475,18 +475,22 @@ export const EventCreator = ({
   const sendNotifications = async (eventId, eventTitle, isPublished) => {
     try {
       if (!user) return;
+      const role = user?.role || "";
+      const isAdmin = role === 'ADMIN' || role === 'SUPER_ADMIN';
 
-      // 1. Notify the creator
-      await notificationService.sendNotification({
-        userProfileId: user?.accountId || user?.id,
-        title: isPublished ? "Sự kiện đã được xuất bản" : "Gửi yêu cầu phê duyệt thành công",
-        message: isPublished
-          ? `Chúc mừng! Sự kiện "${eventTitle}" của bạn đã được xuất bản thành công.`
-          : `Kế hoạch/Sự kiện "${eventTitle}" đã được gửi và đang chờ quản trị viên phê duyệt.`,
-        type: isPublished ? "EVENT_APPROVED" : "EVENT_SUBMITTED",
-        relatedEntityId: eventId,
-        relatedEntityType: "EVENT"
-      });
+      // 1. Notify the creator (only if ADMIN/SUPER_ADMIN, since LECTURER has backend self-notification)
+      if (isAdmin || isPublished) {
+        await notificationService.sendNotification({
+          userProfileId: user?.accountId || user?.id,
+          title: isPublished ? "Sự kiện đã được xuất bản" : "Kế hoạch đã được tạo thành công",
+          message: isPublished
+            ? `Chúc mừng! Sự kiện "${eventTitle}" của bạn đã được xuất bản thành công.`
+            : `Kế hoạch "${eventTitle}" của bạn đã được tạo thành công.`,
+          type: isPublished ? "EVENT_APPROVED" : "EVENT_SUBMITTED",
+          relatedEntityId: eventId,
+          relatedEntityType: "EVENT"
+        });
+      }
 
       // 2. Notify all admins if it's pending approval
       if (!isPublished) {
@@ -776,13 +780,17 @@ export const EventCreator = ({
       if (isDraft) {
         toast.success(isPlanMode ? "✅ Đã lưu bản nháp kế hoạch!" : "✅ Đã lưu bản nháp sự kiện thành công!");
       } else if (isPlanMode) {
-        toast.success("Kế hoạch đã được xử lý!");
+        if (role === 'ADMIN' || role === 'SUPER_ADMIN') {
+          toast.success("✅ Kế hoạch đã được tạo thành công!");
+        } else {
+          toast.success("✅ Gửi yêu cầu phê duyệt thành công!");
+        }
       } else if (isEditMode) {
         toast.success("Đã cập nhật thông tin sự kiện!");
-      } else if (isSuperAdmin) {
-        toast.success("Sự kiện đã được xuất bản trực tiếp!");
+      } else if (isSuperAdmin || role === 'ADMIN') {
+        toast.success(isPlanMode ? "✅ Kế hoạch đã được tạo thành công!" : "✅ Sự kiện đã được tạo thành công!");
       } else {
-        toast.success("Gửi phê duyệt thành công!");
+        toast.success("✅ Gửi yêu cầu phê duyệt thành công!");
       }
       onBack();
     } catch (error) {
