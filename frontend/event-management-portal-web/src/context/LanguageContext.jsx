@@ -52,6 +52,7 @@ const translations = {
     comment: "Bình luận",
     write_reply: "Phản hồi",
     view_all_comments: "Xem tất cả bình luận",
+    no_comments_yet: "Chưa có bình luận nào",
 
     // Notifications
     notifications: "Thông báo",
@@ -458,6 +459,7 @@ const translations = {
     comment: "Comment",
     write_reply: "Reply to",
     view_all_comments: "View all comments",
+    no_comments_yet: "No comments yet",
 
     // Notifications
     notifications: "Notifications",
