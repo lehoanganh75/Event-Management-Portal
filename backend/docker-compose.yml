@@ -222,29 +222,29 @@ services:
 # ========================
 # FRONTEND
 # ========================
-  # frontend:
-  #   build: 
-  #     context: ../frontend/event-management-portal-web
-  #     dockerfile: Dockerfile
-  #   container_name: event-management-frontend
-  #   restart: always
-  #   ports:
-  #     - "80:80"
-  #   depends_on:
-  #     - kong
-  #   networks:
-  #     - micro-network
+  frontend:
+    build: 
+      context: ../frontend/event-management-portal-web
+      dockerfile: Dockerfile
+    container_name: event-management-frontend
+    restart: always
+    ports:
+      - "80:80"
+    depends_on:
+      - kong
+    networks:
+      - micro-network
 
 # ========================
 # CLOUDFLARE TUNNEL
 # ========================
-  # cloudflared:
-  #   image: cloudflare/cloudflared:latest
-  #   container_name: cloudflared-tunnel
-  #   restart: always
-  #   command: tunnel --no-autoupdate run --token eyJhIjoiMzdkMjllMjAwZjg3NGUyYjM2ZTJiMjU2OWM1NWE0MGIiLCJ0IjoiOWYzZjc0MGEtNDFjOS00YzZjLThhOTEtNDgwZWU2NmNiMGZiIiwicyI6Ik5tWmpPVGhpWm1VdE5tVTNPQzAwWVRrekxXRXdPRGN0WW1Vd09ETTVObU5tTnpWbCJ9 --protocol http2
-  #   networks:
-  #     - micro-network
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    container_name: cloudflared-tunnel
+    restart: always
+    command: tunnel --no-autoupdate run --token eyJhIjoiMzdkMjllMjAwZjg3NGUyYjM2ZTJiMjU2OWM1NWE0MGIiLCJ0IjoiOWYzZjc0MGEtNDFjOS00YzZjLThhOTEtNDgwZWU2NmNiMGZiIiwicyI6Ik5tWmpPVGhpWm1VdE5tVTNPQzAwWVRrekxXRXdPRGN0WW1Vd09ETTVObU5tTnpWbCJ9 --protocol http2
+    networks:
+      - micro-network
 
 # ========================
 # NETWORK
