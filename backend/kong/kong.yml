@@ -17,6 +17,10 @@ services:
     connect_timeout: 60000
     read_timeout: 180000
     write_timeout: 180000
+    protocols:
+      - http
+      - https
+      - websocket
     routes:
       - name: event-route
         paths:
@@ -58,6 +62,10 @@ services:
         paths:
           - /ws
         strip_path: false
+        protocols:
+          - http
+          - https
+          - websocket
       - name: qa-route
         paths:
           - /qa
@@ -89,11 +97,19 @@ services:
   # 5. Notification Service
   - name: notification-service
     url: http://notification-service:8085
+    protocols:
+      - http
+      - https
+      - websocket
     routes:
       - name: notification-route
         paths:
           - /notification
         strip_path: true
+        protocols:
+          - http
+          - https
+          - websocket
   # 6. AI Event Management Service
   - name: ai-service
     url: http://ai-event-management:3000
