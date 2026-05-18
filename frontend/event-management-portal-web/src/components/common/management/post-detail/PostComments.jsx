@@ -390,6 +390,41 @@ const PostComments = ({
 
           {/* Comment List */}
           <div className="space-y-2 mt-8">
+            {/* Show top-level submitting placeholder at the top of the list! */}
+            {isSubmittingComment && (
+              <div className="flex gap-3 mb-4 animate-pulse opacity-85 text-left">
+                <div className="shrink-0 mt-1">
+                  {isMainAnonEnabled ? (
+                    <div
+                      className={`w-10 h-10 rounded-xl flex items-center justify-center text-base border border-slate-200 ${currentMainAnonIdentity.color}`}
+                    >
+                      {currentMainAnonIdentity.icon}
+                    </div>
+                  ) : (
+                    <img
+                      src={
+                        currentUser?.avatarUrl ||
+                        `https://api.dicebear.com/7.x/initials/svg?seed=${currentUser?.fullName || "User"}`
+                      }
+                      className="w-10 h-10 rounded-xl object-cover border border-slate-200"
+                      alt="User"
+                    />
+                  )}
+                </div>
+                <div className="flex-1">
+                  <div className="bg-white rounded-2xl px-4 py-3 max-w-[85%] border border-slate-200 shadow-sm">
+                    <p className="text-[13px] font-semibold text-slate-700">
+                      {isMainAnonEnabled ? currentMainAnonIdentity.name : (currentUser?.fullName || "Bạn")}
+                    </p>
+                    <p className="text-[13px] text-slate-400 mt-1 italic flex items-center gap-1.5">
+                      <Loader2 size={13} className="animate-spin text-[#1E40AF]" />
+                      {language === "VI" ? "Đang gửi bình luận và kiểm duyệt AI..." : "Sending comment and verifying AI..."}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+
             {sortedComments
               .slice(0, visibleCommentsCount)
               .map((comment) => (
@@ -431,7 +466,7 @@ const PostComments = ({
               </button>
             )}
 
-            {sortedComments.length === 0 && (
+            {sortedComments.length === 0 && !isSubmittingComment && (
               <div className="py-10 text-center">
                 <div className="w-14 h-14 bg-white border border-slate-200 rounded-2xl flex items-center justify-center mx-auto mb-3 text-slate-400">
                   <MessageCircle size={28} />
