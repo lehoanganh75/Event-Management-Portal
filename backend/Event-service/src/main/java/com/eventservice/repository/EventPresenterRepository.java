@@ -3,6 +3,7 @@ package com.eventservice.repository;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 import com.eventservice.entity.people.EventPresenter;
+import com.eventservice.entity.enums.EventStatus;
 
 import java.util.List;
 
@@ -33,6 +34,7 @@ public interface EventPresenterRepository extends JpaRepository<EventPresenter, 
                 WHERE ep.presenterAccountId = :userId
                 AND ep.isDeleted = false
                 AND e.isDeleted = false
+                AND e.status IN (EventStatus.PUBLISHED, EventStatus.ONGOING)
                 AND e.startTime < :endTime
                 AND e.endTime > :startTime
                 AND e.id != :excludeEventId

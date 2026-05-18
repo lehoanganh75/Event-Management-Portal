@@ -15,7 +15,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
 
-@Component
+// @Component
 @RequiredArgsConstructor
 @Slf4j
 public class MockDataSeeder implements CommandLineRunner {

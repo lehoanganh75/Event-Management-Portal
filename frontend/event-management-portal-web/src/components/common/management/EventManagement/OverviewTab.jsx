@@ -52,11 +52,36 @@ const OverviewTab = ({
             {(() => {
               const now = new Date();
               const items = [
-                { label: t('reg_deadline_short'), date: new Date(event.registrationDeadline), color: 'text-rose-600', dot: 'bg-rose-500', icon: '📝' },
-                { label: t('start_short'), date: new Date(event.startTime), color: 'text-indigo-600', dot: 'bg-indigo-600', icon: '🚀' },
-                { label: t('current_time'), date: now, color: 'text-slate-900', dot: 'bg-slate-900', isNow: true, icon: '📍' },
-                { label: t('end_short'), date: new Date(event.endTime), color: 'text-emerald-600', dot: 'bg-emerald-500', icon: '🏁' }
-              ].sort((a, b) => a.date - b.date);
+                event.registrationDeadline && !isNaN(new Date(event.registrationDeadline).getTime()) && { 
+                  label: t('reg_deadline_short'), 
+                  date: new Date(event.registrationDeadline), 
+                  color: 'text-rose-600', 
+                  dot: 'bg-rose-500', 
+                  icon: '📝' 
+                },
+                event.startTime && !isNaN(new Date(event.startTime).getTime()) && { 
+                  label: t('start_short'), 
+                  date: new Date(event.startTime), 
+                  color: 'text-indigo-600', 
+                  dot: 'bg-indigo-600', 
+                  icon: '🚀' 
+                },
+                { 
+                  label: t('current_time'), 
+                  date: now, 
+                  color: 'text-slate-900', 
+                  dot: 'bg-slate-900', 
+                  isNow: true, 
+                  icon: '📍' 
+                },
+                event.endTime && !isNaN(new Date(event.endTime).getTime()) && { 
+                  label: t('end_short'), 
+                  date: new Date(event.endTime), 
+                  color: 'text-emerald-600', 
+                  dot: 'bg-emerald-500', 
+                  icon: '🏁' 
+                }
+              ].filter(Boolean).sort((a, b) => a.date - b.date);
 
               return items.map((item, idx) => {
                 const isPast = now > item.date;

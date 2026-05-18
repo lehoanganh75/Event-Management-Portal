@@ -99,7 +99,7 @@ const EventRow = ({
                 </span>
               </>
             ) : (
-              <span className="text-xs text-slate-400 italic">
+              <span className="text-xs text-slate-400">
                 Chưa duyệt
               </span>
             )}

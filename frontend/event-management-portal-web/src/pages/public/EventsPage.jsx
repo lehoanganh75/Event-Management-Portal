@@ -529,8 +529,7 @@ const EventsPage = () => {
                         </h3>
 
                         <p className="text-sm text-slate-400">
-                          Try another
-                          keyword
+                          {t("try_another_keyword")}
                         </p>
                       </div>
                     )}
@@ -588,13 +587,11 @@ const EventsPage = () => {
                         />
 
                         <h3 className="font-semibold text-slate-700 mb-1">
-                          No news
-                          feed
+                          {t("no_news_feed")}
                         </h3>
 
                         <p className="text-sm text-slate-400">
-                          Stay tuned
-                          for updates
+                          {t("stay_tuned_updates")}
                         </p>
                       </div>
                     )}

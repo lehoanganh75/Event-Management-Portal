@@ -161,22 +161,30 @@ const QATab = ({ eventId }) => {
             >
               <div className="flex items-start gap-3">
                 {/* Avatar */}
-                <div
-                  className={`
-                  w-10 h-10 rounded-2xl flex items-center justify-center
-                  text-sm font-semibold shrink-0 shadow-sm
-                  ${index % 3 === 0
-                      ? "bg-indigo-100 text-indigo-700"
-                      : index % 3 === 1
-                        ? "bg-emerald-100 text-emerald-700"
-                        : "bg-amber-100 text-amber-700"
-                    }
-                `}
-                >
-                  {(msg.senderName || msg.senderId || "U")
-                    .charAt(0)
-                    .toUpperCase()}
-                </div>
+                {msg.senderAvatar ? (
+                  <img
+                    src={msg.senderAvatar}
+                    alt=""
+                    className="w-10 h-10 rounded-2xl object-cover shrink-0 shadow-sm"
+                  />
+                ) : (
+                  <div
+                    className={`
+                    w-10 h-10 rounded-2xl flex items-center justify-center
+                    text-sm font-semibold shrink-0 shadow-sm
+                    ${index % 3 === 0
+                        ? "bg-indigo-100 text-indigo-700"
+                        : index % 3 === 1
+                          ? "bg-emerald-100 text-emerald-700"
+                          : "bg-amber-100 text-amber-700"
+                      }
+                  `}
+                  >
+                    {(msg.senderName || msg.senderId || "U")
+                      .charAt(0)
+                      .toUpperCase()}
+                  </div>
+                )}
 
                 {/* Content */}
                 <div className="flex-1 min-w-0">

@@ -39,6 +39,10 @@ const translations = {
     iuh_ecosystem: "Hệ sinh thái sự kiện IUH",
     explore_activities: "Khám phá hoạt động",
     event_hub_desc: "Khám phá và tham gia hàng trăm sự kiện được tổ chức tại IUH. Từ các hội thảo học thuật đến các lễ hội văn hóa sôi động.",
+    no_events_match: "Không tìm thấy sự kiện phù hợp",
+    try_another_keyword: "Vui lòng thử lại với từ khóa khác",
+    no_news_feed: "Không có bản tin nào",
+    stay_tuned_updates: "Hãy quay lại sau để cập nhật tin tức mới nhất",
     like: "Thích",
     reply: "Phản hồi",
     share: "Chia sẻ",
@@ -195,6 +199,8 @@ const translations = {
     cancel_reg: "Hủy đăng ký tham gia",
     survey_label: "Khảo sát",
     q_and_a_label: "Hỏi đáp",
+    free_label: "Miễn phí",
+    internal_event: "Sự kiện nội bộ",
     reg_redirect: "Đang chuyển hướng đến trang đăng nhập để đăng ký tham gia sự kiện!",
     reg_success: "Đăng ký thành công!",
     cancel_success: "Đã hủy đăng ký",
@@ -437,6 +443,10 @@ const translations = {
     iuh_ecosystem: "IUH Event Ecosystem",
     explore_activities: "Explore Activities",
     event_hub_desc: "Discover and participate in hundreds of events organized by IUH. From academic seminars to vibrant cultural festivals.",
+    no_events_match: "No events match your criteria",
+    try_another_keyword: "Please try another keyword or filter",
+    no_news_feed: "No news feed available",
+    stay_tuned_updates: "Stay tuned for future updates",
     like: "Like",
     reply: "Reply",
     share: "Share",
@@ -593,6 +603,8 @@ const translations = {
     cancel_reg: "Cancel Registration",
     survey_label: "Survey",
     q_and_a_label: "Q&A",
+    free_label: "Free",
+    internal_event: "Internal Event",
     reg_redirect: "Redirecting to login to register for this event!",
     reg_success: "Registration successful!",
     cancel_success: "Registration cancelled",
@@ -803,15 +815,18 @@ const translations = {
 
 export const LanguageProvider = ({ children }) => {
   const [language, setLanguage] = useState(() => {
-    return localStorage.getItem('app-language') || 'VI';
+    const stored = localStorage.getItem('app-language') || 'VI';
+    return stored.toUpperCase();
   });
 
   useEffect(() => {
-    localStorage.setItem('app-language', language);
+    localStorage.setItem('app-language', language.toUpperCase());
   }, [language]);
 
   const t = (key) => {
-    return translations[language][key] || key;
+    const langKey = (language || 'VI').toUpperCase();
+    const dict = translations[langKey] || translations['VI'];
+    return dict[key] || key;
   };
 
   return (

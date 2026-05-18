@@ -59,19 +59,37 @@ privateApi.interceptors.response.use(
     }
 );
 
-// Helper for data transformation
 const transformBaseData = (data) => {
     if (!data) return null;
     const start = data.startTime ? new Date(data.startTime) : null;
     const end = data.endTime ? new Date(data.endTime) : null;
 
+    let eventDate = "";
+    let eventTime = "";
+
+    if (start) {
+        if (end) {
+            const isSameDay = start.getFullYear() === end.getFullYear() &&
+                start.getMonth() === end.getMonth() &&
+                start.getDate() === end.getDate();
+            if (isSameDay) {
+                eventDate = start.toLocaleDateString("vi-VN");
+                eventTime = `${start.toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" })} - ${end.toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" })}`;
+            } else {
+                eventDate = `${start.toLocaleDateString("vi-VN")} - ${end.toLocaleDateString("vi-VN")}`;
+                eventTime = `${start.toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" })} (${start.getDate()}/${start.getMonth() + 1}) - ${end.toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" })} (${end.getDate()}/${end.getMonth() + 1})`;
+            }
+        } else {
+            eventDate = start.toLocaleDateString("vi-VN");
+            eventTime = start.toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" });
+        }
+    }
+
     return {
         ...data,
         imageUrl: data.coverImage,
-        eventDate: start ? start.toLocaleDateString("vi-VN") : "",
-        eventTime: start && end
-            ? `${start.toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" })} - ${end.toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" })}`
-            : "",
+        eventDate,
+        eventTime,
         startTime: start,
         endTime: end,
         registrationDeadline: data.registrationDeadline ? new Date(data.registrationDeadline) : null,

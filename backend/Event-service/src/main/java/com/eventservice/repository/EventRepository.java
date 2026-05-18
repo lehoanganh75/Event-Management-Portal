@@ -153,7 +153,7 @@ public interface EventRepository extends JpaRepository<Event, String> {
         List<String> findExpiredEventIds(@Param("sourceStatuses") List<EventStatus> sourceStatuses,
                         @Param("now") LocalDateTime now);
 
-        @Query("SELECT e.id FROM Event e WHERE e.status = 'PUBLISHED' AND e.startTime <= :now AND e.endTime > :now AND e.isDeleted = false")
+        @Query("SELECT e.id FROM Event e WHERE e.status = com.eventservice.entity.enums.EventStatus.PUBLISHED AND e.startTime <= :now AND e.endTime > :now AND e.isDeleted = false")
         List<String> findEventsToStart(@Param("now") LocalDateTime now);
 
         @Modifying

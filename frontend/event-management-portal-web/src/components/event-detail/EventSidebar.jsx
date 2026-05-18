@@ -32,6 +32,7 @@ const EventSidebar = ({
   setShowQAModal,
   setShowFeedbackModal,
 }) => {
+  console.log("event sidebar", event);
   return (
     <div className="lg:col-span-4 space-y-5">
       {/* ORGANIZATION */}
@@ -43,9 +44,9 @@ const EventSidebar = ({
 
           <div className="flex items-center gap-4">
             <div className="w-12 h-12 rounded-xl bg-indigo-50 flex items-center justify-center overflow-hidden border border-indigo-100">
-              {event.organization.logourl ? (
+              {(event.organization.logoUrl || event.organization.logourl) ? (
                 <img
-                  src={event.organization.logourl}
+                  src={event.organization.logoUrl || event.organization.logourl}
                   alt="Logo"
                   className="w-full h-full object-contain"
                 />
@@ -129,7 +130,9 @@ const EventSidebar = ({
               </p>
 
               <p className="text-[11px] font-medium text-gray-700 mt-1">
-                {new Date(event.registrationDeadline).toLocaleDateString()}
+                {event.registrationDeadline && !isNaN(new Date(event.registrationDeadline).getTime())
+                  ? new Date(event.registrationDeadline).toLocaleDateString("vi-VN")
+                  : "Không giới hạn"}
               </p>
             </div>
           </div>
@@ -224,57 +227,57 @@ const EventSidebar = ({
           role.approver ||
           role.organizerRole ||
           isSystemAdmin) && (
-          <div className="mt-5 pt-5 border-t border-gray-100 space-y-3">
-            {isQuizLive && (
+            <div className="mt-5 pt-5 border-t border-gray-100 space-y-3">
+              {isQuizLive && (
+                <button
+                  onClick={() => {
+                    setJoiningQuizId(quizState.data || wsActiveQuizId);
+                    setShowQuizModal(true);
+                  }}
+                  className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-amber-500 text-white text-sm font-medium hover:bg-amber-600 transition-all"
+                >
+                  <Trophy size={18} />
+                  Tham gia Quiz
+                </button>
+              )}
+
               <button
-                onClick={() => {
-                  setJoiningQuizId(quizState.data || wsActiveQuizId);
-                  setShowQuizModal(true);
-                }}
-                className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-amber-500 text-white text-sm font-medium hover:bg-amber-600 transition-all"
+                onClick={() => setShowJoinCodeModal(true)}
+                className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-indigo-600 text-white text-sm font-medium hover:bg-indigo-700 transition-all"
               >
                 <Trophy size={18} />
-                Tham gia Quiz
-              </button>
-            )}
-
-            <button
-              onClick={() => setShowJoinCodeModal(true)}
-              className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-indigo-600 text-white text-sm font-medium hover:bg-indigo-700 transition-all"
-            >
-              <Trophy size={18} />
-              Trò chơi tương tác
-            </button>
-
-            <div className="grid grid-cols-2 gap-3">
-              <button
-                onClick={() => setShowSurveyModal(true)}
-                className="border border-gray-200 rounded-xl p-4 hover:bg-gray-50 transition-all"
-              >
-                <div className="w-10 h-10 rounded-lg bg-indigo-50 flex items-center justify-center text-indigo-600 mx-auto mb-2">
-                  <ClipboardCheck size={18} />
-                </div>
-
-                <p className="text-xs font-medium text-gray-700">
-                  Khảo sát
-                </p>
+                Trò chơi tương tác
               </button>
 
-              <button
-                onClick={() => setShowQAModal(true)}
-                className="border border-gray-200 rounded-xl p-4 hover:bg-gray-50 transition-all"
-              >
-                <div className="w-10 h-10 rounded-lg bg-amber-50 flex items-center justify-center text-amber-600 mx-auto mb-2">
-                  <MessageCircle size={18} />
-                </div>
+              <div className="grid grid-cols-2 gap-3">
+                <button
+                  onClick={() => setShowSurveyModal(true)}
+                  className="border border-gray-200 rounded-xl p-4 hover:bg-gray-50 transition-all"
+                >
+                  <div className="w-10 h-10 rounded-lg bg-indigo-50 flex items-center justify-center text-indigo-600 mx-auto mb-2">
+                    <ClipboardCheck size={18} />
+                  </div>
 
-                <p className="text-xs font-medium text-gray-700">
-                  Hỏi đáp
-                </p>
-              </button>
+                  <p className="text-xs font-medium text-gray-700">
+                    Khảo sát
+                  </p>
+                </button>
+
+                <button
+                  onClick={() => setShowQAModal(true)}
+                  className="border border-gray-200 rounded-xl p-4 hover:bg-gray-50 transition-all"
+                >
+                  <div className="w-10 h-10 rounded-lg bg-amber-50 flex items-center justify-center text-amber-600 mx-auto mb-2">
+                    <MessageCircle size={18} />
+                  </div>
+
+                  <p className="text-xs font-medium text-gray-700">
+                    Hỏi đáp
+                  </p>
+                </button>
+              </div>
             </div>
-          </div>
-        )}
+          )}
       </div>
 
       {/* FEATURE CARD */}

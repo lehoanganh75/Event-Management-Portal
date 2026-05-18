@@ -47,8 +47,9 @@ const QAModal = ({ isOpen, onClose, eventId }) => {
 
     try {
       const res = await eventService.getQAMessages(eventId);
-
-      setMessages(res.data || []);
+      const data = res.data || [];
+      // Đảo ngược danh sách từ cũ đến mới để phù hợp với giao diện chat (tin mới ở dưới cùng)
+      setMessages([...data].reverse());
     } catch (err) {
       console.error(err);
     } finally {
@@ -164,7 +165,7 @@ const QAModal = ({ isOpen, onClose, eventId }) => {
       senderAccountId: user.id,
       senderName:
         user.fullName || user.username,
-      senderAvatar: user.avatar,
+      senderAvatar: user.avatarUrl,
       content: messageToSend
     };
 

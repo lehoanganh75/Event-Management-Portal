@@ -7,6 +7,7 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 import com.eventservice.entity.registration.EventRegistration;
 import com.eventservice.entity.enums.RegistrationStatus;
+import com.eventservice.entity.enums.EventStatus;
 import jakarta.persistence.LockModeType;
 
 import java.time.LocalDateTime;
@@ -46,6 +47,7 @@ public interface EventRegistrationRepository extends JpaRepository<EventRegistra
         WHERE r.participantAccountId = :userId 
         AND r.status = :status 
         AND e.isDeleted = false 
+        AND e.status IN (EventStatus.PUBLISHED, EventStatus.ONGOING)
         AND e.startTime < :endTime 
         AND e.endTime > :startTime 
         AND e.id != :excludeEventId

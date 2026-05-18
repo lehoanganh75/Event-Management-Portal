@@ -1540,6 +1540,7 @@ public class EventServiceImpl implements EventService {
         Event plan = eventRepository.findById(id).orElseThrow();
         plan.setStatus(EventStatus.REJECTED);
         plan.setNotes(reason);
+        plan.setApprovedByAccountId(approverId);
         Event savedPlan = eventRepository.save(plan);
 
         // 1. Thông báo cho người tạo kế hoạch (Giảng viên)
@@ -1615,11 +1616,28 @@ public class EventServiceImpl implements EventService {
         
         newEvent.setSlug(generateSlug(newEvent.getTitle()));
         newEvent.setCreatedAt(LocalDateTime.now());
-        newEvent.setOrganization(plan.getOrganization());
+        
+        // Copy additional event fields correctly
+        newEvent.setRegistrationDeadline(Optional.ofNullable(eventDetails.getRegistrationDeadline()).orElse(plan.getRegistrationDeadline()));
+        newEvent.setCoverImage(Optional.ofNullable(eventDetails.getCoverImage()).orElse(plan.getCoverImage()));
+        newEvent.setEventMode(Optional.ofNullable(eventDetails.getEventMode()).orElse(plan.getEventMode()));
+        newEvent.setNotes(Optional.ofNullable(eventDetails.getNotes()).orElse(plan.getNotes()));
+        newEvent.setAdditionalInfo(Optional.ofNullable(eventDetails.getAdditionalInfo()).orElse(plan.getAdditionalInfo()));
+        newEvent.setEventTopic(Optional.ofNullable(eventDetails.getEventTopic()).orElse(plan.getEventTopic()));
+        newEvent.setType(Optional.ofNullable(eventDetails.getType()).orElse(plan.getType()));
         newEvent.setTemplate(plan.getTemplate());
-        newEvent.setCustomFieldsJson(plan.getCustomFieldsJson());
-        newEvent.setEventTopic(plan.getEventTopic());
-        newEvent.setType(plan.getType());
+        newEvent.setCustomFieldsJson(Optional.ofNullable(eventDetails.getCustomFieldsJson()).orElse(plan.getCustomFieldsJson()));
+
+        // Retrieve and set organization correctly
+        if (eventDetails.getOrganization() != null && eventDetails.getOrganization().getId() != null) {
+            Organization org = organizationRepository.findById(eventDetails.getOrganization().getId()).orElse(null);
+            if (org != null) {
+                newEvent.setOrganization(org);
+            }
+        }
+        if (newEvent.getOrganization() == null) {
+            newEvent.setOrganization(plan.getOrganization());
+        }
 
         if (plan.getTargetObjects() != null) {
             newEvent.setTargetObjects(new ArrayList<>(plan.getTargetObjects()));
@@ -1834,6 +1852,7 @@ public class EventServiceImpl implements EventService {
         Event event = eventRepository.findById(id).orElseThrow();
         event.setStatus(EventStatus.REJECTED);
         event.setNotes(reason);
+        event.setApprovedByAccountId(approverId);
         Event savedEvent = eventRepository.save(event);
 
         // 1. Thông báo cho người tạo sự kiện (Giảng viên)
