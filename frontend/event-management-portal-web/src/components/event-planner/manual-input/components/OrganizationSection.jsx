@@ -17,6 +17,7 @@ import {
   AISuggestionBox,
 } from "./BaseUI.jsx";
 import ImageUpload from "../../../common/ImageUpload.jsx";
+import { useAuth } from "../../../../context/AuthContext";
 
 export const ORGANIZER_ROLES = [
   { value: "ORGANIZER", label: "Người tổ chức" },
@@ -46,6 +47,7 @@ const OrganizationSection = ({
   confirmInvite,
   term,
 }) => {
+  const { user } = useAuth();
   const filteredUsers = systemUsers.filter(
     (u) =>
       (u.profile?.fullName || "")
@@ -453,19 +455,29 @@ const OrganizationSection = ({
                   }
                 </span>
 
-                <button
-                  onClick={() => updateInvite(idx, "isConfirmed", false)}
-                  className="text-sm text-blue-600 hover:text-blue-700"
-                >
-                  Sửa
-                </button>
+                {!(
+                  invite.isCreator ||
+                  invite.inviteeAccountId === (user?.accountId || user?.id) ||
+                  (invite.inviteeEmail && user?.email && invite.inviteeEmail.toLowerCase() === user.email.toLowerCase())
+                ) ? (
+                  <>
+                    <button
+                      onClick={() => updateInvite(idx, "isConfirmed", false)}
+                      className="text-sm text-blue-600 hover:text-blue-700 shrink-0"
+                    >
+                      Sửa
+                    </button>
 
-                <button
-                  onClick={() => removeInvite(idx)}
-                  className="text-rose-500 hover:text-rose-600"
-                >
-                  <X size={16} />
-                </button>
+                    <button
+                      onClick={() => removeInvite(idx)}
+                      className="text-rose-500 hover:text-rose-600 shrink-0"
+                    >
+                      <X size={16} />
+                    </button>
+                  </>
+                ) : (
+                  <span className="text-xs text-slate-400 font-medium select-none shrink-0">Người tạo (Trưởng ban)</span>
+                )}
               </div>
             ) : (
               <div key={idx} className="space-y-4 py-2">

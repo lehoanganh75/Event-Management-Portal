@@ -76,6 +76,9 @@ const transformBaseData = (data) => {
         endTime: end,
         registrationDeadline: data.registrationDeadline ? new Date(data.registrationDeadline) : null,
         createdAt: data.createdAt ? new Date(data.createdAt) : null,
+        sessions: data.sessions || data.sessionsList || [],
+        presenters: data.presenters || data.presentersList || [],
+        organizers: data.organizers || data.organizersList || [],
     };
 };
 
@@ -233,7 +236,7 @@ const eventService = {
     // --- GROUP 5: PLANS ---
     getMyPlans: () => privateApi.get('/events/plans/my').then(transformListResponse),
     getPlanById: (id) => privateApi.get(`/events/plans/${id}`).then(res => ({ ...res, data: transformBaseData(res.data) })),
-    getPlansByStatus: (statusName, accountId) => privateApi.get(`/events/plans/status/${statusName}`, { params: { accountId } }),
+    getPlansByStatus: (statusName, accountId) => privateApi.get(`/events/plans/status/${statusName}`, { params: { accountId } }).then(transformListResponse),
     createPlan: (data, submit = false) => privateApi.post(`/events/plans?submit=${submit}`, data),
     updatePlan: (id, data) => privateApi.put(`/events/plans/${id}`, data),
     deletePlan: (id) => privateApi.delete(`/events/plans/${id}`),
@@ -414,8 +417,8 @@ const eventService = {
     replyToFeedback: (feedbackId, reply) => privateApi.patch(`/api/v1/feedbacks/${feedbackId}/reply`, null, { params: { reply } }),
 
     // --- GROUP 7: ADMIN APPROVAL ---
-    getPlansPendingApproval: () => privateApi.get('/events/admin/plans/pending'),
-    getEventsPendingApproval: () => privateApi.get('/events/admin/events/pending'),
+    getPlansPendingApproval: () => privateApi.get('/events/admin/plans/pending').then(transformListResponse),
+    getEventsPendingApproval: () => privateApi.get('/events/admin/events/pending').then(transformListResponse),
     approvePlan: (id) => privateApi.patch(`/events/admin/plans/${id}/approve`),
     rejectPlan: (id, reason) => privateApi.patch(`/events/admin/plans/${id}/reject`, null, { params: { reason } }),
     approveEvent: (id) => privateApi.patch(`/events/admin/events/${id}/approve`),

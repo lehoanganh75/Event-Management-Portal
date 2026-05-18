@@ -114,7 +114,7 @@ export const EventCreator = ({
   }, [formData, isPlanMode]);
 
   const preparePlanPayload = (data) => {
-    const accountId = user?.id || null;
+    const accountId = user?.accountId || user?.id || null;
     const toISO = (d) => {
       if (!d) return null;
       const dt = new Date(d);
@@ -148,25 +148,24 @@ export const EventCreator = ({
       presenters: (data.presenters || [])
         .filter(p => p.isConfirmed)
         .map(p => ({
-          accountId: p.accountId,
-          fullName: p.fullName,
+          accountId: p.presenterAccountId || p.accountId,
+          presenterAccountId: p.presenterAccountId || p.accountId,
           email: p.email,
           title: p.position || p.title,
-          session: p.session
+          session: p.targetSessionName || p.session
         })),
       organizers: (data.invitations || [])
         .filter(inv => inv.isConfirmed)
         .map(inv => ({
           accountId: inv.inviteeAccountId || inv.accountId,
-          fullName: inv.inviteeName || inv.fullName,
-          email: inv.inviteeEmail || inv.email,
           role: inv.targetRole || "MEMBER"
         })),
       programItems: (data.sessions || []).map(s => ({
         title: s.title,
         description: s.description,
         startTime: toISO(s.startTime),
-        endTime: toISO(s.endTime)
+        endTime: toISO(s.endTime),
+        type: s.type || "KEYNOTE"
       })),
       targetObjects: Array.isArray(data.targetObjects)
         ? data.targetObjects.map(obj => typeof obj === 'string' ? { type: 'CATEGORY', name: obj } : obj)
@@ -183,13 +182,13 @@ export const EventCreator = ({
 
     try {
       setIsAutoSaving(true);
-      
+
       let organizationId = formData.organizationId;
       if (formData.orgSelectionMode === 'new' && formData.newOrg) {
         try {
           const orgRes = await eventService.createOrganization({
             ...formData.newOrg,
-            ownerAccountId: user?.id
+            ownerAccountId: user?.accountId || user?.id || null
           });
           organizationId = orgRes.data.id;
           updateFormData({
@@ -588,7 +587,7 @@ export const EventCreator = ({
   const handleSubmit = async (finalData = null, isDraft = false) => {
     setIsSubmitting(true);
     try {
-      const accountId = user ? user.id : null;
+      const accountId = user?.accountId || user?.id || null;
 
       // Check roles for auto-approval
       const role = user?.role || "";
@@ -661,11 +660,20 @@ export const EventCreator = ({
           : [],
         organization: { id: organizationId },
         invitations: (data.invitations || []).filter(inv => inv.isConfirmed),
+        organizers: (data.invitations || [])
+          .filter(inv => inv.isConfirmed)
+          .map(inv => ({
+            accountId: inv.inviteeAccountId || inv.accountId,
+            role: inv.targetRole || "MEMBER"
+          })),
         presenters: (data.presenters || [])
           .filter(p => p.isConfirmed)
           .map(p => ({
-            ...p,
-            email: p.email?.trim() || null
+            accountId: p.presenterAccountId || p.accountId,
+            presenterAccountId: p.presenterAccountId || p.accountId,
+            email: p.email?.trim() || null,
+            title: p.position || p.title,
+            session: p.session
           })),
         sessions: (data.sessions || []).map(s => ({
           ...s,
@@ -713,21 +721,28 @@ export const EventCreator = ({
         const eventId = response.data.id;
         await sendNotifications(eventId, payload.title, isSuperAdmin);
 
-        // Send Organizer Invitations
-        if (!isPlanMode && payload.invitations && payload.invitations.length > 0) {
+        // Send Organizer Invitations (only when NOT from plan - plan conversion handles its own invitations)
+        if (!isPlanMode && !fromPlan && payload.invitations && payload.invitations.length > 0) {
           try {
-            await eventService.sendOrganizerInvitations(eventId, payload.invitations);
+            await eventService.sendOrganizerInvitations(eventId, { invitations: payload.invitations });
           } catch (invErr) {
             console.error("Lỗi gửi lời mời ban tổ chức:", invErr);
           }
         }
 
-        // Send Presenter Invitations
-        if (!isPlanMode && payload.presenters && payload.presenters.length > 0) {
-          const validPresenters = payload.presenters.filter(p => p.email && p.email.trim() !== "");
+        // Send Presenter Invitations (only when NOT from plan)
+        if (!isPlanMode && !fromPlan && payload.presenters && payload.presenters.length > 0) {
+          const validPresenters = payload.presenters
+            .filter(p => p.email && p.email.trim() !== "")
+            .map(p => ({
+              inviteeEmail: p.email || p.inviteeEmail || "",
+              inviteeAccountId: p.accountId || p.inviteeAccountId || null,
+              session: p.targetSessionName || p.session || "",
+              message: p.message || "",
+            }));
           if (validPresenters.length > 0) {
             try {
-              await eventService.sendPresenterInvitations(eventId, validPresenters);
+              await eventService.sendPresenterInvitations(eventId, { invitations: validPresenters });
             } catch (presErr) {
               console.error("Lỗi gửi lời mời diễn giả:", presErr);
             }
@@ -795,7 +810,10 @@ export const EventCreator = ({
     try {
       let organizationId = data.organizationId;
       if (data.orgSelectionMode === 'new' && data.newOrg) {
-        const orgRes = await eventService.createOrganization({ ...data.newOrg, ownerAccountId: user?.id });
+        const orgRes = await eventService.createOrganization({
+          ...data.newOrg,
+          ownerAccountId: user?.accountId || user?.id || null
+        });
         organizationId = orgRes.data.id;
       }
 
@@ -894,6 +912,12 @@ export const EventCreator = ({
       }
       setStep(2);
     } else if (step === 2) {
+      const sessions = formData.sessions || [];
+      const hasUnconfirmed = sessions.some(s => !s.isConfirmed);
+      if (hasUnconfirmed) {
+        toast.error("Vui lòng xác nhận tất cả các phiên chi tiết trước khi tiếp tục!");
+        return;
+      }
       setStep(3);
     } else if (step === 3) {
       handleSubmit(formData);

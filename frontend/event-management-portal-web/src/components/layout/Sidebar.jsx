@@ -19,33 +19,21 @@ import {
     UserCircle,
     ChevronLeft,
     ChevronRight,
-    LogOut,
     QrCode,
+    Activity,
+    Info,
 } from "lucide-react";
 import { showToast } from "../../utils/toast";
 import logo_iuh from "../../assets/images/iuh.png";
-import LogoutModal from "./header/LogoutModal";
 
 const Sidebar = ({ isCollapsed, onToggle }) => {
     const navigate = useNavigate();
-    const [showLogoutModal, setShowLogoutModal] = useState(false);
 
     const { unreadCount } = useNotification();
-    const { user, logout } = useAuth();
+    const { user } = useAuth();
     const { t } = useLanguage();
 
     const role = user?.role?.toUpperCase() || "GUEST";
-
-    const handleLogout = async () => {
-        try {
-            await logout();
-            showToast("Đăng xuất thành công!", "success");
-            navigate("/");
-        } catch (error) {
-            console.error("Lỗi đăng xuất:", error);
-            showToast("Lỗi khi đăng xuất", "error");
-        }
-    };
 
     const menuConfigs = {
         SUPER_ADMIN: [
@@ -350,39 +338,62 @@ const Sidebar = ({ isCollapsed, onToggle }) => {
                     </div>
                 </div>
 
-                {/* Logout */}
-                <div className="p-3 border-t border-slate-100">
-                    <button
-                        onClick={() => setShowLogoutModal(true)}
-                        className={`
-              w-full min-h-[46px]
-              rounded-xl
-              flex items-center
-              text-rose-600
-              hover:bg-rose-50
-              transition-all
-              ${isCollapsed ? "justify-center" : "px-3 gap-3"}
-            `}
-                    >
-                        <div className="w-9 h-9 rounded-lg bg-rose-50 flex items-center justify-center">
-                            <LogOut size={18} />
+                {/* System Info */}
+                <div className="p-4 border-t border-slate-100 bg-slate-50/50">
+                    {isCollapsed ? (
+                        <div className="flex flex-col items-center gap-2 group relative">
+                            <div className="w-9 h-9 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center shadow-sm">
+                                <Activity size={18} className="animate-pulse" />
+                            </div>
+                            <div
+                                className="
+                                    absolute left-full ml-3
+                                    p-3
+                                    rounded-xl
+                                    bg-slate-900
+                                    text-white
+                                    text-xs
+                                    opacity-0
+                                    pointer-events-none
+                                    group-hover:opacity-100
+                                    group-hover:translate-x-1
+                                    transition-all
+                                    z-[200]
+                                    shadow-xl
+                                    min-w-[150px]
+                                "
+                            >
+                                <p className="font-bold text-blue-400">IUH - EMS</p>
+                                <p className="text-[10px] text-slate-300 mt-1">Version: 2.5.0</p>
+                                <p className="text-[10px] text-emerald-400 mt-0.5">Status: Operational</p>
+                                <span className="absolute top-1/2 -left-1 -translate-y-1/2 w-2 h-2 bg-slate-900 rotate-45" />
+                            </div>
                         </div>
-
-                        {!isCollapsed && (
-                            <span className="text-sm font-semibold">
-                                {t("logout") || "Đăng xuất"}
-                            </span>
-                        )}
-                    </button>
+                    ) : (
+                        <div className="rounded-xl border border-slate-100 bg-white p-3 shadow-sm">
+                            <div className="flex items-center justify-between mb-2">
+                                <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider">
+                                    HỆ THỐNG
+                                </span>
+                                <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-600 text-[10px] font-bold">
+                                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-ping" />
+                                    <span>Đang hoạt động</span>
+                                </div>
+                            </div>
+                            <div className="space-y-1 text-xs text-slate-600">
+                                <div className="flex justify-between">
+                                    <span className="text-slate-400">Phiên bản:</span>
+                                    <span className="font-medium text-slate-800">2.5.0-stable</span>
+                                </div>
+                                <div className="flex justify-between">
+                                    <span className="text-slate-400">Máy chủ:</span>
+                                    <span className="font-medium text-slate-800">iuh.events.portal</span>
+                                </div>
+                            </div>
+                        </div>
+                    )}
                 </div>
             </aside>
-
-            <LogoutModal
-                isOpen={showLogoutModal}
-                setIsOpen={setShowLogoutModal}
-                handleLogout={handleLogout}
-                t={t}
-            />
         </>
     );
 };

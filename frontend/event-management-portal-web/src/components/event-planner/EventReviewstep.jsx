@@ -82,11 +82,12 @@ export const EventReviewStep = ({
     coverImage,
     newOrg,
     orgSelectionMode,
-    sessions = [],
-    presenters = [],
     invitations = [],
-    organizers = [],
   } = formData;
+
+  const sessions = formData.sessions || formData.sessionsList || [];
+  const presenters = formData.presenters || formData.presentersList || [];
+  const organizers = formData.organizers || formData.organizersList || [];
 
   const org =
     orgSelectionMode === "new" && newOrg
@@ -172,23 +173,86 @@ export const EventReviewStep = ({
       };
 
   const confirmedPresenters = isReadOnly
-    ? (presenters || []).map(p => ({
+    ? (presenters || []).map(p => {
+      const profile = p.profile || {};
+      const sessionsArray = Array.isArray(p.sessions) 
+        ? p.sessions 
+        : (p.sessions ? Object.values(p.sessions) : []);
+      const sessionName = sessionsArray.length > 0
+        ? sessionsArray.map(s => s.title).join(", ")
+        : (p.targetSessionName || p.session || "");
+      return {
         ...p,
-        fullName: p.fullName || p.name || "Khách mời"
-      }))
+        fullName: profile.fullName || p.fullName || p.name || "Khách mời",
+        email: profile.email || p.email || "Không có email liên hệ",
+        position: p.title || p.position || profile.role || "",
+        targetSessionName: sessionName
+      };
+    })
     : (presenters || []).filter((p) => p.isConfirmed);
 
   const confirmedInvitations = isReadOnly
     ? (organizers && organizers.length > 0
-        ? organizers.map(o => ({
-            inviteeAccountId: o.accountId,
-            inviteeName: o.fullName || o.name || "Thành viên",
-            inviteeEmail: o.email || "",
-            targetRole: o.role || "MEMBER",
-            isConfirmed: true
-          }))
-        : (invitations || []))
+      ? organizers.map(o => {
+        const profile = o.profile || {};
+        return {
+          inviteeAccountId: o.accountId || profile.id,
+          inviteeName: profile.fullName || o.fullName || o.name || "Thành viên",
+          inviteeEmail: profile.email || o.email || "Không có email",
+          targetRole: o.role || "MEMBER",
+          isConfirmed: true
+        };
+      })
+      : (invitations || []))
     : (invitations || []).filter((i) => i.isConfirmed);
+
+  // Thêm leader (người tạo) vào danh sách ban tổ chức
+  let leaderInvite = null;
+  if (isReadOnly) {
+    const creatorName = formData.creator?.fullName || formData.createdByName;
+    const creatorEmail = formData.creator?.email || formData.createdByEmail;
+    const creatorId = formData.creator?.id || formData.createdByAccountId;
+    if (creatorId) {
+      leaderInvite = {
+        inviteeAccountId: creatorId,
+        inviteeName: creatorName || "Chưa rõ tên",
+        inviteeEmail: creatorEmail || "Không có email",
+        targetRole: "LEADER",
+        isConfirmed: true,
+        isCreator: true
+      };
+    }
+  } else if (user) {
+    leaderInvite = {
+      inviteeAccountId: user.accountId || user.id,
+      inviteeName: user.fullName || user.username || "Chưa rõ tên",
+      inviteeEmail: user.email || "Không có email",
+      targetRole: "LEADER",
+      isConfirmed: true,
+      isCreator: true
+    };
+  }
+
+  const finalInvitations = [...confirmedInvitations];
+  if (leaderInvite) {
+    const exists = finalInvitations.some(
+      (inv) =>
+        inv.inviteeAccountId === leaderInvite.inviteeAccountId ||
+        (inv.inviteeEmail && leaderInvite.inviteeEmail && inv.inviteeEmail.toLowerCase() === leaderInvite.inviteeEmail.toLowerCase())
+    );
+    if (!exists) {
+      finalInvitations.unshift(leaderInvite);
+    } else {
+      const idx = finalInvitations.findIndex(
+        (inv) =>
+          inv.inviteeAccountId === leaderInvite.inviteeAccountId ||
+          (inv.inviteeEmail && leaderInvite.inviteeEmail && inv.inviteeEmail.toLowerCase() === leaderInvite.inviteeEmail.toLowerCase())
+      );
+      if (idx !== -1) {
+        finalInvitations[idx].targetRole = "LEADER";
+      }
+    }
+  }
 
   return (
     <div className="w-full pb-10">
@@ -365,7 +429,7 @@ export const EventReviewStep = ({
             />
 
             {confirmedPresenters.length > 0 ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="flex flex-col gap-4">
                 {confirmedPresenters.map((p, idx) => (
                   <div
                     key={idx}
@@ -387,7 +451,7 @@ export const EventReviewStep = ({
                     </div>
 
                     {p.targetSessionName && (
-                      <span className="px-2 py-1 rounded-md bg-pink-50 text-pink-700 border border-pink-100 text-xs shrink-0 max-w-[120px] truncate" title={p.targetSessionName === "ALL" ? "Tất cả phiên" : p.targetSessionName}>
+                      <span className="px-2 py-1 rounded-md bg-pink-50 text-pink-700 border border-pink-100 text-xs shrink-0" title={p.targetSessionName === "ALL" ? "Tất cả phiên" : p.targetSessionName}>
                         {p.targetSessionName === "ALL" ? "Tất cả phiên" : p.targetSessionName}
                       </span>
                     )}
@@ -408,9 +472,9 @@ export const EventReviewStep = ({
               bg="bg-emerald-50"
             />
 
-            {confirmedInvitations.length > 0 ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {confirmedInvitations.map((invite, idx) => (
+            {finalInvitations.length > 0 ? (
+              <div className="flex flex-col gap-4">
+                {finalInvitations.map((invite, idx) => (
                   <div
                     key={idx}
                     className="flex items-center justify-between gap-3"
@@ -567,7 +631,7 @@ export const EventReviewStep = ({
               <div className="flex justify-between items-center text-sm">
                 <span className="text-slate-300">Thành viên tổ chức</span>
                 <span className="font-medium text-teal-300">
-                  {confirmedInvitations.length}
+                  {finalInvitations.length}
                 </span>
               </div>
             </div>

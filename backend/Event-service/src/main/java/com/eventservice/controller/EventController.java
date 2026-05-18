@@ -25,6 +25,7 @@ import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.*;
 import com.eventservice.entity.enums.EventStatus;
 import com.eventservice.entity.enums.EventType;
+import com.eventservice.entity.enums.SessionType;
 import com.eventservice.repository.OrganizationRepository;
 import com.eventservice.repository.EventTemplateRepository;
 import com.eventservice.service.S3Service;
@@ -271,6 +272,7 @@ public class EventController {
                     .map(dto -> {
                         EventPresenter p = new EventPresenter();
                         p.setPresenterAccountId(dto.getAccountId());
+                        p.setTempSessionTitle(dto.getSession());
                         p.setEvent(event);
                         p.setAssignedAt(LocalDateTime.now());
                         return p;
@@ -308,6 +310,12 @@ public class EventController {
                         s.setDescription((String) item.get("description"));
                         s.setStartTime(parseDate(item.get("startTime")));
                         s.setEndTime(parseDate(item.get("endTime")));
+                        try {
+                            String typeStr = (String) item.get("type");
+                            s.setType(typeStr != null ? SessionType.valueOf(typeStr.toUpperCase()) : SessionType.KEYNOTE);
+                        } catch (Exception e) {
+                            s.setType(SessionType.KEYNOTE);
+                        }
                         s.setEvent(event);
                         return s;
                     })
@@ -329,8 +337,20 @@ public class EventController {
                 return ResponseEntity.badRequest().body(Map.of("error", "Sự kiện phải thuộc về một tổ chức"));
             }
 
-            // Set Status based on submit flag
-            event.setStatus(submit ? EventStatus.PLAN_PENDING_APPROVAL : EventStatus.DRAFT);
+            if (submit) {
+                var authentication = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
+                boolean isAdmin = authentication != null && authentication.getAuthorities().stream()
+                        .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN") || a.getAuthority().equals("ROLE_SUPER_ADMIN"));
+                
+                if (isAdmin) {
+                    event.setStatus(EventStatus.PLAN_APPROVED);
+                    event.setApprovedByAccountId(event.getCreatedByAccountId());
+                } else {
+                    event.setStatus(EventStatus.PLAN_PENDING_APPROVAL);
+                }
+            } else {
+                event.setStatus(EventStatus.DRAFT);
+            }
             
             Event created = eventService.createPlan(event);
             return new ResponseEntity<>(created, HttpStatus.CREATED);

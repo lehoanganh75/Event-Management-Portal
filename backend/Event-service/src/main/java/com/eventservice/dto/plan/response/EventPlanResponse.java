@@ -48,6 +48,7 @@ public class EventPlanResponse {
     private String createdByAccountId;
     private String createdByName;
     private String createdByAvatar;
+    private String createdByEmail;
     private String approvedByName;
     private String approvedByAccountId;
 
@@ -57,14 +58,15 @@ public class EventPlanResponse {
     private String organizationLogo;
 
     private List<Map<String, Object>> targetObjects;
-    private List<EventPresenter> presentersList;
-    private List<EventOrganizer> organizersList;
-    private List<EventSession> sessionsList;
+    private List<com.eventservice.dto.people.response.EventPresenterResponse> presentersList;
+    private List<com.eventservice.dto.people.response.EventOrganizerResponse> organizersList;
+    private List<com.eventservice.dto.core.response.EventSessionResponse> sessionsList;
 
     public static EventPlanResponse from(Event event, UserResponse creator, UserResponse approver,
             List<EventPresenter> presenters,
             List<EventOrganizer> organizers,
-            List<EventSession> sessions) {
+            List<EventSession> sessions,
+            Map<String, UserResponse> userMap) {
         EventPlanResponse dto = new EventPlanResponse();
         dto.setId(event.getId());
         dto.setTitle(event.getTitle());
@@ -109,10 +111,16 @@ public class EventPlanResponse {
 
         dto.setTargetObjects(event.getTargetObjects());
 
-        // Use provided lists instead of entity collections
-        dto.setPresentersList(presenters != null ? new ArrayList<>(presenters) : new ArrayList<>());
-        dto.setOrganizersList(organizers != null ? new ArrayList<>(organizers) : new ArrayList<>());
-        dto.setSessionsList(sessions != null ? new ArrayList<>(sessions) : new ArrayList<>());
+        // Use provided lists and map to DTOs using the user profile map
+        dto.setPresentersList(presenters != null
+                ? presenters.stream().map(p -> com.eventservice.dto.people.response.EventPresenterResponse.from(p, userMap != null ? userMap.get(p.getPresenterAccountId()) : null)).collect(Collectors.toList())
+                : new ArrayList<>());
+        dto.setOrganizersList(organizers != null
+                ? organizers.stream().map(o -> com.eventservice.dto.people.response.EventOrganizerResponse.from(o, userMap != null ? userMap.get(o.getAccountId()) : null)).collect(Collectors.toList())
+                : new ArrayList<>());
+        dto.setSessionsList(sessions != null
+                ? sessions.stream().map(s -> com.eventservice.dto.core.response.EventSessionResponse.from(s, (userMap != null && s.getPresenter() != null) ? userMap.get(s.getPresenter().getPresenterAccountId()) : null)).collect(Collectors.toList())
+                : new ArrayList<>());
 
         if (approver != null) {
             dto.setApprovedByName(approver.getFullName());
@@ -120,23 +128,29 @@ public class EventPlanResponse {
         if (creator != null) {
             dto.setCreatedByName(creator.getFullName());
             dto.setCreatedByAvatar(creator.getAvatarUrl());
+            dto.setCreatedByEmail(creator.getEmail());
         }
         return dto;
     }
 
     public static EventPlanResponse from(Event event, UserResponse creator, UserResponse approver,
             List<EventPresenter> presenters,
-            List<EventOrganizer> organizers) {
-        return from(event, creator, approver, presenters, organizers,
-                event.getSessions() != null ? new ArrayList<>(event.getSessions()) : null);
+            List<EventOrganizer> organizers,
+            List<EventSession> sessions) {
+        return from(event, creator, approver, presenters, organizers, sessions, java.util.Collections.emptyMap());
     }
 
-    // Keep the old signature for backward compatibility if needed, calling the new
-    // one
+    public static EventPlanResponse from(Event event, UserResponse creator, UserResponse approver,
+            List<EventPresenter> presenters,
+            List<EventOrganizer> organizers) {
+        return from(event, creator, approver, presenters, organizers,
+                event.getSessions() != null ? new ArrayList<>(event.getSessions()) : null, java.util.Collections.emptyMap());
+    }
+
     public static EventPlanResponse from(Event event, UserResponse creator, UserResponse approver) {
         return from(event, creator, approver,
                 event.getPresenters() != null ? new ArrayList<>(event.getPresenters()) : null,
                 event.getOrganizers() != null ? new ArrayList<>(event.getOrganizers()) : null,
-                event.getSessions() != null ? new ArrayList<>(event.getSessions()) : null);
+                event.getSessions() != null ? new ArrayList<>(event.getSessions()) : null, java.util.Collections.emptyMap());
     }
 }

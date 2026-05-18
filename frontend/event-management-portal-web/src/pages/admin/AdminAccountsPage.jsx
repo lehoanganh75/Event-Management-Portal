@@ -238,8 +238,8 @@ const AdminAccountsPage = ({ restrictRoles }) => {
               setCurrentPage(1);
             }}
             className={`flex items-center gap-2 px-6 py-3 text-sm font-medium whitespace-nowrap border-b-2 transition-all ${activeTab === tab.id
-                ? "border-blue-600 text-blue-600"
-                : "border-transparent text-gray-500 hover:text-gray-900"
+              ? "border-blue-600 text-blue-600"
+              : "border-transparent text-gray-500 hover:text-gray-900"
               }`}
           >
             <tab.icon size={16} />
@@ -361,7 +361,7 @@ const AdminAccountsPage = ({ restrictRoles }) => {
                 ))
               ) : (
                 <tr>
-                  <td colSpan={5} className="p-16 text-center text-gray-500 italic">
+                  <td colSpan={5} className="p-16 text-center text-gray-500">
                     Không tìm thấy tài khoản nào phù hợp
                   </td>
                 </tr>
@@ -387,8 +387,8 @@ const AdminAccountsPage = ({ restrictRoles }) => {
               key={num}
               onClick={() => setCurrentPage(num)}
               className={`w-10 h-10 rounded-xl flex items-center justify-center text-sm font-medium transition-all ${currentPage === num
-                  ? "bg-blue-600 text-white shadow-sm"
-                  : "border border-gray-200 hover:bg-gray-50"
+                ? "bg-blue-600 text-white shadow-sm"
+                : "border border-gray-200 hover:bg-gray-50"
                 }`}
             >
               {num}

@@ -166,21 +166,32 @@ const CreateEventModal = ({
         recipients: selectedPlan.recipients || [],
         presenters: (
           selectedPlan.presentersList || []
-        ).map((p) => ({
-          accountId:
-            p.accountId || p.presenterAccountId,
-          fullName: p.fullName || "",
-          email: p.email || "",
-          position: p.title || p.position || "",
-          session: p.session || "",
-          isConfirmed: true,
-        })),
+        ).map((p) => {
+          let targetSessionId = "ALL";
+          let targetSessionName = "Tất cả các phiên";
+
+          if (p.sessions && p.sessions.length > 0) {
+            targetSessionId = p.sessions[0].id || p.sessions[0].orderIndex || "ALL";
+            targetSessionName = p.sessions[0].title || "Tất cả các phiên";
+          }
+
+          return {
+            accountId:
+              p.profile?.id || p.accountId || p.presenterAccountId,
+            fullName: p.profile?.fullName || p.profile?.name || p.fullName || "",
+            email: p.profile?.email || p.email || "",
+            position: p.profile?.jobTitle || p.profile?.title || p.title || p.position || "",
+            targetSessionId: targetSessionId,
+            targetSessionName: targetSessionName,
+            isConfirmed: true,
+          };
+        }),
         invitations: (
           selectedPlan.organizersList || []
         ).map((o) => ({
-          inviteeAccountId: o.accountId,
-          inviteeName: o.fullName || o.name || "",
-          inviteeEmail: o.email || "",
+          inviteeAccountId: o.profile?.id || o.accountId,
+          inviteeName: o.profile?.fullName || o.profile?.name || o.fullName || o.name || "",
+          inviteeEmail: o.profile?.email || o.email || "",
           targetRole: o.role || "MEMBER",
           isConfirmed: true,
         })),

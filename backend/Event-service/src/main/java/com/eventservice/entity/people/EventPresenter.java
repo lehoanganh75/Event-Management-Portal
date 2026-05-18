@@ -28,6 +28,9 @@ public class EventPresenter {
     // ID tài khoản nếu là người trong hệ thống (Giảng viên/Sinh viên IUH)
     private String presenterAccountId;
 
+    @Transient
+    private String tempSessionTitle;
+
     // --- Event Context ---
     private boolean isDeleted = false; // Cờ đánh dấu đã xóa (soft delete)
 

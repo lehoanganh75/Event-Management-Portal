@@ -76,6 +76,33 @@ export default function ManualInputStep({
     fetchOrgs();
   }, []);
 
+  useEffect(() => {
+    if (user) {
+      const leaderAccountId = user.accountId || user.id;
+      const leaderEmail = user.email;
+      const invites = formData.invitations || [];
+      const hasLeader = invites.some(inv =>
+        inv.inviteeAccountId === leaderAccountId ||
+        (inv.inviteeEmail && leaderEmail && inv.inviteeEmail.toLowerCase() === leaderEmail.toLowerCase())
+      );
+      if (!hasLeader) {
+        const leaderInvite = {
+          inviteeAccountId: leaderAccountId,
+          inviteeEmail: leaderEmail || "",
+          inviteeName: user.fullName || user.username || "Chưa rõ tên",
+          targetRole: "LEADER",
+          message: "Người tạo sự kiện",
+          isConfirmed: true,
+          isCreator: true
+        };
+        setFormData({
+          ...formData,
+          invitations: [leaderInvite, ...invites]
+        });
+      }
+    }
+  }, [user, formData.invitations?.length]);
+
   // --- AI HANDLERS ---
   const handleFileUpload = async (e) => {
     const file = e.target.files[0];
@@ -242,9 +269,9 @@ export default function ManualInputStep({
   const addInvite = (user = null) => {
     const invites = formData.invitations || [];
     const newInvite = user ? {
-      inviteeAccountId: user.id,
+      inviteeAccountId: user.accountId || user.id,
       inviteeEmail: user.email || "",
-      inviteeName: user.profile?.fullName || user.username || "",
+      inviteeName: user.fullName || user.profile?.fullName || user.username || "",
       targetRole: "MEMBER",
       message: "",
       isConfirmed: true
@@ -290,7 +317,8 @@ export default function ManualInputStep({
         );
 
         if (exactUser) {
-          invites[index].inviteeAccountId = exactUser.id || exactUser.accountId;
+          invites[index].inviteeAccountId = exactUser.accountId || exactUser.id;
+          invites[index].accountId = exactUser.accountId || exactUser.id;
           invites[index].inviteeName = exactUser.fullName || exactUser.username || email.split("@")[0] || "";
         }
       } catch (err) {
@@ -308,21 +336,42 @@ export default function ManualInputStep({
   };
 
   const updateInvite = (index, field, value) => {
+    const invite = (formData.invitations || [])[index];
+    const isCreator = invite && (
+      invite.isCreator ||
+      invite.inviteeAccountId === (user?.accountId || user?.id) ||
+      (invite.inviteeEmail && user?.email && invite.inviteeEmail.toLowerCase() === user.email.toLowerCase())
+    );
+    if (isCreator) {
+      toast.error("Không thể sửa thông tin của Trưởng ban tổ chức (Người tạo)!");
+      return;
+    }
     const invites = [...(formData.invitations || [])];
     invites[index][field] = value;
     setFormData({ ...formData, invitations: invites });
   };
 
   const removeInvite = (index) => {
+    const invite = (formData.invitations || [])[index];
+    const isCreator = invite && (
+      invite.isCreator ||
+      invite.inviteeAccountId === (user?.accountId || user?.id) ||
+      (invite.inviteeEmail && user?.email && invite.inviteeEmail.toLowerCase() === user.email.toLowerCase())
+    );
+    if (isCreator) {
+      toast.error("Không thể xóa Trưởng ban tổ chức (Người tạo)!");
+      return;
+    }
     setFormData({ ...formData, invitations: (formData.invitations || []).filter((_, i) => i !== index) });
   };
 
   const addPresenter = (user = null) => {
     const presenters = formData.presenters || [];
     const newPresenter = user ? {
-      presenterAccountId: user.id,
+      presenterAccountId: user.accountId || user.id,
+      accountId: user.accountId || user.id,
       email: user.email || "",
-      fullName: user.profile?.fullName || user.username || "",
+      fullName: user.fullName || user.profile?.fullName || user.username || "",
       message: "",
       bio: "",
       isConfirmed: true
@@ -368,7 +417,8 @@ export default function ManualInputStep({
         );
 
         if (exactUser) {
-          presenters[index].presenterAccountId = exactUser.id || exactUser.accountId;
+          presenters[index].presenterAccountId = exactUser.accountId || exactUser.id;
+          presenters[index].accountId = exactUser.accountId || exactUser.id;
           presenters[index].fullName = exactUser.fullName || exactUser.username || email.split("@")[0] || "";
         }
       } catch (err) {
@@ -417,6 +467,18 @@ export default function ManualInputStep({
     setFormData({ ...formData, sessions });
   };
 
+  const confirmAllSessions = () => {
+    const sessions = [...(formData.sessions || [])];
+    const invalidSession = sessions.find(s => !s.title?.trim());
+    if (invalidSession) {
+      toast.error(`Phiên thứ ${invalidSession.orderIndex} chưa có Tên phiên! Vui lòng nhập tên phiên trước.`);
+      return;
+    }
+    const updated = sessions.map(s => ({ ...s, isConfirmed: true }));
+    setFormData({ ...formData, sessions: updated });
+    toast.success("Đã xác nhận tất cả các phiên thành công!");
+  };
+
   const updateSession = (index, field, value) => {
     const sessions = [...(formData.sessions || [])];
     sessions[index][field] = value;
@@ -435,11 +497,6 @@ export default function ManualInputStep({
     if (!formData.endTime) newErrors.endTime = "Chưa chọn kết thúc";
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
-  };
-
-  const handleNext = () => {
-    if (validate()) onNext();
-    else import("react-toastify").then(({ toast }) => toast.error("Vui lòng hoàn thiện các trường bắt đầu bằng *"));
   };
 
   return (
@@ -503,6 +560,7 @@ export default function ManualInputStep({
             formData={formData} setFormData={setFormData} term={term}
             showSessionAISuggestions={showSessionAISuggestions} setShowSessionAISuggestions={setShowSessionAISuggestions}
             addSession={addSession} updateSession={updateSession} removeSession={removeSession} confirmSession={confirmSession}
+            confirmAllSessions={confirmAllSessions}
           />
         )}
 

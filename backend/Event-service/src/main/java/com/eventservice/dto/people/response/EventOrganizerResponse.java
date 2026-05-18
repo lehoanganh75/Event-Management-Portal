@@ -16,6 +16,7 @@ import java.time.LocalDateTime;
 @Builder
 public class EventOrganizerResponse {
     private String id;
+    private String accountId;
     private OrganizerRole role;
     private OrganizerStatus status;
     private LocalDateTime assignedAt;
@@ -29,6 +30,7 @@ public class EventOrganizerResponse {
             return null;
         return EventOrganizerResponse.builder()
                 .id(organizer.getId())
+                .accountId(organizer.getAccountId())
                 .role(organizer.getRole())
                 .status(organizer.getStatus())
                 .assignedAt(organizer.getAssignedAt())

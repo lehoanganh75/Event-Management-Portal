@@ -18,6 +18,7 @@ const SessionsSection = ({
   updateSession,
   removeSession,
   confirmSession,
+  confirmAllSessions,
 }) => {
   return (
     <div className="space-y-5">
@@ -27,13 +28,25 @@ const SessionsSection = ({
           Chương trình chi tiết
         </h3>
 
-        <button
-          onClick={() => addSession()}
-          className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-slate-100 text-slate-700 text-xs font-medium hover:bg-slate-200 transition-colors"
-        >
-          <Plus size={13} />
-          Thêm phiên
-        </button>
+        <div className="flex items-center gap-2">
+          {formData.sessions && formData.sessions.length >= 2 && formData.sessions.some(s => !s.isConfirmed) && (
+            <button
+              onClick={() => confirmAllSessions()}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs font-semibold hover:bg-emerald-100 transition-colors"
+            >
+              <Check size={13} />
+              Xác nhận tất cả phiên
+            </button>
+          )}
+
+          <button
+            onClick={() => addSession()}
+            className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-slate-100 text-slate-700 text-xs font-medium hover:bg-slate-200 transition-colors"
+          >
+            <Plus size={13} />
+            Thêm phiên
+          </button>
+        </div>
       </div>
 
       <div id="field-sessions" className="space-y-4">
