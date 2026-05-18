@@ -43,6 +43,10 @@ const CommentItem = ({
 
   const localEmojiPickerRef = useRef(null);
   const replyTextareaRef = useRef(null);
+  const localFileInputRef = useRef(null);
+
+  const [localSelectedImages, setLocalSelectedImages] = useState([]);
+  const [localImagePreviews, setLocalImagePreviews] = useState([]);
 
   useEffect(() => {
     if (replyTextareaRef.current && activeReplyId === comment.id) {
@@ -298,6 +302,54 @@ const CommentItem = ({
             </div>
 
             <div className="flex-1">
+              <input
+                type="file"
+                ref={localFileInputRef}
+                className="hidden"
+                accept="image/*"
+                multiple
+                onChange={(e) => {
+                  const files = Array.from(e.target.files || []);
+                  setLocalSelectedImages((prev) => [...prev, ...files]);
+                  setLocalImagePreviews((prev) => [
+                    ...prev,
+                    ...files.map((file) => URL.createObjectURL(file)),
+                  ]);
+                  e.target.value = "";
+                }}
+              />
+
+              {localImagePreviews.length > 0 && (
+                <div className="flex gap-2 mb-2 p-1.5 bg-slate-50 border border-slate-200 rounded-lg overflow-x-auto">
+                  {localImagePreviews.map((url, idx) => (
+                    <div
+                      key={idx}
+                      className="relative w-14 h-14 rounded-lg overflow-hidden border border-slate-200 shrink-0 bg-white group"
+                    >
+                      <img
+                        src={url}
+                        className="w-full h-full object-cover"
+                        alt="preview"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setLocalSelectedImages((prev) =>
+                            prev.filter((_, i) => i !== idx)
+                          );
+                          setLocalImagePreviews((prev) =>
+                            prev.filter((_, i) => i !== idx)
+                          );
+                        }}
+                        className="absolute top-0.5 right-0.5 w-5 h-5 bg-black/55 text-white rounded-md transition flex items-center justify-center"
+                      >
+                        <X size={10} />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+
               <textarea
                 ref={replyTextareaRef}
                 autoFocus
@@ -313,6 +365,7 @@ const CommentItem = ({
                 <div className="flex items-center gap-2">
                   <button
                     type="button"
+                    onClick={() => localFileInputRef.current?.click()}
                     className="w-9 h-9 rounded-xl flex items-center justify-center text-slate-500 hover:bg-slate-100"
                   >
                     <Camera size={17} />
@@ -334,14 +387,30 @@ const CommentItem = ({
                 <button
                   onClick={async () => {
                     const contentToSend = replyContent;
+                    const imagesToSend = localSelectedImages;
+
                     setReplyContent("");
+                    setLocalSelectedImages([]);
+                    setLocalImagePreviews([]);
                     setActiveReplyId(null);
                     setShowReplies(true);
                     setIsSubmittingLocal(true);
+
                     try {
-                      await handleSubmitReply(comment.id, {
-                        content: contentToSend,
-                      });
+                      if (imagesToSend.length > 0) {
+                        const formData = new FormData();
+                        formData.append("content", contentToSend);
+                        formData.append("parentId", comment.id);
+                        imagesToSend.forEach((img) =>
+                          formData.append("images", img)
+                        );
+                        await handleSubmitReply(comment.id, formData);
+                      } else {
+                        await handleSubmitReply(comment.id, {
+                          content: contentToSend,
+                          parentId: comment.id,
+                        });
+                      }
                     } catch (err) {
                       // Handled by parent toast
                     } finally {
@@ -349,7 +418,7 @@ const CommentItem = ({
                     }
                   }}
                   disabled={
-                    !replyContent.trim() ||
+                    (!replyContent.trim() && localSelectedImages.length === 0) ||
                     isSubmittingLocal
                   }
                   className="px-4 py-2 rounded-xl bg-[#1E40AF] text-white text-sm font-medium hover:bg-[#1d4ed8] disabled:bg-slate-200 disabled:text-slate-500 transition"

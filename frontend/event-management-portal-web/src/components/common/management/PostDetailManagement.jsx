@@ -169,94 +169,108 @@ const PostDetailManagement = ({
   const hasLiked = !!userReaction;
 
   return (
-    <div className={`${hideHeader ? 'w-full' : 'bg-slate-50 min-h-screen p-6 flex flex-col items-center'}`}>
-      <PostHeader
-        post={post}
-        navigate={navigate}
-        backPath={backPath}
-        hideHeader={hideHeader}
-        getRelativeTime={getRelativeTime}
-        t={t}
-        defaultAvatar={DEFAULT_AVATAR}
-      />
-
-      <div className={`w-full bg-white ${hideHeader ? '' : 'rounded-2xl shadow-sm border border-slate-200'} h-fit relative`}>
-        <PostContent
+    <div
+      className={
+        hideHeader
+          ? "w-full bg-white"
+          : "min-h-screen bg-slate-100 px-4 py-6 md:px-6 flex justify-center"
+      }
+    >
+      <div className={hideHeader ? "w-full" : "w-full max-w-3xl"}>
+        <PostHeader
           post={post}
+          navigate={navigate}
+          backPath={backPath}
+          hideHeader={hideHeader}
+          getRelativeTime={getRelativeTime}
+          t={t}
+          defaultAvatar={DEFAULT_AVATAR}
+        />
+
+        <div
+          className={
+            hideHeader
+              ? "w-full bg-white relative"
+              : "w-full bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden relative"
+          }
+        >
+          <PostContent
+            post={post}
+            setFullscreenImage={setFullscreenImage}
+            t={t}
+          />
+
+          <PostStatsBar
+            post={post}
+            totalComments={totalComments}
+            handleReactPost={handleReactPost}
+            userReaction={userReaction}
+            hasLiked={hasLiked}
+            emojis={EMOJIS}
+            reactionLabels={REACTION_LABELS}
+            reactionColors={REACTION_COLORS}
+            t={t}
+            mainTextareaRef={mainTextareaRef}
+            hoveredPostEmoji={hoveredPostEmoji}
+            setHoveredPostEmoji={setHoveredPostEmoji}
+          />
+
+          <PostComments
+            post={post}
+            sortedComments={sortedComments}
+            currentUser={currentUser}
+            handleSubmitComment={handleSubmitComment}
+            commentContent={commentContent}
+            setCommentContent={setCommentContent}
+            selectedImages={selectedImages}
+            setSelectedImages={setSelectedImages}
+            imagePreviews={imagePreviews}
+            setImagePreviews={setImagePreviews}
+            isMainAnonEnabled={isMainAnonEnabled}
+            toggleMainAnonymousMode={toggleMainAnonymousMode}
+            currentMainAnonIdentity={currentMainAnonIdentity}
+            showEmojiPicker={showEmojiPicker}
+            setShowEmojiPicker={setShowEmojiPicker}
+            sortBy={sortBy}
+            setSortBy={setSortBy}
+            showSortDropdown={showSortDropdown}
+            setShowSortDropdown={setShowSortDropdown}
+            visibleCommentsCount={visibleCommentsCount}
+            setVisibleCommentsCount={setVisibleCommentsCount}
+            t={t}
+            language={language}
+            emojis={EMOJIS}
+            anonymousIdentities={ANONYMOUS_IDENTITIES}
+            mainTextareaRef={mainTextareaRef}
+            emojiPickerRef={emojiPickerRef}
+            fileInputRef={fileInputRef}
+            activeReplyId={activeReplyId}
+            setActiveReplyId={setActiveReplyId}
+            replyContent={replyContent}
+            setReplyContent={setReplyContent}
+            handleSubmitReply={handleSubmitReply}
+            handleReactComment={handleReactComment}
+            setActionModal={setActionModal}
+            isSubmittingComment={isSubmittingComment}
+            setFullscreenImage={setFullscreenImage}
+            getRelativeTime={getRelativeTime}
+            reactionLabels={REACTION_LABELS}
+            reactionColors={REACTION_COLORS}
+          />
+        </div>
+
+        <PostModals
+          fullscreenImage={fullscreenImage}
           setFullscreenImage={setFullscreenImage}
-          t={t}
-        />
-
-        <PostStatsBar
-          post={post}
-          totalComments={totalComments}
-          handleReactPost={handleReactPost}
-          userReaction={userReaction}
-          hasLiked={hasLiked}
-          emojis={EMOJIS}
-          reactionLabels={REACTION_LABELS}
-          reactionColors={REACTION_COLORS}
-          t={t}
-          mainTextareaRef={mainTextareaRef}
-          hoveredPostEmoji={hoveredPostEmoji}
-          setHoveredPostEmoji={setHoveredPostEmoji}
-        />
-
-        <PostComments
-          post={post}
-          sortedComments={sortedComments}
-          currentUser={currentUser}
-          handleSubmitComment={handleSubmitComment}
-          commentContent={commentContent}
-          setCommentContent={setCommentContent}
-          selectedImages={selectedImages}
-          setSelectedImages={setSelectedImages}
-          imagePreviews={imagePreviews}
-          setImagePreviews={setImagePreviews}
-          isMainAnonEnabled={isMainAnonEnabled}
-          toggleMainAnonymousMode={toggleMainAnonymousMode}
-          currentMainAnonIdentity={currentMainAnonIdentity}
-          showEmojiPicker={showEmojiPicker}
-          setShowEmojiPicker={setShowEmojiPicker}
-          sortBy={sortBy}
-          setSortBy={setSortBy}
-          showSortDropdown={showSortDropdown}
-          setShowSortDropdown={setShowSortDropdown}
-          visibleCommentsCount={visibleCommentsCount}
-          setVisibleCommentsCount={setVisibleCommentsCount}
+          actionModal={actionModal}
+          setActionModal={setActionModal}
+          isProcessingAction={isProcessingAction}
+          handleDeleteComment={handleDeleteComment}
+          handleHideComment={handleHideComment}
           t={t}
           language={language}
-          emojis={EMOJIS}
-          anonymousIdentities={ANONYMOUS_IDENTITIES}
-          mainTextareaRef={mainTextareaRef}
-          emojiPickerRef={emojiPickerRef}
-          fileInputRef={fileInputRef}
-          activeReplyId={activeReplyId}
-          setActiveReplyId={setActiveReplyId}
-          replyContent={replyContent}
-          setReplyContent={setReplyContent}
-          handleSubmitReply={handleSubmitReply}
-          handleReactComment={handleReactComment}
-          setActionModal={setActionModal}
-          isSubmittingComment={isSubmittingComment}
-          setFullscreenImage={setFullscreenImage}
-          getRelativeTime={getRelativeTime}
-          reactionLabels={REACTION_LABELS}
-          reactionColors={REACTION_COLORS}
         />
       </div>
-
-      <PostModals
-        fullscreenImage={fullscreenImage}
-        setFullscreenImage={setFullscreenImage}
-        actionModal={actionModal}
-        setActionModal={setActionModal}
-        isProcessingAction={isProcessingAction}
-        handleDeleteComment={handleDeleteComment}
-        handleHideComment={handleHideComment}
-        t={t}
-        language={language}
-      />
     </div>
   );
 };
