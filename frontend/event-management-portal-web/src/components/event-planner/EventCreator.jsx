@@ -778,19 +778,19 @@ export const EventCreator = ({
       }
 
       if (isDraft) {
-        toast.success(isPlanMode ? "✅ Đã lưu bản nháp kế hoạch!" : "✅ Đã lưu bản nháp sự kiện thành công!");
+        toast.success(isPlanMode ? "Đã lưu bản nháp kế hoạch!" : "Đã lưu bản nháp sự kiện thành công!");
       } else if (isPlanMode) {
         if (role === 'ADMIN' || role === 'SUPER_ADMIN') {
-          toast.success("✅ Kế hoạch đã được tạo thành công!");
+          toast.success("Kế hoạch đã được tạo thành công!");
         } else {
-          toast.success("✅ Gửi yêu cầu phê duyệt thành công!");
+          toast.success("Gửi yêu cầu phê duyệt thành công!");
         }
       } else if (isEditMode) {
         toast.success("Đã cập nhật thông tin sự kiện!");
       } else if (isSuperAdmin || role === 'ADMIN') {
-        toast.success(isPlanMode ? "✅ Kế hoạch đã được tạo thành công!" : "✅ Sự kiện đã được tạo thành công!");
+        toast.success(isPlanMode ? "Kế hoạch đã được tạo thành công!" : "Sự kiện đã được tạo thành công!");
       } else {
-        toast.success("✅ Gửi yêu cầu phê duyệt thành công!");
+        toast.success("Gửi yêu cầu phê duyệt thành công!");
       }
       onBack();
     } catch (error) {
