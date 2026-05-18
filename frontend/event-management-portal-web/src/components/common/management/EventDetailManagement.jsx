@@ -272,22 +272,28 @@ const EventDetailManagement = ({
     }
   };
 
-  const addPresenterInvite = (user = null) => {
-    if (user) {
-      if (presenterInvitations.some(inv => inv.inviteeEmail === user.email || inv.inviteeAccountId === user.id)) {
+  const addPresenterInvite = (selectedUser = null) => {
+    if (selectedUser) {
+      const myEmail = authUser?.email || authUser?.account?.email;
+      if (selectedUser.email && myEmail && selectedUser.email.toLowerCase() === myEmail.toLowerCase()) {
+        toast.error("Không thể thêm chính mình (Người tạo) làm diễn giả!");
+        return;
+      }
+
+      if (presenterInvitations.some(inv => inv.inviteeEmail === selectedUser.email || inv.inviteeAccountId === selectedUser.id)) {
         toast.info("Người dùng này đã có trong danh sách chuẩn bị mời");
         return;
       }
     }
-    const newInvite = user ? {
-      inviteeEmail: user.email || "",
-      inviteeAccountId: user.id || "",
-      fullName: user.fullName || user.profile?.fullName || user.username || "",
+    const newInvite = selectedUser ? {
+      inviteeEmail: selectedUser.email || "",
+      inviteeAccountId: selectedUser.id || "",
+      fullName: selectedUser.fullName || selectedUser.profile?.fullName || selectedUser.username || "",
       session: "ALL",
       bio: ""
     } : { inviteeEmail: "", inviteeAccountId: "", fullName: "", session: "ALL", bio: "" };
 
-    if (user) {
+    if (selectedUser) {
       const emptyIdx = presenterInvitations.findIndex(inv => !inv.inviteeEmail);
       if (emptyIdx !== -1) {
         const newList = [...presenterInvitations];
@@ -316,6 +322,15 @@ const EventDetailManagement = ({
     try {
       const validInvites = presenterInvitations.filter(inv => inv.inviteeEmail?.trim() !== "");
       if (validInvites.length === 0) return;
+
+      const myEmail = authUser?.email || authUser?.account?.email;
+      if (myEmail) {
+        const selfInvite = validInvites.find(inv => inv.inviteeEmail?.toLowerCase() === myEmail.toLowerCase());
+        if (selfInvite) {
+          toast.error("Không thể tự mời chính mình (Người tạo) làm diễn giả!");
+          return;
+        }
+      }
 
       const emptyBioInvite = validInvites.find(inv => !inv.bio?.trim());
       if (emptyBioInvite) {

@@ -365,13 +365,17 @@ export default function ManualInputStep({
     setFormData({ ...formData, invitations: (formData.invitations || []).filter((_, i) => i !== index) });
   };
 
-  const addPresenter = (user = null) => {
+  const addPresenter = (selectedUser = null) => {
+    if (selectedUser && user && (selectedUser.email || "").toLowerCase() === (user.email || "").toLowerCase()) {
+      toast.error("Không thể thêm chính mình (Người tạo) làm diễn giả!");
+      return;
+    }
     const presenters = formData.presenters || [];
-    const newPresenter = user ? {
-      presenterAccountId: user.accountId || user.id,
-      accountId: user.accountId || user.id,
-      email: user.email || "",
-      fullName: user.fullName || user.profile?.fullName || user.username || "",
+    const newPresenter = selectedUser ? {
+      presenterAccountId: selectedUser.accountId || selectedUser.id,
+      accountId: selectedUser.accountId || selectedUser.id,
+      email: selectedUser.email || "",
+      fullName: selectedUser.fullName || selectedUser.profile?.fullName || selectedUser.username || "",
       message: "",
       bio: "",
       isConfirmed: true
@@ -384,6 +388,11 @@ export default function ManualInputStep({
     const email = presenters[index].email?.trim();
     if (!email) {
       toast.error("Vui lòng nhập Email người trình bày!");
+      return;
+    }
+
+    if (user && email.toLowerCase() === (user.email || "").toLowerCase()) {
+      toast.error("Không thể thêm chính mình (Người tạo) làm diễn giả!");
       return;
     }
 
