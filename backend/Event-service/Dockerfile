@@ -7,7 +7,7 @@ WORKDIR /build
 
 COPY pom.xml .
 
-RUN mvn dependency:go-offline || true
+RUN mvn dependency:go-offline
 
 COPY src ./src
 

@@ -335,7 +335,7 @@ export default function NewsPage() {
                   {filteredPosts.length === 0 && (
                     <div className="bg-white rounded-[2rem] p-20 text-center border border-slate-100 shadow-sm">
                       <Newspaper size={48} className="text-slate-200 mx-auto mb-4" />
-                      <h3 className="font-black text-slate-800 uppercase italic tracking-tight text-xl mb-2">{t('no_news_yet')}</h3>
+                      <h3 className="font-black text-slate-800 uppercase tracking-tight text-xl mb-2">{t('no_news_yet')}</h3>
                       <p className="text-slate-400 text-sm font-medium">{t('select_other_filter')}</p>
                     </div>
                   )}
