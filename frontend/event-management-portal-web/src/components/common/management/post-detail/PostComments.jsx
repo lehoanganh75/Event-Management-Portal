@@ -59,9 +59,8 @@ const PostComments = ({
   };
 
   return (
-    <div className="p-4 bg-slate-50">
-      {/* Header */}
-      <div className="flex items-center justify-between mb-4">
+    <div className="px-4 py-3 bg-white border-t border-slate-100">
+      <div className="flex items-center justify-between mb-3">
         <h4 className="text-sm font-semibold text-slate-800">
           {t("comment")}
         </h4>
@@ -82,18 +81,18 @@ const PostComments = ({
           <AnimatePresence>
             {showSortDropdown && (
               <motion.div
-                initial={{ opacity: 0, y: 8 }}
+                initial={{ opacity: 0, y: 6 }}
                 animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: 8 }}
+                exit={{ opacity: 0, y: 6 }}
                 transition={{ duration: 0.15 }}
                 className="
                   absolute right-0 top-full mt-2
-                  w-72
+                  w-64
                   bg-white
-                  rounded-2xl
+                  rounded-xl
                   border border-slate-200
-                  shadow-lg
-                  p-2
+                  shadow-md
+                  p-1.5
                   z-40
                 "
               >
@@ -120,15 +119,11 @@ const PostComments = ({
                       setSortBy(opt.id);
                       setShowSortDropdown(false);
                     }}
-                    className={`w-full text-left p-3 rounded-xl transition ${sortBy === opt.id
-                      ? "bg-blue-50"
-                      : "hover:bg-slate-50"
+                    className={`w-full text-left px-3 py-2.5 rounded-lg transition ${sortBy === opt.id ? "bg-blue-50" : "hover:bg-slate-50"
                       }`}
                   >
                     <div
-                      className={`text-sm font-medium ${sortBy === opt.id
-                        ? "text-[#1E40AF]"
-                        : "text-slate-800"
+                      className={`text-sm font-medium ${sortBy === opt.id ? "text-[#1E40AF]" : "text-slate-800"
                         }`}
                     >
                       {opt.label}
@@ -145,13 +140,12 @@ const PostComments = ({
       </div>
 
       {post.allowComments ? (
-        <div className="space-y-6">
-          {/* Comment Input */}
+        <div className="space-y-5">
           <div className="flex gap-3 items-start">
             <div className="shrink-0 mt-1">
               {isMainAnonEnabled ? (
                 <div
-                  className={`w-10 h-10 rounded-xl flex items-center justify-center text-base border border-slate-200 ${currentMainAnonIdentity.color}`}
+                  className={`w-9 h-9 rounded-lg flex items-center justify-center text-base border border-slate-200 ${currentMainAnonIdentity.color}`}
                 >
                   {currentMainAnonIdentity.icon}
                 </div>
@@ -162,7 +156,7 @@ const PostComments = ({
                     `https://api.dicebear.com/7.x/initials/svg?seed=${currentUser?.fullName || "User"
                     }`
                   }
-                  className="w-10 h-10 rounded-xl object-cover border border-slate-200"
+                  className="w-9 h-9 rounded-lg object-cover border border-slate-200"
                   alt="User"
                 />
               )}
@@ -213,27 +207,29 @@ const PostComments = ({
                   accept="image/*"
                   multiple
                   onChange={(e) => {
-                    const files = Array.from(e.target.files);
+                    const files = Array.from(e.target.files || []);
                     setSelectedImages((prev) => [...prev, ...files]);
                     setImagePreviews((prev) => [
                       ...prev,
                       ...files.map((file) => URL.createObjectURL(file)),
                     ]);
+                    e.target.value = "";
                   }}
                 />
 
                 {imagePreviews.length > 0 && (
-                  <div className="flex gap-2 mb-3 p-2 bg-white border border-slate-200 rounded-xl overflow-x-auto">
+                  <div className="flex gap-2 mb-2 p-2 bg-slate-50 border border-slate-200 rounded-lg overflow-x-auto">
                     {imagePreviews.map((url, idx) => (
                       <div
                         key={idx}
-                        className="relative w-16 h-16 rounded-lg overflow-hidden border border-slate-200 shrink-0 group"
+                        className="relative w-16 h-16 rounded-lg overflow-hidden border border-slate-200 shrink-0 group bg-white"
                       >
                         <img
                           src={url}
                           className="w-full h-full object-cover"
                           alt="preview"
                         />
+
                         <button
                           type="button"
                           onClick={() => {
@@ -244,7 +240,7 @@ const PostComments = ({
                               prev.filter((_, i) => i !== idx)
                             );
                           }}
-                          className="absolute top-1 right-1 w-6 h-6 bg-black/50 text-white rounded-lg opacity-0 group-hover:opacity-100 transition flex items-center justify-center"
+                          className="absolute top-1 right-1 w-6 h-6 bg-black/55 text-white rounded-md opacity-0 group-hover:opacity-100 transition flex items-center justify-center"
                         >
                           <X size={12} />
                         </button>
@@ -260,15 +256,18 @@ const PostComments = ({
                   placeholder={t("write_comment")}
                   className="
                     w-full
-                    min-h-[52px]
+                    min-h-[48px]
                     px-4 py-3
-                    rounded-2xl
+                    rounded-xl
                     border border-slate-200
-                    bg-white
+                    bg-slate-50
                     text-sm text-slate-700
                     resize-none
                     outline-none
-                    focus:border-[#1E40AF]
+                    focus:bg-white
+                    focus:border-blue-500
+                    focus:ring-2
+                    focus:ring-blue-50
                     transition
                   "
                   onKeyDown={(e) => {
@@ -279,9 +278,8 @@ const PostComments = ({
                   }}
                 />
 
-                <div className="flex items-center justify-between mt-3">
-                  <div className="flex items-center gap-3">
-                    {/* Anonymous */}
+                <div className="flex items-center justify-between mt-2">
+                  <div className="flex items-center gap-2">
                     <div className="flex items-center gap-2 pr-3 border-r border-slate-200">
                       <button
                         type="button"
@@ -292,17 +290,17 @@ const PostComments = ({
                           }`}
                       >
                         <span
-                          className={`inline-block h-5 w-5 rounded-full bg-white shadow transition ${isMainAnonEnabled
-                            ? "translate-x-4"
-                            : "translate-x-0"
+                          className={`inline-block h-5 w-5 rounded-full bg-white shadow-sm transition ${isMainAnonEnabled
+                              ? "translate-x-4"
+                              : "translate-x-0"
                             }`}
                         />
                       </button>
 
                       <span
                         className={`text-xs font-medium ${isMainAnonEnabled
-                          ? "text-emerald-600"
-                          : "text-slate-400"
+                            ? "text-emerald-600"
+                            : "text-slate-400"
                           }`}
                       >
                         {language === "VI" ? "Ẩn danh" : "Anonymous"}
@@ -311,8 +309,8 @@ const PostComments = ({
 
                     <button
                       type="button"
-                      onClick={() => fileInputRef.current.click()}
-                      className="w-9 h-9 rounded-xl flex items-center justify-center text-slate-500 hover:bg-white hover:text-[#1E40AF] transition"
+                      onClick={() => fileInputRef.current?.click()}
+                      className="w-9 h-9 rounded-lg flex items-center justify-center text-slate-500 hover:bg-slate-100 hover:text-[#1E40AF] transition"
                     >
                       <Camera size={18} />
                     </button>
@@ -320,9 +318,9 @@ const PostComments = ({
                     <button
                       type="button"
                       onClick={() => setShowEmojiPicker(!showEmojiPicker)}
-                      className={`w-9 h-9 rounded-xl flex items-center justify-center transition ${showEmojiPicker
-                        ? "bg-amber-50 text-amber-500"
-                        : "text-slate-500 hover:bg-white hover:text-amber-500"
+                      className={`w-9 h-9 rounded-lg flex items-center justify-center transition ${showEmojiPicker
+                          ? "bg-amber-50 text-amber-500"
+                          : "text-slate-500 hover:bg-slate-100 hover:text-amber-500"
                         }`}
                     >
                       <Smile size={18} />
@@ -336,8 +334,8 @@ const PostComments = ({
                       isSubmittingComment
                     }
                     className="
-                      h-10 px-5
-                      rounded-xl
+                      h-9 px-4
+                      rounded-lg
                       bg-[#1E40AF]
                       text-white
                       text-sm font-medium
@@ -362,14 +360,14 @@ const PostComments = ({
                     ref={emojiPickerRef}
                     className="
                       absolute top-full left-0 mt-2
-                      p-3
+                      p-2
                       bg-white
-                      rounded-2xl
+                      rounded-xl
                       border border-slate-200
-                      shadow-lg
-                      grid grid-cols-5 gap-2
+                      shadow-md
+                      grid grid-cols-5 gap-1.5
                       z-30
-                      w-[230px]
+                      w-[220px]
                     "
                   >
                     {emojis.map((emoji) => (
@@ -377,7 +375,7 @@ const PostComments = ({
                         key={emoji}
                         type="button"
                         onClick={() => addEmojiToComment(emoji)}
-                        className="w-9 h-9 flex items-center justify-center hover:bg-slate-100 rounded-xl text-xl transition"
+                        className="w-9 h-9 flex items-center justify-center hover:bg-slate-100 rounded-lg text-xl transition"
                       >
                         {emoji}
                       </button>
@@ -388,15 +386,13 @@ const PostComments = ({
             </div>
           </div>
 
-          {/* Comment List */}
-          <div className="space-y-2 mt-8">
-            {/* Show top-level submitting placeholder at the top of the list! */}
+          <div className="space-y-2 pt-2">
             {isSubmittingComment && (
-              <div className="flex gap-3 mb-4 animate-pulse opacity-85 text-left">
+              <div className="flex gap-3 mb-3 animate-pulse opacity-90 text-left">
                 <div className="shrink-0 mt-1">
                   {isMainAnonEnabled ? (
                     <div
-                      className={`w-10 h-10 rounded-xl flex items-center justify-center text-base border border-slate-200 ${currentMainAnonIdentity.color}`}
+                      className={`w-9 h-9 rounded-lg flex items-center justify-center text-base border border-slate-200 ${currentMainAnonIdentity.color}`}
                     >
                       {currentMainAnonIdentity.icon}
                     </div>
@@ -404,72 +400,74 @@ const PostComments = ({
                     <img
                       src={
                         currentUser?.avatarUrl ||
-                        `https://api.dicebear.com/7.x/initials/svg?seed=${currentUser?.fullName || "User"}`
+                        `https://api.dicebear.com/7.x/initials/svg?seed=${currentUser?.fullName || "User"
+                        }`
                       }
-                      className="w-10 h-10 rounded-xl object-cover border border-slate-200"
+                      className="w-9 h-9 rounded-lg object-cover border border-slate-200"
                       alt="User"
                     />
                   )}
                 </div>
+
                 <div className="flex-1">
-                  <div className="bg-white rounded-2xl px-4 py-3 max-w-[85%] border border-slate-200 shadow-sm">
+                  <div className="bg-slate-50 rounded-xl px-4 py-3 max-w-[85%] border border-slate-200">
                     <p className="text-[13px] font-semibold text-slate-700">
-                      {isMainAnonEnabled ? currentMainAnonIdentity.name : (currentUser?.fullName || "Bạn")}
+                      {isMainAnonEnabled
+                        ? currentMainAnonIdentity.name
+                        : currentUser?.fullName || "Bạn"}
                     </p>
-                    <p className="text-[13px] text-slate-400 mt-1 italic flex items-center gap-1.5">
+                    <p className="text-[13px] text-slate-500 mt-1 flex items-center gap-1.5">
                       <Loader2 size={13} className="animate-spin text-[#1E40AF]" />
-                      {language === "VI" ? "Đang gửi bình luận và kiểm duyệt AI..." : "Sending comment and verifying AI..."}
+                      {language === "VI"
+                        ? "Đang gửi bình luận..."
+                        : "Sending comment..."}
                     </p>
                   </div>
                 </div>
               </div>
             )}
 
-            {sortedComments
-              .slice(0, visibleCommentsCount)
-              .map((comment) => (
-                <CommentItem
-                  key={comment.id}
-                  comment={comment}
-                  post={post}
-                  activeReplyId={activeReplyId}
-                  setActiveReplyId={setActiveReplyId}
-                  replyContent={replyContent}
-                  setReplyContent={setReplyContent}
-                  handleSubmitReply={handleSubmitReply}
-                  handleReactComment={handleReactComment}
-                  setActionModal={setActionModal}
-                  isSubmittingComment={isSubmittingComment}
-                  currentUser={currentUser}
-                  setFullscreenImage={setFullscreenImage}
-                  t={t}
-                  language={language}
-                  emojis={emojis}
-                  reactionLabels={reactionLabels}
-                  reactionColors={reactionColors}
-                  getRelativeTime={getRelativeTime}
-                  anonymousIdentities={anonymousIdentities}
-                  isAnonEnabled={isMainAnonEnabled}
-                  toggleAnonymousMode={toggleMainAnonymousMode}
-                  currentAnonIdentity={currentMainAnonIdentity}
-                />
-              ))}
+            {sortedComments.slice(0, visibleCommentsCount).map((comment) => (
+              <CommentItem
+                key={comment.id}
+                comment={comment}
+                post={post}
+                activeReplyId={activeReplyId}
+                setActiveReplyId={setActiveReplyId}
+                replyContent={replyContent}
+                setReplyContent={setReplyContent}
+                handleSubmitReply={handleSubmitReply}
+                handleReactComment={handleReactComment}
+                setActionModal={setActionModal}
+                isSubmittingComment={isSubmittingComment}
+                currentUser={currentUser}
+                setFullscreenImage={setFullscreenImage}
+                t={t}
+                language={language}
+                emojis={emojis}
+                reactionLabels={reactionLabels}
+                reactionColors={reactionColors}
+                getRelativeTime={getRelativeTime}
+                anonymousIdentities={anonymousIdentities}
+                isAnonEnabled={isMainAnonEnabled}
+                toggleAnonymousMode={toggleMainAnonymousMode}
+                currentAnonIdentity={currentMainAnonIdentity}
+              />
+            ))}
 
             {sortedComments.length > visibleCommentsCount && (
               <button
-                onClick={() =>
-                  setVisibleCommentsCount((prev) => prev + 10)
-                }
-                className="w-full h-11 text-sm font-medium text-[#1E40AF] hover:bg-blue-50 rounded-xl transition mt-4"
+                onClick={() => setVisibleCommentsCount((prev) => prev + 10)}
+                className="w-full h-10 text-sm font-medium text-[#1E40AF] hover:bg-blue-50 rounded-lg transition mt-3"
               >
                 {t("load_more_comments")}
               </button>
             )}
 
             {sortedComments.length === 0 && !isSubmittingComment && (
-              <div className="py-10 text-center">
-                <div className="w-14 h-14 bg-white border border-slate-200 rounded-2xl flex items-center justify-center mx-auto mb-3 text-slate-400">
-                  <MessageCircle size={28} />
+              <div className="py-8 text-center">
+                <div className="w-12 h-12 bg-slate-50 border border-slate-200 rounded-xl flex items-center justify-center mx-auto mb-3 text-slate-400">
+                  <MessageCircle size={24} />
                 </div>
                 <p className="text-sm text-slate-400">
                   {t("no_comments_yet")}
@@ -479,7 +477,7 @@ const PostComments = ({
           </div>
         </div>
       ) : (
-        <div className="py-10 text-center bg-white rounded-2xl border border-dashed border-slate-200">
+        <div className="py-8 text-center bg-slate-50 rounded-xl border border-dashed border-slate-200">
           <p className="text-sm text-slate-400">{t("comments_disabled")}</p>
         </div>
       )}
