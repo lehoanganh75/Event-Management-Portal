@@ -1,21 +1,21 @@
 export const EMOJIS = ["❤️", "👍", "🔥", "😊", "🎉", "👏", "😮", "😢", "🙌", "✨", "🙏", "💯", "🤣", "😍", "💡"];
 
 export const getReactionLabels = (t) => ({
-  "👍": t('like'),
-  "❤️": t('react_love'),
-  "🔥": t('react_awesome'),
-  "😊": t('react_happy'),
-  "🎉": t('react_congrats'),
-  "👏": t('react_applause'),
-  "😮": t('react_wow'),
-  "😢": t('react_sad'),
-  "🤣": t('react_haha'),
-  "😍": t('react_love'),
-  "🙌": t('react_great'),
-  "✨": t('react_sparkle'),
-  "🙏": t('react_respect'),
-  "💯": t('react_perfect'),
-  "💡": t('react_useful')
+  "👍": "Thích",
+  "❤️": "Yêu thích",
+  "🔥": "Tuyệt vời",
+  "😊": "Hạnh phúc",
+  "🎉": "Chúc mừng",
+  "👏": "Tán thưởng",
+  "😮": "Ngạc nhiên",
+  "😢": "Chia buồn",
+  "🤣": "Haha",
+  "😍": "Yêu thích",
+  "🙌": "Tuyệt quá",
+  "✨": "Lấp lánh",
+  "🙏": "Trân trọng",
+  "💯": "Tuyệt đối",
+  "💡": "Hữu ích"
 });
 
 export const REACTION_COLORS = {
@@ -67,9 +67,9 @@ export const getRelativeTime = (date, t) => {
   const diffInHour = Math.floor(diffInMin / 60);
   const diffInDay = Math.floor(diffInHour / 24);
 
-  if (diffInSec < 60) return t('time_now');
-  if (diffInMin < 60) return `${diffInMin} ${t('time_min')}`;
-  if (diffInHour < 24) return `${diffInHour} ${t('time_hour')}`;
-  if (diffInDay < 7) return `${diffInDay} ${t('time_day')}`;
+  if (diffInSec < 60) return "Đăng mới đây vừa xong";
+  if (diffInMin < 60) return `${diffInMin} ${"phút"}`;
+  if (diffInHour < 24) return `${diffInHour} ${"giờ"}`;
+  if (diffInDay < 7) return `${diffInDay} ${"ngày"}`;
   return past.toLocaleDateString();
 };

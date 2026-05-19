@@ -9,6 +9,7 @@ import {
 
 // IMPORT AUTH CONTEXT
 import { useAuth } from "../../context/AuthContext";
+import { showToast } from "../../utils/toast.jsx";
 
 const roleMap = {
   SUPER_ADMIN: "Quản trị viên cấp cao",
@@ -50,8 +51,6 @@ const ProfileManagement = () => {
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
-  const [toast, setToast] = useState({ show: false, message: "", type: "success" });
-
   const [formData, setFormData] = useState({
     fullName: "", dateOfBirth: "", gender: "", bio: ""
   });
@@ -64,11 +63,6 @@ const ProfileManagement = () => {
   const [showNew, setShowNew] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
   const [isChangingPassword, setIsChangingPassword] = useState(false);
-
-  const showToast = (message, type = "success") => {
-    setToast({ show: true, message, type });
-    setTimeout(() => setToast(prev => ({ ...prev, show: false })), 3000);
-  };
 
   // 3. ĐỒNG BỘ FORM DATA KHI USER TRONG CONTEXT THAY ĐỔI
   useEffect(() => {
@@ -220,13 +214,7 @@ const ProfileManagement = () => {
         </div>
       )}
 
-      {/* Toast Notification */}
-      {toast.show && (
-        <div className={`fixed top-28 right-6 z-50 flex items-center gap-3 px-5 py-3.5 bg-white rounded-2xl shadow-2xl border transition-all ${toast.type === "success" ? "border-emerald-100" : "border-red-100"}`}>
-          {toast.type === "success" ? <CheckCircle size={18} className="text-emerald-500" /> : <AlertCircle size={18} className="text-red-500" />}
-          <p className={`text-sm font-bold ${toast.type === "success" ? "text-emerald-700" : "text-red-700"}`}>{toast.message}</p>
-        </div>
-      )}
+
 
       <div className="h-64 bg-[#1a3a6b] relative overflow-hidden rounded-[2rem] mb-6">
         <div className="absolute inset-0 opacity-10">

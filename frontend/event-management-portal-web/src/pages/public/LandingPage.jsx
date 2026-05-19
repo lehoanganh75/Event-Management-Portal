@@ -103,7 +103,7 @@ const LandingPage = () => {
                 >
                   <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
 
-                  {t("hero_badge")}
+                  {"Hệ thống quản lý sự kiện 4.0"}
                 </motion.div>
 
                 <motion.div
@@ -121,7 +121,7 @@ const LandingPage = () => {
                       text-white
                     "
                   >
-                    {t("event_iuh")}
+                    {"Sự Kiện IUH"}
 
                     <span className="block text-amber-300 mt-2">
                       {new Date().getFullYear()}
@@ -137,7 +137,7 @@ const LandingPage = () => {
                       max-w-xl
                     "
                   >
-                    {t("hero_desc")}
+                    {"Nền tảng tích hợp hỗ trợ tổ chức sự kiện, điểm danh QR Code và vòng quay may mắn. Kết nối sinh viên và giảng viên trong một hệ sinh thái số hiện đại."}
                   </p>
                 </motion.div>
 
@@ -170,7 +170,7 @@ const LandingPage = () => {
                       shadow-sm
                     "
                   >
-                    {t("explore_events")}
+                    {"Khám phá sự kiện"}
                   </button>
 
                   <Link
@@ -188,7 +188,7 @@ const LandingPage = () => {
                       text-white
                     "
                   >
-                    {t("news")}
+                    {"Bản tin"}
                   </Link>
                 </motion.div>
 
@@ -223,7 +223,7 @@ const LandingPage = () => {
 
                 <div className="flex items-center justify-between mb-5 px-1">
                   <h3 className="text-lg font-semibold text-white">
-                    {t("featured_events")}
+                    {"Sự kiện tiêu biểu"}
                   </h3>
 
                   <div
@@ -239,7 +239,7 @@ const LandingPage = () => {
                   >
                     <Sparkles size={12} />
 
-                    {t("highlight")}
+                    {"Nổi bật"}
                   </div>
                 </div>
 
@@ -284,7 +284,7 @@ const LandingPage = () => {
                           text-white/60
                         "
                       >
-                        {t("no_featured")}
+                        {"Hiện chưa có sự kiện tiêu biểu"}
                       </div>
                     )}
                   </div>
@@ -351,9 +351,9 @@ const LandingPage = () => {
           <section className="mb-20">
 
             <LandingSectionHeader
-              title={t("ongoing_events")}
+              title={"Sự kiện đang diễn ra"}
               subtitle="Những sự kiện đang diễn ra ngay lúc này"
-              viewAllLink="/events"
+              viewAllLink="/events?tab=ongoing"
               t={t}
             />
 
@@ -401,7 +401,7 @@ const LandingPage = () => {
                       text-slate-400
                     "
                   >
-                    {t("no_ongoing")}
+                    {"Hiện không có sự kiện nào đang diễn ra"}
                   </div>
                 )}
               </div>
@@ -456,9 +456,9 @@ const LandingPage = () => {
           <section className="mb-20">
 
             <LandingSectionHeader
-              title={t("upcoming_events")}
+              title={"Sự kiện sắp diễn ra"}
               subtitle="Sắp diễn ra, đừng bỏ lỡ cơ hội tham gia"
-              viewAllLink="/events"
+              viewAllLink="/events?tab=upcoming"
               t={t}
             />
 
@@ -506,10 +506,54 @@ const LandingPage = () => {
                       text-slate-400
                     "
                   >
-                    {t("no_upcoming")}
+                    {"Chưa có sự kiện sắp tới"}
                   </div>
                 )}
               </div>
+
+              {upcoming?.length > 3 && (
+                <>
+                  <button
+                    onClick={() => scroll(upcomingScrollRef, "left")}
+                    className="
+                      hidden md:flex
+                      absolute left-0 top-1/2 -translate-y-1/2 -translate-x-5
+                      w-11 h-11
+                      items-center justify-center
+                      rounded-full
+                      bg-white
+                      border border-slate-200
+                      shadow-lg
+                      text-slate-600
+                      opacity-0
+                      group-hover/scroll:opacity-100
+                      transition-all
+                    "
+                  >
+                    <ChevronLeft size={20} />
+                  </button>
+
+                  <button
+                    onClick={() => scroll(upcomingScrollRef, "right")}
+                    className="
+                      hidden md:flex
+                      absolute right-0 top-1/2 -translate-y-1/2 translate-x-5
+                      w-11 h-11
+                      items-center justify-center
+                      rounded-full
+                      bg-white
+                      border border-slate-200
+                      shadow-lg
+                      text-slate-600
+                      opacity-0
+                      group-hover/scroll:opacity-100
+                      transition-all
+                    "
+                  >
+                    <ChevronRightIcon size={20} />
+                  </button>
+                </>
+              )}
             </div>
           </section>
 
@@ -528,7 +572,7 @@ const LandingPage = () => {
                   tracking-tight
                 "
               >
-                {t("features_title")}
+                {"Tính Năng Nổi Bật"}
               </h2>
 
               <p
@@ -541,7 +585,7 @@ const LandingPage = () => {
                   leading-relaxed
                 "
               >
-                {t("features_desc")}
+                {"Hệ thống cung cấp bộ công cụ toàn diện giúp tối ưu hóa quy trình tổ chức và nâng cao trải nghiệm người tham gia."}
               </p>
             </div>
 
@@ -549,29 +593,29 @@ const LandingPage = () => {
 
               <LandingFeatureCard
                 icon={Sparkles}
-                title={t("ai_feature")}
-                description={t("ai_feature_desc")}
+                title={"AI Hỗ Trợ Toàn Diện"}
+                description={"Tự động hóa quy trình từ lập kế hoạch, viết nội dung truyền thông đến phân tích phản hồi sau sự kiện."}
                 colorClass="bg-blue-600 text-white"
               />
 
               <LandingFeatureCard
                 icon={QrCode}
-                title={t("qr_feature")}
-                description={t("qr_feature_desc")}
+                title={"Check-in QR Code"}
+                description={"Điểm danh nhanh chóng chỉ với 1 giây. Hệ thống tự động ghi nhận thời gian và xác thực người tham gia."}
                 colorClass="bg-indigo-600 text-white"
               />
 
               <LandingFeatureCard
                 icon={Gift}
-                title={t("lucky_feature")}
-                description={t("lucky_feature_desc")}
+                title={"Vòng Quay May Mắn"}
+                description={"Tăng tương tác với minigame vòng quay tích hợp. Tự động chọn người trúng thưởng minh bạch."}
                 colorClass="bg-amber-500 text-white"
               />
 
               <LandingFeatureCard
                 icon={BarChart3}
-                title={t("stat_feature")}
-                description={t("stat_feature_desc")}
+                title={"Thống Kê Real-time"}
+                description={"Theo dõi số lượng đăng ký, tỉ lệ tham gia và hiệu quả sự kiện qua các biểu đồ trực quan thời gian thực."}
                 colorClass="bg-emerald-500 text-white"
               />
             </div>

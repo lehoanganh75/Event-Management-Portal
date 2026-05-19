@@ -100,16 +100,113 @@ const NotificationManagement = ({
 
   const formatType = (type) => {
     switch (type) {
-      case "SYSTEM": return "Hệ thống";
+      // Người dùng
+      case "REGISTRATION_CONFIRMED": return "Xác nhận đăng ký";
+      case "CHECKIN_REMINDER": return "Nhắc nhở điểm danh";
+      case "CHECKIN_SUCCESS": return "Điểm danh thành công";
+      case "EVENT_STARTING_SOON": return "Sự kiện sắp bắt đầu";
+      case "EVENT_CANCELLED": return "Sự kiện bị hủy";
+      case "EVENT_RESCHEDULED": return "Sự kiện đổi lịch";
+      case "PARTICIPATION_APPROVED": return "Đã duyệt tham gia";
+      case "PARTICIPATION_REJECTED": return "Từ chối tham gia";
+
+      // Admin/BTC
+      case "EVENT_SUBMITTED": return "Sự kiện đã gửi duyệt";
+      case "NEW_REGISTRATION": return "Đăng ký mới";
+      case "CHECKIN_NOTIFICATION": return "Thông báo điểm danh";
+      case "EVENT_FULL": return "Sự kiện đã đầy";
+      case "APPROVAL_REMINDER": return "Nhắc nhở duyệt";
+
+      // Superadmin
       case "EVENT_APPROVED": return "Duyệt sự kiện";
       case "EVENT_REJECTED": return "Từ chối sự kiện";
-      case "EVENT_UPDATED": return "Cập nhật sự kiện";
-      case "REGISTRATION_CONFIRMED": return "Xác nhận đăng ký";
-      case "CHECKIN_REMINDER": return "Nhắc nhở";
+      case "USER_REPORT": return "Báo cáo người dùng";
+      case "ESCALATION_REQUEST": return "Yêu cầu can thiệp";
+
+      // Hệ thống
+      case "SYSTEM": return "Hệ thống";
+      case "MAINTENANCE": return "Bảo trì hệ thống";
+      case "POLICY_UPDATE": return "Cập nhật chính sách";
+
+      // Khác
       case "INVITATION": return "Lời mời tham gia";
-      case "QUESTION_CREATED": return "Câu hỏi mới";
-      case "POLL_CREATED": return "Khảo sát mới";
+      case "REMINDER": return "Nhắc nhở";
+      case "ANNOUNCEMENT": return "Thông báo";
+      case "GENERAL": return "Thông báo chung";
+
+      // Kế hoạch & Tương tác
+      case "PLAN_CREATED": return "Kế hoạch đã tạo";
+      case "PLAN_SUBMITTED": return "Kế hoạch đã gửi duyệt";
+      case "PLAN_APPROVED": return "Kế hoạch được duyệt";
+      case "PLAN_REJECTED": return "Kế hoạch bị từ chối";
+      case "ACCOUNT_LOCKED": return "Tài khoản bị khóa";
+      case "COMMENT": return "Bình luận";
+      case "EVENT_REGISTRATION": return "Đăng ký sự kiện";
+      case "EVENT_FEEDBACK": return "Đánh giá sự kiện";
+      case "FEEDBACK_REPLY": return "Phản hồi đánh giá";
+
       default: return type;
+    }
+  };
+
+  const getNotificationColor = (type) => {
+    switch (type) {
+      case "REGISTRATION_CONFIRMED":
+      case "CHECKIN_SUCCESS":
+      case "PARTICIPATION_APPROVED":
+      case "EVENT_APPROVED":
+      case "PLAN_APPROVED":
+        return "bg-emerald-100 text-emerald-700";
+
+      case "CHECKIN_REMINDER":
+      case "APPROVAL_REMINDER":
+      case "REMINDER":
+        return "bg-amber-100 text-amber-700";
+
+      case "EVENT_STARTING_SOON":
+      case "POLICY_UPDATE":
+      case "GENERAL":
+      case "COMMENT":
+      case "FEEDBACK_REPLY":
+        return "bg-blue-100 text-blue-700";
+
+      case "EVENT_CANCELLED":
+      case "PARTICIPATION_REJECTED":
+      case "EVENT_REJECTED":
+      case "USER_REPORT":
+      case "PLAN_REJECTED":
+      case "ACCOUNT_LOCKED":
+        return "bg-red-100 text-red-700";
+
+      case "EVENT_RESCHEDULED":
+      case "ESCALATION_REQUEST":
+      case "EVENT_FULL":
+        return "bg-orange-100 text-orange-700";
+
+      case "EVENT_SUBMITTED":
+      case "PLAN_SUBMITTED":
+        return "bg-purple-100 text-purple-700";
+
+      case "NEW_REGISTRATION":
+      case "EVENT_REGISTRATION":
+        return "bg-indigo-100 text-indigo-700";
+
+      case "CHECKIN_NOTIFICATION":
+        return "bg-cyan-100 text-cyan-700";
+
+      case "SYSTEM":
+      case "MAINTENANCE":
+        return "bg-slate-100 text-slate-700";
+
+      case "INVITATION":
+        return "bg-pink-100 text-pink-700";
+
+      case "ANNOUNCEMENT":
+      case "EVENT_FEEDBACK":
+        return "bg-teal-100 text-teal-700";
+
+      default:
+        return "bg-gray-100 text-gray-700";
     }
   };
 
@@ -324,7 +421,7 @@ const NotificationManagement = ({
                     </div>
                   </td>
                   <td className="p-4">
-                    <span className="text-[11px] font-medium px-2.5 py-1 rounded-full bg-gray-100 text-gray-600">
+                    <span className={`text-[11px] font-semibold px-2.5 py-1 rounded-full whitespace-nowrap ${getNotificationColor(n.type)}`}>
                       {formatType(n.type)}
                     </span>
                   </td>

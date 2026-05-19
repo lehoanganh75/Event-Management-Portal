@@ -15,7 +15,7 @@ const EventInfo = ({ event, language, t }) => {
 
             <div>
               <h2 className="text-base font-semibold text-slate-800">
-                {t("event_intro")}
+                {"Giới thiệu sự kiện"}
               </h2>
 
               <p className="text-xs text-slate-400 mt-0.5">
@@ -39,7 +39,7 @@ const EventInfo = ({ event, language, t }) => {
               <Users size={16} className="text-indigo-500" />
 
               <h3 className="text-sm font-semibold text-slate-700">
-                {t("target_audience")}
+                {"Đối tượng tham gia"}
               </h3>
             </div>
 
@@ -55,7 +55,7 @@ const EventInfo = ({ event, language, t }) => {
                 ))
               ) : (
                 <span className="text-sm text-slate-400 italic">
-                  {t("everyone_welcome")}
+                  {"Mọi người quan tâm"}
                 </span>
               )}
             </div>
@@ -69,7 +69,7 @@ const EventInfo = ({ event, language, t }) => {
         <div className="px-6 py-4 border-b border-slate-100 bg-gradient-to-r from-indigo-50 to-white flex items-center justify-between">
           <div>
             <h2 className="text-base font-semibold text-slate-800">
-              {t("detailed_schedule")}
+              {"Lịch trình chi tiết"}
             </h2>
 
             <p className="text-xs text-slate-400 mt-0.5">
@@ -78,7 +78,7 @@ const EventInfo = ({ event, language, t }) => {
           </div>
 
           <div className="px-3 py-1 rounded-lg bg-white border border-slate-200 text-xs font-medium text-slate-600">
-            {event.sessions?.length || 0} {t("sessions_count")}
+            {event.sessions?.length || 0} {"Phiên"}
           </div>
         </div>
 
@@ -124,7 +124,7 @@ const EventInfo = ({ event, language, t }) => {
                           ? t("session_start")
                           : index === event.sessions.length - 1
                             ? t("session_end")
-                            : t("session_normal")}
+                            : "Phiên họp"}
                       </span>
 
                       {session.room && (
@@ -199,7 +199,7 @@ const EventInfo = ({ event, language, t }) => {
 
             <div>
               <h2 className="text-base font-semibold text-slate-800">
-                {t("presenters_guests")}
+                {"Diễn giả & Khách mời"}
               </h2>
 
               <p className="text-xs text-slate-400 mt-0.5">

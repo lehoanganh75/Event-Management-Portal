@@ -106,7 +106,7 @@ const CommentItem = ({
       {isAnon ? (
         <div
           className={`${isReply ? "w-8 h-8 text-sm" : "w-10 h-10 text-base"
-            } rounded-xl flex items-center justify-center bg-slate-100 border border-slate-200 text-slate-600`}
+            } rounded-full flex items-center justify-center bg-slate-100 border border-slate-200 text-slate-600`}
         >
           👤
         </div>
@@ -115,7 +115,7 @@ const CommentItem = ({
           src={avatar}
           alt="avatar"
           className={`${isReply ? "w-8 h-8" : "w-10 h-10"
-            } rounded-xl object-cover border border-slate-200`}
+            } rounded-full object-cover border border-slate-200`}
         />
       )}
 
@@ -130,7 +130,7 @@ const CommentItem = ({
 
               {String(author?.id) === String(post?.author?.id) && (
                 <span className="text-[10px] px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 font-medium">
-                  {t("author_label")}
+                  {"Tác giả"}
                 </span>
               )}
             </div>
@@ -188,7 +188,7 @@ const CommentItem = ({
               }`}
           >
             <ThumbsUp size={13} />
-            {hasLikedComment ? t("liked_label") : t("like")}
+            {hasLikedComment ? "Đã thích" : "Thích"}
           </button>
 
           <button
@@ -199,7 +199,7 @@ const CommentItem = ({
             className="flex items-center gap-1 text-slate-500 hover:text-slate-700 transition btn-reply-trigger"
           >
             <MessageCircle size={13} />
-            {language === "VI" ? "Trả lời" : t("reply")}
+            {language === "VI" ? "Trả lời" : "Phản hồi"}
           </button>
 
           <span className="text-slate-400">
@@ -213,7 +213,7 @@ const CommentItem = ({
             onClick={() => setShowReplies(true)}
             className="mt-2 ml-2 text-[13px] text-slate-500 hover:text-slate-700 font-medium"
           >
-            {t("view_replies").replace(
+            {"Xem {{count}} phản hồi".replace(
               "{{count}}",
               comment.replies.length
             )}
@@ -254,7 +254,7 @@ const CommentItem = ({
             {/* Custom local loading reply placeholder */}
             {isSubmittingLocal && (
               <div className="flex gap-3 ml-8 mt-3 animate-pulse opacity-70">
-                <div className="w-8 h-8 rounded-xl overflow-hidden border border-slate-200">
+                <div className="w-8 h-8 rounded-full overflow-hidden border border-slate-200">
                   <img
                     src={currentUser?.avatarUrl || `https://api.dicebear.com/7.x/initials/svg?seed=${currentUser?.fullName || "User"}`}
                     alt="avatar"
@@ -280,7 +280,7 @@ const CommentItem = ({
                 onClick={() => setShowReplies(false)}
                 className="ml-2 text-[12px] text-slate-400 hover:text-slate-600 block mt-2"
               >
-                {t("hide_replies")}
+                {"Ẩn phản hồi"}
               </button>
             )}
           </div>
@@ -289,7 +289,7 @@ const CommentItem = ({
         {/* Reply Input */}
         {activeReplyId === comment.id && (
           <div className="mt-3 flex gap-2 reply-input-container">
-            <div className="w-8 h-8 rounded-xl overflow-hidden border border-slate-200">
+            <div className="w-8 h-8 rounded-full overflow-hidden border border-slate-200">
               <img
                 src={
                   currentUser?.avatarUrl ||
@@ -357,7 +357,7 @@ const CommentItem = ({
                 onChange={(e) =>
                   setReplyContent(e.target.value)
                 }
-                placeholder={`${t("write_reply")} ${author?.fullName}...`}
+                placeholder={`${"Phản hồi"} ${author?.fullName}...`}
                 className="w-full bg-white border border-slate-300 rounded-2xl px-4 py-3 text-sm resize-none outline-none focus:border-slate-400 min-h-[42px]"
               />
 

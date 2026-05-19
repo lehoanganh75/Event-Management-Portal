@@ -38,7 +38,7 @@ const NotificationDropdown = ({
           <div className="px-6 py-5 border-b border-slate-100 bg-slate-50/50">
             <div className="flex items-center justify-between mb-1">
               <h3 className="text-[16px] font-semibold text-slate-900">
-                {t("notifications")}
+                {"Thông báo"}
               </h3>
 
               {unreadCount > 0 && (
@@ -63,15 +63,15 @@ const NotificationDropdown = ({
                   ) : (
                     <Check size={12} />
                   )}
-                  {t("mark_all_read")}
+                  {"Đánh dấu tất cả đã đọc"}
                 </button>
               )}
             </div>
 
             <p className="text-[12px] text-slate-500">
               {unreadCount > 0
-                ? `${t("you_have")} ${unreadCount} ${t("new_notifications_suffix")}`
-                : t("no_unread_notifications")}
+                ? `${"Bạn có"} ${unreadCount} ${"thông báo mới"}`
+                : "Không có thông báo mới"}
             </p>
           </div>
 
@@ -151,7 +151,7 @@ const NotificationDropdown = ({
                   <Bell size={28} className="text-slate-300" />
                 </div>
                 <p className="text-[13px] font-medium text-slate-400">
-                  {t("no_notifications")}
+                  {"Không có thông báo mới"}
                 </p>
               </div>
             )}
@@ -177,7 +177,7 @@ const NotificationDropdown = ({
                   flex items-center justify-center gap-2
                 "
               >
-                {t("view_all_notifications")}
+                {"Xem tất cả thông báo"}
                 <ArrowRight size={14} />
               </button>
             </div>

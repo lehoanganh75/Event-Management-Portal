@@ -20,11 +20,11 @@ const NewsBanner = ({ t }) => {
           {/* Content */}
           <div>
             <h1 className="text-3xl md:text-4xl font-bold tracking-tight mb-1">
-              {t("news_banner_title")}
+              {"Bảng tin sự kiện"}
             </h1>
 
             <p className="text-sm md:text-base text-blue-100">
-              {t("news_banner_subtitle")}
+              {"Khám phá các câu chuyện và khoảnh khắc từ sự kiện của chúng tôi"}
             </p>
           </div>
         </div>

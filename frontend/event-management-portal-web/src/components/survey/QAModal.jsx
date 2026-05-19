@@ -14,19 +14,22 @@ import SockJS from 'sockjs-client';
 import eventService from '../../services/eventService';
 import { toast } from 'react-toastify';
 
-const QAModal = ({ isOpen, onClose, eventId }) => {
+const QAModal = ({ isOpen, onClose, eventId, event }) => {
   const { user } = useAuth();
 
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState("");
   const [loading, setLoading] = useState(false);
   const [stompClient, setStompClient] = useState(null);
+  const [isCheckingAI, setIsCheckingAI] = useState(false);
+  const [qaEnabled, setQaEnabled] = useState(true);
 
   const scrollRef = useRef(null);
 
   useEffect(() => {
     if (isOpen) {
       fetchMessages();
+      fetchQAStatus();
       connectWebSocket();
     } else {
       if (stompClient) {
@@ -34,6 +37,15 @@ const QAModal = ({ isOpen, onClose, eventId }) => {
       }
     }
   }, [isOpen]);
+
+  const fetchQAStatus = async () => {
+    try {
+      const res = await eventService.getQAStatus(eventId);
+      setQaEnabled(res.data);
+    } catch (err) {
+      console.error("Error fetching QA status:", err);
+    }
+  };
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -69,6 +81,11 @@ const QAModal = ({ isOpen, onClose, eventId }) => {
           `/topic/qa/${eventId}`,
           (message) => {
             const receivedMsg = JSON.parse(message.body);
+
+            if (receivedMsg.senderAccountId === "SYSTEM" && receivedMsg.id === "SYSTEM_QA_STATUS") {
+              setQaEnabled(receivedMsg.content === "QA_STATUS:OPEN");
+              return;
+            }
 
             setMessages((prev) => {
               const index = prev.findIndex(
@@ -131,11 +148,12 @@ const QAModal = ({ isOpen, onClose, eventId }) => {
   };
 
   const handleSendMessage = async () => {
-    if (!newMessage.trim() || !stompClient) return;
+    if (!newMessage.trim() || !stompClient || isCheckingAI) return;
 
     const messageToSend = newMessage;
-
     setNewMessage("");
+    setIsCheckingAI(true);
+    let proceed = true;
 
     try {
       const prompt = `
@@ -154,12 +172,15 @@ const QAModal = ({ isOpen, onClose, eventId }) => {
         toast.error(
           "Tin nhắn chứa nội dung không phù hợp"
         );
-
-        return;
+        proceed = false;
       }
     } catch (err) {
       console.error(err);
+    } finally {
+      setIsCheckingAI(false);
     }
+
+    if (!proceed) return;
 
     const msgDto = {
       senderAccountId: user.id,
@@ -313,36 +334,66 @@ const QAModal = ({ isOpen, onClose, eventId }) => {
         </div>
 
         {/* Input */}
-        <div className="border-t border-slate-200 p-4 bg-white">
-          <div className="flex items-center gap-3">
-            <input
-              type="text"
-              value={newMessage}
-              onChange={(e) =>
-                setNewMessage(e.target.value)
-              }
-              onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                  handleSendMessage();
-                }
-              }}
-              placeholder="Nhập câu hỏi..."
-              className="flex-1 border border-slate-300 rounded-xl px-4 py-3 text-sm outline-none focus:border-indigo-500"
-            />
+        {(() => {
+          const isOngoing = event?.status === "ONGOING";
+          const isInputDisabled = isCheckingAI || !isOngoing || !qaEnabled;
 
-            <button
-              onClick={handleSendMessage}
-              disabled={!newMessage.trim()}
-              className="w-11 h-11 rounded-xl bg-indigo-600 text-white flex items-center justify-center hover:bg-indigo-700 disabled:opacity-50 transition"
-            >
-              <Send size={18} />
-            </button>
-          </div>
+          let placeholderText = "Nhập câu hỏi...";
+          if (isCheckingAI) {
+            placeholderText = "Đang kiểm duyệt...";
+          } else if (!isOngoing) {
+            placeholderText = "Q&A chỉ khả dụng khi sự kiện đang diễn ra.";
+          } else if (!qaEnabled) {
+            placeholderText = "Ban tổ chức tạm thời đóng đặt câu hỏi Q&A.";
+          }
 
-          <p className="text-[11px] text-slate-400 mt-2">
-            Nội dung sẽ được kiểm duyệt tự động
-          </p>
-        </div>
+          return (
+            <div className="border-t border-slate-200 p-4 bg-white">
+              <div className="flex items-center gap-3">
+                <input
+                  type="text"
+                  value={newMessage}
+                  onChange={(e) => setNewMessage(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      handleSendMessage();
+                    }
+                  }}
+                  placeholder={placeholderText}
+                  disabled={isInputDisabled}
+                  className="flex-1 border border-slate-300 rounded-xl px-4 py-3 text-sm outline-none focus:border-indigo-500 disabled:bg-slate-50 disabled:text-slate-400"
+                />
+
+                <button
+                  onClick={handleSendMessage}
+                  disabled={!newMessage.trim() || isInputDisabled}
+                  className="w-11 h-11 rounded-xl bg-indigo-600 text-white flex items-center justify-center hover:bg-indigo-700 disabled:opacity-50 transition shrink-0"
+                >
+                  {isCheckingAI ? <Loader2 size={18} className="animate-spin" /> : <Send size={18} />}
+                </button>
+              </div>
+
+              <p className="text-[11px] text-slate-400 mt-2">
+                {isCheckingAI ? (
+                  <span className="text-indigo-600 font-medium flex items-center gap-1.5 animate-pulse">
+                    <Loader2 size={12} className="animate-spin" />
+                    AI đang kiểm duyệt nội dung tin nhắn...
+                  </span>
+                ) : !isOngoing ? (
+                  <span className="text-amber-600 font-semibold">
+                    Q&A chưa mở vì sự kiện chưa bắt đầu hoặc đã kết thúc.
+                  </span>
+                ) : !qaEnabled ? (
+                  <span className="text-rose-500 font-semibold">
+                    Ban tổ chức đã khóa tính năng đặt câu hỏi.
+                  </span>
+                ) : (
+                  "Nội dung sẽ được kiểm duyệt tự động"
+                )}
+              </p>
+            </div>
+          );
+        })()}
       </motion.div>
     </div>
   );

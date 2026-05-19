@@ -27,7 +27,7 @@ const EventHero = ({ event, language, t }) => {
           className="group bg-white/10 backdrop-blur-md hover:bg-white/20 text-white border border-white/20 px-4 py-2 rounded-2xl flex items-center gap-2 transition-all active:scale-95"
         >
           <ArrowLeft size={18} className="group-hover:-translate-x-1 transition-transform" />
-          <span className="font-semibold text-sm">{t('back_btn')}</span>
+          <span className="font-semibold text-sm">{"Quay lại"}</span>
         </button>
       </div>
 
@@ -41,7 +41,7 @@ const EventHero = ({ event, language, t }) => {
           >
             <div className="flex flex-wrap gap-2 mb-4">
               <span className="bg-indigo-600 text-white text-[10px] font-bold uppercase tracking-widest px-3 py-1 rounded-md shadow-sm">
-                {event.type || t('event_type')}
+                {event.type || "Loại sự kiện"}
               </span>
               {event.hasLuckyDraw && (
                 <span className="bg-amber-500 text-white text-[10px] font-bold uppercase tracking-widest px-3 py-1 rounded-md flex items-center gap-1.5 shadow-sm">
@@ -64,7 +64,7 @@ const EventHero = ({ event, language, t }) => {
                   <Calendar size={20} className="text-white" />
                 </div>
                 <div>
-                  <p className="text-[10px] font-bold text-white/60 uppercase tracking-widest mb-0.5">{t('event_date_label')}</p>
+                  <p className="text-[10px] font-bold text-white/60 uppercase tracking-widest mb-0.5">{"Ngày diễn ra"}</p>
                   <p className="font-semibold text-sm md:text-base">
                     {event.startTime ? new Date(event.startTime).toLocaleDateString(language === 'VI' ? 'vi-VN' : 'en-US', { day: '2-digit', month: '2-digit', year: 'numeric' }) : "12/05/2026"}
                   </p>
@@ -75,7 +75,7 @@ const EventHero = ({ event, language, t }) => {
                   <MapPin size={20} className="text-white" />
                 </div>
                 <div>
-                  <p className="text-[10px] font-bold text-white/60 uppercase tracking-widest mb-0.5">{t('location_label')}</p>
+                  <p className="text-[10px] font-bold text-white/60 uppercase tracking-widest mb-0.5">{"Địa điểm"}</p>
                   <p className="font-semibold text-sm md:text-base">{event.location}</p>
                 </div>
               </div>

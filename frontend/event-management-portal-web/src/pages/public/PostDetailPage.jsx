@@ -188,7 +188,7 @@ export default function PostDetailPage() {
   const handleDeleteComment = async (commentId) => {
     // Optimistic update
     setComments(prev => removeCommentFromTree(prev, commentId));
-    
+
     try {
       await eventService.deleteComment(commentId);
     } catch (err) {
@@ -227,7 +227,7 @@ export default function PostDetailPage() {
               className="flex items-center gap-2 text-blue-100 hover:text-white mb-8 transition-colors group"
             >
               <ArrowLeft size={20} className="group-hover:-translate-x-1 transition-transform" />
-              <span className="font-medium">Quay lại Tin tức</span>
+              <span className="font-medium">Quay lại</span>
             </button>
 
             <div className="mb-6">

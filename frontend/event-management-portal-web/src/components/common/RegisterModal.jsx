@@ -8,7 +8,7 @@ const RegisterModal = ({ isOpen, onClose, onConfirm, event, isRegistering, error
   if (!isOpen) return null;
 
   const formatDateTime = (iso) => {
-    if (!iso) return t('not_updated');
+    if (!iso) return "Chưa cập nhật";
     const d = new Date(iso);
     const locale = language === 'VI' ? 'vi-VN' : 'en-US';
     return `${d.toLocaleTimeString(locale, { hour: "2-digit", minute: "2-digit" })} • ${d.toLocaleDateString(locale, { day: "2-digit", month: "2-digit", year: "numeric" })}`;
@@ -57,10 +57,10 @@ const RegisterModal = ({ isOpen, onClose, onConfirm, event, isRegistering, error
                 </div>
                 <div>
                   <h3 className="text-xl font-bold text-gray-900">
-                    {isGuest ? t('login_required_title') : t('confirm_reg_title')}
+                    {isGuest ? "Yêu cầu đăng nhập" : "Xác nhận đăng ký"}
                   </h3>
                   <p className="text-gray-500 text-sm">
-                    {isGuest ? t('need_login_desc') : t('performing_reg_desc')}
+                    {isGuest ? "Bạn cần đăng nhập để tiếp tục" : "Bạn đang thực hiện đăng ký tham gia sự kiện"}
                   </p>
                 </div>
               </div>
@@ -97,7 +97,7 @@ const RegisterModal = ({ isOpen, onClose, onConfirm, event, isRegistering, error
                   onClick={onClose}
                   className="flex-1 px-6 py-3.5 border border-gray-200 text-gray-600 font-semibold rounded-2xl hover:bg-gray-50 transition-colors active:scale-95"
                 >
-                  {t('cancel_btn')}
+                  {"Hủy bỏ"}
                 </button>
                 <button
                   onClick={onConfirm}
@@ -107,18 +107,18 @@ const RegisterModal = ({ isOpen, onClose, onConfirm, event, isRegistering, error
                   {isRegistering ? (
                     <>
                       <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                      <span>{t('processing')}</span>
+                      <span>{"Đang xử lý..."}</span>
                     </>
                   ) : (
-                    t('confirm_now')
+                    "Xác nhận ngay"
                   )}
                 </button>
               </div>
 
               <p className="text-center text-xs text-gray-400 mt-6">
                 {isGuest 
-                  ? t('guest_note')
-                  : t('member_note')}
+                  ? "Vui lòng đăng nhập để có thể tham gia các hoạt động của sự kiện."
+                  : "Bằng cách nhấn xác nhận, bạn đồng ý với các điều khoản tham gia của sự kiện này."}
               </p>
             </div>
           </motion.div>

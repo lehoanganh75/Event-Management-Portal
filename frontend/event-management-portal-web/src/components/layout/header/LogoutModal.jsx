@@ -104,7 +104,7 @@ const LogoutModal = ({
                   mb-2
                 "
               >
-                {t("confirm_logout_title")}
+                {"Đăng xuất?"}
               </h3>
 
               {/* Desc */}
@@ -115,7 +115,7 @@ const LogoutModal = ({
                   leading-relaxed
                 "
               >
-                {t("confirm_logout_question")}
+                {"Bạn có chắc chắn muốn rời khỏi hệ thống ngay bây giờ không?"}
               </p>
 
               {/* Actions */}
@@ -134,7 +134,7 @@ const LogoutModal = ({
                     transition
                   "
                 >
-                  {t("cancel")}
+                  {"Hủy"}
                 </button>
 
                 <button
@@ -152,7 +152,7 @@ const LogoutModal = ({
                     shadow-sm
                   "
                 >
-                  {t("logout")}
+                  {"Đăng xuất"}
                 </button>
               </div>
             </div>

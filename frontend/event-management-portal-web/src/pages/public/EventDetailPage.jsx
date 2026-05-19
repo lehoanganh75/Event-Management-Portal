@@ -144,7 +144,7 @@ export default function EventDetail() {
 
   const confirmRegistration = async () => {
     if (!user) {
-      toast.info(t('reg_redirect'), { autoClose: 2000 });
+      toast.info("Đang chuyển hướng đến trang đăng nhập để đăng ký tham gia sự kiện!", { autoClose: 2000 });
       setShowRegisterModal(false);
       setTimeout(() => navigate("/login"), 2000);
       return;
@@ -153,11 +153,11 @@ export default function EventDetail() {
     setIsRegistering(true);
     try {
       await eventService.registerEvent(event.id);
-      toast.success(t('reg_success'));
+      toast.success("Đăng ký thành công!");
       setShowRegisterModal(false);
       setTimeout(() => fetchEvent(), 1000);
     } catch (error) {
-      const msg = error.response?.data?.message || t('reg_failed');
+      const msg = error.response?.data?.message || "Đăng ký thất bại";
       setRegistrationError(msg);
       toast.error(msg);
     } finally {
@@ -169,10 +169,10 @@ export default function EventDetail() {
     setShowScanner(false);
     try {
       await eventService.checkInByEventToken(token);
-      toast.success(t('checkin_success'));
+      toast.success("Điểm danh thành công!");
       await fetchEvent();
     } catch (err) {
-      toast.error(err.response?.data?.message || t('invalid_qr'));
+      toast.error(err.response?.data?.message || "Mã QR không hợp lệ");
     }
   };
 
@@ -180,14 +180,14 @@ export default function EventDetail() {
     setIsRegistering(true);
     try {
       await eventService.cancelRegistration(event.id);
-      toast.success(t('cancel_success'));
+      toast.success("Đã hủy đăng ký");
       setShowCancelModal(false);
       setTimeout(async () => {
         await fetchEvent();
         setShowTicket(false);
       }, 1000);
     } catch (error) {
-      toast.error(t('reg_failed'));
+      toast.error("Đăng ký thất bại");
     } finally {
       setIsRegistering(false);
     }
@@ -198,13 +198,13 @@ export default function EventDetail() {
       <div className="min-h-screen flex items-center justify-center bg-gray-50 font-sans">
         <div className="flex flex-col items-center">
           <div className="w-16 h-16 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin"></div>
-          <p className="mt-6 text-gray-500 font-medium tracking-tight animate-pulse">{t('initializing')}</p>
+          <p className="mt-6 text-gray-500 font-medium tracking-tight animate-pulse">{"Khởi tạo không gian sự kiện..."}</p>
         </div>
       </div>
     );
   }
 
-  if (!event) return <div>{t('event_not_found')}</div>;
+  if (!event) return <div>{"Không tìm thấy sự kiện"}</div>;
 
   const role = event.currentUserRole || {};
   const isSystemAdmin = ["SUPER_ADMIN", "ADMIN"].includes(user?.role?.toUpperCase());
@@ -231,6 +231,7 @@ export default function EventDetail() {
 
             <EventFeedback
               eventId={event.id}
+              event={event}
               role={role}
               t={t}
               setShowFeedbackModal={setShowFeedbackModal}

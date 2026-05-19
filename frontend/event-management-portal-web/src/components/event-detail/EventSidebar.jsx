@@ -39,7 +39,7 @@ const EventSidebar = ({
       {event.organization && (
         <div className="bg-white border border-gray-200 rounded-2xl p-5">
           <p className="text-[11px] font-medium text-gray-500 uppercase tracking-wide mb-4">
-            {t("organizer_label")}
+            {"Đơn vị tổ chức"}
           </p>
 
           <div className="flex items-center gap-4">
@@ -73,11 +73,11 @@ const EventSidebar = ({
         <div className="flex items-center justify-between mb-5">
           <div>
             <p className="text-2xl font-bold text-indigo-600">
-              {t("free_label")}
+              {"Miễn phí"}
             </p>
 
             <p className="text-[11px] text-gray-500 mt-1">
-              {t("internal_event")}
+              {"Sự kiện nội bộ"}
             </p>
           </div>
 
@@ -106,7 +106,7 @@ const EventSidebar = ({
           <div className="grid grid-cols-3 gap-3 mt-4 text-center">
             <div>
               <p className="text-[10px] text-gray-500 uppercase">
-                {t("total_label")}
+                {"Tổng cộng"}
               </p>
 
               <p className="text-sm font-semibold text-gray-800 mt-1">
@@ -116,7 +116,7 @@ const EventSidebar = ({
 
             <div className="border-x border-gray-100">
               <p className="text-[10px] text-gray-500 uppercase">
-                {t("registered_label")}
+                {"Đã đăng ký"}
               </p>
 
               <p className="text-sm font-semibold text-emerald-600 mt-1">
@@ -126,7 +126,7 @@ const EventSidebar = ({
 
             <div>
               <p className="text-[10px] text-gray-500 uppercase">
-                {t("deadline_label")}
+                {"Thời hạn"}
               </p>
 
               <p className="text-[11px] font-medium text-gray-700 mt-1">
@@ -172,7 +172,7 @@ const EventSidebar = ({
             isSystemAdmin ? (
             <>
               <ShieldCheck size={18} />
-              {t("org_dashboard")}
+              {"Bảng điều khiển BTC"}
             </>
           ) : role.registered &&
             role.registration?.status !== "CANCELLED" ? (
@@ -180,19 +180,19 @@ const EventSidebar = ({
               {role.registration?.checkedIn ? (
                 <>
                   <QrCode size={18} />
-                  {t("checked_in_status")}
+                  {"Đã điểm danh ✓"}
                 </>
               ) : (
                 <>
                   <Camera size={18} />
-                  {t("scan_checkin")}
+                  {"Quét mã điểm danh"}
                 </>
               )}
             </>
           ) : isDeadlinePassed(event.registrationDeadline) ? (
-            t("reg_deadline_passed")
+            "Hết hạn đăng ký"
           ) : (
-            t("register_now")
+            "Đăng ký ngay"
           )}
         </button>
 
@@ -211,7 +211,7 @@ const EventSidebar = ({
                   onClick={() => setShowCancelModal(true)}
                   className="w-full text-sm text-rose-500 hover:text-rose-600"
                 >
-                  {t("cancel_reg")}
+                  {"Hủy đăng ký tham gia"}
                 </button>
               ) : (
                 <div className="text-center text-[11px] text-gray-400">
@@ -296,7 +296,7 @@ const EventSidebar = ({
         </p>
 
         <button className="flex items-center gap-1 text-sm font-medium hover:gap-2 transition-all">
-          {t("explore_more")}
+          {"Tìm hiểu thêm"}
           <ChevronRight size={16} />
         </button>
       </div>

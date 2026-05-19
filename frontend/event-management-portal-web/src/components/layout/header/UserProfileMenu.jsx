@@ -29,12 +29,12 @@ const UserProfileMenu = ({
 
   const menuItems = [
     {
-      label: t("profile"),
+      label: "Hồ sơ cá nhân",
       icon: User,
       path: "/profile",
     },
     {
-      label: t("my_events"),
+      label: "Sự kiện của tôi",
       icon: Calendar,
       path: "/guest-events",
       show:
@@ -44,7 +44,7 @@ const UserProfileMenu = ({
     },
 
     {
-      label: t("admin_dashboard"),
+      label: "Bảng điều khiển Admin",
       icon: ShieldCheck,
       path: "/admin/dashboard",
       show: isSuperAdmin() || isAdminOnly(),
@@ -56,7 +56,7 @@ const UserProfileMenu = ({
       show: hasRole("MEMBER"),
     },
     {
-      label: t("org_dashboard"),
+      label: "Bảng điều khiển BTC",
       icon: LayoutDashboard,
       path: "/lecturer/dashboard",
       show:
@@ -288,7 +288,7 @@ const UserProfileMenu = ({
                 />
 
                 <span className="text-[13px] font-medium">
-                  {t("logout")}
+                  {"Đăng xuất"}
                 </span>
               </button>
             </div>

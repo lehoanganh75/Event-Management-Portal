@@ -79,13 +79,19 @@ const LandingEventCard = ({
               backdrop-blur-sm
               ${event.status === "ONGOING"
                 ? "bg-emerald-500/90"
-                : "bg-[#1E40AF]/90"
+                : event.status === "COMPLETED"
+                  ? "bg-slate-500/90"
+                  : "bg-[#1E40AF]/90"
               }
             `}
           >
             {event.status === "ONGOING"
-              ? t("ongoing")
-              : t("upcoming")}
+              ? "Đang diễn ra"
+              : event.status === "COMPLETED"
+                ? "Đã kết thúc"
+                : (event.status === "UPCOMING" || event.status === "PUBLISHED")
+                  ? "Sắp diễn ra"
+                  : t ? t(event.status) : event.status}
           </span>
         </div>
 
@@ -102,7 +108,7 @@ const LandingEventCard = ({
               font-medium
             "
           >
-            {event.type || t("event_type")}
+            {event.type || "Loại sự kiện"}
           </span>
         </div>
       </div>
@@ -149,14 +155,14 @@ const LandingEventCard = ({
         </h3>
 
         {/* Info */}
-        <div className="flex items-center justify-between gap-4 text-[12px] text-slate-600 mb-4">
-          <div className="flex items-center gap-2 min-w-0">
+        <div className="flex items-start justify-between gap-4 text-[12px] text-slate-600 mb-4">
+          <div className="flex items-start gap-2 min-w-0 flex-1">
             <MapPin
               size={13}
-              className="text-slate-400 shrink-0"
+              className="text-slate-400 shrink-0 mt-0.5"
             />
 
-            <span className="line-clamp-1 truncate">
+            <span className="line-clamp-2 text-left" title={event.location || "IUH Campus"}>
               {event.location || "IUH Campus"}
             </span>
           </div>
@@ -192,7 +198,7 @@ const LandingEventCard = ({
               transition-colors
             "
           >
-            {t("details")}
+            {"Chi tiết"}
           </span>
 
           <div

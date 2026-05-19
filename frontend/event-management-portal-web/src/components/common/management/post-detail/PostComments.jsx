@@ -62,7 +62,7 @@ const PostComments = ({
     <div className="px-4 py-3 bg-white border-t border-slate-100">
       <div className="flex items-center justify-between mb-3">
         <h4 className="text-sm font-semibold text-slate-800">
-          {t("comment")}
+          {"Bình luận"}
         </h4>
 
         <div className="relative">
@@ -71,10 +71,10 @@ const PostComments = ({
             className="flex items-center gap-1.5 text-sm font-medium text-slate-500 hover:text-slate-800 transition"
           >
             {sortBy === "relevant"
-              ? t("sort_relevant")
+              ? "Phù hợp nhất"
               : sortBy === "newest"
-                ? t("sort_newest")
-                : t("sort_all")}
+                ? "Mới nhất"
+                : "Tất cả bình luận"}
             <MoreHorizontal size={15} className="rotate-90" />
           </button>
 
@@ -99,18 +99,18 @@ const PostComments = ({
                 {[
                   {
                     id: "relevant",
-                    label: t("sort_relevant"),
-                    desc: t("sort_relevant_desc"),
+                    label: "Phù hợp nhất",
+                    desc: "Hiển thị bình luận có nhiều lượt tương tác nhất trước tiên.",
                   },
                   {
                     id: "newest",
-                    label: t("sort_newest"),
-                    desc: t("sort_newest_desc"),
+                    label: "Mới nhất",
+                    desc: "Hiển thị tất cả bình luận, mới nhất trước tiên.",
                   },
                   {
                     id: "all",
-                    label: t("sort_all"),
-                    desc: t("sort_all_desc"),
+                    label: "Tất cả bình luận",
+                    desc: "Hiển thị tất cả bình luận, bao gồm cả nội dung có thể là spam.",
                   },
                 ].map((opt) => (
                   <button
@@ -145,7 +145,7 @@ const PostComments = ({
             <div className="shrink-0 mt-1">
               {isMainAnonEnabled ? (
                 <div
-                  className={`w-9 h-9 rounded-lg flex items-center justify-center text-base border border-slate-200 ${currentMainAnonIdentity.color}`}
+                  className={`w-9 h-9 rounded-full flex items-center justify-center text-base border border-slate-200 ${currentMainAnonIdentity.color}`}
                 >
                   {currentMainAnonIdentity.icon}
                 </div>
@@ -156,7 +156,7 @@ const PostComments = ({
                     `https://api.dicebear.com/7.x/initials/svg?seed=${currentUser?.fullName || "User"
                     }`
                   }
-                  className="w-9 h-9 rounded-lg object-cover border border-slate-200"
+                  className="w-9 h-9 rounded-full object-cover border border-slate-200"
                   alt="User"
                 />
               )}
@@ -253,7 +253,7 @@ const PostComments = ({
                   ref={mainTextareaRef}
                   value={commentContent}
                   onChange={(e) => setCommentContent(e.target.value)}
-                  placeholder={t("write_comment")}
+                  placeholder={"Viết bình luận..."}
                   className="
                     w-full
                     min-h-[48px]
@@ -291,16 +291,16 @@ const PostComments = ({
                       >
                         <span
                           className={`inline-block h-5 w-5 rounded-full bg-white shadow-sm transition ${isMainAnonEnabled
-                              ? "translate-x-4"
-                              : "translate-x-0"
+                            ? "translate-x-4"
+                            : "translate-x-0"
                             }`}
                         />
                       </button>
 
                       <span
                         className={`text-xs font-medium ${isMainAnonEnabled
-                            ? "text-emerald-600"
-                            : "text-slate-400"
+                          ? "text-emerald-600"
+                          : "text-slate-400"
                           }`}
                       >
                         {language === "VI" ? "Ẩn danh" : "Anonymous"}
@@ -319,8 +319,8 @@ const PostComments = ({
                       type="button"
                       onClick={() => setShowEmojiPicker(!showEmojiPicker)}
                       className={`w-9 h-9 rounded-lg flex items-center justify-center transition ${showEmojiPicker
-                          ? "bg-amber-50 text-amber-500"
-                          : "text-slate-500 hover:bg-slate-100 hover:text-amber-500"
+                        ? "bg-amber-50 text-amber-500"
+                        : "text-slate-500 hover:bg-slate-100 hover:text-amber-500"
                         }`}
                     >
                       <Smile size={18} />
@@ -392,7 +392,7 @@ const PostComments = ({
                 <div className="shrink-0 mt-1">
                   {isMainAnonEnabled ? (
                     <div
-                      className={`w-9 h-9 rounded-lg flex items-center justify-center text-base border border-slate-200 ${currentMainAnonIdentity.color}`}
+                      className={`w-9 h-9 rounded-full flex items-center justify-center text-base border border-slate-200 ${currentMainAnonIdentity.color}`}
                     >
                       {currentMainAnonIdentity.icon}
                     </div>
@@ -403,7 +403,7 @@ const PostComments = ({
                         `https://api.dicebear.com/7.x/initials/svg?seed=${currentUser?.fullName || "User"
                         }`
                       }
-                      className="w-9 h-9 rounded-lg object-cover border border-slate-200"
+                      className="w-9 h-9 rounded-full object-cover border border-slate-200"
                       alt="User"
                     />
                   )}
@@ -460,7 +460,7 @@ const PostComments = ({
                 onClick={() => setVisibleCommentsCount((prev) => prev + 10)}
                 className="w-full h-10 text-sm font-medium text-[#1E40AF] hover:bg-blue-50 rounded-lg transition mt-3"
               >
-                {t("load_more_comments")}
+                {"Xem thêm bình luận"}
               </button>
             )}
 
@@ -470,7 +470,7 @@ const PostComments = ({
                   <MessageCircle size={24} />
                 </div>
                 <p className="text-sm text-slate-400">
-                  {t("no_comments_yet")}
+                  {"Chưa có bình luận nào"}
                 </p>
               </div>
             )}
@@ -478,7 +478,7 @@ const PostComments = ({
         </div>
       ) : (
         <div className="py-8 text-center bg-slate-50 rounded-xl border border-dashed border-slate-200">
-          <p className="text-sm text-slate-400">{t("comments_disabled")}</p>
+          <p className="text-sm text-slate-400">{"Bình luận đã bị tắt."}</p>
         </div>
       )}
     </div>

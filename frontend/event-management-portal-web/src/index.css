@@ -104,3 +104,49 @@ input:-webkit-autofill:focus {
   color: var(--placeholder-color, #9ca3af);
   opacity: 0.8;
 }
+
+/* Ẩn hoàn toàn thanh công cụ Google Translate và các khung liên quan */
+iframe.goog-te-banner-frame,
+.goog-te-banner-frame,
+.goog-te-banner-frame.skiptranslate,
+.goog-te-banner,
+.goog-spelling-page,
+iframe[class*="VIpgJd-ZVi9od-"],
+[class*="VIpgJd-ZVi9od-"],
+.VIpgJd-ZVi9od-aTabbedMode,
+.VIpgJd-ZVi9od-aTabbedMode-active {
+  display: none !important;
+  visibility: hidden !important;
+  height: 0 !important;
+  width: 0 !important;
+  opacity: 0 !important;
+}
+
+body {
+  top: 0px !important;
+  position: static !important;
+}
+
+/* Ẩn bong bóng hiển thị bản dịch gốc khi hover chuột */
+#goog-gt-tt,
+.goog-te-balloon-frame,
+#goog-gt-tt.skiptranslate,
+.goog-tooltip,
+.goog-tooltip:hover {
+  display: none !important;
+  visibility: hidden !important;
+}
+
+.goog-text-highlight {
+  background-color: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+
+.goog-te-gadget {
+  display: none !important;
+}
+
+.notranslate {
+  translate: no;
+}

@@ -85,6 +85,24 @@ public class UserServiceImpl implements UserService {
         if (updatedProfile.getAvatarUrl() != null)
             user.setAvatarUrl(updatedProfile.getAvatarUrl());
 
+        if (updatedProfile.getEmail() != null && !updatedProfile.getEmail().isBlank()) {
+            userRepository.findByEmail(updatedProfile.getEmail().trim()).ifPresent(existing -> {
+                if (!existing.getId().equals(userId)) {
+                    throw new ResponseStatusException(HttpStatus.CONFLICT, "Email đã được sử dụng bởi tài khoản khác.");
+                }
+            });
+            user.setEmail(updatedProfile.getEmail().trim());
+        }
+
+        if (updatedProfile.getUsername() != null && !updatedProfile.getUsername().isBlank()) {
+            userRepository.findByUsername(updatedProfile.getUsername().trim()).ifPresent(existing -> {
+                if (!existing.getId().equals(userId)) {
+                    throw new ResponseStatusException(HttpStatus.CONFLICT, "Tên đăng nhập đã tồn tại.");
+                }
+            });
+            user.setUsername(updatedProfile.getUsername().trim());
+        }
+
         return toUserResponse(userRepository.save(user));
     }
 

@@ -13,7 +13,7 @@ const CalendarGrid = ({
   categoryColors,
   defaultColor,
 }) => {
-  const daysHeader = [t("mon"), t("tue"), t("wed"), t("thu"), t("fri"), t("sat"), t("sun")];
+  const daysHeader = ["Thứ 2", "Thứ 3", "Thứ 4", "Thứ 5", "Thứ 6", "Thứ 7", "Chủ nhật"];
 
   const renderCells = () => {
     const rows = [];
@@ -63,7 +63,7 @@ const CalendarGrid = ({
 
               {dayEvents.length > 4 && (
                 <div className="text-[11px] font-medium text-[#1E40AF] bg-blue-50 rounded-lg px-2 py-1 text-center">
-                  + {dayEvents.length - 4} {t("more_events")}
+                  + {dayEvents.length - 4} {"sự kiện khác"}
                 </div>
               )}
             </div>

@@ -27,5 +27,9 @@ public class PostCommentResponse {
     private List<PostCommentResponse> replies;
     private java.util.Map<String, String> reactions;
     private List<String> imageUrls;
+
+    @com.fasterxml.jackson.annotation.JsonProperty("isAnonymous")
+    private Boolean anonymous;
+    private String anonymousIdentity;
 }
 

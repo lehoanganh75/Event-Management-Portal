@@ -27,38 +27,38 @@ const Footer = () => {
 
   const branches = [
     {
-      title: t("branch_nv_dung"),
-      address: t("branch_nv_dung_addr"),
+      title: "Nguyễn Văn Dung",
+      address: "Số 10 Nguyễn Văn Dung, Phường An Nhơn, TP.HCM",
       map: "Số 10 Nguyễn Văn Dung, Phường 6, Gò Vấp, Thành phố Hồ Chí Minh",
       phone: "0283.8940 390",
     },
     {
-      title: t("branch_pv_chieu"),
-      address: t("branch_pv_chieu_addr"),
+      title: "Phạm Văn Chiêu",
+      address: "Số 20 Đường số 53, Phường An Hội Tây, TP.HCM",
       map: "20 Đường số 53, Phường 14, Gò Vấp, Thành phố Hồ Chí Minh",
       phone: "0283.8940 390",
     },
     {
-      title: t("branch_vhtt"),
-      address: t("branch_vhtt_addr"),
+      title: "Trung tâm cung ứng dịch vụ VH-TT",
+      address: "Số 5A Nguyễn Văn Lượng, phường An Hội Đông, TP.HCM",
       map: "5A Nguyễn Văn Lượng, Phường 16, Gò Vấp, Thành phố Hồ Chí Minh",
       phone: "0283.8940 390",
     },
     {
-      title: t("branch_nhon_trach"),
-      address: t("branch_nhon_trach_addr"),
+      title: "Nhơn Trạch",
+      address: "xã Phước An, tỉnh Đồng Nai",
       map: "Đại học Công nghiệp TP.HCM cơ sở Nhơn Trạch",
       phone: "0283.8940 390",
     },
     {
-      title: t("branch_thanh_hoa"),
-      address: t("branch_thanh_hoa_addr"),
+      title: "Thanh Hóa",
+      address: "Phường Quảng Phú, tỉnh Thanh Hóa",
       map: "5 ĐL Nam Sông Mã, Quảng Phú, Thanh Hóa, Vietnam",
       phone: "02373.675.092",
     },
     {
-      title: t("branch_quang_ngai"),
-      address: t("branch_quang_ngai_addr"),
+      title: "Phân hiệu Quảng Ngãi",
+      address: "Số 938 đường Quang Trung, phường Chánh Lộ, tỉnh Quảng Ngãi",
       map: "447 Hải Thượng Lãn Ông, Quảng Phú, TP. Thanh Hóa",
       phone: "(0255) 625 0075",
     },
@@ -92,7 +92,7 @@ const Footer = () => {
               <div className="flex items-start gap-3">
                 <MapPin size={18} className="mt-0.5 text-amber-300 shrink-0" />
                 <p>
-                  {t("address_label")}: {t("main_campus_addr")}
+                  {"Địa chỉ"}: {"Số 12 Nguyễn Văn Bảo, P. 4, Q. Gò Vấp, TP. Hồ Chí Minh"}
                 </p>
               </div>
 
@@ -125,7 +125,7 @@ const Footer = () => {
           <div className="lg:col-span-8">
             <div className="mb-6">
               <h3 className="text-2xl font-black tracking-tight">
-                {t("branches_label")}
+                {"Các cơ sở và phân hiệu"}
               </h3>
 
               <div className="w-16 h-[3px] bg-amber-400 rounded-full mt-3" />
@@ -155,7 +155,7 @@ const Footer = () => {
                       className="flex items-center gap-1 text-xs font-bold text-white hover:text-amber-300 transition-colors"
                     >
                       <MapPin size={14} />
-                      {t("view_map")}
+                      {"Xem bản đồ"}
                     </button>
                   </div>
                 </div>
@@ -171,7 +171,7 @@ const Footer = () => {
             <div className="flex items-center gap-2">
               <Users size={16} className="text-amber-300" />
               <span>
-                {t("visit_count")}:{" "}
+                {"Số lượng truy cập"}:{" "}
                 <span className="font-bold text-white">
                   {formatCount(totalVisits)}
                 </span>
@@ -184,7 +184,7 @@ const Footer = () => {
               <MousePointer2 size={16} className="text-amber-300" />
 
               <span>
-                {t("online_count")}:{" "}
+                {"Đang online"}:{" "}
                 <span className="font-bold text-white">
                   {formatCount(online)}
                 </span>
@@ -193,7 +193,7 @@ const Footer = () => {
           </div>
 
           <div className="text-center md:text-right">
-            {t("copyright")}
+            {"© 2026 Đại học Công nghiệp TP.HCM - IUH"}
           </div>
         </div>
       </div>

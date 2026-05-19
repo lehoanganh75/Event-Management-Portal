@@ -151,15 +151,15 @@ const PostDetailManagement = ({
   if (loading) return (
     <div className={`flex flex-col items-center justify-center ${hideHeader ? 'py-10' : 'min-h-screen'} text-gray-500 bg-gray-50`}>
       <Loader2 className="animate-spin mb-2 text-blue-600" size={40} />
-      <p className="font-medium">{t('loading_post_content')}</p>
+      <p className="font-medium">{"Đang tải nội dung bài viết..."}</p>
     </div>
   );
 
   if (error || !post) return (
     <div className={`text-center ${hideHeader ? 'py-10' : 'py-20'} text-red-500 bg-gray-50 min-h-screen px-4`}>
       <div className="bg-white p-8 rounded-2xl shadow-sm inline-block max-w-md">
-        <p className="text-lg font-semibold">{error || t('post_not_found')}</p>
-        <button onClick={onRefresh} className="mt-4 bg-blue-600 text-white px-6 py-2 rounded-xl hover:bg-blue-700 transition-colors">{t('try_again')}</button>
+        <p className="text-lg font-semibold">{error || "Không tìm thấy bài viết"}</p>
+        <button onClick={onRefresh} className="mt-4 bg-blue-600 text-white px-6 py-2 rounded-xl hover:bg-blue-700 transition-colors">{"Thử lại"}</button>
       </div>
     </div>
   );
@@ -172,7 +172,7 @@ const PostDetailManagement = ({
     <div
       className={
         hideHeader
-          ? "w-full bg-white"
+          ? "w-full"
           : "min-h-screen bg-slate-100 px-4 py-6 md:px-6 flex justify-center"
       }
     >
@@ -188,11 +188,7 @@ const PostDetailManagement = ({
         />
 
         <div
-          className={
-            hideHeader
-              ? "w-full bg-white relative"
-              : "w-full bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden relative"
-          }
+          className="w-full bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden relative"
         >
           <PostContent
             post={post}

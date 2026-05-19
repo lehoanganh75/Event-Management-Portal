@@ -53,6 +53,7 @@ public class EventController {
     private final OrganizationRepository organizationRepository;
     private final EventTemplateRepository templateRepository;
     private final S3Service s3Service;
+    private final org.springframework.messaging.simp.SimpMessagingTemplate messagingTemplate;
 
     // --- 1. NHÓM CÔNG KHAI (DÀNH CHO USER & GUEST) ---
 
@@ -492,6 +493,16 @@ public class EventController {
     public ResponseEntity<?> completeEvent(@PathVariable String id) {
         try {
             Event event = eventService.completeEvent(id);
+            try {
+                com.eventservice.dto.engagement.response.EventFeedbackResponse systemMsg = com.eventservice.dto.engagement.response.EventFeedbackResponse.builder()
+                        .id("SYSTEM_FEEDBACK_STATUS")
+                        .comment("FEEDBACK_STATUS:OPEN")
+                        .createdAt(java.time.LocalDateTime.now())
+                        .build();
+                messagingTemplate.convertAndSend("/topic/feedback/" + id, systemMsg);
+            } catch (Exception wsEx) {
+                log.error("Failed to broadcast feedback open message on event complete", wsEx);
+            }
             return ResponseEntity.ok(event);
         } catch (Exception e) {
             return ResponseEntity.badRequest()

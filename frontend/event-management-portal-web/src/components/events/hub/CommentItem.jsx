@@ -136,7 +136,7 @@ const CommentItem = ({
           >
             <Heart size={14} />
             <span>
-              {t ? t("like") : "Thích"}
+              {t ? "Thích" : "Thích"}
             </span>
           </button>
 
@@ -150,7 +150,7 @@ const CommentItem = ({
           >
             <MessageCircle size={14} />
             <span>
-              {t ? t("reply") : "Phản hồi"}
+              {t ? "Phản hồi" : "Phản hồi"}
             </span>
           </button>
 

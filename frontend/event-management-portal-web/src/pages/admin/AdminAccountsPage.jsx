@@ -1,13 +1,29 @@
-import React, { useState, useEffect, useMemo, useCallback } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import {
-  Search, Plus, Edit2, Trash2, X, ChevronLeft, ChevronRight,
-  User, Shield, CheckCircle, XCircle, AlertTriangle,
-  Loader2, UserCog, Lock, Unlock, Mail, Fingerprint, Users, ShieldCheck, ShieldAlert,
-  CheckCircle2
+  Search,
+  Plus,
+  Edit2,
+  Trash2,
+  X,
+  ChevronLeft,
+  ChevronRight,
+  User,
+  CheckCircle,
+  XCircle,
+  Loader2,
+  UserCog,
+  Lock,
+  Unlock,
+  Mail,
+  Fingerprint,
+  Users,
+  ShieldCheck,
+  ShieldAlert,
+  CheckCircle2,
 } from "lucide-react";
 import { showToast } from "../../utils/toast.jsx";
 import { motion, AnimatePresence } from "framer-motion";
-import { useAuth } from '../../context/AuthContext';
+import { useAuth } from "../../context/AuthContext";
 import ConfirmModal from "../../components/common/ConfirmModal";
 
 const ROLES = ["SUPER_ADMIN", "ADMIN", "STUDENT", "MEMBER", "GUEST", "LECTURER"];
@@ -22,18 +38,25 @@ const ROLE_LABELS = {
 };
 
 const ROLE_COLORS = {
-  SUPER_ADMIN: "bg-purple-100 text-purple-700 border-purple-200",
-  ADMIN: "bg-blue-100 text-blue-700 border-blue-200",
-  LECTURER: "bg-teal-100 text-teal-700 border-teal-200",
-  STUDENT: "bg-indigo-100 text-indigo-700 border-indigo-200",
-  MEMBER: "bg-indigo-100 text-indigo-700 border-indigo-200",
-  GUEST: "bg-slate-100 text-slate-600 border-slate-200",
+  SUPER_ADMIN: "bg-purple-50 text-purple-700 border-purple-200",
+  ADMIN: "bg-blue-50 text-blue-700 border-blue-200",
+  LECTURER: "bg-teal-50 text-teal-700 border-teal-200",
+  STUDENT: "bg-indigo-50 text-indigo-700 border-indigo-200",
+  MEMBER: "bg-orange-50 text-orange-700 border-orange-200",
+  GUEST: "bg-slate-50 text-slate-600 border-slate-200",
 };
 
 const ITEMS_PER_PAGE = 8;
 
 const AdminAccountsPage = ({ restrictRoles }) => {
-  const { accounts, fetchAccounts, updateAccount, deleteAccount, updateAccountStatus } = useAuth();
+  const {
+    accounts,
+    fetchAccounts,
+    updateAccount,
+    createAccount,
+    deleteAccount,
+    updateAccountStatus,
+  } = useAuth();
 
   const [searchTerm, setSearchTerm] = useState("");
   const [roleFilter, setRoleFilter] = useState("All");
@@ -59,31 +82,46 @@ const AdminAccountsPage = ({ restrictRoles }) => {
     fetchAccounts();
   }, [fetchAccounts]);
 
-  const displayRoles = restrictRoles ? ROLES.filter(r => restrictRoles.includes(r)) : ROLES;
-  const allowedAccounts = restrictRoles ? (accounts || []).filter(a => restrictRoles.includes(a.role)) : (accounts || []);
+  const displayRoles = restrictRoles
+    ? ROLES.filter((r) => restrictRoles.includes(r))
+    : ROLES;
 
-  const stats = useMemo(() => ({
-    total: allowedAccounts.length,
-    active: allowedAccounts.filter(a => a.status === "ACTIVE").length,
-    admin: allowedAccounts.filter(a => ["ADMIN", "SUPER_ADMIN", "LECTURER"].includes(a.role)).length,
-    student: allowedAccounts.filter(a => a.role === "STUDENT").length,
-    member: allowedAccounts.filter(a => a.role === "MEMBER").length,
-    guest: allowedAccounts.filter(a => a.role === "GUEST").length,
-    locked: allowedAccounts.filter(a => a.status !== "ACTIVE").length,
-  }), [allowedAccounts]);
+  const allowedAccounts = restrictRoles
+    ? (accounts || []).filter((a) => restrictRoles.includes(a.role))
+    : accounts || [];
+
+  const stats = useMemo(
+    () => ({
+      total: allowedAccounts.length,
+      active: allowedAccounts.filter((a) => a.status === "ACTIVE").length,
+      admin: allowedAccounts.filter((a) =>
+        ["ADMIN", "SUPER_ADMIN", "LECTURER"].includes(a.role)
+      ).length,
+      student: allowedAccounts.filter((a) => a.role === "STUDENT").length,
+      member: allowedAccounts.filter((a) => a.role === "MEMBER").length,
+      guest: allowedAccounts.filter((a) => a.role === "GUEST").length,
+      locked: allowedAccounts.filter((a) => a.status !== "ACTIVE").length,
+    }),
+    [allowedAccounts]
+  );
 
   const filtered = useMemo(() => {
     return allowedAccounts.filter((a) => {
       const s = searchTerm.toLowerCase();
-      const matchSearch = (a.fullName || "").toLowerCase().includes(s) ||
+
+      const matchSearch =
+        (a.fullName || "").toLowerCase().includes(s) ||
         (a.username || "").toLowerCase().includes(s) ||
         (a.email || "").toLowerCase().includes(s);
+
       const matchRole = roleFilter === "All" || a.role === roleFilter;
 
       let matchTab = true;
+
       if (activeTab === "Đang hoạt động") matchTab = a.status === "ACTIVE";
       if (activeTab === "Đang bị khóa") matchTab = a.status !== "ACTIVE";
-      if (activeTab === "Quản trị") matchTab = ["ADMIN", "SUPER_ADMIN", "LECTURER"].includes(a.role);
+      if (activeTab === "Quản trị")
+        matchTab = ["ADMIN", "SUPER_ADMIN", "LECTURER"].includes(a.role);
       if (activeTab === "Sinh viên") matchTab = a.role === "STUDENT";
       if (activeTab === "Thành viên") matchTab = a.role === "MEMBER";
       if (activeTab === "Khách") matchTab = a.role === "GUEST";
@@ -92,8 +130,26 @@ const AdminAccountsPage = ({ restrictRoles }) => {
     });
   }, [allowedAccounts, searchTerm, roleFilter, activeTab]);
 
-  const paginated = filtered.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
+  const paginated = filtered.slice(
+    (currentPage - 1) * ITEMS_PER_PAGE,
+    currentPage * ITEMS_PER_PAGE
+  );
+
   const totalPages = Math.ceil(filtered.length / ITEMS_PER_PAGE);
+
+  const openCreate = () => {
+    setSelectedAccount(null);
+    setFormData({
+      username: "",
+      password: "",
+      email: "",
+      fullName: "",
+      role: restrictRoles && restrictRoles.length > 0 ? restrictRoles[0] : "STUDENT",
+      status: "ACTIVE",
+    });
+    setModalMode("create");
+    setIsModalOpen(true);
+  };
 
   const openEdit = (acc) => {
     setSelectedAccount(acc);
@@ -110,33 +166,52 @@ const AdminAccountsPage = ({ restrictRoles }) => {
 
   const handleSave = async () => {
     try {
-      if (modalMode === "edit") {
+      if (modalMode === "create") {
+        if (!formData.username || !formData.password || !formData.email || !formData.fullName) {
+          showToast("Vui lòng điền đầy đủ thông tin bắt buộc!", "error");
+          return;
+        }
+        await createAccount(formData);
+        showToast("Thêm tài khoản mới thành công!", "success");
+      } else if (modalMode === "edit") {
         await updateAccount(selectedAccount.id, formData);
-        showToast("Cập nhật thành công!");
+        showToast("Cập nhật thành công!", "success");
       }
+
       setIsModalOpen(false);
     } catch (error) {
-      showToast("Thao tác thất bại", "error");
+      const errorMsg = error.response?.data?.message || error.message || "Thao tác thất bại";
+      showToast(errorMsg, "error");
     }
   };
 
   const handleConfirmDelete = async () => {
     if (!accountToDelete) return;
+
     try {
       await deleteAccount(accountToDelete.id);
       showToast("Xóa tài khoản thành công!", "success");
       setIsDeleteOpen(false);
     } catch (error) {
-      showToast("Xóa thất bại: " + (error.response?.data?.message || error.message), "error");
+      showToast(
+        "Xóa thất bại: " + (error.response?.data?.message || error.message),
+        "error"
+      );
     }
   };
 
   const handleConfirmUpdateStatus = async () => {
     if (!accountToUpdateStatus) return;
+
     try {
       const isLocking = accountToUpdateStatus.status === "ACTIVE";
       await updateAccountStatus(accountToUpdateStatus.id);
-      showToast(isLocking ? "Đã khóa tài khoản thành công!" : "Đã mở khóa tài khoản thành công!", "success");
+      showToast(
+        isLocking
+          ? "Đã khóa tài khoản thành công!"
+          : "Đã mở khóa tài khoản thành công!",
+        "success"
+      );
       setIsStatusConfirmOpen(false);
     } catch (error) {
       const errorMsg = error.response?.data?.message || error.message;
@@ -145,119 +220,168 @@ const AdminAccountsPage = ({ restrictRoles }) => {
   };
 
   return (
-    <div className="p-6 bg-slate-50 min-h-screen font-sans text-left">
-
-      {/* HEADER */}
-      <div className="flex justify-between items-center mb-6">
+    <div className="min-h-screen bg-slate-50 p-6 font-sans text-left text-slate-800">
+      <div className="mb-6 flex items-center justify-between">
         <div className="flex items-center gap-3">
-          {/* Icon đại diện cho Quản lý tài khoản */}
-          <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center text-white shadow-lg shadow-blue-200">
-            <UserCog size={22} />
+          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-600 text-white">
+            <UserCog size={21} />
           </div>
-          <h1 className="text-2xl font-semibold text-slate-800">Quản lý tài khoản</h1>
+
+          <div>
+            <h1 className="text-[26px] font-semibold tracking-tight text-slate-800">
+              Quản lý tài khoản
+            </h1>
+            <p className="mt-0.5 text-sm text-slate-500">
+              Quản lý người dùng, vai trò và trạng thái tài khoản
+            </p>
+          </div>
         </div>
 
-        <div className="flex gap-3">
-          <button
-            onClick={() => { setModalMode("create"); setIsModalOpen(true); }}
-            className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-lg text-sm font-medium transition-all shadow-md active:scale-95"
-          >
-            <Plus size={18} /> Thêm tài khoản
-          </button>
-        </div>
+        <button
+          onClick={openCreate}
+          className="flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-blue-700"
+        >
+          <Plus size={18} />
+          Thêm tài khoản
+        </button>
       </div>
 
-      {/* STATISTICS CARDS (UI 5 cột giống EventPage) */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-8">
-        <div className="bg-blue-600 text-white p-5 rounded-2xl shadow-sm">
-          <div className="flex items-center gap-3">
-            <Users size={28} className="opacity-80" />
-            <div>
-              <p className="text-sm opacity-90">Tổng tài khoản</p>
-              <p className="text-3xl font-semibold mt-1">{stats.total}</p>
-            </div>
-          </div>
-        </div>
+      <div className="mb-8 grid grid-cols-2 gap-4 md:grid-cols-5">
+        {[
+          {
+            label: "Tổng tài khoản",
+            value: stats.total,
+            icon: Users,
+            className: "bg-blue-600",
+          },
+          {
+            label: "Đang hoạt động",
+            value: stats.active,
+            icon: CheckCircle,
+            className: "bg-emerald-600",
+          },
+          {
+            label: "Quản trị viên",
+            value: stats.admin,
+            icon: ShieldCheck,
+            className: "bg-purple-600",
+          },
+          {
+            label: "Thành viên",
+            value: stats.member,
+            icon: User,
+            className: "bg-orange-600",
+          },
+          {
+            label: "Đã khóa",
+            value: stats.locked,
+            icon: ShieldAlert,
+            className: "bg-slate-700",
+          },
+        ].map((item) => {
+          const Icon = item.icon;
 
-        <div className="bg-emerald-500 text-white p-5 rounded-2xl shadow-sm">
-          <div className="flex items-center gap-3">
-            <CheckCircle size={28} className="opacity-80" />
-            <div>
-              <p className="text-sm opacity-90">Đang hoạt động</p>
-              <p className="text-3xl font-semibold mt-1">{stats.active}</p>
+          return (
+            <div
+              key={item.label}
+              className={`${item.className} rounded-xl border border-white/10 p-5 text-white`}
+            >
+              <div className="flex items-center gap-3">
+                <Icon size={26} className="opacity-85" />
+                <div>
+                  <p className="text-sm opacity-90">{item.label}</p>
+                  <p className="mt-1 text-2xl font-semibold">{item.value}</p>
+                </div>
+              </div>
             </div>
-          </div>
-        </div>
-
-        <div className="bg-purple-500 text-white p-5 rounded-2xl shadow-sm">
-          <div className="flex items-center gap-3">
-            <ShieldCheck size={28} className="opacity-80" />
-            <div>
-              <p className="text-sm opacity-90">Quản trị viên</p>
-              <p className="text-3xl font-semibold mt-1">{stats.admin}</p>
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-orange-500 text-white p-5 rounded-2xl shadow-sm">
-          <div className="flex items-center gap-3">
-            <User size={28} className="opacity-80" />
-            <div>
-              <p className="text-sm opacity-90">Thành viên</p>
-              <p className="text-3xl font-semibold mt-1">{stats.member}</p>
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-slate-700 text-white p-5 rounded-2xl shadow-sm">
-          <div className="flex items-center gap-3">
-            <ShieldAlert size={28} className="opacity-80" />
-            <div>
-              <p className="text-sm opacity-90">Đã khóa</p>
-              <p className="text-3xl font-semibold mt-1">{stats.locked}</p>
-            </div>
-          </div>
-        </div>
+          );
+        })}
       </div>
 
-      {/* TABS (Giống EventPage) */}
-      <div className="flex border-b border-slate-200 mb-6 overflow-x-auto pb-1 gap-2">
+      <div className="mb-6 flex gap-2 overflow-x-auto border-b border-slate-200 pb-1">
         {[
           { id: "Tất cả", label: "Tất cả", icon: Users, count: stats.total, show: true },
-          { id: "Quản trị", label: "Quản trị", icon: ShieldCheck, count: stats.admin, show: !restrictRoles || restrictRoles.some(r => ["ADMIN", "SUPER_ADMIN", "LECTURER"].includes(r)) },
-          { id: "Sinh viên", label: "Sinh viên", icon: User, count: stats.student, show: !restrictRoles || restrictRoles.includes("STUDENT") },
-          { id: "Thành viên", label: "Thành viên", icon: User, count: stats.member, show: !restrictRoles || restrictRoles.includes("MEMBER") },
-          { id: "Khách", label: "Khách", icon: User, count: stats.guest, show: !restrictRoles || restrictRoles.includes("GUEST") },
-          { id: "Đang hoạt động", label: "Đang hoạt động", icon: CheckCircle2, count: stats.active, show: true },
-          { id: "Đang bị khóa", label: "Đang bị khóa", icon: Lock, count: stats.locked, show: true },
-        ].filter(t => t.show).map((tab) => (
-          <button
-            key={tab.id}
-            onClick={() => {
-              setActiveTab(tab.id);
-              setCurrentPage(1);
-            }}
-            className={`flex items-center gap-2 px-6 py-3 text-sm font-medium whitespace-nowrap border-b-2 transition-all ${activeTab === tab.id
-              ? "border-blue-600 text-blue-600"
-              : "border-transparent text-gray-500 hover:text-gray-900"
-              }`}
-          >
-            <tab.icon size={16} />
-            {tab.label}
-            <span className={`ml-1.5 px-2 py-0.5 rounded-full text-[10px] font-bold ${activeTab === tab.id ? "bg-blue-100 text-blue-600" : "bg-slate-100 text-slate-500"
-              }`}>
-              {tab.count}
-            </span>
-          </button>
-        ))}
+          {
+            id: "Quản trị",
+            label: "Quản trị",
+            icon: ShieldCheck,
+            count: stats.admin,
+            show:
+              !restrictRoles ||
+              restrictRoles.some((r) =>
+                ["ADMIN", "SUPER_ADMIN", "LECTURER"].includes(r)
+              ),
+          },
+          {
+            id: "Sinh viên",
+            label: "Sinh viên",
+            icon: User,
+            count: stats.student,
+            show: !restrictRoles || restrictRoles.includes("STUDENT"),
+          },
+          {
+            id: "Thành viên",
+            label: "Thành viên",
+            icon: User,
+            count: stats.member,
+            show: !restrictRoles || restrictRoles.includes("MEMBER"),
+          },
+          {
+            id: "Khách",
+            label: "Khách",
+            icon: User,
+            count: stats.guest,
+            show: !restrictRoles || restrictRoles.includes("GUEST"),
+          },
+          {
+            id: "Đang hoạt động",
+            label: "Đang hoạt động",
+            icon: CheckCircle2,
+            count: stats.active,
+            show: true,
+          },
+          {
+            id: "Đang bị khóa",
+            label: "Đang bị khóa",
+            icon: Lock,
+            count: stats.locked,
+            show: true,
+          },
+        ]
+          .filter((t) => t.show)
+          .map((tab) => (
+            <button
+              key={tab.id}
+              onClick={() => {
+                setActiveTab(tab.id);
+                setCurrentPage(1);
+              }}
+              className={`flex items-center gap-2 whitespace-nowrap border-b-2 px-5 py-2.5 text-[14px] font-medium transition-colors ${activeTab === tab.id
+                  ? "border-blue-600 text-blue-600"
+                  : "border-transparent text-slate-500 hover:text-slate-900"
+                }`}
+            >
+              <tab.icon size={16} />
+              {tab.label}
+
+              <span
+                className={`ml-1 rounded-full px-2 py-0.5 text-[11px] font-medium ${activeTab === tab.id
+                    ? "bg-blue-50 text-blue-700"
+                    : "bg-slate-100 text-slate-500"
+                  }`}
+              >
+                {tab.count}
+              </span>
+            </button>
+          ))}
       </div>
 
-      {/* SEARCH & FILTER BAR */}
-      <div className="bg-white border border-gray-200 rounded-2xl p-4 mb-6 flex flex-wrap gap-3 items-center shadow-sm">
-        <div className="relative flex-1 min-w-[280px]">
-          <Search className="absolute left-4 top-3.5 text-gray-400" size={18} />
+      <div className="mb-6 flex flex-wrap items-center gap-3 rounded-xl border border-slate-200 bg-white p-4">
+        <div className="relative min-w-[280px] flex-1">
+          <Search className="absolute left-4 top-3.5 text-slate-400" size={18} />
+
           <input
-            className="pl-11 pr-4 py-3 w-full border border-gray-100 bg-slate-50 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all font-medium"
+            className="w-full rounded-lg border border-slate-200 bg-white py-3 pl-11 pr-4 text-sm font-medium text-slate-700 outline-none transition-colors placeholder:text-slate-400 focus:border-blue-500"
             placeholder="Tìm theo tên, email, username..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
@@ -265,72 +389,116 @@ const AdminAccountsPage = ({ restrictRoles }) => {
         </div>
 
         <select
-          className="border border-gray-100 bg-slate-50 px-4 py-3 rounded-xl text-sm font-bold text-slate-600 focus:outline-none min-w-[180px] cursor-pointer"
+          className="min-w-[180px] cursor-pointer rounded-lg border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-700 outline-none focus:border-blue-500"
           value={roleFilter}
           onChange={(e) => setRoleFilter(e.target.value)}
         >
           <option value="All">Tất cả vai trò</option>
-          {displayRoles.map(r => <option key={r} value={r}>{ROLE_LABELS[r]}</option>)}
+          {displayRoles.map((r) => (
+            <option key={r} value={r}>
+              {ROLE_LABELS[r]}
+            </option>
+          ))}
         </select>
 
         <button
-          onClick={() => { setSearchTerm(""); setRoleFilter("All"); setActiveTab("Tất cả"); }}
-          className="px-5 py-3 bg-slate-800 hover:bg-slate-900 text-white rounded-xl text-sm font-medium transition-all active:scale-95"
+          onClick={() => {
+            setSearchTerm("");
+            setRoleFilter("All");
+            setActiveTab("Tất cả");
+          }}
+          className="rounded-lg bg-slate-800 px-5 py-3 text-sm font-medium text-white transition-colors hover:bg-slate-900"
         >
           Đặt lại
         </button>
       </div>
 
-      {/* TABLE */}
-      <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden shadow-sm">
+      <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">
         {!accounts ? (
-          <div className="p-20 text-center flex flex-col items-center gap-3">
-            <Loader2 className="animate-spin text-blue-600" size={40} />
-            <p className="text-slate-500 font-medium italic">Đang tải danh sách người dùng...</p>
+          <div className="flex flex-col items-center gap-3 p-20 text-center">
+            <Loader2 className="animate-spin text-blue-600" size={36} />
+            <p className="font-medium text-slate-500">
+              Đang tải danh sách người dùng...
+            </p>
           </div>
         ) : (
           <table className="w-full text-sm">
-            <thead className="bg-slate-50 border-b border-gray-200">
+            <thead className="border-b border-slate-200 bg-slate-50">
               <tr>
-                <th className="p-4 text-left font-semibold text-gray-600">Người dùng</th>
-                <th className="p-4 text-left font-semibold text-gray-600">Email</th>
-                <th className="p-4 text-left font-semibold text-gray-600">Vai trò</th>
-                <th className="p-4 text-center font-semibold text-gray-600">Trạng thái</th>
-                <th className="p-4 text-center font-semibold text-gray-600">Hành động</th>
+                <th className="p-4 text-left font-semibold text-slate-600">
+                  Người dùng
+                </th>
+                <th className="p-4 text-left font-semibold text-slate-600">
+                  Email
+                </th>
+                <th className="p-4 text-left font-semibold text-slate-600">
+                  Vai trò
+                </th>
+                <th className="p-4 text-center font-semibold text-slate-600">
+                  Trạng thái
+                </th>
+                <th className="p-4 text-center font-semibold text-slate-600">
+                  Hành động
+                </th>
               </tr>
             </thead>
 
-            <tbody className="divide-y divide-gray-100">
+            <tbody className="divide-y divide-slate-100">
               {paginated.length > 0 ? (
                 paginated.map((acc) => (
-                  <tr key={acc.id} className="hover:bg-slate-50/80 transition-colors">
+                  <tr key={acc.id} className="transition-colors hover:bg-slate-50">
                     <td className="p-4">
                       <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 bg-blue-50 text-blue-600 rounded-xl flex items-center justify-center font-bold text-sm border border-blue-100 shadow-sm">
-                          {(acc.fullName || acc.username || "U").charAt(0).toUpperCase()}
+                        <div className="flex h-10 w-10 items-center justify-center rounded-lg border border-blue-100 bg-blue-50 text-sm font-semibold text-blue-600">
+                          {(acc.fullName || acc.username || "U")
+                            .charAt(0)
+                            .toUpperCase()}
                         </div>
+
                         <div>
-                          <p className="font-bold text-slate-800">{acc.fullName || "—"}</p>
-                          <p className="text-[11px] text-slate-400 font-bold flex items-center gap-1 uppercase tracking-tighter">
-                            <Fingerprint size={10} /> {acc.username}
+                          <p className="font-semibold text-slate-800">
+                            {acc.fullName || "—"}
+                          </p>
+                          <p className="mt-0.5 flex items-center gap-1 text-[12px] text-slate-400">
+                            <Fingerprint size={11} />
+                            {acc.username}
                           </p>
                         </div>
                       </div>
                     </td>
-                    <td className="p-4 text-slate-600 font-medium">
-                      <div className="flex items-center gap-2"><Mail size={14} className="text-slate-300" />{acc.email || "—"}</div>
+
+                    <td className="p-4 font-medium text-slate-600">
+                      <div className="flex items-center gap-2">
+                        <Mail size={14} className="text-slate-300" />
+                        {acc.email || "—"}
+                      </div>
                     </td>
+
                     <td className="p-4">
-                      <span className={`px-2.5 py-1 rounded-lg text-[10px] font-black uppercase border ${ROLE_COLORS[acc.role] || "bg-gray-100"}`}>
+                      <span
+                        className={`rounded-md border px-2.5 py-1 text-[11px] font-semibold ${ROLE_COLORS[acc.role] || "bg-slate-50 text-slate-600 border-slate-200"
+                          }`}
+                      >
                         {ROLE_LABELS[acc.role] || acc.role}
                       </span>
                     </td>
+
                     <td className="p-4 text-center">
-                      <span className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-[10px] font-black uppercase border ${acc.status === "ACTIVE" ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-rose-50 text-rose-700 border-rose-200'}`}>
-                        {acc.status === "ACTIVE" ? <CheckCircle size={10} /> : <XCircle size={10} />}
+                      <span
+                        className={`inline-flex items-center gap-1 rounded-full border px-3 py-1 text-[11px] font-medium ${acc.status === "ACTIVE"
+                            ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                            : "border-rose-200 bg-rose-50 text-rose-700"
+                          }`}
+                      >
+                        {acc.status === "ACTIVE" ? (
+                          <CheckCircle size={11} />
+                        ) : (
+                          <XCircle size={11} />
+                        )}
                         {acc.status === "ACTIVE" ? "Hoạt động" : "Bị khóa"}
                       </span>
                     </td>
+
                     <td className="p-4 text-center">
                       <div className="flex justify-center gap-1.5">
                         <button
@@ -338,20 +506,32 @@ const AdminAccountsPage = ({ restrictRoles }) => {
                             setAccountToUpdateStatus(acc);
                             setIsStatusConfirmOpen(true);
                           }}
-                          className={`p-2 rounded-lg transition-all ${acc.status === "ACTIVE" ? 'text-slate-400 hover:text-amber-500 hover:bg-amber-50' : 'text-amber-500 hover:text-emerald-600 hover:bg-emerald-50'}`}
+                          className={`rounded-md p-2 transition-colors ${acc.status === "ACTIVE"
+                              ? "text-slate-400 hover:bg-amber-50 hover:text-amber-600"
+                              : "text-amber-500 hover:bg-emerald-50 hover:text-emerald-600"
+                            }`}
                           title={acc.status === "ACTIVE" ? "Khóa tài khoản" : "Mở khóa"}
                         >
-                          {acc.status === "ACTIVE" ? <Lock size={18} /> : <Unlock size={18} />}
+                          {acc.status === "ACTIVE" ? (
+                            <Lock size={18} />
+                          ) : (
+                            <Unlock size={18} />
+                          )}
                         </button>
+
                         <button
                           onClick={() => openEdit(acc)}
-                          className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all"
+                          className="rounded-md p-2 text-slate-400 transition-colors hover:bg-blue-50 hover:text-blue-600"
                         >
                           <Edit2 size={18} />
                         </button>
+
                         <button
-                          onClick={() => { setAccountToDelete(acc); setIsDeleteOpen(true); }}
-                          className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-all"
+                          onClick={() => {
+                            setAccountToDelete(acc);
+                            setIsDeleteOpen(true);
+                          }}
+                          className="rounded-md p-2 text-slate-400 transition-colors hover:bg-rose-50 hover:text-rose-600"
                         >
                           <Trash2 size={18} />
                         </button>
@@ -361,7 +541,7 @@ const AdminAccountsPage = ({ restrictRoles }) => {
                 ))
               ) : (
                 <tr>
-                  <td colSpan={5} className="p-16 text-center text-gray-500">
+                  <td colSpan={5} className="p-16 text-center text-slate-500">
                     Không tìm thấy tài khoản nào phù hợp
                   </td>
                 </tr>
@@ -371,12 +551,11 @@ const AdminAccountsPage = ({ restrictRoles }) => {
         )}
       </div>
 
-      {/* PAGINATION */}
       {totalPages > 1 && (
-        <div className="flex justify-center gap-2 mt-8">
+        <div className="mt-8 flex justify-center gap-2">
           <button
-            onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-            className="p-2 border border-gray-200 rounded-xl hover:bg-gray-50 disabled:opacity-50"
+            onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+            className="rounded-lg border border-slate-200 p-2 transition-colors hover:bg-slate-50 disabled:opacity-50"
             disabled={currentPage === 1}
           >
             <ChevronLeft size={20} />
@@ -386,9 +565,9 @@ const AdminAccountsPage = ({ restrictRoles }) => {
             <button
               key={num}
               onClick={() => setCurrentPage(num)}
-              className={`w-10 h-10 rounded-xl flex items-center justify-center text-sm font-medium transition-all ${currentPage === num
-                ? "bg-blue-600 text-white shadow-sm"
-                : "border border-gray-200 hover:bg-gray-50"
+              className={`flex h-10 w-10 items-center justify-center rounded-lg text-sm font-medium transition-colors ${currentPage === num
+                  ? "bg-blue-600 text-white"
+                  : "border border-slate-200 hover:bg-slate-50"
                 }`}
             >
               {num}
@@ -396,8 +575,8 @@ const AdminAccountsPage = ({ restrictRoles }) => {
           ))}
 
           <button
-            onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-            className="p-2 border border-gray-200 rounded-xl hover:bg-gray-50 disabled:opacity-50"
+            onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+            className="rounded-lg border border-slate-200 p-2 transition-colors hover:bg-slate-50 disabled:opacity-50"
             disabled={currentPage === totalPages}
           >
             <ChevronRight size={20} />
@@ -405,34 +584,127 @@ const AdminAccountsPage = ({ restrictRoles }) => {
         </div>
       )}
 
-      {/* MODAL EDIT/CREATE (Bo góc lớn giống EventPage) */}
       <AnimatePresence>
         {isModalOpen && (
-          <div className="fixed inset-0 z-[150] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
-            <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="bg-white w-full max-w-lg rounded-[2.5rem] shadow-2xl overflow-hidden border-4 border-white">
-              <div className="px-8 py-5 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
-                <h3 className="font-black text-slate-800 uppercase tracking-tight italic">
-                  {modalMode === "edit" ? "Cập nhật tài khoản" : "Thêm tài khoản mới"}
+          <div className="fixed inset-0 z-[150] flex items-center justify-center bg-slate-900/50 p-4">
+            <motion.div
+              initial={{ scale: 0.96, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.96, opacity: 0 }}
+              className="w-full max-w-lg overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xl"
+            >
+              <div className="flex items-center justify-between border-b border-slate-100 bg-slate-50 px-6 py-4">
+                <h3 className="text-lg font-semibold text-slate-800">
+                  {modalMode === "edit"
+                    ? "Cập nhật tài khoản"
+                    : "Thêm tài khoản mới"}
                 </h3>
-                <X onClick={() => setIsModalOpen(false)} className="text-slate-400 cursor-pointer hover:text-rose-500 transition-all" size={20} />
+
+                <button
+                  onClick={() => setIsModalOpen(false)}
+                  className="rounded-md p-1 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700"
+                >
+                  <X size={20} />
+                </button>
               </div>
-              <div className="p-8 space-y-4">
+
+              <div className="space-y-4 p-6">
+                {modalMode === "create" ? (
+                  <div>
+                    <label className="mb-1.5 block text-sm font-medium text-slate-600">
+                      Tên đăng nhập
+                    </label>
+                    <input
+                      className="w-full rounded-lg border border-slate-200 bg-white px-4 py-3 font-medium text-slate-700 outline-none transition-colors focus:border-blue-500"
+                      value={formData.username}
+                      onChange={(e) =>
+                        setFormData({ ...formData, username: e.target.value })
+                      }
+                      placeholder="Nhập tên đăng nhập..."
+                    />
+                  </div>
+                ) : (
+                  <div>
+                    <label className="mb-1.5 block text-sm font-medium text-slate-600">
+                      Tên đăng nhập
+                    </label>
+                    <input
+                      className="w-full rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 font-medium text-slate-400 outline-none cursor-not-allowed"
+                      value={formData.username}
+                      disabled
+                    />
+                  </div>
+                )}
+
+                {modalMode === "create" && (
+                  <div>
+                    <label className="mb-1.5 block text-sm font-medium text-slate-600">
+                      Mật khẩu
+                    </label>
+                    <input
+                      type="password"
+                      className="w-full rounded-lg border border-slate-200 bg-white px-4 py-3 font-medium text-slate-700 outline-none transition-colors focus:border-blue-500"
+                      value={formData.password}
+                      onChange={(e) =>
+                        setFormData({ ...formData, password: e.target.value })
+                      }
+                      placeholder="Nhập mật khẩu..."
+                    />
+                  </div>
+                )}
+
                 <div>
-                  <label className="text-[10px] font-black text-slate-400 uppercase ml-2 mb-1.5 block tracking-widest">Họ và tên</label>
-                  <input className="w-full px-5 py-3 bg-slate-50 border border-slate-100 rounded-2xl outline-none font-bold text-slate-700 focus:bg-white focus:border-blue-500 transition-all shadow-inner" value={formData.fullName} onChange={e => setFormData({ ...formData, fullName: e.target.value })} />
+                  <label className="mb-1.5 block text-sm font-medium text-slate-600">
+                    Họ và tên
+                  </label>
+                  <input
+                    className="w-full rounded-lg border border-slate-200 bg-white px-4 py-3 font-medium text-slate-700 outline-none transition-colors focus:border-blue-500"
+                    value={formData.fullName}
+                    onChange={(e) =>
+                      setFormData({ ...formData, fullName: e.target.value })
+                    }
+                  />
                 </div>
+
                 <div>
-                  <label className="text-[10px] font-black text-slate-400 uppercase ml-2 mb-1.5 block tracking-widest">Email liên hệ</label>
-                  <input className="w-full px-5 py-3 bg-slate-50 border border-slate-100 rounded-2xl outline-none font-bold text-slate-700 focus:bg-white focus:border-blue-500 transition-all shadow-inner" value={formData.email} onChange={e => setFormData({ ...formData, email: e.target.value })} />
+                  <label className="mb-1.5 block text-sm font-medium text-slate-600">
+                    Email liên hệ
+                  </label>
+                  <input
+                    className="w-full rounded-lg border border-slate-200 bg-white px-4 py-3 font-medium text-slate-700 outline-none transition-colors focus:border-blue-500"
+                    value={formData.email}
+                    onChange={(e) =>
+                      setFormData({ ...formData, email: e.target.value })
+                    }
+                  />
                 </div>
+
                 <div>
-                  <label className="text-[10px] font-black text-slate-400 uppercase ml-2 mb-1.5 block tracking-widest">Vai trò hệ thống</label>
-                  <select className="w-full px-5 py-3 bg-slate-50 border border-slate-100 rounded-2xl outline-none font-bold text-slate-700 cursor-pointer" value={formData.role} onChange={e => setFormData({ ...formData, role: e.target.value })}>
-                    {displayRoles.map(r => <option key={r} value={r}>{ROLE_LABELS[r]}</option>)}
+                  <label className="mb-1.5 block text-sm font-medium text-slate-600">
+                    Vai trò hệ thống
+                  </label>
+                  <select
+                    className="w-full cursor-pointer rounded-lg border border-slate-200 bg-white px-4 py-3 font-medium text-slate-700 outline-none transition-colors focus:border-blue-500"
+                    value={formData.role}
+                    onChange={(e) =>
+                      setFormData({ ...formData, role: e.target.value })
+                    }
+                  >
+                    {displayRoles.map((r) => (
+                      <option key={r} value={r}>
+                        {ROLE_LABELS[r]}
+                      </option>
+                    ))}
                   </select>
                 </div>
-                <div className="pt-4">
-                  <button onClick={handleSave} className="w-full py-4 bg-blue-600 text-white rounded-2xl font-black uppercase tracking-widest shadow-xl shadow-blue-100 hover:bg-blue-700 transition-all active:scale-95">Lưu thông tin</button>
+
+                <div className="pt-2">
+                  <button
+                    onClick={handleSave}
+                    className="w-full rounded-lg bg-blue-600 py-3 font-medium text-white transition-colors hover:bg-blue-700"
+                  >
+                    Lưu thông tin
+                  </button>
                 </div>
               </div>
             </motion.div>
@@ -440,7 +712,6 @@ const AdminAccountsPage = ({ restrictRoles }) => {
         )}
       </AnimatePresence>
 
-      {/* DELETE CONFIRM MODAL */}
       <ConfirmModal
         isOpen={isDeleteOpen}
         onClose={() => setIsDeleteOpen(false)}
@@ -451,18 +722,23 @@ const AdminAccountsPage = ({ restrictRoles }) => {
         type="danger"
       />
 
-      {/* STATUS CONFIRM MODAL */}
       <ConfirmModal
         isOpen={isStatusConfirmOpen}
         onClose={() => setIsStatusConfirmOpen(false)}
         onConfirm={handleConfirmUpdateStatus}
-        title={accountToUpdateStatus?.status === "ACTIVE" ? "Khóa tài khoản?" : "Mở khóa tài khoản?"}
+        title={
+          accountToUpdateStatus?.status === "ACTIVE"
+            ? "Khóa tài khoản?"
+            : "Mở khóa tài khoản?"
+        }
         message={
           accountToUpdateStatus?.status === "ACTIVE"
             ? `Bạn có chắc chắn muốn khóa tài khoản @${accountToUpdateStatus?.username}? Người dùng này sẽ bị đăng xuất ngay lập tức.`
             : `Xác nhận mở khóa cho tài khoản @${accountToUpdateStatus?.username}?`
         }
-        confirmText={accountToUpdateStatus?.status === "ACTIVE" ? "Khóa ngay" : "Mở khóa"}
+        confirmText={
+          accountToUpdateStatus?.status === "ACTIVE" ? "Khóa ngay" : "Mở khóa"
+        }
         type={accountToUpdateStatus?.status === "ACTIVE" ? "warning" : "info"}
       />
     </div>

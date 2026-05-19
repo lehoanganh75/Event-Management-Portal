@@ -161,10 +161,28 @@ public class EventPostServiceImpl implements EventPostService {
         dto.setContent(comment.getContent());
         dto.setCreatedAt(comment.getCreatedAt());
         dto.setReactions(comment.getReactions());
+        dto.setImageUrls(comment.getImageUrls());
+        
+        boolean isAnon = comment.isAnonymous();
+        dto.setAnonymous(isAnon);
+        dto.setAnonymousIdentity(comment.getAnonymousIdentity());
 
-        // Lấy từ Map, nếu null thì tạo User mặc định tránh lỗi UI
-        dto.setCommenter(userMap.getOrDefault(comment.getCommenterAccountId(),
-                getDefaultUser(comment.getCommenterAccountId())));
+        String currentAccountId = null;
+        try {
+            var auth = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
+            if (auth != null && auth.getPrincipal() instanceof org.springframework.security.oauth2.jwt.Jwt jwt) {
+                currentAccountId = jwt.getSubject();
+            }
+        } catch (Exception e) {
+            // Ignore
+        }
+
+        if (isAnon && (currentAccountId == null || !currentAccountId.equals(comment.getCommenterAccountId()))) {
+            dto.setCommenter(null);
+        } else {
+            dto.setCommenter(userMap.getOrDefault(comment.getCommenterAccountId(),
+                    getDefaultUser(comment.getCommenterAccountId())));
+        }
 
         if (comment.getReplies() != null) {
             dto.setReplies(comment.getReplies().stream()

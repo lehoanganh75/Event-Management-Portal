@@ -419,6 +419,14 @@ const eventService = {
         const api = token ? privateApi : publicApi;
         return api.get(`/qa/event/${eventId}`);
     },
+    getQAStatus: (eventId) => {
+        const token = localStorage.getItem('accessToken');
+        const api = token ? privateApi : publicApi;
+        return api.get(`/qa/event/${eventId}/status`);
+    },
+    toggleQAStatus: (eventId, status) => privateApi.post(`/qa/event/${eventId}/toggle`, null, { 
+        params: status !== undefined ? { status } : {} 
+    }),
     upvoteQAMessage: (messageId) => privateApi.post(`/qa/${messageId}/upvote`),
 
     // --- FEEDBACK API ---
@@ -432,6 +440,14 @@ const eventService = {
         const api = token ? privateApi : publicApi;
         return api.get(`/api/v1/feedbacks/event/${eventId}`);
     },
+    getFeedbackStatus: (eventId) => {
+        const token = localStorage.getItem('accessToken');
+        const api = token ? privateApi : publicApi;
+        return api.get(`/api/v1/feedbacks/event/${eventId}/status`);
+    },
+    toggleFeedbackStatus: (eventId, status) => privateApi.post(`/api/v1/feedbacks/event/${eventId}/toggle`, null, { 
+        params: status !== undefined ? { status } : {} 
+    }),
     replyToFeedback: (feedbackId, reply) => privateApi.patch(`/api/v1/feedbacks/${feedbackId}/reply`, null, { params: { reply } }),
 
     // --- GROUP 7: ADMIN APPROVAL ---
