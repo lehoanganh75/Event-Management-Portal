@@ -50,6 +50,9 @@ const EventsManagement = ({ type = "lecturer", mode = "all" }) => {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("ALL");
   const [activeTab, setActiveTab] = useState("Tất cả");
+  const [scopeFilter, setScopeFilter] = useState(() => {
+    return (type === "admin" && isAdminMode) ? "all" : "my";
+  });
 
   // Pagination
   const [page, setPage] = useState(1);
@@ -124,11 +127,13 @@ const EventsManagement = ({ type = "lecturer", mode = "all" }) => {
     try {
       let res;
 
-      if (type === "admin" && isAdminMode) {
+      if (scopeFilter === "all") {
         res =
           mode === "plan"
             ? await eventService.getAllPlans()
-            : await eventService.getAdminAllEvents();
+            : (isAdminMode
+                ? await eventService.getAdminAllEvents()
+                : await eventService.getEventsForUser());
       } else {
         res =
           mode === "plan"
@@ -151,7 +156,7 @@ const EventsManagement = ({ type = "lecturer", mode = "all" }) => {
     } finally {
       setLoading(false);
     }
-  }, [isAdminMode, mode, allowedStatuses, type]);
+  }, [isAdminMode, mode, allowedStatuses, type, scopeFilter]);
 
   useEffect(() => {
     fetchData();
@@ -233,7 +238,7 @@ const EventsManagement = ({ type = "lecturer", mode = "all" }) => {
 
   // Filtered events
   const filteredEvents = useMemo(() => {
-    return events
+    const list = events
       .filter(
         (e) =>
           e.title
@@ -294,6 +299,24 @@ const EventsManagement = ({ type = "lecturer", mode = "all" }) => {
 
         return true;
       });
+
+    // Sort by status: ONGOING -> PUBLISHED/UPCOMING -> COMPLETED -> others
+    const statusOrder = {
+      ONGOING: 1,
+      PUBLISHED: 2,
+      UPCOMING: 2,
+      PLAN_APPROVED: 2.5,
+      COMPLETED: 3,
+    };
+
+    return [...list].sort((a, b) => {
+      const orderA = statusOrder[a.status] || 99;
+      const orderB = statusOrder[b.status] || 99;
+      if (orderA !== orderB) {
+        return orderA - orderB;
+      }
+      return new Date(b.startTime || b.createdAt) - new Date(a.startTime || a.createdAt);
+    });
   }, [events, search, statusFilter, activeTab]);
 
   // Pagination
@@ -655,20 +678,49 @@ const EventsManagement = ({ type = "lecturer", mode = "all" }) => {
       {/* Header */}
       <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 mb-6">
         <div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 flex-wrap">
             <div className="w-9 h-9 rounded-xl bg-[#1E40AF] text-white flex items-center justify-center font-semibold shadow-sm">
               E
             </div>
 
             <h1 className="text-2xl font-semibold text-slate-800">
-              {isAdminMode
+              {scopeFilter === "all"
                 ? mode === "plan"
-                  ? "Quản lý kế hoạch"
-                  : "Quản lý sự kiện"
+                  ? "Tất cả kế hoạch"
+                  : "Tất cả sự kiện"
                 : mode === "plan"
                   ? "Kế hoạch của tôi"
                   : "Sự kiện của tôi"}
             </h1>
+
+            <div className="flex bg-slate-200/60 p-0.5 rounded-xl border border-slate-200 ml-2">
+              <button
+                onClick={() => {
+                  setScopeFilter("all");
+                  setPage(1);
+                }}
+                className={`px-3 py-1 text-xs font-semibold rounded-lg transition-all ${
+                  scopeFilter === "all"
+                    ? "bg-white text-[#1E40AF] shadow-sm"
+                    : "text-slate-500 hover:text-slate-800"
+                }`}
+              >
+                Tất cả
+              </button>
+              <button
+                onClick={() => {
+                  setScopeFilter("my");
+                  setPage(1);
+                }}
+                className={`px-3 py-1 text-xs font-semibold rounded-lg transition-all ${
+                  scopeFilter === "my"
+                    ? "bg-white text-[#1E40AF] shadow-sm"
+                    : "text-slate-500 hover:text-slate-800"
+                }`}
+              >
+                Của tôi
+              </button>
+            </div>
           </div>
 
           <p className="text-sm text-slate-500 mt-2 ml-12">

@@ -1,21 +1,23 @@
 import React, { useState, useEffect } from "react";
-import { MessageCircle } from "lucide-react";
+import { MessageCircle, Play, Square, AlertCircle } from "lucide-react";
 import { Client } from "@stomp/stompjs";
 import SockJS from "sockjs-client";
 import eventService from "../../../../services/eventService";
 import { toast } from "react-toastify";
 import { useAuth } from "../../../../context/AuthContext";
 
-const QATab = ({ eventId }) => {
+const QATab = ({ eventId, event }) => {
   const { user } = useAuth();
 
   const [messages, setMessages] = useState([]);
   const [loading, setLoading] = useState(true);
   const [stompClient, setStompClient] = useState(null);
+  const [qaEnabled, setQaEnabled] = useState(true);
 
   useEffect(() => {
     if (eventId) {
       fetchMessages();
+      fetchQAStatus();
       connectWebSocket();
     }
 
@@ -23,6 +25,26 @@ const QATab = ({ eventId }) => {
       if (stompClient) stompClient.deactivate();
     };
   }, [eventId]);
+
+  const fetchQAStatus = async () => {
+    try {
+      const res = await eventService.getQAStatus(eventId);
+      setQaEnabled(res.data);
+    } catch (err) {
+      console.error("Error fetching QA status:", err);
+    }
+  };
+
+  const handleToggleQA = async () => {
+    try {
+      const nextState = !qaEnabled;
+      const res = await eventService.toggleQAStatus(eventId, nextState);
+      setQaEnabled(res.data);
+      toast.success(res.data ? "Đã mở đặt câu hỏi Q&A" : "Đã đóng đặt câu hỏi Q&A");
+    } catch (err) {
+      toast.error("Không thể thay đổi trạng thái Q&A");
+    }
+  };
 
   const fetchMessages = async () => {
     try {
@@ -48,6 +70,11 @@ const QATab = ({ eventId }) => {
       onConnect: () => {
         client.subscribe(`/topic/qa/${eventId}`, (message) => {
           const receivedMsg = JSON.parse(message.body);
+
+          if (receivedMsg.senderAccountId === "SYSTEM" && receivedMsg.id === "SYSTEM_QA_STATUS") {
+            setQaEnabled(receivedMsg.content === "QA_STATUS:OPEN");
+            return;
+          }
 
           setMessages((prev) => {
             const index = prev.findIndex(
@@ -129,12 +156,39 @@ const QATab = ({ eventId }) => {
           </p>
         </div>
 
-        <button
-          onClick={fetchMessages}
-          className="px-4 py-2 rounded-xl border border-slate-200 bg-white text-sm font-medium text-slate-700 hover:bg-slate-50 hover:border-indigo-200 hover:text-indigo-600 transition-all"
-        >
-          Làm mới
-        </button>
+        <div className="flex items-center gap-3">
+          {event?.status !== "ONGOING" ? (
+            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-50 border border-amber-200 text-amber-700 text-xs font-semibold">
+              <AlertCircle size={14} />
+              Sự kiện chưa diễn ra (Khóa Q&A)
+            </div>
+          ) : (
+            <button
+              onClick={handleToggleQA}
+              className={`
+                inline-flex items-center gap-2
+                px-4 py-2
+                rounded-xl
+                text-xs font-bold uppercase tracking-wider
+                transition-all active:scale-95 shadow-sm
+                ${qaEnabled
+                  ? "bg-emerald-500 hover:bg-emerald-600 text-white shadow-emerald-100"
+                  : "bg-rose-500 hover:bg-rose-600 text-white shadow-rose-100"
+                }
+              `}
+            >
+              {qaEnabled ? <Square size={13} fill="currentColor" /> : <Play size={13} fill="currentColor" />}
+              {qaEnabled ? "Đóng Q&A" : "Mở Q&A"}
+            </button>
+          )}
+
+          <button
+            onClick={fetchMessages}
+            className="px-4 py-2 rounded-xl border border-slate-200 bg-white text-sm font-medium text-slate-700 hover:bg-slate-50 hover:border-indigo-200 hover:text-indigo-600 transition-all shadow-sm"
+          >
+            Làm mới
+          </button>
+        </div>
       </div>
 
       {/* Empty */}

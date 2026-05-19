@@ -46,7 +46,7 @@ const LandingSectionHeader = ({
           max-w-2xl
         "
       >
-        {subtitle || t("featured_events_subtitle")}
+        {subtitle || "Đừng bỏ lỡ những hoạt động hấp dẫn tại IUH"}
       </p>
     </div>
 
@@ -63,7 +63,7 @@ const LandingSectionHeader = ({
         shrink-0
       "
     >
-      {t("view_all")}
+      {"Xem tất cả"}
 
       <ArrowRight size={16} />
     </Link>

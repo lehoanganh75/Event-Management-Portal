@@ -37,16 +37,16 @@ const GuestEventsSchedule = ({ currentDate, setCurrentDate, events, navigate, t 
   };
 
   const shifts = [
-    { key: "MORNING", label: t("shift_morning") },
-    { key: "AFTERNOON", label: t("shift_afternoon") },
-    { key: "EVENING", label: t("shift_evening") }
+    { key: "MORNING", label: "Sáng" },
+    { key: "AFTERNOON", label: "Chiều" },
+    { key: "EVENING", label: "Tối" }
   ];
 
   return (
     <div className="bg-white rounded-lg shadow-sm border border-[#dee2e6] overflow-hidden animate-in fade-in duration-500">
       <div className="p-4 flex flex-col xl:flex-row items-center justify-between gap-4 border-b border-[#dee2e6] bg-white">
         <h2 className="text-xl font-bold text-[#444] shrink-0">
-          {t("schedule_weekly_title")}
+          {"Lịch sự kiện theo tuần"}
         </h2>
 
         <div className="flex flex-wrap items-center justify-center gap-3">
@@ -64,19 +64,19 @@ const GuestEventsSchedule = ({ currentDate, setCurrentDate, events, navigate, t 
               onClick={() => setCurrentDate(new Date())}
               className="px-4 py-1.5 bg-[#007bff] text-white text-sm font-medium rounded hover:bg-[#0069d9] transition-all flex items-center gap-1.5 shadow-sm"
             >
-              <CalendarIcon size={14} /> {t("current_btn")}
+              <CalendarIcon size={14} /> {"Hiện tại"}
             </button>
             <button
               onClick={() => setCurrentDate(addDays(currentDate, -7))}
               className="px-4 py-1.5 bg-[#007bff] text-white text-sm font-medium rounded hover:bg-[#0069d9] transition-all flex items-center gap-1.5 shadow-sm"
             >
-              <ChevronLeft size={14} /> {t("prev_week")}
+              <ChevronLeft size={14} /> {"Trở về"}
             </button>
             <button
               onClick={() => setCurrentDate(addDays(currentDate, 7))}
               className="px-4 py-1.5 bg-[#007bff] text-white text-sm font-medium rounded hover:bg-[#0069d9] transition-all flex items-center gap-1.5 shadow-sm"
             >
-              {t("next_week")} <ChevronRight size={14} />
+              {"Tiếp theo"} <ChevronRight size={14} />
             </button>
           </div>
         </div>
@@ -87,12 +87,12 @@ const GuestEventsSchedule = ({ currentDate, setCurrentDate, events, navigate, t 
           <thead>
             <tr className="bg-[#f0f7ff]">
               <th className="border border-[#c6e2ff] py-3 text-[#0066cc] font-bold text-sm w-24">
-                {t("shift_label")}
+                {"Ca"}
               </th>
               {weekDays.map((day, i) => (
                 <th key={i} className="border border-[#c6e2ff] py-3 px-2 text-[#0066cc] font-bold text-sm w-[13%]">
                   <div className="mb-1">
-                    {i + 1 === 7 ? t("sun") : `${t("mon").split(" ")[0]} ${i + 2}`}
+                    {i + 1 === 7 ? "Chủ nhật" : `${"Thứ 2".split(" ")[0]} ${i + 2}`}
                   </div>
                   <div className="font-normal text-[13px] text-slate-500">{format(day, "dd/MM/yyyy")}</div>
                 </th>
@@ -125,10 +125,10 @@ const GuestEventsSchedule = ({ currentDate, setCurrentDate, events, navigate, t 
                                 {event.title}
                               </div>
                               <div className="space-y-1 text-[11px] opacity-90">
-                                <div><span className="font-bold">{t("location_label")}:</span> {event.location || "IUH Campus"}</div>
-                                <div><span className="font-bold">{t("time_label")}:</span> {format(new Date(event.startTime), "HH:mm")} - {format(new Date(event.endTime), "HH:mm")}</div>
-                                <div><span className="font-bold">{t("organizer_label")}:</span> {event.organizerName || "IUH Events"}</div>
-                                <div className="italic text-[10px] mt-1 opacity-70">{t("notes_label")}: {event.location}</div>
+                                <div><span className="font-bold">{"Địa điểm"}:</span> {event.location || "IUH Campus"}</div>
+                                <div><span className="font-bold">{"Thời gian"}:</span> {format(new Date(event.startTime), "HH:mm")} - {format(new Date(event.endTime), "HH:mm")}</div>
+                                <div><span className="font-bold">{"Đơn vị tổ chức"}:</span> {event.organizerName || "IUH Events"}</div>
+                                <div className="italic text-[10px] mt-1 opacity-70">{"Ghi chú"}: {event.location}</div>
                               </div>
                             </motion.div>
                           );
@@ -146,23 +146,23 @@ const GuestEventsSchedule = ({ currentDate, setCurrentDate, events, navigate, t 
       <div className="p-4 bg-white border-t border-[#dee2e6] flex flex-wrap gap-6 justify-center">
         <div className="flex items-center gap-2">
           <div className="w-8 h-4 bg-[#e8e9ed] border border-[#d1d2d6]"></div>
-          <span className="text-xs text-slate-600">{t("academic_workshop")}</span>
+          <span className="text-xs text-slate-600">{"Sự kiện Học thuật / Workshop"}</span>
         </div>
         <div className="flex items-center gap-2">
           <div className="w-8 h-4 bg-[#71c332] border border-[#5ea32a]"></div>
-          <span className="text-xs text-slate-600">{t("volunteer_competition")}</span>
+          <span className="text-xs text-slate-600">{"Sự kiện Tình nguyện / Cuộc thi"}</span>
         </div>
         <div className="flex items-center gap-2">
           <div className="w-8 h-4 bg-[#81d4fa] border border-[#4fc3f7]"></div>
-          <span className="text-xs text-slate-600">{t("online_webinar")}</span>
+          <span className="text-xs text-slate-600">{"Sự kiện Trực tuyến / Webinar"}</span>
         </div>
         <div className="flex items-center gap-2">
           <div className="w-8 h-4 bg-[#fffdf0] border border-[#c6e2ff]"></div>
-          <span className="text-xs text-slate-600">{t("culture_sports")}</span>
+          <span className="text-xs text-slate-600">{"Sự kiện Văn hóa / Hội thao"}</span>
         </div>
         <div className="flex items-center gap-2">
           <div className="w-8 h-4 bg-[#ef5350] border border-[#d32f2f]"></div>
-          <span className="text-xs text-slate-600">{t("cancelled_suspended")}</span>
+          <span className="text-xs text-slate-600">{"Sự kiện đã hủy / Tạm ngưng"}</span>
         </div>
       </div>
     </div>

@@ -127,12 +127,12 @@ const EventActionModals = ({
 
                 {/* Title */}
                 <h3 className="text-lg font-semibold text-slate-800 mb-2">
-                  {t("confirm_cancel")}
+                  {"Hủy đăng ký?"}
                 </h3>
 
                 {/* Desc */}
                 <p className="text-sm text-slate-500 leading-6 mb-7">
-                  {t("confirm_cancel_desc")}
+                  {"Bạn chắc chắn muốn hủy tham gia? Bạn có thể mất suất nếu sự kiện đã đủ người."}
                 </p>
 
                 {/* Actions */}
@@ -141,14 +141,14 @@ const EventActionModals = ({
                     onClick={() => setShowCancelModal(false)}
                     className="h-11 rounded-xl border border-slate-200 bg-slate-50 text-slate-600 text-sm font-medium hover:bg-slate-100 transition-colors"
                   >
-                    {t("back_btn")}
+                    {"Quay lại"}
                   </button>
 
                   <button
                     onClick={handleCancelRegistration}
                     className="h-11 rounded-xl bg-rose-600 text-white text-sm font-medium hover:bg-rose-700 transition-colors shadow-sm"
                   >
-                    {t("cancel_confirm_btn")}
+                    {"Hủy ngay"}
                   </button>
                 </div>
               </div>
@@ -184,6 +184,7 @@ const EventActionModals = ({
         isOpen={showQAModal}
         onClose={() => setShowQAModal(false)}
         eventId={event.id}
+        event={event}
         user={user}
       />
 

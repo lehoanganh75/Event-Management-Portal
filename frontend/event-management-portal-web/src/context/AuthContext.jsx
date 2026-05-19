@@ -112,6 +112,38 @@ export const AuthProvider = ({ children }) => {
         }
     }, []);
 
+    const createAccount = async (accountData) => {
+        // 1. Register basic account
+        const res = await authService.register({
+            username: accountData.username,
+            password: accountData.password,
+            email: accountData.email,
+            fullName: accountData.fullName
+        });
+
+        // 2. Fetch recent accounts to find the newly registered user ID
+        const listRes = await authService.getAllAccounts();
+        const allAccs = listRes.data || [];
+        const newUser = allAccs.find(acc => acc.username === accountData.username);
+
+        if (newUser) {
+            // 3. Update status to ACTIVE (or requested status) so they can login immediately
+            const requestedStatus = accountData.status || "ACTIVE";
+            if (requestedStatus !== "PENDING") {
+                await authService.updateAccountStatus(newUser.id, requestedStatus);
+            }
+
+            // 4. Set requested role
+            if (accountData.role && accountData.role !== "GUEST") {
+                await authService.updateAccountRoles(newUser.id, accountData.role);
+            }
+        }
+
+        // 5. Reload context accounts list
+        await fetchAccounts();
+        return res.data;
+    };
+
     const updateAccount = async (id, updateData) => {
         // 1. Cập nhật profile cơ bản
         const res = await authService.updateAccount(id, updateData);
@@ -166,6 +198,7 @@ export const AuthProvider = ({ children }) => {
         logout,
         fetchAccounts,
         updateAccount,
+        createAccount,
         deleteAccount,
         updateAccountStatus,
         resendOtp: authService.resendOtp,

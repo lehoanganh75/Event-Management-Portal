@@ -86,7 +86,7 @@ const GuestEventsPage = () => {
                 </div>
               </div>
               <p className="text-slate-500 font-medium animate-pulse">
-                {t("loading_schedule") || "Đang tải lịch trình của bạn..."}
+                {"Đang tải lịch trình của bạn..." || "Đang tải lịch trình của bạn..."}
               </p>
             </div>
           ) : viewMode === "GRID" ? (
@@ -114,16 +114,16 @@ const GuestEventsPage = () => {
                   <AlertCircle size={40} />
                 </div>
                 <h3 className="text-xl font-bold text-slate-800 mb-2">
-                  {t("no_events_found") || "Không tìm thấy sự kiện nào"}
+                  {"Không tìm thấy sự kiện nào" || "Không tìm thấy sự kiện nào"}
                 </h3>
                 <p className="text-slate-500 max-w-sm mx-auto mb-8">
-                  {t("no_events_registered_desc") || "Có vẻ như bạn chưa đăng ký tham gia sự kiện nào hoặc không tìm thấy kết quả phù hợp."}
+                  {"Có vẻ như bạn chưa đăng ký tham gia sự kiện nào hoặc không tìm thấy kết quả phù hợp." || "Có vẻ như bạn chưa đăng ký tham gia sự kiện nào hoặc không tìm thấy kết quả phù hợp."}
                 </p>
                 <button
                   onClick={() => navigate("/events")}
                   className="px-8 py-3 bg-indigo-600 text-white rounded-2xl font-bold hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-200"
                 >
-                  {t("explore_now") || "Khám phá sự kiện ngay"}
+                  {"Khám phá sự kiện ngay" || "Khám phá sự kiện ngay"}
                 </button>
               </motion.div>
             )

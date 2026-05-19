@@ -30,12 +30,12 @@ const PostStatsBar = ({
                     <span key={i} className="text-base bg-white rounded-full shadow-sm ring-1 ring-slate-100">{emo}</span>
                   ))}
                 </div>
-                <span className="font-medium text-slate-500">{postReactionList.length} {t('reactions_count')}</span>
+                <span className="font-medium text-slate-500">{postReactionList.length} {"người tương tác"}</span>
               </div>
             )}
           </div>
           {totalComments > 0 && (
-            <div className="font-medium text-slate-500">{totalComments} {t('total_comments_count')}</div>
+            <div className="font-medium text-slate-500">{totalComments} {"bình luận"}</div>
           )}
         </div>
       )}
@@ -50,7 +50,7 @@ const PostStatsBar = ({
             {userReaction ? (
               userReaction === "👍" ? <ThumbsUp size={18} className="fill-blue-600" /> : <span className="text-lg">{userReaction}</span>
             ) : <ThumbsUp size={18} />}
-            <span>{hasLiked ? (reactionLabels[userReaction] || t('liked_label')) : t('like')}</span>
+            <span>{hasLiked ? (reactionLabels[userReaction] || "Đã thích") : "Thích"}</span>
           </button>
 
           <div className="absolute bottom-full left-1/2 -translate-x-1/2 pb-3 hidden group-hover/post-react:flex animate-in fade-in slide-in-from-bottom-2 z-50">
@@ -81,18 +81,18 @@ const PostStatsBar = ({
           onClick={() => mainTextareaRef.current?.focus()}
           className="flex-1 flex items-center justify-center gap-2 py-2 hover:bg-slate-50 rounded-xl transition-all text-slate-600 font-bold text-[14px]"
         >
-          <MessageCircle size={18} /> {t('comment')}
+          <MessageCircle size={18} /> {"Bình luận"}
         </button>
 
         <button
           onClick={() => {
             const url = `${window.location.origin}/posts/${post.id}`;
             navigator.clipboard.writeText(url);
-            import("react-toastify").then(({ toast }) => toast.success(t('copy_link_success')));
+            import("react-toastify").then(({ toast }) => toast.success("Đã sao chép liên kết bài viết!"));
           }}
           className="flex-1 flex items-center justify-center gap-2 py-2 hover:bg-slate-50 rounded-xl transition-all text-slate-600 font-bold text-[14px]"
         >
-          <Share2 size={18} /> {t('share')}
+          <Share2 size={18} /> {"Chia sẻ"}
         </button>
       </div>
     </>

@@ -19,10 +19,10 @@ const OverviewTab = ({
   
   const currentRoleLabel = userRoles?.[0]?.label || t('guest');
   const permsList = [
-    (isAdmin || userPerms?.canEditEvent) && t('edit_event_perm'),
-    (isAdmin || userPerms?.canManageTeam) && t('manage_team_perm'),
-    (isAdmin || userPerms?.canCheckIn || isMember || isCoreTeam) && t('checkin_perm'),
-    (isAdmin || userPerms?.canViewAnalytics) && t('view_stats_perm')
+    (isAdmin || userPerms?.canEditEvent) && "Chỉnh sửa sự kiện",
+    (isAdmin || userPerms?.canManageTeam) && "Quản lý nhân sự",
+    (isAdmin || userPerms?.canCheckIn || isMember || isCoreTeam) && "Thực hiện điểm danh",
+    (isAdmin || userPerms?.canViewAnalytics) && "Xem báo cáo thống kê"
   ].filter(Boolean);
 
   const InfoItem = ({ icon, label, value }) => (
@@ -41,7 +41,7 @@ const OverviewTab = ({
       <div className="bg-white border border-slate-200 rounded-2xl p-8 shadow-sm overflow-hidden">
         <div className="flex items-center gap-2 mb-12">
           <div className="w-1 h-5 bg-indigo-600 rounded-full" />
-          <h3 className="text-xs font-black text-slate-800 uppercase tracking-[0.2em]">{t('event_timeline')}</h3>
+          <h3 className="text-xs font-black text-slate-800 uppercase tracking-[0.2em]">{"Lộ trình thời gian"}</h3>
         </div>
 
         <div className="relative">
@@ -53,21 +53,21 @@ const OverviewTab = ({
               const now = new Date();
               const items = [
                 event.registrationDeadline && !isNaN(new Date(event.registrationDeadline).getTime()) && { 
-                  label: t('reg_deadline_short'), 
+                  label: "Hạn đăng ký", 
                   date: new Date(event.registrationDeadline), 
                   color: 'text-rose-600', 
                   dot: 'bg-rose-500', 
                   icon: '📝' 
                 },
                 event.startTime && !isNaN(new Date(event.startTime).getTime()) && { 
-                  label: t('start_short'), 
+                  label: "Bắt đầu", 
                   date: new Date(event.startTime), 
                   color: 'text-indigo-600', 
                   dot: 'bg-indigo-600', 
                   icon: '🚀' 
                 },
                 { 
-                  label: t('current_time'), 
+                  label: "Hiện tại", 
                   date: now, 
                   color: 'text-slate-900', 
                   dot: 'bg-slate-900', 
@@ -75,7 +75,7 @@ const OverviewTab = ({
                   icon: '📍' 
                 },
                 event.endTime && !isNaN(new Date(event.endTime).getTime()) && { 
-                  label: t('end_short'), 
+                  label: "Kết thúc", 
                   date: new Date(event.endTime), 
                   color: 'text-emerald-600', 
                   dot: 'bg-emerald-500', 

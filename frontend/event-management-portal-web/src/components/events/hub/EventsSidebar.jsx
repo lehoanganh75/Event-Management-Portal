@@ -15,35 +15,35 @@ const EventsSidebar = ({
   navigate,
 }) => {
   const handleNotificationsClick = () => {
-    const role =
-      user?.role?.toLowerCase() || "student";
+    if (!user) {
+      navigate("/login", { state: { from: "/notifications" } });
+      return;
+    }
+    const role = user?.role?.toLowerCase();
+    const rolePrefix = (role === "admin" || role === "super_admin") ? "admin" : (role === "lecturer" ? "lecturer" : "student");
 
-    navigate(
-      user
-        ? `/${role}/notifications`
-        : "/notifications"
-    );
+    navigate(`/${rolePrefix}/notifications`);
   };
 
   const handleMyEventsClick = () => {
-    const role =
-      user?.role?.toLowerCase() || "student";
+    if (!user) {
+      navigate("/login", { state: { from: "/student/events" } });
+      return;
+    }
+    const role = user?.role?.toLowerCase();
+    const rolePrefix = (role === "admin" || role === "super_admin") ? "admin" : (role === "lecturer" ? "lecturer" : "student");
 
-    navigate(
-      user
-        ? `/${role}/events`
-        : "/guest-events"
-    );
+    navigate(`/${rolePrefix}/events`);
   };
 
   const quickActions = [
     {
-      label: t("new_notifications"),
+      label: "Thông báo mới",
       icon: Bell,
       onClick: handleNotificationsClick,
     },
     {
-      label: t("my_events_label"),
+      label: "Sự kiện của tôi",
       icon: Calendar,
       onClick: handleMyEventsClick,
     },
@@ -59,7 +59,7 @@ const EventsSidebar = ({
           </div>
 
           <h3 className="text-sm font-semibold text-slate-800">
-            {t("search_by_name")}
+            {"Tìm theo tên sự kiện"}
           </h3>
         </div>
 
@@ -77,9 +77,7 @@ const EventsSidebar = ({
 
           <input
             type="text"
-            placeholder={t(
-              "enter_event_name"
-            )}
+            placeholder={"Nhập tên sự kiện..."}
             value={searchKeyword}
             onChange={(e) =>
               onSearchChange(e.target.value)
@@ -116,7 +114,7 @@ const EventsSidebar = ({
           </div>
 
           <h3 className="text-sm font-semibold text-slate-800">
-            {t("quick_access")}
+            {"TRUY CẬP NHANH"}
           </h3>
         </div>
 

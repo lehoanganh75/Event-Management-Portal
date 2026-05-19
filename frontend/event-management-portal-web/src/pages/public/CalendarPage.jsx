@@ -25,34 +25,34 @@ const getCategoryByEventType = (type, t) => {
   switch (type) {
     case "WORKSHOP":
     case "WEBINAR":
-      return t("category_academic");
+      return "Học Thuật - Kỹ năng";
     case "CONCERT":
-      return t("category_culture");
+      return "Văn Hóa - Văn nghệ";
     case "COMPETITION":
-      return t("category_sports");
+      return "Thể thao";
     case "SEMINAR":
     case "TALKSHOW":
     case "CONFERENCE":
-      return t("category_forum");
+      return "Diễn đàn - Hội thảo";
     case "FESTIVAL":
-      return t("category_festival");
+      return "Lễ hội trường";
     case "VOLUNTEER":
-      return t("category_community");
+      return "Vì Cộng Đồng";
     case "INTERNATIONAL":
-      return t("category_intl");
+      return "Quốc tế";
     default:
-      return t("category_academic");
+      return "Học Thuật - Kỹ năng";
   }
 };
 
 const getCategoryColors = (t) => ({
-  [t("category_academic")]: "bg-blue-500",
-  [t("category_culture")]: "bg-pink-500",
-  [t("category_sports")]: "bg-amber-500",
-  [t("category_community")]: "bg-emerald-500",
-  [t("category_intl")]: "bg-rose-500",
-  [t("category_festival")]: "bg-orange-500",
-  [t("category_forum")]: "bg-cyan-500",
+  ["Học Thuật - Kỹ năng"]: "bg-blue-500",
+  ["Văn Hóa - Văn nghệ"]: "bg-pink-500",
+  ["Thể thao"]: "bg-amber-500",
+  ["Vì Cộng Đồng"]: "bg-emerald-500",
+  ["Quốc tế"]: "bg-rose-500",
+  ["Lễ hội trường"]: "bg-orange-500",
+  ["Diễn đàn - Hội thảo"]: "bg-cyan-500",
 });
 
 const DEFAULT_COLOR = "bg-blue-500";

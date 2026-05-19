@@ -31,7 +31,7 @@ const PostTable = ({
 
   return (
     <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden">
-      <div className="overflow-x-auto">
+      <div className="overflow-x-auto pb-2">
         <table className="w-full text-sm">
           <thead className="bg-slate-50 border-b border-slate-200">
             <tr>
@@ -39,7 +39,6 @@ const PostTable = ({
                 "Người đăng",
                 "Tiêu đề",
                 "Sự kiện",
-                "Nội dung",
                 "Loại",
                 "Ngày tạo",
                 "Trạng thái",
@@ -68,7 +67,7 @@ const PostTable = ({
                     className="hover:bg-slate-50 transition-colors"
                   >
                     {/* Author */}
-                    <td className="px-4 py-4">
+                    <td className="px-4 py-4 align-middle">
                       <div className="flex items-center gap-3">
                         <div className="w-10 h-10 rounded-xl overflow-hidden border border-slate-200 bg-slate-100 shrink-0">
                           <img
@@ -90,14 +89,14 @@ const PostTable = ({
                     </td>
 
                     {/* Title */}
-                    <td className="px-4 py-4">
-                      <p className="font-semibold text-slate-800 truncate max-w-[200px]">
+                    <td className="px-4 py-4 align-middle min-w-[200px]">
+                      <p className="font-semibold text-slate-800 break-words">
                         {post.title}
                       </p>
                     </td>
 
                     {/* Event */}
-                    <td className="px-4 py-4">
+                    <td className="px-4 py-4 align-middle min-w-[160px]">
                       <div className="flex items-center gap-2">
                         <div className="w-9 h-9 rounded-lg overflow-hidden border border-slate-200 bg-slate-100 shrink-0">
                           <img
@@ -114,23 +113,16 @@ const PostTable = ({
                           />
                         </div>
 
-                        <span className="max-w-[140px] truncate px-2 py-1 rounded-lg bg-blue-50 text-[#1E40AF] text-xs font-medium border border-blue-100">
+                        <span className="px-2 py-1 rounded-lg bg-blue-50 text-[#1E40AF] text-xs font-medium border border-blue-100 break-words">
                           {post.eventTitle || "Sự kiện khác"}
                         </span>
                       </div>
                     </td>
 
-                    {/* Content */}
-                    <td className="px-4 py-4">
-                      <p className="text-sm text-slate-500 line-clamp-2 leading-relaxed max-w-[280px]">
-                        {post.content}
-                      </p>
-                    </td>
-
                     {/* Type */}
-                    <td className="px-4 py-4">
+                    <td className="px-4 py-4 align-middle">
                       <span
-                        className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium ${postTypes[post.postType]?.color ||
+                        className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium whitespace-nowrap ${postTypes[post.postType]?.color ||
                           "bg-slate-100 text-slate-600"
                           }`}
                       >
@@ -140,7 +132,7 @@ const PostTable = ({
                     </td>
 
                     {/* Date */}
-                    <td className="px-4 py-4">
+                    <td className="px-4 py-4 align-middle whitespace-nowrap">
                       <div>
                         <p className="text-sm font-medium text-slate-700">
                           {new Date(
@@ -159,9 +151,9 @@ const PostTable = ({
                     </td>
 
                     {/* Status */}
-                    <td className="px-4 py-4">
+                    <td className="px-4 py-4 align-middle">
                       <span
-                        className={`px-3 py-1 rounded-full text-xs font-medium ${postStatus[post.status]?.color ||
+                        className={`px-3 py-1 rounded-full text-xs font-medium whitespace-nowrap ${postStatus[post.status]?.color ||
                           "bg-slate-100 text-slate-600"
                           }`}
                       >
@@ -170,7 +162,7 @@ const PostTable = ({
                     </td>
 
                     {/* Actions */}
-                    <td className="px-4 py-4">
+                    <td className="px-4 py-4 align-middle whitespace-nowrap">
                       <div className="flex justify-center gap-1">
                         <button
                           onClick={() =>

@@ -85,15 +85,21 @@ const EventCard = ({
               backdrop-blur-sm
               ${item.status === "ONGOING"
                 ? "bg-emerald-500/90"
-                : "bg-[#1E40AF]/90"
+                : item.status === "COMPLETED"
+                  ? "bg-slate-500/90"
+                  : "bg-[#1E40AF]/90"
               }
             `}
           >
             {item.status === "ONGOING"
-              ? t("ongoing")
-              : item.status === "UPCOMING"
-                ? t("upcoming")
-                : item.status}
+              ? "Đang diễn ra"
+              : (item.status === "UPCOMING" || item.status === "PUBLISHED")
+                ? "Sắp diễn ra"
+                : item.status === "COMPLETED"
+                  ? "Đã kết thúc"
+                  : item.status === "PLAN_APPROVED"
+                    ? "Kế hoạch đã duyệt"
+                    : t(item.status)}
           </span>
         </div>
 
@@ -139,14 +145,14 @@ const EventCard = ({
         </div>
 
         {/* Info row */}
-        <div className="flex items-center justify-between gap-3 text-[12px] text-slate-600 mb-4">
-          <div className="flex items-center gap-1.5 min-w-0">
+        <div className="flex items-start justify-between gap-3 text-[12px] text-slate-600 mb-4">
+          <div className="flex items-start gap-1.5 min-w-0 flex-1">
             <MapPin
               size={13}
-              className="text-slate-400 shrink-0"
+              className="text-slate-400 shrink-0 mt-0.5"
             />
 
-            <span className="truncate">
+            <span className="line-clamp-2 text-left" title={item.location || "IUH Campus"}>
               {item.location ||
                 "IUH Campus"}
             </span>
@@ -171,7 +177,7 @@ const EventCard = ({
           <div className="mb-4">
             <div className="flex justify-between text-[11px] text-slate-400 mb-1.5">
               <span>
-                {t("participants")}
+                {"Người tham gia"}
               </span>
 
               <span className="text-[#1E40AF] font-medium">
@@ -209,7 +215,7 @@ const EventCard = ({
               transition-colors
             "
           >
-            {t("details")}
+            {"Chi tiết"}
           </span>
 
           <div

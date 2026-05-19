@@ -46,12 +46,26 @@ const NOTIFICATION_TYPES = {
   MAINTENANCE: { label: "Bảo trì hệ thống", color: "slate", icon: "🔧" },
   POLICY_UPDATE: { label: "Cập nhật chính sách", color: "blue", icon: "📜" },
   
-  // Mặc định
+  // Kế hoạch & Tương tác
+  PLAN_CREATED: { label: "Kế hoạch đã tạo", color: "blue", icon: "📋" },
+  PLAN_SUBMITTED: { label: "Kế hoạch đã gửi duyệt", color: "purple", icon: "📤" },
+  PLAN_APPROVED: { label: "Kế hoạch được duyệt", color: "green", icon: "✅" },
+  PLAN_REJECTED: { label: "Kế hoạch bị từ chối", color: "red", icon: "❌" },
+  ACCOUNT_LOCKED: { label: "Tài khoản bị khóa", color: "red", icon: "🔒" },
+  COMMENT: { label: "Bình luận", color: "blue", icon: "💬" },
+  EVENT_REGISTRATION: { label: "Đăng ký sự kiện", color: "indigo", icon: "👥" },
+  EVENT_FEEDBACK: { label: "Đánh giá sự kiện", color: "emerald", icon: "⭐" },
+  FEEDBACK_REPLY: { label: "Phản hồi đánh giá", color: "blue", icon: "💬" },
+
+  // Mặc định & Khác
   ORDER: { label: "Đơn hàng", color: "orange", icon: "🛒" },
   PAYMENT: { label: "Thanh toán", color: "green", icon: "💳" },
   MESSAGE: { label: "Tin nhắn", color: "blue", icon: "💬" },
   PROMOTION: { label: "Khuyến mãi", color: "pink", icon: "🎁" },
   REMINDER: { label: "Nhắc nhở", color: "yellow", icon: "⏰" },
+  INVITATION: { label: "Lời mời", color: "pink", icon: "✉️" },
+  GENERAL: { label: "Chung", color: "blue", icon: "📢" },
+  ANNOUNCEMENT: { label: "Thông báo", color: "blue", icon: "📢" },
 };
 
 const NotificationPage = () => {

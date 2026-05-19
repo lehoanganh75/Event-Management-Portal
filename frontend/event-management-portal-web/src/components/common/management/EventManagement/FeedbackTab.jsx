@@ -12,16 +12,18 @@ import SockJS from "sockjs-client";
 import eventService from "../../../../services/eventService";
 import { toast } from "react-toastify";
 
-const FeedbackTab = ({ eventId }) => {
+const FeedbackTab = ({ eventId, event }) => {
   const [feedbacks, setFeedbacks] = useState([]);
   const [loading, setLoading] = useState(true);
   const [replyingTo, setReplyingTo] = useState(null);
   const [replyText, setReplyText] = useState("");
   const [stompClient, setStompClient] = useState(null);
+  const [feedbackEnabled, setFeedbackEnabled] = useState(false);
 
   useEffect(() => {
     if (eventId) {
       fetchFeedbacks();
+      fetchFeedbackStatus();
       connectWebSocket();
     }
 
@@ -29,6 +31,25 @@ const FeedbackTab = ({ eventId }) => {
       if (stompClient) stompClient.deactivate();
     };
   }, [eventId]);
+
+  const fetchFeedbackStatus = async () => {
+    try {
+      const res = await eventService.getFeedbackStatus(eventId);
+      setFeedbackEnabled(res.data);
+    } catch (err) {
+      console.error("Error fetching feedback status:", err);
+    }
+  };
+
+  const handleToggleFeedback = async () => {
+    try {
+      const res = await eventService.toggleFeedbackStatus(eventId);
+      setFeedbackEnabled(res.data);
+      toast.success(res.data ? "Đã mở nhận đánh giá sự kiện" : "Đã đóng nhận đánh giá sự kiện");
+    } catch (err) {
+      toast.error("Không thể thay đổi trạng thái đánh giá");
+    }
+  };
 
   const fetchFeedbacks = async () => {
     try {
@@ -50,6 +71,12 @@ const FeedbackTab = ({ eventId }) => {
       onConnect: () => {
         client.subscribe(`/topic/feedback/${eventId}`, (message) => {
           const newFeedback = JSON.parse(message.body);
+
+          if (newFeedback.id === "SYSTEM_FEEDBACK_STATUS") {
+            setFeedbackEnabled(newFeedback.comment === "FEEDBACK_STATUS:OPEN");
+            return;
+          }
+
           setFeedbacks((prev) => {
             const index = prev.findIndex((f) => f.id === newFeedback.id);
             if (index !== -1) {
@@ -124,7 +151,7 @@ const FeedbackTab = ({ eventId }) => {
   return (
     <div className="space-y-5">
       {/* Header */}
-      <div className="flex items-center justify-between rounded-2xl border border-slate-200 bg-gradient-to-r from-amber-50 via-white to-orange-50 px-5 py-4 shadow-sm">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between rounded-2xl border border-slate-200 bg-gradient-to-r from-amber-50 via-white to-orange-50 px-5 py-4 gap-4 shadow-sm">
         <div>
           <h3 className="text-lg font-semibold text-slate-800">
             Đánh giá người tham gia
@@ -135,9 +162,30 @@ const FeedbackTab = ({ eventId }) => {
           </p>
         </div>
 
-        <div className="hidden md:flex items-center gap-2 px-3 py-2 rounded-xl bg-white border border-slate-200 text-xs font-medium text-slate-600 shadow-sm">
-          <MessageSquare size={14} className="text-amber-500" />
-          Feedback
+        <div className="flex items-center gap-3">
+          {event?.status === "COMPLETED" ? (
+            <div className="px-4 py-2 bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs font-semibold rounded-xl flex items-center gap-1.5 shadow-sm">
+              <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-ping" />
+              Sự kiện đã kết thúc (Tự động mở)
+            </div>
+          ) : (
+            <button
+              onClick={handleToggleFeedback}
+              className={`px-4 py-2 rounded-xl text-xs font-semibold border transition flex items-center gap-1.5 shadow-sm ${
+                feedbackEnabled
+                  ? "bg-emerald-600 border-emerald-600 text-white hover:bg-emerald-700"
+                  : "bg-slate-100 border-slate-200 text-slate-600 hover:bg-slate-200"
+              }`}
+            >
+              <span className={`w-1.5 h-1.5 rounded-full ${feedbackEnabled ? "bg-white animate-pulse" : "bg-slate-400"}`} />
+              {feedbackEnabled ? "Đóng Nhận Đánh Giá" : "Mở Nhận Đánh Giá"}
+            </button>
+          )}
+
+          <div className="hidden md:flex items-center gap-2 px-3 py-2 rounded-xl bg-white border border-slate-200 text-xs font-medium text-slate-600 shadow-sm">
+            <MessageSquare size={14} className="text-amber-500" />
+            Feedback
+          </div>
         </div>
       </div>
 

@@ -90,7 +90,7 @@ const AttendancePage = () => {
         };
     } catch (err) {
       toast.error(
-        t("camera_access_error")
+        "Không thể truy cập camera. Vui lòng kiểm tra quyền truy cập."
       );
     }
   };
@@ -200,13 +200,13 @@ const AttendancePage = () => {
       setScannedStatus("success");
 
       toast.success(
-        t("checkin_success_toast")
+        "Điểm danh thành công!"
       );
     } catch (error) {
       const msg =
         error.response?.data
           ?.message ||
-        t("invalid_or_used_qr");
+        "Mã không hợp lệ hoặc đã được sử dụng trước đó.";
 
       toast.error(msg);
 
@@ -242,7 +242,7 @@ const AttendancePage = () => {
 
                 <div>
                   <h2 className="font-semibold text-slate-800">
-                    {t("auto_checkin")}
+                    {"Check-in tự động"}
                   </h2>
 
                   <p className="text-xs text-slate-400">
@@ -252,7 +252,7 @@ const AttendancePage = () => {
               </div>
 
               <p className="text-sm text-slate-500 leading-relaxed">
-                {t("scanner_desc")}
+                {"Đưa mã QR của sinh viên vào khung quét. Hệ thống sẽ đối soát với danh sách đăng ký và ghi nhận điểm danh ngay lập tức."}
               </p>
             </div>
           </div>
@@ -296,15 +296,11 @@ const AttendancePage = () => {
                         </div>
 
                         <h2 className="text-2xl font-bold text-slate-800 mb-2">
-                          {t(
-                            "ready_to_checkin"
-                          )}
+                          {"Sẵn sàng điểm danh"}
                         </h2>
 
                         <p className="text-sm text-slate-400 mb-8">
-                          {t(
-                            "scanner_desc"
-                          )}
+                          {"Đưa mã QR của sinh viên vào khung quét. Hệ thống sẽ đối soát với danh sách đăng ký và ghi nhận điểm danh ngay lập tức."}
                         </p>
 
                         <button
@@ -324,9 +320,7 @@ const AttendancePage = () => {
                           "
                         >
                           <Camera size={18} />
-                          {t(
-                            "open_camera"
-                          )}
+                          {"Mở Camera"}
                         </button>
                       </div>
                     )}
@@ -374,9 +368,7 @@ const AttendancePage = () => {
                       </div>
 
                       <p className="mt-5 text-sm text-slate-500">
-                        {t(
-                          "scanner_desc"
-                        )}
+                        {"Đưa mã QR của sinh viên vào khung quét. Hệ thống sẽ đối soát với danh sách đăng ký và ghi nhận điểm danh ngay lập tức."}
                       </p>
                     </div>
                   )}
@@ -390,15 +382,11 @@ const AttendancePage = () => {
                         </div>
 
                         <h2 className="text-2xl font-bold text-slate-800 mb-2">
-                          {t(
-                            "scanning_success"
-                          )}
+                          {"THÀNH CÔNG!"}
                         </h2>
 
                         <p className="text-sm text-slate-400 mb-8">
-                          {t(
-                            "confirmed_presence"
-                          )}
+                          {"Đã xác nhận sự hiện diện của sinh viên"}
                         </p>
 
                         <button
@@ -418,7 +406,7 @@ const AttendancePage = () => {
                         "
                         >
                           <RefreshCw size={16} />
-                          {t("scan_next")}
+                          {"Quét mã tiếp theo"}
                         </button>
                       </div>
                     )}
@@ -432,15 +420,11 @@ const AttendancePage = () => {
                         </div>
 
                         <h2 className="text-2xl font-bold text-slate-800 mb-2">
-                          {t(
-                            "scanning_error"
-                          )}
+                          {"LỖI!"}
                         </h2>
 
                         <p className="text-sm text-slate-400 mb-8">
-                          {t(
-                            "invalid_or_used_qr"
-                          )}
+                          {"Mã không hợp lệ hoặc đã được sử dụng trước đó."}
                         </p>
 
                         <button
@@ -460,9 +444,7 @@ const AttendancePage = () => {
                         "
                         >
                           <RefreshCw size={16} />
-                          {t(
-                            "try_again_btn"
-                          )}
+                          {"THỬ LẠI"}
                         </button>
                       </div>
                     )}

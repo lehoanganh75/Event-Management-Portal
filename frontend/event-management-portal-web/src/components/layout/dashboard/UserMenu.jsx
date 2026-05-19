@@ -150,7 +150,7 @@ const UserMenu = ({
                   <div className="flex items-center gap-1 mt-2 text-slate-400">
                     <Mail size={11} />
                     <p className="text-[11px] truncate">
-                      {user?.email || t("no_email")}
+                      {user?.email || "Chưa cập nhật email"}
                     </p>
                   </div>
                 </div>
@@ -183,11 +183,11 @@ const UserMenu = ({
 
                 <div className="text-left">
                   <p className="text-sm font-medium text-slate-700">
-                    {t("profile")}
+                    {"Hồ sơ cá nhân"}
                   </p>
 
                   <p className="text-[11px] text-slate-400">
-                    {t("personal_account")}
+                    {"Tài khoản cá nhân"}
                   </p>
                 </div>
               </button>
@@ -216,11 +216,11 @@ const UserMenu = ({
 
                 <div className="text-left">
                   <p className="text-sm font-medium text-rose-600">
-                    {t("logout")}
+                    {"Đăng xuất"}
                   </p>
 
                   <p className="text-[11px] text-rose-300">
-                    {t("logout_desc")}
+                    {"Kết thúc phiên làm việc"}
                   </p>
                 </div>
               </button>

@@ -28,7 +28,7 @@ const CalendarModal = ({
         <div className="bg-[#1E40AF] text-white p-5 flex items-center justify-between">
           <div>
             <h2 className="text-xl font-semibold">
-              {t("events_on")} {selectedDay ? format(selectedDay, "dd/MM/yyyy") : ""}
+              {"Sự kiện ngày"} {selectedDay ? format(selectedDay, "dd/MM/yyyy") : ""}
             </h2>
             <p className="text-sm text-blue-100 mt-1">{events.length} events</p>
           </div>
@@ -81,7 +81,7 @@ const CalendarModal = ({
 
                     <div className="flex items-center gap-2">
                       <Users size={15} className="text-[#1E40AF]" />
-                      <span>{event.registeredCount || 0} {t("registered_count")}</span>
+                      <span>{event.registeredCount || 0} {"người đã đăng ký"}</span>
                     </div>
                   </div>
                 </div>
@@ -100,7 +100,7 @@ const CalendarModal = ({
             onClick={onClose}
             className="px-5 py-2.5 rounded-xl bg-slate-200 text-slate-700 font-medium hover:bg-slate-300 transition"
           >
-            {t("close_btn")}
+            {"Đóng"}
           </button>
         </div>
       </div>

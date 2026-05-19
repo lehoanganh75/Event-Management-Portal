@@ -10,14 +10,14 @@ const GuestEventsBanner = ({ stats, viewMode, setViewMode, t }) => {
             <div className="flex items-center gap-2 text-indigo-600 mb-1">
               <Ticket size={18} />
               <span className="text-[10px] font-bold uppercase tracking-[0.2em]">
-                {t("my_events_label") || "SỰ KIỆN CỦA TÔI"}
+                {"Sự kiện của tôi" || "SỰ KIỆN CỦA TÔI"}
               </span>
             </div>
             <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight">
-              {t("event_schedule_title") || "Lịch trình Sự kiện"}
+              {"Lịch trình Sự kiện" || "Lịch trình Sự kiện"}
             </h1>
             <p className="text-slate-500 text-sm font-medium">
-              {t("event_schedule_subtitle") || "Theo dõi và quản lý các sự kiện bạn đã tham gia"}
+              {"Theo dõi và quản lý các sự kiện bạn đã tham gia" || "Theo dõi và quản lý các sự kiện bạn đã tham gia"}
             </p>
           </div>
 
@@ -30,7 +30,7 @@ const GuestEventsBanner = ({ stats, viewMode, setViewMode, t }) => {
                     : "text-slate-500 hover:text-slate-700"
                   }`}
               >
-                <Search size={14} /> {t("grid_view") || "Dạng lưới"}
+                <Search size={14} /> {"Dạng lưới" || "Dạng lưới"}
               </button>
               <button
                 onClick={() => setViewMode("CALENDAR")}
@@ -39,14 +39,14 @@ const GuestEventsBanner = ({ stats, viewMode, setViewMode, t }) => {
                     : "text-slate-500 hover:text-slate-700"
                   }`}
               >
-                <CalendarIcon size={14} /> {t("calendar_view") || "Dạng lịch"}
+                <CalendarIcon size={14} /> {"Dạng lịch" || "Dạng lịch"}
               </button>
             </div>
             <div className="h-10 w-px bg-slate-200 hidden md:block" />
             <div className="hidden sm:flex items-center gap-3">
               <div className="bg-white border border-slate-100 p-4 rounded-2xl shadow-sm min-w-[120px] text-center">
                 <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">
-                  {t("total_label") || "Tổng cộng"}
+                  {"Tổng cộng" || "Tổng cộng"}
                 </p>
                 <p className="text-2xl font-black text-blue-600">{stats.total}</p>
               </div>

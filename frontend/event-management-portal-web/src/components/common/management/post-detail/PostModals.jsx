@@ -74,7 +74,7 @@ const PostModals = ({
                   onClick={() => setActionModal({ show: false, type: null, commentId: null })}
                   className="flex-1 px-6 py-3.5 rounded-2xl border border-slate-200 text-slate-600 font-bold hover:bg-slate-50 transition-all active:scale-95 disabled:opacity-50"
                 >
-                  {t('cancel')}
+                  {"Hủy"}
                 </button>
                 <button
                   disabled={isProcessingAction}
@@ -90,7 +90,7 @@ const PostModals = ({
                   }}
                   className={`flex-1 px-6 py-3.5 rounded-2xl text-white font-bold transition-all active:scale-95 shadow-lg flex items-center justify-center gap-2 ${actionModal.type === 'delete' ? 'bg-red-600 hover:bg-red-700 shadow-red-100' : 'bg-blue-600 hover:bg-blue-700 shadow-blue-100'}`}
                 >
-                  {isProcessingAction ? <Loader2 size={18} className="animate-spin" /> : (actionModal.type === 'delete' ? t('delete') : t('confirm'))}
+                  {isProcessingAction ? <Loader2 size={18} className="animate-spin" /> : (actionModal.type === 'delete' ? "Xóa" : t('confirm'))}
                 </button>
               </div>
             </motion.div>

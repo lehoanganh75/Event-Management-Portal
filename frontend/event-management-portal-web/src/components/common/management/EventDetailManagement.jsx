@@ -98,23 +98,23 @@ const EventDetailManagement = ({
   const { t, language } = useLanguage();
 
   const STATUS_CONFIG = {
-    DRAFT: { label: t('status_draft'), color: "bg-gray-100 text-gray-600" },
-    PLAN_PENDING_APPROVAL: { label: t('status_plan_pending'), color: "bg-orange-100 text-orange-600" },
-    PLAN_APPROVED: { label: t('status_plan_approved'), color: "bg-emerald-100 text-emerald-600" },
-    EVENT_PENDING_APPROVAL: { label: t('status_event_pending'), color: "bg-amber-100 text-amber-600" },
-    PUBLISHED: { label: t('status_published'), color: "bg-blue-100 text-blue-600" },
-    ONGOING: { label: t('status_ongoing'), color: "bg-green-100 text-green-600" },
-    COMPLETED: { label: t('status_completed'), color: "bg-indigo-100 text-indigo-600" },
-    CANCELLED: { label: t('status_cancelled'), color: "bg-red-100 text-red-600" },
-    REJECTED: { label: t('status_rejected'), color: "bg-rose-100 text-rose-600" },
-    CONVERTED: { label: t('status_converted'), color: "bg-slate-100 text-slate-600" },
+    DRAFT: { label: "Bản nháp", color: "bg-gray-100 text-gray-600" },
+    PLAN_PENDING_APPROVAL: { label: "Kế hoạch chờ duyệt", color: "bg-orange-100 text-orange-600" },
+    PLAN_APPROVED: { label: "Kế hoạch đã duyệt", color: "bg-emerald-100 text-emerald-600" },
+    EVENT_PENDING_APPROVAL: { label: "Sự kiện chờ duyệt", color: "bg-amber-100 text-amber-600" },
+    PUBLISHED: { label: "Đã công bố", color: "bg-blue-100 text-blue-600" },
+    ONGOING: { label: "Đang diễn ra", color: "bg-green-100 text-green-600" },
+    COMPLETED: { label: "Đã kết thúc", color: "bg-indigo-100 text-indigo-600" },
+    CANCELLED: { label: "Đã hủy", color: "bg-red-100 text-red-600" },
+    REJECTED: { label: "Đã từ chối", color: "bg-rose-100 text-rose-600" },
+    CONVERTED: { label: "Sự kiện đã bị hủy", color: "bg-slate-100 text-slate-600" },
   };
 
   const ORGANIZER_ROLES = [
-    { label: t('organizer_team'), value: "LEADER" },
-    { label: t('role_lecturer'), value: "COORDINATOR" },
-    { label: t('role_member'), value: "MEMBER" },
-    { label: t('role_secretary'), value: "ADVISOR" },
+    { label: "Ban tổ chức", value: "LEADER" },
+    { label: "Giảng viên / Tổ chức", value: "COORDINATOR" },
+    { label: "Thành viên", value: "MEMBER" },
+    { label: "Thư ký", value: "ADVISOR" },
   ];
 
   const formatFullDateTime = (iso) => {
@@ -142,10 +142,10 @@ const EventDetailManagement = ({
 
   const getRegistrationStatus = (status) => {
     switch (status) {
-      case "REGISTERED": return { label: t('registered_label'), color: "bg-blue-100 text-blue-700" };
-      case "PENDING": return { label: t('status_plan_pending'), color: "bg-amber-100 text-amber-700" };
-      case "ATTENDED": return { label: t('checked_in_status'), color: "bg-emerald-100 text-emerald-700" };
-      case "CANCELLED": return { label: t('status_cancelled'), color: "bg-red-100 text-red-700" };
+      case "REGISTERED": return { label: "Đã đăng ký", color: "bg-blue-100 text-blue-700" };
+      case "PENDING": return { label: "Kế hoạch chờ duyệt", color: "bg-amber-100 text-amber-700" };
+      case "ATTENDED": return { label: "Đã điểm danh ✓", color: "bg-emerald-100 text-emerald-700" };
+      case "CANCELLED": return { label: "Đã hủy", color: "bg-red-100 text-red-700" };
       default: return { label: status || "—", color: "bg-gray-100 text-gray-600" };
     }
   };
@@ -754,16 +754,16 @@ const EventDetailManagement = ({
     const tabs = [];
 
     // 1. Tổng quan (Giai đoạn chuẩn bị - Thông tin)
-    tabs.push({ key: t('overview'), label: t('overview'), icon: Info });
+    tabs.push({ key: "Tổng quan", label: "Tổng quan", icon: Info });
 
     // 2. Chương trình (Giai đoạn chuẩn bị - Nội dung)
-    tabs.push({ key: t('program'), label: t('program'), icon: List });
+    tabs.push({ key: "Chương trình", label: "Chương trình", icon: List });
 
-    // 3. Diễn giả (Giai đoạn chuẩn bị - Nhân sự then chốt)
-    tabs.push({ key: t('presenters'), label: t('presenters'), icon: Star });
+    // 3. Ban tổ chức (Giai đoạn chuẩn bị - Đội ngũ vận hành)
+    tabs.push({ key: "Ban tổ chức", label: "Ban tổ chức", icon: Users });
 
-    // 4. Ban tổ chức (Giai đoạn chuẩn bị - Đội ngũ vận hành)
-    tabs.push({ key: t('organizer_team'), label: t('organizer_team'), icon: Users });
+    // 4. Diễn giả (Giai đoạn chuẩn bị - Nhân sự then chốt)
+    tabs.push({ key: "Diễn giả", label: "Diễn giả", icon: Star });
 
     // Nếu là Kế hoạch hoặc Diễn giả (không phải Core Team), CHỈ hiện 4 tab trên
     if (isPlan || (isPresenter && !isCoreTeam)) {
@@ -775,55 +775,55 @@ const EventDetailManagement = ({
     // 5. Đăng ký (Giai đoạn vận hành - Trước sự kiện)
     if (canSeeAll || isMember) {
       if (canSeeAll || up.canManageRegistrations) {
-        tabs.push({ key: t('registrations_tab'), label: t('registrations_tab'), icon: UserCheck });
+        tabs.push({ key: "Đăng ký", label: "Đăng ký", icon: UserCheck });
       }
     }
 
     // 6. Điểm danh (Giai đoạn vận hành - Trong sự kiện)
     if (canSeeAll || isMember) {
       if (canSeeAll || isMember || up.canCheckIn) {
-        tabs.push({ key: t('attendance_tab'), label: t('attendance_tab'), icon: CheckCircle });
+        tabs.push({ key: "Điểm danh", label: "Điểm danh", icon: CheckCircle });
       }
     }
 
-    // 7. Thử thách (Giai đoạn tương tác)
-    if (canSeeAll) {
-      tabs.push({ key: t('challenges'), label: t('challenges'), icon: Trophy });
-    }
-
-    // 8. Khảo sát (Giai đoạn tương tác/Phản hồi)
-    if (canSeeAll) {
-      tabs.push({ key: t('survey'), label: t('survey'), icon: ClipboardCheck });
-    }
-
-    // FEEDBACK TAB
-    if (canSeeAll) {
-      tabs.push({ key: 'feedback', label: 'Đánh giá', icon: MessageSquare });
-    }
-
-    // QA TAB
+    // 7. Hỏi đáp (Q&A) (Giai đoạn tương tác - Trong sự kiện)
     if (canSeeAll) {
       tabs.push({ key: 'qa', label: 'Hỏi đáp (Q&A)', icon: MessageCircle });
     }
 
-    // Vòng quay may mắn (Giai đoạn tương tác - Nếu có)
+    // 8. Thử thách (Giai đoạn tương tác - Trong sự kiện)
+    if (canSeeAll) {
+      tabs.push({ key: "Thử thách", label: "Thử thách", icon: Trophy });
+    }
+
+    // 9. Vòng quay may mắn (Giai đoạn tương tác - Nếu có)
     if (canSeeAll && event?.hasLuckyDraw) {
-      tabs.push({ key: t('lucky_draw_tab'), label: t('lucky_draw_tab'), icon: Gift });
+      tabs.push({ key: "Vòng quay may mắn", label: "Vòng quay may mắn", icon: Gift });
     }
 
-    // 9. Thống kê (Giai đoạn kết thúc - Báo cáo)
+    // 10. Khảo sát (Giai đoạn tương tác/Phản hồi)
+    if (canSeeAll) {
+      tabs.push({ key: "Khảo sát", label: "Khảo sát", icon: ClipboardCheck });
+    }
+
+    // 11. Đánh giá (Giai đoạn hậu sự kiện)
+    if (canSeeAll) {
+      tabs.push({ key: 'feedback', label: 'Đánh giá', icon: MessageSquare });
+    }
+
+    // 12. Thống kê (Giai đoạn kết thúc - Báo cáo)
     if (canSeeAll || isAdvisor || up.canViewAnalytics) {
-      tabs.push({ key: t('statistics'), label: t('statistics'), icon: TrendingUp });
+      tabs.push({ key: "Thống kê", label: "Thống kê", icon: TrendingUp });
     }
 
-    // 10. Phân tích AI (Giai đoạn hậu sự kiện)
+    // 13. Phân tích AI (Giai đoạn hậu sự kiện)
     if (canSeeAll || up.canViewAnalytics) {
-      tabs.push({ key: t('ai_analysis'), label: t('ai_analysis'), icon: Bot });
+      tabs.push({ key: "Phân tích AI", label: "Phân tích AI", icon: Bot });
     }
 
-    // 11. Cài đặt (Hệ thống)
+    // 14. Cài đặt (Hệ thống)
     if (canSeeAll || up.canEditEvent || event.currentUserRole?.organizerRole) {
-      tabs.push({ key: t('settings'), label: t('settings'), icon: Settings });
+      tabs.push({ key: "Cài đặt", label: "Cài đặt", icon: Settings });
     }
 
     return tabs;
@@ -835,7 +835,7 @@ const EventDetailManagement = ({
     <div className="min-h-screen bg-gray-50 flex items-center justify-center">
       <div className="text-center">
         <div className="animate-spin w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full mx-auto"></div>
-        <p className="mt-4 text-gray-500">{t('loading')}</p>
+        <p className="mt-4 text-gray-500">{"Đang tải..."}</p>
       </div>
     </div>
   );
@@ -843,8 +843,8 @@ const EventDetailManagement = ({
   if (!event) return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center">
       <div className="text-center text-red-500">
-        <p>{t('event_not_found')}</p>
-        <button onClick={() => navigate(-1)} className="mt-4 px-6 py-2 bg-gray-800 text-white rounded-xl">{t('back_btn')}</button>
+        <p>{"Không tìm thấy sự kiện"}</p>
+        <button onClick={() => navigate(-1)} className="mt-4 px-6 py-2 bg-gray-800 text-white rounded-xl">{"Quay lại"}</button>
       </div>
     </div>
   );
@@ -864,10 +864,10 @@ const EventDetailManagement = ({
     // 2. Kiểm tra vai trò Người tạo/Duyệt (Creator/Approver)
     // Jackson thường serialize 'isCreator' thành 'creator' hoặc 'isCreator'
     if (up.isCreator || up.creator) {
-      roles.push({ label: t('role_leader'), color: "bg-indigo-600 text-white" });
+      roles.push({ label: "Trưởng nhóm", color: "bg-indigo-600 text-white" });
     }
     if (up.isApprover || up.approver) {
-      roles.push({ label: t('role_approver'), color: "bg-emerald-600 text-white" });
+      roles.push({ label: "Người duyệt sự kiện", color: "bg-emerald-600 text-white" });
     }
 
     // 3. Kiểm tra vai trò Diễn giả (Presenter)
@@ -877,12 +877,12 @@ const EventDetailManagement = ({
 
     // 4. Kiểm tra vai trò Người tham gia (Participant)
     if (up.isRegistered || up.registered || up.registration) {
-      roles.push({ label: t('participants'), color: "bg-blue-500 text-white" });
+      roles.push({ label: "Người tham gia", color: "bg-blue-500 text-white" });
     }
 
     // 5. Nếu chưa có vai trò cụ thể nào trong sự kiện nhưng là Admin hệ thống
     if (roles.length === 0 && isAdmin) {
-      roles.push({ label: t('role_admin'), color: "bg-slate-800 text-white" });
+      roles.push({ label: "Quản trị viên", color: "bg-slate-800 text-white" });
     }
     return roles;
   };
@@ -917,7 +917,7 @@ const EventDetailManagement = ({
         "
         >
           <ArrowLeft size={17} />
-          {t("back_btn")}
+          {"Quay lại"}
         </button>
 
         <div className="absolute top-5 right-5">
@@ -1203,7 +1203,21 @@ const EventDetailManagement = ({
             {/* PHÂN TÍCH AI */}
             {activeTab === "Phân tích AI" && (
               <div className="space-y-6">
-                <EventAIAnalysis eventId={event.id} />
+                {event.status === "COMPLETED" ? (
+                  <EventAIAnalysis eventId={event.id} />
+                ) : (
+                  <div className="bg-white rounded-2xl border border-slate-200 p-8 text-center max-w-lg mx-auto my-8 shadow-sm">
+                    <div className="w-16 h-16 bg-indigo-50 text-indigo-600 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                      <Bot size={32} />
+                    </div>
+                    <h3 className="text-lg font-semibold text-slate-800 mb-2">
+                      Phân tích AI chưa sẵn sàng
+                    </h3>
+                    <p className="text-slate-500 text-sm leading-relaxed">
+                      Tính năng phân tích AI chỉ khả dụng sau khi sự kiện hoàn toàn để thu thập đầy đủ dữ liệu thống kê, tương tác và phản hồi của người tham gia.
+                    </p>
+                  </div>
+                )}
               </div>
             )}
 
@@ -1270,10 +1284,10 @@ const EventDetailManagement = ({
             )}
 
             {/* PHẢN HỒI / ĐÁNH GIÁ */}
-            {activeTab === "feedback" && <FeedbackTab eventId={event.id} />}
+            {activeTab === "feedback" && <FeedbackTab eventId={event.id} event={event} />}
 
             {/* HỎI ĐÁP Q&A */}
-            {activeTab === "qa" && <QATab eventId={event.id} />}
+            {activeTab === "qa" && <QATab eventId={event.id} event={event} />}
 
             {/* FULL SCREEN JOIN MODAL */}
             <AnimatePresence>

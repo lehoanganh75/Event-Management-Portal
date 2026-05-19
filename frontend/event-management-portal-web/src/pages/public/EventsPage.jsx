@@ -68,7 +68,9 @@ const EventsPage = () => {
     useState("");
 
   const [activeTab, setActiveTab] =
-    useState("all");
+    useState(
+      searchParams.get("tab") || "all"
+    );
 
   const [currentPage, setCurrentPage] =
     useState(1);
@@ -88,6 +90,15 @@ const EventsPage = () => {
     fetchOngoing();
     fetchUpcoming();
   }, []);
+
+  useEffect(() => {
+    const tabParam = searchParams.get("tab");
+    if (tabParam && ["all", "upcoming", "ongoing"].includes(tabParam)) {
+      setActiveTab(tabParam);
+    } else if (!tabParam) {
+      setActiveTab("all");
+    }
+  }, [searchParams]);
 
   useEffect(() => {
     if (activeView === "news") {
@@ -193,7 +204,22 @@ const EventsPage = () => {
       );
     }
 
-    return list;
+    // Sort by status: ONGOING -> PUBLISHED/UPCOMING -> COMPLETED -> others
+    const statusOrder = {
+      ONGOING: 1,
+      PUBLISHED: 2,
+      UPCOMING: 2,
+      COMPLETED: 3,
+    };
+
+    return [...list].sort((a, b) => {
+      const orderA = statusOrder[a.status] || 99;
+      const orderB = statusOrder[b.status] || 99;
+      if (orderA !== orderB) {
+        return orderA - orderB;
+      }
+      return new Date(b.startTime) - new Date(a.startTime);
+    });
   }, [
     activeTab,
     userAll,
@@ -232,9 +258,23 @@ const EventsPage = () => {
     view
   ) => {
     setActiveView(view);
+    const nextParams = new URLSearchParams(searchParams);
+    nextParams.set("view", view);
+    setSearchParams(nextParams);
+    setCurrentPage(1);
+  };
 
-    setSearchParams({ view });
-
+  const handleTabChange = (
+    tab
+  ) => {
+    setActiveTab(tab);
+    const nextParams = new URLSearchParams(searchParams);
+    if (tab === "all") {
+      nextParams.delete("tab");
+    } else {
+      nextParams.set("tab", tab);
+    }
+    setSearchParams(nextParams);
     setCurrentPage(1);
   };
 
@@ -269,9 +309,7 @@ const EventsPage = () => {
               />
 
               <span className="text-xs font-semibold tracking-wide">
-                {t(
-                  "explore_activities"
-                )}
+                {"Khám phá hoạt động"}
               </span>
             </motion.div>
 
@@ -289,9 +327,7 @@ const EventsPage = () => {
               }}
               className="text-3xl md:text-5xl font-bold mb-4"
             >
-              {t(
-                "iuh_ecosystem"
-              )}
+              {"Hệ sinh thái sự kiện IUH"}
             </motion.h1>
 
             <motion.p
@@ -308,9 +344,7 @@ const EventsPage = () => {
               }}
               className="text-blue-100 max-w-2xl text-sm md:text-base"
             >
-              {t(
-                "event_hub_desc"
-              )}
+              {"Khám phá và tham gia hàng trăm sự kiện được tổ chức tại IUH. Từ các hội thảo học thuật đến các lễ hội văn hóa sôi động."}
             </motion.p>
           </div>
         </div>
@@ -349,7 +383,7 @@ const EventsPage = () => {
                       }`}
                   >
                     <Calendar size={16} />
-                    {t("events")}
+                    {"Sự kiện"}
                   </button>
 
                   <button
@@ -365,7 +399,7 @@ const EventsPage = () => {
                       }`}
                   >
                     <Newspaper size={16} />
-                    {t("news")}
+                    {"Bản tin"}
                   </button>
                 </div>
 
@@ -379,15 +413,7 @@ const EventsPage = () => {
                       ].map((tab) => (
                         <button
                           key={tab}
-                          onClick={() => {
-                            setActiveTab(
-                              tab
-                            );
-
-                            setCurrentPage(
-                              1
-                            );
-                          }}
+                          onClick={() => handleTabChange(tab)}
                           className={`flex-1 md:flex-none px-4 py-2 rounded-lg text-xs font-medium transition-all ${activeTab ===
                             tab
                             ? "bg-blue-50 text-[#1E40AF]"
@@ -395,9 +421,7 @@ const EventsPage = () => {
                             }`}
                         >
                           {tab === "all"
-                            ? t(
-                              "all_tab"
-                            )
+                            ? "Tất cả"
                             : t(tab)}
                         </button>
                       ))}
@@ -526,13 +550,11 @@ const EventsPage = () => {
                         />
 
                         <h3 className="font-semibold text-slate-700 mb-1">
-                          {t(
-                            "no_events_match"
-                          )}
+                          {"Không tìm thấy sự kiện phù hợp"}
                         </h3>
 
                         <p className="text-sm text-slate-400">
-                          {t("try_another_keyword")}
+                          {"Vui lòng thử lại với từ khóa khác"}
                         </p>
                       </div>
                     )}
@@ -590,11 +612,11 @@ const EventsPage = () => {
                         />
 
                         <h3 className="font-semibold text-slate-700 mb-1">
-                          {t("no_news_feed")}
+                          {"Không có bản tin nào"}
                         </h3>
 
                         <p className="text-sm text-slate-400">
-                          {t("stay_tuned_updates")}
+                          {"Hãy quay lại sau để cập nhật tin tức mới nhất"}
                         </p>
                       </div>
                     )}

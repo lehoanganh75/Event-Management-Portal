@@ -6,10 +6,11 @@ import eventService from "../../services/eventService";
 import { useAuth } from "../../context/AuthContext";
 import { toast } from "react-toastify";
 
-const EventFeedback = ({ eventId, role }) => {
+const EventFeedback = ({ eventId, event, role }) => {
   const [feedbacks, setFeedbacks] = useState([]);
   const [loading, setLoading] = useState(true);
   const [stompClient, setStompClient] = useState(null);
+  const [feedbackEnabled, setFeedbackEnabled] = useState(false);
 
   const { user } = useAuth();
 
@@ -22,6 +23,7 @@ const EventFeedback = ({ eventId, role }) => {
   useEffect(() => {
     if (eventId) {
       fetchFeedbacks();
+      fetchFeedbackStatus();
       connectWebSocket();
     }
 
@@ -29,6 +31,15 @@ const EventFeedback = ({ eventId, role }) => {
       if (stompClient) stompClient.deactivate();
     };
   }, [eventId]);
+
+  const fetchFeedbackStatus = async () => {
+    try {
+      const res = await eventService.getFeedbackStatus(eventId);
+      setFeedbackEnabled(res.data);
+    } catch (err) {
+      console.error("Error fetching feedback status:", err);
+    }
+  };
 
   const fetchFeedbacks = async () => {
     try {
@@ -53,6 +64,11 @@ const EventFeedback = ({ eventId, role }) => {
       onConnect: () => {
         client.subscribe(`/topic/feedback/${eventId}`, (message) => {
           const newFeedback = JSON.parse(message.body);
+
+          if (newFeedback.id === "SYSTEM_FEEDBACK_STATUS") {
+            setFeedbackEnabled(newFeedback.comment === "FEEDBACK_STATUS:OPEN");
+            return;
+          }
 
           setFeedbacks((prev) => {
             const index = prev.findIndex((f) => f.id === newFeedback.id);
@@ -198,111 +214,123 @@ const EventFeedback = ({ eventId, role }) => {
       <div className="p-6">
         {/* Form */}
         {role.registered && role.registration?.checkedIn && (
-          <div className="mb-8 border border-slate-200 rounded-2xl p-5 bg-slate-50">
-            <div className="flex items-center gap-3 mb-5">
-              <div className="w-11 h-11 rounded-full bg-indigo-100 flex items-center justify-center overflow-hidden">
-                {user?.avatarUrl ? (
-                  <img
-                    src={user.avatarUrl}
-                    alt=""
-                    className="w-full h-full object-cover"
-                  />
-                ) : (
-                  <User size={18} className="text-indigo-600" />
-                )}
-              </div>
-
-              <div>
-                <p className="font-medium text-slate-800">
-                  {user?.fullName || "Bạn"}
-                </p>
-                <p className="text-xs text-slate-400">
-                  Chia sẻ cảm nhận của bạn
-                </p>
-              </div>
-            </div>
-
-            {/* Stars */}
-            <div className="flex gap-2 mb-5">
-              {[1, 2, 3, 4, 5].map((star) => (
-                <button
-                  key={star}
-                  onClick={() => setNewRating(star)}
-                  className="transition hover:scale-105"
-                >
-                  <Star
-                    size={28}
-                    fill={newRating >= star ? "currentColor" : "none"}
-                    className={
-                      newRating >= star
-                        ? "text-amber-400"
-                        : "text-slate-300"
-                    }
-                  />
-                </button>
-              ))}
-            </div>
-
-            {/* Reason */}
-            <div className="mb-4">
-              <label className="block text-sm font-medium text-slate-700 mb-2">
-                Lý do đánh giá
-              </label>
-
-              <input
-                type="text"
-                value={newReason}
-                onChange={(e) => setNewReason(e.target.value)}
-                placeholder="Ví dụ: Nội dung hữu ích..."
-                className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:border-indigo-500 bg-white text-sm"
-              />
-            </div>
-
-            {/* Comment */}
-            <div className="mb-5">
-              <label className="block text-sm font-medium text-slate-700 mb-2">
-                Góp ý thêm
-              </label>
-
-              <textarea
-                rows={3}
-                value={newComment}
-                onChange={(e) => setNewComment(e.target.value)}
-                placeholder="Chia sẻ thêm cảm nhận của bạn..."
-                className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:border-indigo-500 bg-white text-sm resize-none"
-              />
-            </div>
-
-            {/* Bottom */}
-            <div className="flex items-center justify-between gap-4 flex-wrap">
-              <button
-                onClick={() => setIsAnonymous(!isAnonymous)}
-                className="flex items-center gap-2 text-sm text-slate-500 hover:text-slate-700"
-              >
-                <div
-                  className={`w-4 h-4 rounded border flex items-center justify-center ${isAnonymous
-                      ? "bg-slate-800 border-slate-800 text-white"
-                      : "border-slate-300"
-                    }`}
-                >
-                  <Shield size={10} />
+          (event?.status === "COMPLETED" || feedbackEnabled) ? (
+            <div className="mb-8 border border-slate-200 rounded-2xl p-5 bg-slate-50">
+              <div className="flex items-center gap-3 mb-5">
+                <div className="w-11 h-11 rounded-full bg-indigo-100 flex items-center justify-center overflow-hidden">
+                  {user?.avatarUrl ? (
+                    <img
+                      src={user.avatarUrl}
+                      alt=""
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <User size={18} className="text-indigo-600" />
+                  )}
                 </div>
 
-                Ẩn danh
-              </button>
+                <div>
+                  <p className="font-medium text-slate-800">
+                    {user?.fullName || "Bạn"}
+                  </p>
+                  <p className="text-xs text-slate-400">
+                    Chia sẻ cảm nhận của bạn
+                  </p>
+                </div>
+              </div>
 
-              <button
-                disabled={isSubmitting || newRating === 0}
-                onClick={handleSubmitFeedback}
-                className={`px-5 py-3 rounded-xl text-sm font-medium transition ${newRating > 0
+              {/* Stars */}
+              <div className="flex gap-2 mb-5">
+                {[1, 2, 3, 4, 5].map((star) => (
+                  <button
+                    key={star}
+                    onClick={() => setNewRating(star)}
+                    className="transition hover:scale-105"
+                  >
+                    <Star
+                      size={28}
+                      fill={newRating >= star ? "currentColor" : "none"}
+                      className={
+                        newRating >= star
+                          ? "text-amber-400"
+                          : "text-slate-300"
+                      }
+                    />
+                  </button>
+                ))}
+              </div>
+
+              {/* Reason */}
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-slate-700 mb-2">
+                  Lý do đánh giá
+                </label>
+
+                <input
+                  type="text"
+                  value={newReason}
+                  onChange={(e) => setNewReason(e.target.value)}
+                  placeholder="Ví dụ: Nội dung hữu ích..."
+                  className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:border-indigo-500 bg-white text-sm"
+                />
+              </div>
+
+              {/* Comment */}
+              <div className="mb-5">
+                <label className="block text-sm font-medium text-slate-700 mb-2">
+                  Góp ý thêm
+                </label>
+
+                <textarea
+                  rows={3}
+                  value={newComment}
+                  onChange={(e) => setNewComment(e.target.value)}
+                  placeholder="Chia sẻ thêm cảm nhận của bạn..."
+                  className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:border-indigo-500 bg-white text-sm resize-none"
+                />
+              </div>
+
+              {/* Bottom */}
+              <div className="flex items-center justify-between gap-4 flex-wrap">
+                <button
+                  onClick={() => setIsAnonymous(!isAnonymous)}
+                  className="flex items-center gap-2 text-sm text-slate-500 hover:text-slate-700"
+                >
+                  <div
+                    className={`w-4 h-4 rounded border flex items-center justify-center ${isAnonymous
+                      ? "bg-slate-800 border-slate-800 text-white"
+                      : "border-slate-300"
+                      }`}
+                  >
+                    <Shield size={10} />
+                  </div>
+
+                  Ẩn danh
+                </button>
+
+                <button
+                  disabled={isSubmitting || newRating === 0}
+                  onClick={handleSubmitFeedback}
+                  className={`px-5 py-3 rounded-xl text-sm font-medium transition ${newRating > 0
                     ? "bg-indigo-600 text-white hover:bg-indigo-700"
                     : "bg-slate-200 text-slate-400 cursor-not-allowed"
-                  }`}
-              >
-                {isSubmitting ? "Đang gửi..." : "Gửi đánh giá"}
-              </button>
+                    }`}
+                >
+                  {isSubmitting ? "Đang gửi..." : "Gửi đánh giá"}
+                </button>
+              </div>
             </div>
-          </div>
+          ) : (
+            <div className="mb-8 border border-slate-200 rounded-2xl p-6 bg-amber-50/40 border-dashed flex flex-col items-center text-center">
+              <Shield size={24} className="text-amber-500 mb-2" />
+              <h4 className="text-sm font-bold text-slate-800">
+                Tính năng đánh giá sự kiện chưa mở
+              </h4>
+              <p className="text-xs text-slate-500 mt-1 max-w-md leading-relaxed">
+                Ý kiến từ người tham gia sẽ tự động mở ra khi sự kiện kết thúc hoặc ban tổ chức có thể kích hoạt mở.
+              </p>
+            </div>
+          )
         )}
 
         {/* Feedback list */}
@@ -330,8 +358,8 @@ const EventFeedback = ({ eventId, role }) => {
                 <div className="flex items-start gap-3">
                   <div
                     className={`w-10 h-10 rounded-full overflow-hidden flex items-center justify-center shrink-0 ${fb.isAnonymous
-                        ? "bg-slate-100 text-slate-500"
-                        : "bg-indigo-100 text-indigo-600"
+                      ? "bg-slate-100 text-slate-500"
+                      : "bg-indigo-100 text-indigo-600"
                       }`}
                   >
                     {fb.isAnonymous ? (

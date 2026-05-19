@@ -43,12 +43,12 @@ const NewsSidebar = ({
 
             <div>
               <h2 className="text-sm font-semibold text-slate-800">
-                {t("filter_by_event")}
+                {"Lọc theo sự kiện"}
               </h2>
 
               <p className="text-[11px] text-slate-400">
                 {filteredEvents.length}{" "}
-                {t("events")}
+                {"Sự kiện"}
               </p>
             </div>
           </div>
@@ -79,9 +79,7 @@ const NewsSidebar = ({
                     e.target.value
                   )
                 }
-                placeholder={t(
-                  "search_event_placeholder"
-                )}
+                placeholder={"Tìm sự kiện..."}
                 className="
                   w-full
                   bg-slate-50
@@ -115,7 +113,7 @@ const NewsSidebar = ({
               >
                 <div className="flex items-center justify-between">
                   <span className="text-sm font-medium">
-                    {t("all_news")}
+                    {"Tất cả tin tức"}
                   </span>
 
                   <span
@@ -169,9 +167,7 @@ const NewsSidebar = ({
                 0 &&
                 eventSearch && (
                   <div className="py-8 text-center text-sm text-slate-400">
-                    {t(
-                      "no_events_found_match"
-                    )}
+                    {"Không tìm thấy sự kiện nào khớp"}
                   </div>
                 )}
             </div>
@@ -186,9 +182,7 @@ const NewsSidebar = ({
                   />
 
                   <p className="text-[12px] text-slate-500 leading-relaxed">
-                    {t(
-                      "no_events_public_posts"
-                    )}
+                    {"Chưa có sự kiện nào có bài viết công khai."}
                   </p>
                 </div>
               )}

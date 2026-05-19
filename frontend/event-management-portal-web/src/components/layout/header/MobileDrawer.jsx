@@ -32,10 +32,10 @@ const MobileDrawer = ({
   const location = useLocation();
 
   const menuItems = [
-    { id: "home", label: t("home"), path: "/", icon: Home },
-    { id: "events", label: t("events"), path: "/events", icon: Calendar },
-    { id: "calendar", label: t("calendar"), path: "/calendar", icon: Clock },
-    { id: "news", label: t("news"), path: "/news", icon: MessageSquare },
+    { id: "home", label: "Trang chủ", path: "/", icon: Home },
+    { id: "events", label: "Sự kiện", path: "/events", icon: Calendar },
+    { id: "calendar", label: "Lịch sự kiện", path: "/calendar", icon: Clock },
+    { id: "news", label: "Bản tin", path: "/news", icon: MessageSquare },
   ];
 
   return (
@@ -131,7 +131,7 @@ const MobileDrawer = ({
               ) : (
                 <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100">
                   <p className="text-[12px] text-slate-500 font-medium mb-3">
-                    {t("welcome_guest")}
+                    {"Chào mừng bạn"}
                   </p>
 
                   <button
@@ -151,7 +151,7 @@ const MobileDrawer = ({
                       shadow-sm
                     "
                   >
-                    {t("login_now")}
+                    {"Đăng nhập ngay"}
                   </button>
                 </div>
               )}
@@ -199,7 +199,7 @@ const MobileDrawer = ({
               {(isEventStaff() || isAdminOnly() || isSuperAdmin()) && (
                 <div className="pt-4 mt-4 border-t border-slate-100">
                   <p className="px-4 mb-2 text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
-                    {t("management")}
+                    {"Quản lý"}
                   </p>
 
                   <Link
@@ -225,8 +225,8 @@ const MobileDrawer = ({
 
                       <span className="text-[14px] font-medium">
                         {isAdminOnly() || isSuperAdmin()
-                          ? t("admin_dashboard")
-                          : t("org_dashboard")}
+                          ? "Bảng điều khiển Admin"
+                          : "Bảng điều khiển BTC"}
                       </span>
                     </div>
 
@@ -240,7 +240,7 @@ const MobileDrawer = ({
             <div className="p-6 bg-slate-50 border-t border-slate-100">
               <div className="flex items-center justify-between mb-6">
                 <span className="text-[12px] font-medium text-slate-500">
-                  {t("language_label")}
+                  {"Ngôn ngữ"}
                 </span>
 
                 <div className="flex items-center p-1 bg-white rounded-lg border border-slate-200">
@@ -291,7 +291,7 @@ const MobileDrawer = ({
                   "
                 >
                   <LogOut size={18} />
-                  {t("logout")}
+                  {"Đăng xuất"}
                 </button>
               )}
             </div>

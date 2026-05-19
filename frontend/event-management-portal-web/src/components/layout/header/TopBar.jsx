@@ -12,7 +12,7 @@ const TopBar = ({ t, language, setLanguage }) => {
             <span className="w-2 h-2 rounded-full bg-emerald-400" />
 
             <span className="font-medium text-white/95">
-              {t("system_name")}
+              {"Hệ thống Quản lý Sự kiện IUH"}
             </span>
           </div>
 

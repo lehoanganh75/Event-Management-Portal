@@ -6,10 +6,10 @@ const DesktopNav = ({ setActiveSection, t }) => {
   const location = useLocation();
 
   const navItems = [
-    { id: "home", label: t("home"), path: "/" },
-    { id: "events", label: t("events"), path: "/events" },
-    { id: "calendar", label: t("calendar"), path: "/calendar" },
-    { id: "news", label: t("news"), path: "/news" },
+    { id: "home", label: "Trang chủ", path: "/" },
+    { id: "events", label: "Sự kiện", path: "/events" },
+    { id: "calendar", label: "Lịch sự kiện", path: "/calendar" },
+    { id: "news", label: "Bản tin", path: "/news" },
   ];
 
   return (
