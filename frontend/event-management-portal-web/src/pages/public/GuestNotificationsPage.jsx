@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { Bell, Search, Filter, Calendar, ChevronRight, Info, Zap, Megaphone, Loader2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import Layout from '../../components/layout/Layout';
 import { useLanguage } from '../../context/LanguageContext';
+import { useAuth } from '../../context/AuthContext';
 import eventService from '../../services/eventService';
 
 const AnnouncementCard = ({ item, language, isRead, onRead }) => {
@@ -76,6 +77,9 @@ const AnnouncementCard = ({ item, language, isRead, onRead }) => {
 
 const GuestNotificationsPage = () => {
   const { t, language } = useLanguage();
+  const { isAuthenticated, loading: authLoading } = useAuth();
+  const navigate = useNavigate();
+
   const [announcements, setAnnouncements] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('ALL');
@@ -97,6 +101,13 @@ const GuestNotificationsPage = () => {
   };
 
   useEffect(() => {
+    if (!authLoading && !isAuthenticated) {
+      navigate('/login', { state: { from: '/notifications' } });
+    }
+  }, [isAuthenticated, authLoading, navigate]);
+
+  useEffect(() => {
+    if (!isAuthenticated) return;
     const fetchAnnouncements = async () => {
       try {
         setLoading(true);
@@ -109,7 +120,7 @@ const GuestNotificationsPage = () => {
       }
     };
     fetchAnnouncements();
-  }, []);
+  }, [isAuthenticated]);
 
   const filteredData = announcements.filter(item => {
     const matchesSearch = item.title.toLowerCase().includes(search.toLowerCase()) || 
@@ -125,6 +136,19 @@ const GuestNotificationsPage = () => {
   useEffect(() => {
     setCurrentPage(1);
   }, [filter, search]);
+
+  if (authLoading || !isAuthenticated) {
+    return (
+      <div className="min-h-screen bg-[#f8fafc] flex items-center justify-center">
+        <div className="text-center">
+          <Loader2 className="animate-spin text-blue-600 mb-4 mx-auto" size={48} />
+          <p className="text-slate-500 font-bold uppercase tracking-widest text-xs">
+            {language === 'VI' ? 'Đang xác thực...' : 'Authenticating...'}
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <Layout>

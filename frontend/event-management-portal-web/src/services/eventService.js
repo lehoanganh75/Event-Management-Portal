@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://fitiuh-events.io.vn';
+const BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://api.fitiuh-events.io.vn';
 const IDENTITY_BASE_URL = (import.meta.env.VITE_API_BASE_URL || 'https://api.fitiuh-events.io.vn') + '/identity';
 
 
