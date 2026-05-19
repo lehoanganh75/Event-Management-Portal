@@ -8,8 +8,7 @@ import {
   endOfWeek,
   isSameDay,
 } from "date-fns";
-import viLocale from "date-fns/locale/vi";
-import enLocale from "date-fns/locale/en-US";
+import { vi, enUS } from "date-fns/locale";
 
 import Header from "../../components/layout/Header";
 import eventService from "../../services/eventService";
@@ -69,7 +68,7 @@ const CalendarPage = () => {
   const [selectedDay, setSelectedDay] = useState(null);
 
   const CATEGORY_COLORS = getCategoryColors(t);
-  const locale = language === "VI" ? viLocale : enLocale;
+  const locale = language === "VI" ? vi : enUS;
 
   useEffect(() => {
     fetchEvents();
