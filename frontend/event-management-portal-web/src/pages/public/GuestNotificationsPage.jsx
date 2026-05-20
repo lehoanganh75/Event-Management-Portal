@@ -7,6 +7,7 @@ import { useLanguage } from '../../context/LanguageContext';
 import { useAuth } from '../../context/AuthContext';
 import notificationService from '../../services/notificationService';
 import { showToast } from '../../utils/toast.jsx';
+import logo_iuh from '../../assets/images/logo_iuh.png';
 
 const NOTIFICATION_TYPES = {
   // Người dùng
@@ -285,10 +286,19 @@ const GuestNotificationsPage = () => {
   if (authLoading || !isAuthenticated) {
     return (
       <div className="min-h-screen bg-[#f8fafc] flex items-center justify-center">
-        <div className="text-center">
-          <Loader2 className="animate-spin text-blue-600 mb-4 mx-auto" size={48} />
-          <p className="text-slate-500 font-bold uppercase tracking-widest text-xs">
-            {language === 'VI' ? 'Đang xác thực...' : 'Authenticating...'}
+        <div className="flex flex-col items-center gap-4">
+          <div className="relative">
+            <div className="w-20 h-20 border-4 border-blue-500/10 border-t-blue-600 rounded-full animate-spin"></div>
+            <div className="absolute inset-0 flex items-center justify-center">
+              <img
+                src={logo_iuh}
+                alt="IUH Logo"
+                className="w-10 h-10 object-contain animate-pulse"
+              />
+            </div>
+          </div>
+          <p className="text-slate-600 text-sm font-semibold tracking-wide animate-pulse mt-2">
+            {language === 'VI' ? 'Đang xác thực phiên làm việc...' : 'Authenticating session...'}
           </p>
         </div>
       </div>
@@ -367,9 +377,16 @@ const GuestNotificationsPage = () => {
         {/* Content Area */}
         <div className="max-w-4xl mx-auto px-6 py-10">
           {loading ? (
-            <div className="flex flex-col items-center justify-center py-20">
-              <Loader2 className="animate-spin text-blue-600 mb-4" size={48} />
-              <p className="text-slate-400 font-bold uppercase tracking-widest text-xs">{"Đang tải..."}</p>
+            <div className="flex flex-col items-center justify-center py-32 gap-4">
+              <div className="relative">
+                <div className="w-16 h-16 border-4 border-blue-500/10 border-t-blue-600 rounded-full animate-spin"></div>
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <Bell className="text-blue-600 animate-pulse" size={22} />
+                </div>
+              </div>
+              <p className="text-slate-500 text-sm font-medium animate-pulse">
+                {language === 'VI' ? 'Đang tải thông báo...' : 'Loading notifications...'}
+              </p>
             </div>
           ) : paginatedData.length > 0 ? (
             <div className="space-y-6">
