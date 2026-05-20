@@ -39,11 +39,17 @@ const NotificationBell = () => {
   const handleViewAllNotifications = () => {
     setIsOpen(false);
     if (user) {
-      const role = user.role?.toLowerCase();
-      const rolePrefix = (role === "admin" || role === "super_admin") 
-        ? "admin" 
-        : (role === "lecturer" ? "lecturer" : "student");
-      navigate(`/${rolePrefix}/notifications`);
+      const role = user.role?.toUpperCase();
+      if (role === "MEMBER") {
+        navigate("/student/notifications");
+      } else if (role === "LECTURER") {
+        navigate("/lecturer/notifications");
+      } else if (role === "ADMIN" || role === "SUPER_ADMIN") {
+        navigate("/admin/notifications");
+      } else {
+        // GUEST, STUDENT, etc.
+        navigate("/notifications");
+      }
     } else {
       navigate("/notifications");
     }

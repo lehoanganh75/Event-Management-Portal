@@ -19,21 +19,33 @@ const EventsSidebar = ({
       navigate("/login", { state: { from: "/notifications" } });
       return;
     }
-    const role = user?.role?.toLowerCase();
-    const rolePrefix = (role === "admin" || role === "super_admin") ? "admin" : (role === "lecturer" ? "lecturer" : "student");
-
-    navigate(`/${rolePrefix}/notifications`);
+    const role = user?.role?.toUpperCase();
+    if (role === "MEMBER") {
+      navigate("/student/notifications");
+    } else if (role === "LECTURER") {
+      navigate("/lecturer/notifications");
+    } else if (role === "ADMIN" || role === "SUPER_ADMIN") {
+      navigate("/admin/notifications");
+    } else {
+      navigate("/notifications");
+    }
   };
 
   const handleMyEventsClick = () => {
     if (!user) {
-      navigate("/login", { state: { from: "/student/events" } });
+      navigate("/login", { state: { from: "/guest-events" } });
       return;
     }
-    const role = user?.role?.toLowerCase();
-    const rolePrefix = (role === "admin" || role === "super_admin") ? "admin" : (role === "lecturer" ? "lecturer" : "student");
-
-    navigate(`/${rolePrefix}/events`);
+    const role = user?.role?.toUpperCase();
+    if (role === "MEMBER") {
+      navigate("/student/events");
+    } else if (role === "LECTURER") {
+      navigate("/lecturer/events");
+    } else if (role === "ADMIN" || role === "SUPER_ADMIN") {
+      navigate("/admin/events");
+    } else {
+      navigate("/guest-events");
+    }
   };
 
   const quickActions = [

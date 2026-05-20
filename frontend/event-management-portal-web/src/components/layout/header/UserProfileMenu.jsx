@@ -36,7 +36,7 @@ const UserProfileMenu = ({
     {
       label: "Sự kiện của tôi",
       icon: Calendar,
-      path: "/guest-events",
+      path: hasRole("MEMBER") ? "/student/events" : "/guest-events",
       show:
         !isSuperAdmin() &&
         !isAdminOnly() &&
