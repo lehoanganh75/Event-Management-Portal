@@ -39,6 +39,9 @@ public class QuizServiceImpl implements QuizService {
     private final EventRepository eventRepository;
     private final SimpMessagingTemplate messagingTemplate;
 
+    // ConcurrentHashMap to store question submissions temporarily (questionId -> (userId -> answer))
+    private final java.util.Map<String, java.util.Map<String, String>> questionUserAnswers = new java.util.concurrent.ConcurrentHashMap<>();
+
     @Override
     @Transactional
     public QuizDto createQuiz(QuizDto quizDto) {
@@ -115,6 +118,13 @@ public class QuizServiceImpl implements QuizService {
         quiz.setActive(true);
         quizRepository.save(quiz);
 
+        // Clear statistics for all questions in this quiz
+        if (quiz.getQuestions() != null) {
+            for (QuizQuestion q : quiz.getQuestions()) {
+                questionUserAnswers.remove(q.getId());
+            }
+        }
+
         broadcastEvent(quiz.getEvent().getId(), "START", quizId);
     }
 
@@ -143,6 +153,8 @@ public class QuizServiceImpl implements QuizService {
 
         if (questionIndex < questions.size()) {
             QuizQuestion question = questions.get(questionIndex);
+            // Clear stats for this question to ensure fresh count in case they retry or rejoin
+            questionUserAnswers.remove(question.getId());
             broadcastEvent(quiz.getEvent().getId(), "NEXT_QUESTION", question);
         } else {
             // No more questions - end the quiz
@@ -171,6 +183,13 @@ public class QuizServiceImpl implements QuizService {
 
         // Clear all participants for this quiz
         participationRepository.deleteByQuizId(quizId);
+
+        // Clear statistics for all questions in this quiz
+        if (quiz.getQuestions() != null) {
+            for (QuizQuestion q : quiz.getQuestions()) {
+                questionUserAnswers.remove(q.getId());
+            }
+        }
         
         log.info("[Quiz] Reset quiz: {}. Clearing participants.", quizId);
         broadcastEvent(quiz.getEvent().getId(), "WAITING", quizId);
@@ -235,6 +254,10 @@ public class QuizServiceImpl implements QuizService {
     public int submitAnswer(String userId, QuizSubmissionDto submission) {
         QuizQuestion question = questionRepository.findById(submission.getQuestionId()).orElseThrow();
 
+        // Save selection for statistics
+        questionUserAnswers.computeIfAbsent(submission.getQuestionId(), k -> new java.util.concurrent.ConcurrentHashMap<>())
+                .put(userId != null ? userId : "anon-" + java.util.UUID.randomUUID(), submission.getAnswer());
+
         boolean isCorrect = checkAnswer(question, submission.getAnswer());
         int points = 0;
 
@@ -260,6 +283,16 @@ public class QuizServiceImpl implements QuizService {
         }
 
         return points;
+    }
+
+    @Override
+    public java.util.Map<String, Long> getQuestionStats(String questionId) {
+        java.util.Map<String, String> userAnswers = questionUserAnswers.get(questionId);
+        if (userAnswers == null) {
+            return java.util.Map.of();
+        }
+        return userAnswers.values().stream()
+                .collect(Collectors.groupingBy(ans -> ans, Collectors.counting()));
     }
 
     @Override

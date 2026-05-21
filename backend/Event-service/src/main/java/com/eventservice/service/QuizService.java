@@ -22,6 +22,8 @@ public interface QuizService {
     
     int submitAnswer(String userId, QuizSubmissionDto submission);
     
+    java.util.Map<String, Long> getQuestionStats(String questionId);
+    
     void showLeaderboard(String quizId);
 
     List<?> getLeaderboard(String quizId);
