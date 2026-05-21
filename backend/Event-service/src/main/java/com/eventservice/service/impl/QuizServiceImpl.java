@@ -262,10 +262,9 @@ public class QuizServiceImpl implements QuizService {
         int points = 0;
 
         if (isCorrect) {
-            // Speed-based scoring: Max points if 0s, 50% points if at timeLimit
-            double timeRatio = submission.getResponseTime() / question.getTimeLimit();
-            double factor = Math.max(0.5, 1.0 - (timeRatio * 0.5));
-            points = (int) (question.getBasePoints() * factor);
+            // Speed-based scoring: Points equal to remaining seconds on the countdown timer
+            double remainingTime = question.getTimeLimit() - submission.getResponseTime();
+            points = (int) Math.round(Math.max(0, remainingTime));
 
             QuizParticipation participation = participationRepository.findByQuizIdAndParticipantAccountId(
                     submission.getQuizId(), userId).orElseGet(() -> {

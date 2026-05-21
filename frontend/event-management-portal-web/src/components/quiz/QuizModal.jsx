@@ -420,13 +420,13 @@ const QuestionScreen = ({
     return total;
   };
 
-  // Revealing phase: show correct/wrong 2s, then summarizing 5s countdown
+  // Revealing phase: show correct/wrong 5s, then summarizing 5s countdown
   useEffect(() => {
     if (subPhase === 'revealing') {
       const t = setTimeout(() => {
         setSubPhase('summarizing');
         setRevealCountdown(5);
-      }, 2000);
+      }, 5000);
       return () => clearTimeout(t);
     }
   }, [subPhase]);
@@ -444,7 +444,6 @@ const QuestionScreen = ({
 
   const handleAnswer = async (optId) => {
     if (answered || subPhase !== 'answering' || isOrganizer) return;
-    clearInterval(timerRef.current);
     setAnswered(optId);
     const responseTime = (Date.now() - startRef.current) / 1000;
     try {
@@ -454,7 +453,7 @@ const QuestionScreen = ({
   };
 
   const timerColor = timeLeft > 10 ? 'text-white' : timeLeft > 5 ? 'text-amber-300' : 'text-rose-400 animate-pulse';
-  const locked = subPhase !== 'answering';
+  const locked = subPhase !== 'answering' || answered !== null;
 
   // ── ORGANIZER VIEW ──────────────────────────────────────
   if (isOrganizer) {
