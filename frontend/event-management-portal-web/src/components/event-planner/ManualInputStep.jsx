@@ -76,32 +76,129 @@ export default function ManualInputStep({
     fetchOrgs();
   }, []);
 
+  // Đồng bộ Trưởng ban tổ chức (Người tạo sự kiện + Chủ sở hữu đơn vị)
   useEffect(() => {
-    if (user) {
-      const leaderAccountId = user.accountId || user.id;
-      const leaderEmail = user.email;
-      const invites = formData.invitations || [];
-      const hasLeader = invites.some(inv =>
-        inv.inviteeAccountId === leaderAccountId ||
-        (inv.inviteeEmail && leaderEmail && inv.inviteeEmail.toLowerCase() === leaderEmail.toLowerCase())
+    if (!user) return;
+
+    const creatorId = user.accountId || user.id;
+    const creatorEmail = user.email;
+    const creatorName = user.fullName || user.username || "Chưa rõ tên";
+
+    const orgId = formData.orgSelectionMode === "new" ? null : formData.organizationId;
+
+    const getCreatorInvite = () => ({
+      inviteeAccountId: creatorId,
+      inviteeEmail: creatorEmail || "",
+      inviteeName: creatorName,
+      targetRole: "LEADER",
+      message: "Người tạo sự kiện",
+      isConfirmed: true,
+      isCreator: true
+    });
+
+    const selectedOrg = orgId && orgs.length > 0 ? orgs.find(o => o.id === orgId) : null;
+    const ownerId = selectedOrg?.ownerAccountId;
+
+    // BƯỚC 1: Đồng bộ người tạo (creator) và lọc bỏ các isOrgOwner cũ/không phù hợp trước một cách đồng bộ
+    setFormData(prev => {
+      const currentInvites = prev.invitations || [];
+      
+      // Lọc bỏ bất kỳ isOrgOwner nào
+      let updated = currentInvites.filter(inv => !inv.isOrgOwner);
+
+      // Đảm bảo creator luôn có mặt
+      const hasCreator = updated.some(inv =>
+        inv.isCreator ||
+        inv.inviteeAccountId === creatorId ||
+        (inv.inviteeEmail && creatorEmail && inv.inviteeEmail.toLowerCase() === creatorEmail.toLowerCase())
       );
-      if (!hasLeader) {
-        const leaderInvite = {
-          inviteeAccountId: leaderAccountId,
-          inviteeEmail: leaderEmail || "",
-          inviteeName: user.fullName || user.username || "Chưa rõ tên",
-          targetRole: "LEADER",
-          message: "Người tạo sự kiện",
-          isConfirmed: true,
-          isCreator: true
-        };
-        setFormData({
-          ...formData,
-          invitations: [leaderInvite, ...invites]
+
+      if (!hasCreator) {
+        updated = [getCreatorInvite(), ...updated];
+      } else {
+        updated = updated.map(inv => {
+          if (
+            inv.isCreator ||
+            inv.inviteeAccountId === creatorId ||
+            (inv.inviteeEmail && creatorEmail && inv.inviteeEmail.toLowerCase() === creatorEmail.toLowerCase())
+          ) {
+            return { ...inv, targetRole: "LEADER", isConfirmed: true, isCreator: true };
+          }
+          return inv;
         });
       }
+
+      if (JSON.stringify(currentInvites) === JSON.stringify(updated)) {
+        return prev;
+      }
+
+      return { ...prev, invitations: updated };
+    });
+
+    // Nếu không chọn đơn vị tổ chức, hoặc không có chủ đơn vị, hoặc chủ đơn vị trùng với người tạo -> Kết thúc
+    if (!orgId || !ownerId || ownerId === creatorId) {
+      return;
     }
-  }, [user, formData.invitations?.length]);
+
+    // BƯỚC 2: Tải không đồng bộ thông tin chủ sở hữu đơn vị khác và ghép vào sau
+    const fetchOwnerAndSync = async () => {
+      try {
+        const res = await authService.getUserById(ownerId);
+        const ownerData = res.data;
+        if (!ownerData) return;
+
+        const ownerEmail = ownerData.email || ownerData.username;
+        const ownerName = ownerData.fullName || ownerData.profile?.fullName || ownerData.username || "Chủ đơn vị";
+
+        const ownerInvite = {
+          inviteeAccountId: ownerId,
+          inviteeEmail: ownerEmail || "",
+          inviteeName: ownerName,
+          targetRole: "LEADER",
+          message: "Chủ sở hữu đơn vị tổ chức",
+          isConfirmed: true,
+          isCreator: false,
+          isOrgOwner: true
+        };
+
+        setFormData(prev => {
+          const currentInvites = prev.invitations || [];
+          
+          // Kiểm tra xem chủ đơn vị đã có trong mảng chưa
+          const hasOwner = currentInvites.some(inv =>
+            inv.isOrgOwner ||
+            inv.inviteeAccountId === ownerId ||
+            (inv.inviteeEmail && ownerEmail && inv.inviteeEmail.toLowerCase() === ownerEmail.toLowerCase())
+          );
+
+          if (hasOwner) {
+            return {
+              ...prev,
+              invitations: currentInvites.map(inv => {
+                if (
+                  inv.isOrgOwner ||
+                  inv.inviteeAccountId === ownerId ||
+                  (inv.inviteeEmail && ownerEmail && inv.inviteeEmail.toLowerCase() === ownerEmail.toLowerCase())
+                ) {
+                  return { ...inv, ...ownerInvite };
+                }
+                return inv;
+              })
+            };
+          }
+
+          return {
+            ...prev,
+            invitations: [...currentInvites, ownerInvite]
+          };
+        });
+      } catch (err) {
+        console.error("Lỗi lấy thông tin chủ sở hữu đơn vị:", err);
+      }
+    };
+
+    fetchOwnerAndSync();
+  }, [user, formData.organizationId, formData.orgSelectionMode, orgs]);
 
   // --- AI HANDLERS ---
   const handleFileUpload = async (e) => {
@@ -339,11 +436,12 @@ export default function ManualInputStep({
     const invite = (formData.invitations || [])[index];
     const isCreator = invite && (
       invite.isCreator ||
+      invite.isOrgOwner ||
       invite.inviteeAccountId === (user?.accountId || user?.id) ||
       (invite.inviteeEmail && user?.email && invite.inviteeEmail.toLowerCase() === user.email.toLowerCase())
     );
     if (isCreator) {
-      toast.error("Không thể sửa thông tin của Trưởng ban tổ chức (Người tạo)!");
+      toast.error("Không thể sửa thông tin của Trưởng ban tổ chức (Người tạo / Chủ đơn vị)!");
       return;
     }
     const invites = [...(formData.invitations || [])];
@@ -355,11 +453,12 @@ export default function ManualInputStep({
     const invite = (formData.invitations || [])[index];
     const isCreator = invite && (
       invite.isCreator ||
+      invite.isOrgOwner ||
       invite.inviteeAccountId === (user?.accountId || user?.id) ||
       (invite.inviteeEmail && user?.email && invite.inviteeEmail.toLowerCase() === user.email.toLowerCase())
     );
     if (isCreator) {
-      toast.error("Không thể xóa Trưởng ban tổ chức (Người tạo)!");
+      toast.error("Không thể xóa Trưởng ban tổ chức (Người tạo / Chủ đơn vị)!");
       return;
     }
     setFormData({ ...formData, invitations: (formData.invitations || []).filter((_, i) => i !== index) });

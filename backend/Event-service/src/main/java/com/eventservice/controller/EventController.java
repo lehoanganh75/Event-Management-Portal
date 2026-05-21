@@ -13,6 +13,7 @@ import com.eventservice.service.EventOrganizerService;
 import com.eventservice.service.EventPresenterService;
 import com.eventservice.service.EventService;
 import com.eventservice.service.ChatService;
+import com.eventservice.service.OrganizationService;
 import jakarta.validation.Valid;
 import com.eventservice.dto.registration.request.EventInvitationRequest;
 import lombok.RequiredArgsConstructor;
@@ -27,6 +28,7 @@ import com.eventservice.entity.enums.EventStatus;
 import com.eventservice.entity.enums.EventType;
 import com.eventservice.entity.enums.SessionType;
 import com.eventservice.repository.OrganizationRepository;
+import com.eventservice.repository.EventRepository;
 import com.eventservice.repository.EventTemplateRepository;
 import com.eventservice.service.S3Service;
 import org.springframework.web.multipart.MultipartFile;
@@ -51,9 +53,42 @@ public class EventController {
     private final EventPresenterService presenterService;
     private final EventOrganizerService organizerService;
     private final OrganizationRepository organizationRepository;
+    private final OrganizationService organizationService;
+    private final EventRepository eventRepository;
     private final EventTemplateRepository templateRepository;
     private final S3Service s3Service;
     private final org.springframework.messaging.simp.SimpMessagingTemplate messagingTemplate;
+
+    /**
+     * Kiểm tra quyền tạo event/plan dựa vào Organization ownership.
+     * - ADMIN / SUPER_ADMIN / LECTURER: bypass, luôn được phép.
+     * - STUDENT / GUEST: chỉ được phép nếu là owner của organization.
+     */
+    private void validateOrganizationOwner(String organizationId, String creatorAccountId) {
+        var authentication = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
+        if (authentication != null) {
+            boolean isPrivileged = authentication.getAuthorities().stream()
+                    .anyMatch(a -> {
+                        String auth = a.getAuthority();
+                        return auth.equals("ROLE_ADMIN")
+                                || auth.equals("ROLE_SUPER_ADMIN")
+                                || auth.equals("ROLE_LECTURER");
+                    });
+            if (isPrivileged) return; // bypass
+        }
+
+        // Student/Guest: phải là owner của organization
+        if (organizationId == null || organizationId.isBlank()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "Sự kiện phải thuộc về một tổ chức");
+        }
+
+        boolean isOwner = organizationService.isOrganizationOwner(organizationId, creatorAccountId);
+        if (!isOwner) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN,
+                    "Bạn không có quyền tạo sự kiện cho tổ chức này. Chỉ chủ sở hữu tổ chức mới được phép.");
+        }
+    }
 
     // --- 1. NHÓM CÔNG KHAI (DÀNH CHO USER & GUEST) ---
 
@@ -330,13 +365,23 @@ public class EventController {
     @PostMapping("/plans")
     public ResponseEntity<?> createPlan(
             @Valid @RequestBody EventPlanCreateRequest request,
-            @RequestParam(required = false, defaultValue = "false") boolean submit) {
+            @RequestParam(required = false, defaultValue = "false") boolean submit,
+            @AuthenticationPrincipal Jwt jwt) {
         try {
             Event event = mapRequestToEvent(request);
 
             if (event.getOrganization() == null) {
                 return ResponseEntity.badRequest().body(Map.of("error", "Sự kiện phải thuộc về một tổ chức"));
             }
+
+            // Lấy creatorAccountId từ JWT nếu có, nếu không lấy từ request
+            String creatorAccountId = (jwt != null) ? jwt.getSubject() : request.getCreatedByAccountId();
+            if (creatorAccountId != null) {
+                event.setCreatedByAccountId(creatorAccountId);
+            }
+
+            // === Organization-Based Authorization ===
+            validateOrganizationOwner(event.getOrganization().getId(), creatorAccountId);
 
             if (submit) {
                 var authentication = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
@@ -345,7 +390,7 @@ public class EventController {
                 
                 if (isAdmin) {
                     event.setStatus(EventStatus.PLAN_APPROVED);
-                    event.setApprovedByAccountId(event.getCreatedByAccountId());
+                    event.setApprovedByAccountId(creatorAccountId);
                 } else {
                     event.setStatus(EventStatus.PLAN_PENDING_APPROVAL);
                 }
@@ -355,6 +400,8 @@ public class EventController {
             
             Event created = eventService.createPlan(event);
             return new ResponseEntity<>(created, HttpStatus.CREATED);
+        } catch (ResponseStatusException e) {
+            return ResponseEntity.status(e.getStatusCode()).body(Map.of("error", e.getReason()));
         } catch (Exception e) {
             log.error("Error creating plan", e);
             return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
@@ -470,8 +517,27 @@ public class EventController {
         try {
             String accountId = jwt.getSubject();
             eventDetails.setCreatedByAccountId(accountId);
+
+            // === Organization-Based Authorization ===
+            // Lấy organization từ eventDetails hoặc từ plan gốc
+            String orgId = (eventDetails.getOrganization() != null)
+                    ? eventDetails.getOrganization().getId() : null;
+            if (orgId == null) {
+                // Lấy từ plan trong database
+                eventRepository.findById(planId).ifPresent(plan -> {
+                    if (plan.getOrganization() != null) {
+                        eventDetails.setOrganization(plan.getOrganization());
+                    }
+                });
+            }
+            String finalOrgId = (eventDetails.getOrganization() != null)
+                    ? eventDetails.getOrganization().getId() : null;
+            validateOrganizationOwner(finalOrgId, accountId);
+
             Event newEvent = eventService.createEventFromPlan(planId, eventDetails);
             return new ResponseEntity<>(newEvent, HttpStatus.CREATED);
+        } catch (ResponseStatusException e) {
+            return ResponseEntity.status(e.getStatusCode()).body(Map.of("error", e.getReason()));
         } catch (Exception e) {
             return ResponseEntity.badRequest()
                     .body(Map.of("error", e.getMessage()));
@@ -538,7 +604,12 @@ public class EventController {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Event null");
         }
 
-        event.setCreatedByAccountId(jwt.getSubject());
+        String creatorId = jwt.getSubject();
+        event.setCreatedByAccountId(creatorId);
+
+        // === Organization-Based Authorization ===
+        String orgId = (event.getOrganization() != null) ? event.getOrganization().getId() : null;
+        validateOrganizationOwner(orgId, creatorId);
 
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(eventService.createEvent(event, request.getOrganizerIds(), request.getPresenterIds(),
@@ -555,7 +626,12 @@ public class EventController {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Event null");
         }
 
-        event.setCreatedByAccountId(jwt.getSubject());
+        String creatorId = jwt.getSubject();
+        event.setCreatedByAccountId(creatorId);
+
+        // === Organization-Based Authorization ===
+        String orgId = (event.getOrganization() != null) ? event.getOrganization().getId() : null;
+        validateOrganizationOwner(orgId, creatorId);
 
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(eventService.createEvent(event, request.getOrganizerIds(), request.getPresenterIds(),

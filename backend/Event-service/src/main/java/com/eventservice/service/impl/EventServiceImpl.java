@@ -64,6 +64,7 @@ public class EventServiceImpl implements EventService {
     private final EventSessionRepository sessionRepository;
     private final OrganizationRepository organizationRepository;
     private final EventSummaryRepository eventSummaryRepository;
+    private final EventOrganizerHelper organizerHelper;
 
     private final LuckyDrawClient luckyDrawClient;
 
@@ -550,6 +551,31 @@ public class EventServiceImpl implements EventService {
         Organization organization = organizationRepository.findById(event.getOrganization().getId())
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Tổ chức không tồn tại"));
 
+        String creatorId = event.getCreatedByAccountId();
+        String systemRole = "STUDENT";
+        try {
+            UserResponse creator = identityClient.getUsersById(creatorId);
+            if (creator != null && creator.getRole() != null) {
+                systemRole = creator.getRole().toUpperCase();
+            }
+        } catch (Exception e) {
+            log.warn("Could not fetch creator system role: {}", creatorId);
+        }
+
+        boolean isStaff = "SUPER_ADMIN".equals(systemRole) || "ADMIN".equals(systemRole) || "LECTURER".equals(systemRole);
+        if (!isStaff) {
+            if (organization.getStatus() != null && organization.getStatus() != com.eventservice.entity.enums.OrganizationStatus.APPROVED) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Tổ chức chưa được phê duyệt hoạt động");
+            }
+            if (creatorId != null && !creatorId.equals(organization.getOwnerAccountId())) {
+                throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Bạn không phải chủ sở hữu của tổ chức này");
+            }
+        } else {
+            if (organization.getStatus() != null && organization.getStatus() != com.eventservice.entity.enums.OrganizationStatus.APPROVED) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Tổ chức chưa được phê duyệt hoạt động");
+            }
+        }
+
         event.setOrganization(organization);
 
         // 3. Slug + Status
@@ -580,34 +606,34 @@ public class EventServiceImpl implements EventService {
         // 4. Save Event
         Event savedEvent = eventRepository.save(event);
 
-        // 5. Create LEADER (DUY NHẤT)
-        String creatorId = event.getCreatedByAccountId();
-        String creatorName = "Người tạo sự kiện";
-        String creatorEmail = null;
-        try {
-            UserResponse creator = identityClient.getUsersById(creatorId);
-            if (creator != null) {
-                creatorName = creator.getFullName();
-                creatorEmail = creator.getEmail();
-            }
-        } catch (Exception e) {
-            log.warn("Could not fetch creator info for ID: {}", creatorId);
+        // 5. Create LEADER (Creator + Organization Owner)
+        String ownerId = organization.getOwnerAccountId();
+        
+        // Auto-include organization owner as LEADER if different from creator
+        if (ownerId != null && !ownerId.equals(creatorId)) {
+            EventOrganizer ownerOrganizer = EventOrganizer.builder()
+                    .event(savedEvent)
+                    .accountId(ownerId)
+                    .role(OrganizerRole.LEADER)
+                    .isDeleted(false)
+                    .build();
+            organizerHelper.enrichAndValidateOrganizer(ownerOrganizer, savedEvent);
+            organizerRepository.save(ownerOrganizer);
         }
 
         EventOrganizer leader = EventOrganizer.builder()
                 .event(savedEvent)
                 .accountId(creatorId)
                 .role(OrganizerRole.LEADER)
-                .organization(savedEvent.getOrganization())
                 .isDeleted(false)
                 .build();
-
+        organizerHelper.enrichAndValidateOrganizer(leader, savedEvent);
         organizerRepository.save(leader);
 
         // 6. Process direct organizers if any
         if (organizerIds != null && !organizerIds.isEmpty()) {
             List<String> idsToFetch = organizerIds.stream()
-                    .filter(id -> !id.equals(creatorId))
+                    .filter(id -> !id.equals(creatorId) && !id.equals(ownerId))
                     .collect(Collectors.toList());
 
             if (!idsToFetch.isEmpty()) {
@@ -619,9 +645,9 @@ public class EventServiceImpl implements EventService {
                                     .event(savedEvent)
                                     .accountId(user.getId())
                                     .role(OrganizerRole.MEMBER)
-                                    .organization(savedEvent.getOrganization())
                                     .isDeleted(false)
                                     .build();
+                            organizerHelper.enrichAndValidateOrganizer(member, savedEvent);
                             organizerRepository.save(member);
                         }
                     }
@@ -921,10 +947,11 @@ public class EventServiceImpl implements EventService {
                     .accountId(inviteeId)
                     .role(invitation.getTargetRole() != null ? invitation.getTargetRole() : OrganizerRole.MEMBER)
                     .assignedAt(LocalDateTime.now())
-                    .organization(event.getOrganization())
                     .addedByAccountId(invitation.getInviterAccountId())
                     .isDeleted(false)
                     .build();
+
+            organizerHelper.enrichAndValidateOrganizer(newOrganizer, event);
 
             // Liên kết ngược để đảm bảo tính nhất quán trong Transaction
             if (event.getOrganizers() == null) {
@@ -1200,6 +1227,39 @@ public class EventServiceImpl implements EventService {
         if (event.getCreatedByAccountId() == null)
             throw new IllegalArgumentException("Thiếu người tạo");
 
+        if (event.getOrganization() == null || event.getOrganization().getId() == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Kế hoạch phải thuộc về một tổ chức");
+        }
+        Organization organization = organizationRepository.findById(event.getOrganization().getId())
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Tổ chức không tồn tại"));
+
+        String creatorId = event.getCreatedByAccountId();
+        String systemRole = "STUDENT";
+        try {
+            UserResponse creator = identityClient.getUsersById(creatorId);
+            if (creator != null && creator.getRole() != null) {
+                systemRole = creator.getRole().toUpperCase();
+            }
+        } catch (Exception e) {
+            log.warn("Could not fetch creator system role: {}", creatorId);
+        }
+
+        boolean isStaff = "SUPER_ADMIN".equals(systemRole) || "ADMIN".equals(systemRole) || "LECTURER".equals(systemRole);
+        if (!isStaff) {
+            if (organization.getStatus() != null && organization.getStatus() != com.eventservice.entity.enums.OrganizationStatus.APPROVED) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Tổ chức chưa được phê duyệt hoạt động");
+            }
+            if (creatorId != null && !creatorId.equals(organization.getOwnerAccountId())) {
+                throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Bạn không phải chủ sở hữu của tổ chức này");
+            }
+        } else {
+            if (organization.getStatus() != null && organization.getStatus() != com.eventservice.entity.enums.OrganizationStatus.APPROVED) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Tổ chức chưa được phê duyệt hoạt động");
+            }
+        }
+
+        event.setOrganization(organization);
+
         event.setCreatedAt(LocalDateTime.now());
         event.setUpdatedAt(LocalDateTime.now());
         event.setDeleted(false);
@@ -1275,20 +1335,36 @@ public class EventServiceImpl implements EventService {
         }
 
         // Lưu organizers
+        String ownerId = organization.getOwnerAccountId();
         boolean creatorIsOrganizer = false;
+        boolean ownerIsOrganizer = false;
         if (event.getOrganizers() != null && !event.getOrganizers().isEmpty()) {
             for (EventOrganizer organizer : event.getOrganizers()) {
                 if (event.getCreatedByAccountId() != null
                         && event.getCreatedByAccountId().equals(organizer.getAccountId())) {
                     creatorIsOrganizer = true;
-                    if (organizer.getRole() == null || organizer.getRole() != OrganizerRole.LEADER) {
-                        organizer.setRole(OrganizerRole.LEADER);
-                    }
+                    organizer.setRole(OrganizerRole.LEADER);
+                }
+                if (ownerId != null && ownerId.equals(organizer.getAccountId())) {
+                    ownerIsOrganizer = true;
+                    organizer.setRole(OrganizerRole.LEADER);
                 }
                 organizer.setEvent(savedEvent);
                 organizer.setAssignedAt(LocalDateTime.now());
+                organizerHelper.enrichAndValidateOrganizer(organizer, savedEvent);
                 organizerRepository.save(organizer);
             }
+        }
+
+        if (ownerId != null && !ownerIsOrganizer && !ownerId.equals(event.getCreatedByAccountId())) {
+            EventOrganizer ownerOrganizer = EventOrganizer.builder()
+                    .accountId(ownerId)
+                    .role(OrganizerRole.LEADER)
+                    .event(savedEvent)
+                    .assignedAt(LocalDateTime.now())
+                    .build();
+            organizerHelper.enrichAndValidateOrganizer(ownerOrganizer, savedEvent);
+            organizerRepository.save(ownerOrganizer);
         }
 
         if (!creatorIsOrganizer && event.getCreatedByAccountId() != null) {
@@ -1296,9 +1372,9 @@ public class EventServiceImpl implements EventService {
                     .accountId(event.getCreatedByAccountId())
                     .role(OrganizerRole.LEADER)
                     .event(savedEvent)
-                    .organization(savedEvent.getOrganization())
                     .assignedAt(LocalDateTime.now())
                     .build();
+            organizerHelper.enrichAndValidateOrganizer(leader, savedEvent);
             organizerRepository.save(leader);
         }
 
@@ -1671,9 +1747,9 @@ public class EventServiceImpl implements EventService {
                 .accountId(creatorId)
                 .role(OrganizerRole.LEADER)
                 .event(savedEvent)
-                .organization(savedEvent.getOrganization())
                 .assignedAt(LocalDateTime.now())
                 .build();
+        organizerHelper.enrichAndValidateOrganizer(leader, savedEvent);
         organizerRepository.save(leader);
 
         // All other organizers from plan get an invitation

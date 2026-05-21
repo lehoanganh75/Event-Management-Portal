@@ -11,6 +11,8 @@ import {
   Timer,
   CheckCircle2
 } from "lucide-react";
+import { toast } from "react-toastify";
+import eventService from "../../../../services/eventService";
 
 const QuizTab = ({
   event,
@@ -30,6 +32,22 @@ const QuizTab = ({
       ...prev,
       [id]: !prev[id],
     }));
+  };
+
+  const handleToggleCheckIn = async (quizId, currentVal) => {
+    try {
+      await eventService.toggleQuizCheckInRequirement(quizId, !currentVal);
+      toast.success("Đã cập nhật trạng thái Yêu cầu Check-in");
+      
+      const quizToUpdate = quizzes.find(q => q.id === quizId);
+      if (quizToUpdate) {
+        quizToUpdate.requireCheckIn = !currentVal;
+      }
+      // Force re-render
+      setVisiblePins({...visiblePins});
+    } catch (err) {
+      toast.error("Lỗi khi cập nhật trạng thái");
+    }
   };
 
   return (
@@ -255,29 +273,41 @@ const QuizTab = ({
               </div>
 
               {/* Info */}
-              <div className="mt-5 flex items-center justify-between py-4 border-y border-slate-100">
-                <div>
-                  <p className="text-[10px] uppercase tracking-wider text-slate-400 font-bold mb-1">
-                    PIN
-                  </p>
+              <div className="mt-5 flex flex-col gap-3 py-4 border-y border-slate-100">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-[10px] uppercase tracking-wider text-slate-400 font-bold mb-1">
+                      PIN
+                    </p>
 
-                  <p className="font-mono text-sm font-bold tracking-widest text-slate-700">
+                    <p className="font-mono text-sm font-bold tracking-widest text-slate-700">
+                      {visiblePins[quiz.id]
+                        ? (quiz.pinCode || quiz.id?.substring(0, 6).toUpperCase())
+                        : "••••••"}
+                    </p>
+                  </div>
+
+                  <button
+                    onClick={() =>
+                      togglePin(quiz.id)
+                    }
+                    className="text-xs font-semibold text-indigo-600 hover:text-indigo-700"
+                  >
                     {visiblePins[quiz.id]
-                      ? quiz.pinCode
-                      : "••••••"}
-                  </p>
+                      ? "Ẩn"
+                      : "Hiện"}
+                  </button>
                 </div>
 
-                <button
-                  onClick={() =>
-                    togglePin(quiz.id)
-                  }
-                  className="text-xs font-semibold text-indigo-600 hover:text-indigo-700"
-                >
-                  {visiblePins[quiz.id]
-                    ? "Ẩn"
-                    : "Hiện"}
-                </button>
+                <div className="flex items-center justify-between pt-3 border-t border-slate-50">
+                  <span className="text-xs font-medium text-slate-600">Yêu cầu Check-in</span>
+                  <div 
+                    className={`relative w-9 h-5 rounded-full transition-colors cursor-pointer ${quiz.requireCheckIn !== false ? 'bg-indigo-500' : 'bg-slate-300'}`}
+                    onClick={() => handleToggleCheckIn(quiz.id, quiz.requireCheckIn !== false)}
+                  >
+                    <div className={`absolute top-1 left-1 w-3 h-3 bg-white rounded-full transition-transform ${quiz.requireCheckIn !== false ? 'translate-x-4' : ''}`} />
+                  </div>
+                </div>
               </div>
 
               {/* Footer */}

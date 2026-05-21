@@ -45,6 +45,7 @@ public class QuizServiceImpl implements QuizService {
         Quiz quiz = Quiz.builder()
                 .title(quizDto.getTitle())
                 .description(quizDto.getDescription())
+                .requireCheckIn(quizDto.isRequireCheckIn())
                 .event(eventRepository.findById(quizDto.getEventId())
                         .orElseThrow(() -> new RuntimeException("Event not found")))
                 .build();
@@ -245,7 +246,6 @@ public class QuizServiceImpl implements QuizService {
 
             QuizParticipation participation = participationRepository.findByQuizIdAndParticipantAccountId(
                     submission.getQuizId(), userId).orElseGet(() -> {
-                        // In real app, fetch user details from identity-service
                         return QuizParticipation.builder()
                                 .quizId(submission.getQuizId())
                                 .participantAccountId(userId)
@@ -256,12 +256,18 @@ public class QuizServiceImpl implements QuizService {
 
             participation.setTotalScore(participation.getTotalScore() + points);
             participationRepository.save(participation);
-
-            // Broadcast leaderboard update (Duck Race)
-            broadcastLeaderboard(submission.getQuizId(), question.getQuiz().getEvent().getId());
+            // NOTE: Do NOT broadcast LEADERBOARD here - the frontend timer controls when to show it
         }
 
         return points;
+    }
+
+    @Override
+    @Transactional
+    public void showLeaderboard(String quizId) {
+        log.info("[Quiz] showLeaderboard called for quizId={}", quizId);
+        Quiz quiz = quizRepository.findById(quizId).orElseThrow();
+        broadcastLeaderboard(quizId, quiz.getEvent().getId());
     }
 
     @Override
@@ -282,6 +288,7 @@ public class QuizServiceImpl implements QuizService {
             Quiz quiz = Quiz.builder()
                     .title(title)
                     .description(description)
+                    .requireCheckIn(true)
                     .event(eventRepository.findById(eventId).orElseThrow(() -> new RuntimeException("Event not found")))
                     .build();
             Quiz savedQuiz = quizRepository.save(quiz);
@@ -357,6 +364,7 @@ public class QuizServiceImpl implements QuizService {
     private boolean checkAnswer(QuizQuestion question, String answer) {
         // Implement logic for different types
         switch (question.getType()) {
+            case TRUE_FALSE:
             case MULTIPLE_CHOICE:
                 return question.getOptions().stream()
                         .anyMatch(o -> o.isCorrect() && o.getId().equals(answer));
@@ -383,6 +391,15 @@ public class QuizServiceImpl implements QuizService {
         broadcastEvent(eventId, "LEADERBOARD", leaderboard);
     }
 
+    @Override
+    @Transactional
+    public QuizDto toggleCheckInRequirement(String quizId, boolean requireCheckIn) {
+        Quiz quiz = quizRepository.findById(quizId)
+                .orElseThrow(() -> new RuntimeException("Quiz not found"));
+        quiz.setRequireCheckIn(requireCheckIn);
+        return mapToDto(quizRepository.save(quiz));
+    }
+
     private QuizDto mapToDto(Quiz quiz) {
         if (quiz == null)
             return null;
@@ -392,6 +409,7 @@ public class QuizServiceImpl implements QuizService {
                 .title(quiz.getTitle())
                 .description(quiz.getDescription())
                 .isActive(quiz.isActive())
+                .requireCheckIn(quiz.isRequireCheckIn())
                 .questions(quiz.getQuestions() != null ? quiz.getQuestions().stream()
                         .map(com.eventservice.dto.engagement.quiz.QuestionDto::from)
                         .collect(Collectors.toList()) : null)

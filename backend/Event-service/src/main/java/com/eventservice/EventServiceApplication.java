@@ -11,6 +11,9 @@ import org.springframework.data.mongodb.repository.config.EnableMongoRepositorie
 import org.springframework.scheduling.annotation.EnableAsync;
 import org.springframework.scheduling.annotation.EnableScheduling;
 
+import jakarta.annotation.PostConstruct;
+import java.util.TimeZone;
+
 @SpringBootApplication
 @EnableJpaRepositories(basePackages = "com.eventservice.repository", excludeFilters = @ComponentScan.Filter(type = FilterType.ASPECTJ, pattern = "com.eventservice.repository.mongodb.*"))
 @EnableMongoRepositories(basePackages = "com.eventservice.repository.mongodb")
@@ -18,6 +21,12 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 @EnableAsync
 @EnableScheduling
 public class EventServiceApplication {
+
+    @PostConstruct
+    public void init() {
+        TimeZone.setDefault(TimeZone.getTimeZone("Asia/Ho_Chi_Minh"));
+        System.out.println(">>> [Event-service] Set application timezone to Asia/Ho_Chi_Minh: " + java.time.LocalDateTime.now());
+    }
 
     public static void main(String[] args) {
         // Try to load .env from several common locations

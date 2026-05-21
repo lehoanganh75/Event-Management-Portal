@@ -22,7 +22,11 @@ public interface QuizService {
     
     int submitAnswer(String userId, QuizSubmissionDto submission);
     
+    void showLeaderboard(String quizId);
+
     List<?> getLeaderboard(String quizId);
 
     QuizDto importQuizFromWord(String eventId, MultipartFile file);
+    
+    QuizDto toggleCheckInRequirement(String quizId, boolean requireCheckIn);
 }

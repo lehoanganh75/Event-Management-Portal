@@ -77,6 +77,28 @@ const LecturerEventDetailPage = () => {
     if (id) fetchData();
   }, [fetchData]);
 
+  // Tự động làm mới danh sách điểm danh mỗi 3 giây khi đang ở tab "Điểm danh"
+  useEffect(() => {
+    if (activeTab !== "Điểm danh" || !id) return;
+
+    const interval = setInterval(async () => {
+      try {
+        const resRegs = await eventService.getUsersByEvent(id);
+        setEvent(prev => {
+          if (!prev) return prev;
+          return {
+            ...prev,
+            registrations: resRegs.data || []
+          };
+        });
+      } catch (e) {
+        console.warn("Lỗi tự động cập nhật danh sách điểm danh:", e);
+      }
+    }, 3000);
+
+    return () => clearInterval(interval);
+  }, [activeTab, id]);
+
 
   const handleCancelEvent = async () => {
     if (!cancelReason.trim()) {

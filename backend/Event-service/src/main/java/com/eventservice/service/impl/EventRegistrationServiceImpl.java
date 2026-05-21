@@ -358,14 +358,20 @@ public class EventRegistrationServiceImpl implements EventRegistrationService {
             log.error("Failed to notify lucky-draw-service about check-in: {}", e.getMessage());
         }
 
-        // Profile info will be handled by the caller or batch fetch if needed
-        String fullName = null;
-        String avatarUrl = null;
+        UserResponse profile = null;
+        try {
+            profile = identityServiceClient.getUsersById(userId);
+        } catch (Exception e) {
+            log.error("Failed to fetch user profile for check-in response: {}", e.getMessage());
+        }
+
+        sendCheckInNotification(userId, event);
 
         return EventCheckInResponse.builder()
                 .success(true)
                 .message("Check-in thành công!")
                 .userProfileId(userId)
+                .profile(profile)
                 .eventId(eventId)
                 .eventTitle(event.getTitle())
                 .checkInTime(now.toString())
@@ -398,14 +404,20 @@ public class EventRegistrationServiceImpl implements EventRegistrationService {
             log.error("Failed to notify lucky-draw-service about manual check-in: {}", e.getMessage());
         }
 
-        // Profile info will be handled by the caller
-        String fullName = null;
-        String avatarUrl = null;
+        UserResponse profile = null;
+        try {
+            profile = identityServiceClient.getUsersById(registration.getParticipantAccountId());
+        } catch (Exception e) {
+            log.error("Failed to fetch user profile for manual check-in response: {}", e.getMessage());
+        }
+
+        sendCheckInNotification(registration.getParticipantAccountId(), registration.getEvent());
 
         return EventCheckInResponse.builder()
                 .success(true)
                 .message("Check-in thủ công thành công!")
                 .userProfileId(registration.getParticipantAccountId())
+                .profile(profile)
                 .eventId(registration.getEvent().getId())
                 .eventTitle(registration.getEvent().getTitle())
                 .checkInTime(registration.getCheckInTime().toString())
@@ -651,6 +663,7 @@ public class EventRegistrationServiceImpl implements EventRegistrationService {
         try {
             claims = qrTokenUtil.verifyQRToken(eventToken);
         } catch (Exception e) {
+            log.error("Failed to verify event QR token: {}", e.getMessage(), e);
             return EventCheckInResponse.builder().success(false).message("Mã QR sự kiện không hợp lệ hoặc đã hết hạn")
                     .build();
         }
@@ -712,9 +725,22 @@ public class EventRegistrationServiceImpl implements EventRegistrationService {
             log.error("Failed to notify lucky-draw-service about event token check-in: {}", e.getMessage());
         }
 
+        UserResponse profile = null;
+        try {
+            profile = identityServiceClient.getUsersById(userId);
+        } catch (Exception e) {
+            log.error("Failed to fetch user profile for event token check-in response: {}", e.getMessage());
+        }
+
+        sendCheckInNotification(userId, event);
+
         return EventCheckInResponse.builder()
                 .success(true)
                 .message("Điểm danh thành công!")
+                .userProfileId(userId)
+                .profile(profile)
+                .eventId(eventId)
+                .eventTitle(event.getTitle())
                 .checkInTime(now.toString())
                 .build();
     }
@@ -728,5 +754,24 @@ public class EventRegistrationServiceImpl implements EventRegistrationService {
 
         event.setCheckInEnabled(enabled);
         eventRepository.save(event);
+    }
+
+    private void sendCheckInNotification(String participantId, Event event) {
+        try {
+            com.eventservice.dto.engagement.NotificationEventDto notification = com.eventservice.dto.engagement.NotificationEventDto.builder()
+                    .recipientId(participantId)
+                    .senderId("SYSTEM")
+                    .title("✅ Điểm danh thành công")
+                    .message(String.format("Bạn đã điểm danh thành công vào sự kiện '%s'.", event.getTitle()))
+                    .type("CHECKIN_SUCCESS")
+                    .relatedEntityId(event.getId())
+                    .actionUrl("/events/" + event.getId())
+                    .build();
+
+            notificationProducer.sendNotification(notification);
+            log.info("Check-in notification sent to participant: {}", participantId);
+        } catch (Exception e) {
+            log.error("Failed to send check-in notification to participant: {}", e.getMessage());
+        }
     }
 }

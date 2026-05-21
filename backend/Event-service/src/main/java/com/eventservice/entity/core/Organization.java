@@ -34,6 +34,18 @@ public class Organization {
 
     private String ownerAccountId; // ID người tạo/quản lý cao nhất (từ Identity Service)
 
+    @Transient
+    private String ownerName;
+
+    @Transient
+    private String ownerEmail;
+
+    @Transient
+    private String ownerPhone;
+
+    @Enumerated(EnumType.STRING)
+    private com.eventservice.entity.enums.OrganizationStatus status = com.eventservice.entity.enums.OrganizationStatus.PENDING;
+
     @CreationTimestamp
     private LocalDateTime createdAt;
 

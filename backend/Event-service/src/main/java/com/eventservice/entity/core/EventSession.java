@@ -8,6 +8,8 @@ import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
+import org.hibernate.annotations.OnDelete;
+import org.hibernate.annotations.OnDeleteAction;
 import com.eventservice.entity.enums.SessionType;
 
 import java.time.LocalDateTime;
@@ -60,6 +62,7 @@ public class EventSession {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "presenter_id")
+    @OnDelete(action = OnDeleteAction.SET_NULL)
     @JsonIgnoreProperties({ "event", "sessions" })
     private EventPresenter presenter;
 }

@@ -40,14 +40,14 @@ const NotificationBell = () => {
     setIsOpen(false);
     if (user) {
       const role = user.role?.toUpperCase();
-      if (role === "MEMBER") {
+      if (role === "MEMBER" || role === "STUDENT") {
         navigate("/student/notifications");
       } else if (role === "LECTURER") {
         navigate("/lecturer/notifications");
       } else if (role === "ADMIN" || role === "SUPER_ADMIN") {
         navigate("/admin/notifications");
       } else {
-        // GUEST, STUDENT, etc.
+        // GUEST, etc.
         navigate("/notifications");
       }
     } else {

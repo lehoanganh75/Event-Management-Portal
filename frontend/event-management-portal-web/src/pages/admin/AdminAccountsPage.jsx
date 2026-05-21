@@ -26,14 +26,12 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "../../context/AuthContext";
 import ConfirmModal from "../../components/common/ConfirmModal";
 
-const ROLES = ["SUPER_ADMIN", "ADMIN", "STUDENT", "MEMBER", "GUEST", "LECTURER"];
-
+// Nguồn duy nhất cho danh sách role — mỗi tài khoản chỉ có đúng 1 role
 const ROLE_LABELS = {
   SUPER_ADMIN: "Quản trị viên cấp cao",
   ADMIN: "Quản trị viên",
   LECTURER: "Giảng viên",
   STUDENT: "Sinh viên",
-  MEMBER: "Thành viên",
   GUEST: "Khách",
 };
 
@@ -42,7 +40,6 @@ const ROLE_COLORS = {
   ADMIN: "bg-blue-50 text-blue-700 border-blue-200",
   LECTURER: "bg-teal-50 text-teal-700 border-teal-200",
   STUDENT: "bg-indigo-50 text-indigo-700 border-indigo-200",
-  MEMBER: "bg-orange-50 text-orange-700 border-orange-200",
   GUEST: "bg-slate-50 text-slate-600 border-slate-200",
 };
 
@@ -82,9 +79,11 @@ const AdminAccountsPage = ({ restrictRoles }) => {
     fetchAccounts();
   }, [fetchAccounts]);
 
+  // Lấy danh sách role từ ROLE_LABELS — nguồn duy nhất, không dùng array riêng
+  const allRoles = Object.keys(ROLE_LABELS);
   const displayRoles = restrictRoles
-    ? ROLES.filter((r) => restrictRoles.includes(r))
-    : ROLES;
+    ? allRoles.filter((r) => restrictRoles.includes(r))
+    : allRoles;
 
   const allowedAccounts = restrictRoles
     ? (accounts || []).filter((a) => restrictRoles.includes(a.role))
@@ -98,7 +97,6 @@ const AdminAccountsPage = ({ restrictRoles }) => {
         ["ADMIN", "SUPER_ADMIN", "LECTURER"].includes(a.role)
       ).length,
       student: allowedAccounts.filter((a) => a.role === "STUDENT").length,
-      member: allowedAccounts.filter((a) => a.role === "MEMBER").length,
       guest: allowedAccounts.filter((a) => a.role === "GUEST").length,
       locked: allowedAccounts.filter((a) => a.status !== "ACTIVE").length,
     }),
@@ -123,7 +121,6 @@ const AdminAccountsPage = ({ restrictRoles }) => {
       if (activeTab === "Quản trị")
         matchTab = ["ADMIN", "SUPER_ADMIN", "LECTURER"].includes(a.role);
       if (activeTab === "Sinh viên") matchTab = a.role === "STUDENT";
-      if (activeTab === "Thành viên") matchTab = a.role === "MEMBER";
       if (activeTab === "Khách") matchTab = a.role === "GUEST";
 
       return matchSearch && matchRole && matchTab;
@@ -157,7 +154,7 @@ const AdminAccountsPage = ({ restrictRoles }) => {
       username: acc.username || "",
       email: acc.email || "",
       fullName: acc.fullName || "",
-      role: acc.role || "MEMBER",
+      role: acc.role || "STUDENT",
       status: acc.status || "ACTIVE",
     });
     setModalMode("edit");
@@ -267,10 +264,10 @@ const AdminAccountsPage = ({ restrictRoles }) => {
             className: "bg-purple-600",
           },
           {
-            label: "Thành viên",
-            value: stats.member,
+            label: "Sinh viên",
+            value: stats.student,
             icon: User,
-            className: "bg-orange-600",
+            className: "bg-indigo-600",
           },
           {
             label: "Đã khóa",
@@ -318,13 +315,6 @@ const AdminAccountsPage = ({ restrictRoles }) => {
             icon: User,
             count: stats.student,
             show: !restrictRoles || restrictRoles.includes("STUDENT"),
-          },
-          {
-            id: "Thành viên",
-            label: "Thành viên",
-            icon: User,
-            count: stats.member,
-            show: !restrictRoles || restrictRoles.includes("MEMBER"),
           },
           {
             id: "Khách",

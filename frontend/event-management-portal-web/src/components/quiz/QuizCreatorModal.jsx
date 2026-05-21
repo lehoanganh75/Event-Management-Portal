@@ -8,6 +8,7 @@ const QuizCreatorModal = ({ isOpen, onClose, eventId, onCreated }) => {
    const [quizData, setQuizData] = useState({
       title: "",
       description: "",
+      requireCheckIn: true,
       questions: [
          {
             id: Date.now(),
@@ -180,6 +181,25 @@ const QuizCreatorModal = ({ isOpen, onClose, eventId, onCreated }) => {
                               })
                            }
                         />
+                     </div>
+
+                     <div className="md:col-span-2">
+                        <label className="flex items-center gap-4 cursor-pointer p-4 border border-slate-200 rounded-2xl bg-slate-50 hover:bg-slate-100 transition-colors">
+                           <div className="flex-1">
+                              <p className="text-sm font-bold text-slate-800">Yêu cầu Check-in để tham gia</p>
+                              <p className="text-xs text-slate-500 mt-1">Chỉ những người tham gia đã hoàn tất điểm danh tại quầy mới được phép tham gia trò chơi này.</p>
+                           </div>
+                           <div 
+                              className={`relative w-12 h-6 rounded-full transition-colors flex-shrink-0 ${quizData.requireCheckIn ? 'bg-indigo-600' : 'bg-slate-300'}`} 
+                              onClick={() => setQuizData({ ...quizData, requireCheckIn: !quizData.requireCheckIn })}
+                           >
+                              <motion.div 
+                                 className="absolute top-1 left-1 w-4 h-4 rounded-full bg-white shadow-sm" 
+                                 animate={{ x: quizData.requireCheckIn ? 24 : 0 }} 
+                                 transition={{ type: "spring", stiffness: 500, damping: 30 }} 
+                              />
+                           </div>
+                        </label>
                      </div>
                   </div>
                </div>

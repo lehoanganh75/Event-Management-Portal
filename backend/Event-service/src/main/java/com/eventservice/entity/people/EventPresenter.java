@@ -7,6 +7,7 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.SQLRestriction;
 
 import java.time.LocalDateTime;
 import java.util.HashSet;
@@ -46,6 +47,7 @@ public class EventPresenter {
     private Event event;
 
     @OneToMany(mappedBy = "presenter", cascade = { CascadeType.PERSIST, CascadeType.MERGE })
+    @SQLRestriction("is_deleted = false")
     @JsonIgnore
     private Set<EventSession> sessions = new HashSet<>();
 

@@ -34,6 +34,18 @@ const Sidebar = ({ isCollapsed, onToggle }) => {
 
     const role = user?.role?.toUpperCase() || "GUEST";
 
+    /**
+     * Student Organizer: STUDENT sở hữu tổ chức -> load MEMBER sidebar
+     * để có quyền truy cập các tính năng BTC (tạo sự kiện, quản lý BTC...)
+     */
+    const isStudentOrganizer =
+        (role === "STUDENT" || role === "GUEST") &&
+        ((user?.ownedOrganizations && user.ownedOrganizations.length > 0) ||
+         (user?.eventRoles && user.eventRoles.length > 0));
+
+    // Nếu là student organizer, dùng cấu hình sidebar của MEMBER
+    const effectiveRole = isStudentOrganizer ? "MEMBER" : role;
+
     const menuConfigs = {
         SUPER_ADMIN: [
             { name: "Tổng quan", icon: LayoutDashboard, path: "/admin/dashboard" },
@@ -90,12 +102,15 @@ const Sidebar = ({ isCollapsed, onToggle }) => {
         ],
     };
 
-    const menuItems = menuConfigs[role] || [];
+    const menuItems = menuConfigs[effectiveRole] || [];
 
     const isNotificationItem = (name) =>
         name?.toLowerCase().includes("thông báo");
 
-    const roleLabel = t(`role_${role.toLowerCase()}`) || role.replace("_", " ");
+    // Nếu là student organizer, hiện label "Trưởng BTC" thay vì "STUDENT"
+    const roleLabel = isStudentOrganizer
+        ? "Trưởng Ban Tổ Chức"
+        : (t(`role_${role.toLowerCase()}`) || role.replace("_", " "));
 
     return (
         <aside

@@ -1,9 +1,8 @@
-import React from "react";
+import React, { useEffect } from "react";
 import { Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { AnimatePresence } from "framer-motion";
-import { useEffect } from "react";
 
-// Public Pages
+// ── Public Pages ────────────────────────────────────────────────────────────
 import LandingPage from "../pages/public/LandingPage";
 import LoginPage from "../pages/auth/LoginPage";
 import RegisterPage from "../pages/auth/RegisterPage";
@@ -21,10 +20,17 @@ import PostDetailPage from "../pages/public/PostDetailPage";
 import GuestEventsPage from "../pages/public/GuestEventsPage";
 import GuestNotificationsPage from "../pages/public/GuestNotificationsPage";
 
-// Layouts
+// ── Layouts ──────────────────────────────────────────────────────────────────
 import DashboardLayout from "../components/layout/DashboardLayout";
 
-// Student Pages
+// ── Common Pages ─────────────────────────────────────────────────────────────
+import Dashboard from "../pages/common/Dashboard";
+import LuckyDrawConfigPage from "../pages/common/LuckyDrawConfigPage";
+import ProfileManagement from "../pages/common/ProfileManagement";
+
+// ── Student Organizer Pages (/student) ───────────────────────────────────────
+// Dùng cho STUDENT sở hữu ít nhất 1 Organization (Organization-Based Auth)
+// Quyền truy cập: isStudentOrganizer() === true
 import StudentEventsPage from "../pages/user/StudentEventsPage";
 import StudentEventDetailPage from "../pages/user/StudentEventDetailPage";
 import StudentNotificationsPage from "../pages/user/StudentNotificationsPage";
@@ -33,21 +39,19 @@ import StudentPostDetailPage from "../pages/user/StudentPostDetailPage";
 import StudentTemplatesPage from "../pages/user/StudentTemplatesPage";
 import StudentLuckyDrawManagement from "../pages/user/StudentLuckyDrawManagement";
 
-// Common Pages
-import Dashboard from "../pages/common/Dashboard";
-import LuckyDrawConfigPage from "../pages/common/LuckyDrawConfigPage";
-
-// Lecturer Pages
+// ── Lecturer Pages (/lecturer) ───────────────────────────────────────────────
+// Dành cho LECTURER — được tạo event cho mọi organization (bypass ownership)
 import LecturerEventsPage from "../pages/lecturer/LecturerEventsPage";
 import LecturerPlansPage from "../pages/lecturer/LecturerPlansPage";
 import LecturerEventDetailPage from "../pages/lecturer/LecturerEventDetailPage";
 import LecturerPostManagement from "../pages/lecturer/LecturerPostManagement";
 import LecturerPostDetailPage from "../pages/lecturer/LecturerPostDetailPage";
 import LecturerNotificationsPage from "../pages/lecturer/LecturerNotificationsPage";
-import LecturerProfilePage from "../pages/lecturer/LecturerProfilePage";
 import LecturerLuckyDrawManagement from "../pages/lecturer/LecturerLuckyDrawManagement";
+import LecturerTemplatesPage from "../pages/lecturer/LecturerTemplatesPage";
 
-// Admin Pages
+// ── Admin Pages (/admin) ─────────────────────────────────────────────────────
+// Dành cho ADMIN / SUPER_ADMIN — quản trị toàn hệ thống
 import AdminEventsPage from "../pages/admin/AdminEventsPage";
 import AdminPlansPage from "../pages/admin/AdminPlansPage";
 import AdminEventDetailPage from "../pages/admin/AdminEventDetailPage";
@@ -60,28 +64,19 @@ import AdminTemplatesPage from "../pages/admin/AdminTemplatesPage";
 import AdminDepartmentsRolesPage from "../pages/admin/AdminDepartmentsRolesPage";
 import AdminAccountsPage from "../pages/admin/AdminAccountsPage";
 
-// Role-Based Management Pages
-import LeaderDashboard from "../pages/event-management/LeaderDashboard";
-import CoordinatorPage from "../pages/event-management/CoordinatorPage";
-import MemberScanPage from "../pages/event-management/MemberScanPage";
-import AdvisorPage from "../pages/event-management/AdvisorPage";
-import ProfileManagement from "../pages/common/ProfileManagement";
-import LecturerTemplatesPage from "../pages/lecturer/LecturerTemplatesPage";
-
-// Scroll To Top Component
+// ── Scroll To Top ─────────────────────────────────────────────────────────────
 const ScrollToTop = () => {
   const { pathname } = useLocation();
-
   useEffect(() => {
     const timer = setTimeout(() => {
       window.scrollTo({ top: 0, left: 0, behavior: "instant" });
     }, 250);
     return () => clearTimeout(timer);
   }, [pathname]);
-
   return null;
 };
 
+// ─────────────────────────────────────────────────────────────────────────────
 const AppRouter = () => {
   const location = useLocation();
 
@@ -90,35 +85,54 @@ const AppRouter = () => {
       <ScrollToTop />
       <AnimatePresence mode="wait">
         <Routes location={location} key={location.pathname}>
-          {/* Public Routes */}
+
+          {/* ═══════════════════════════════════════════════════════════════
+              PUBLIC — Ai cũng truy cập, kể cả GUEST chưa đăng nhập
+          ═══════════════════════════════════════════════════════════════ */}
           <Route path="/" element={<LandingPage />} />
           <Route path="/calendar" element={<CalendarPage />} />
           <Route path="/login" element={<LoginPage />} />
           <Route path="/register" element={<RegisterPage />} />
           <Route path="/forgot-password" element={<ForgotPassword />} />
+          <Route path="/reset-password" element={<ResetPassword />} />
           <Route path="/attendance" element={<AttendancePage />} />
           <Route path="/events" element={<EventsPage />} />
-          <Route path="/invitation/accept" element={<InvitationAcceptancePage />} />
           <Route path="/events/:eventId" element={<EventDetailPage />} />
-          <Route path="/reset-password" element={<ResetPassword />} />
+          <Route path="/invitation/accept" element={<InvitationAcceptancePage />} />
           <Route path="/news" element={<NewsPage />} />
           <Route path="/news/:eventId" element={<EventsPage />} />
           <Route path="/posts/:id" element={<PostDetailPage />} />
           <Route path="/profile" element={<PublicProfilePage />} />
+
+          {/* ═══════════════════════════════════════════════════════════════
+              GUEST & STUDENT THƯỜNG
+              - GUEST: chưa đăng nhập
+              - STUDENT không sở hữu tổ chức: chỉ xem sự kiện cá nhân
+          ═══════════════════════════════════════════════════════════════ */}
           <Route path="/guest-events" element={<GuestEventsPage />} />
           <Route path="/notifications" element={<GuestNotificationsPage />} />
 
-          {/* --- ROLE BASED DASHBOARD ROUTES --- */}
-
-          {/* Student Routes */}
+          {/* ═══════════════════════════════════════════════════════════════
+              STUDENT ORGANIZER (/student)
+              Điều kiện: role=STUDENT + sở hữu ≥1 Organization
+              (Organization-Based Authorization — không dùng global role)
+              → Kiểm tra bằng: isStudentOrganizer() ở frontend
+              → Backend validate bằng: organization.ownerAccountId == jwt.sub
+          ═══════════════════════════════════════════════════════════════ */}
           <Route path="/student" element={<DashboardLayout />}>
-            <Route index element={<Navigate to="dashboard" replace />} />
-            <Route path="dashboard" element={<Dashboard />} />
+            {/* Redirect /student → /student/events */}
+            <Route index element={<Navigate to="events" replace />} />
+
             <Route path="events">
               <Route index element={<StudentEventsPage />} />
               <Route path=":id" element={<StudentEventDetailPage />} />
-              <Route path="edit/:id" element={<AdminEventCreatorPage onBack={() => window.history.back()} />} />
+              {/* Chỉnh sửa sự kiện — backend sẽ validate ownership */}
+              <Route
+                path="edit/:id"
+                element={<AdminEventCreatorPage onBack={() => window.history.back()} />}
+              />
             </Route>
+
             <Route path="posts" element={<StudentPostManagement />} />
             <Route path="posts/:id" element={<StudentPostDetailPage />} />
             <Route path="templates" element={<StudentTemplatesPage />} />
@@ -127,53 +141,73 @@ const AppRouter = () => {
             <Route path="profile" element={<ProfileManagement />} />
           </Route>
 
-          {/* Lecturer Routes */}
+          {/* ═══════════════════════════════════════════════════════════════
+              LECTURER (/lecturer)
+              - Tạo event cho mọi organization (bypass ownership check)
+              - Quản lý tài khoản STUDENT và GUEST
+          ═══════════════════════════════════════════════════════════════ */}
           <Route path="/lecturer" element={<DashboardLayout />}>
             <Route index element={<Navigate to="dashboard" replace />} />
             <Route path="dashboard" element={<Dashboard />} />
             <Route path="plans" element={<LecturerPlansPage />} />
+
             <Route path="events">
               <Route index element={<LecturerEventsPage />} />
               <Route path=":id" element={<LecturerEventDetailPage />} />
-              <Route path="edit/:id" element={<AdminEventCreatorPage onBack={() => window.history.back()} />} />
+              <Route
+                path="edit/:id"
+                element={<AdminEventCreatorPage onBack={() => window.history.back()} />}
+              />
             </Route>
+
             <Route path="posts" element={<LecturerPostManagement />} />
             <Route path="posts/:id" element={<LecturerPostDetailPage />} />
             <Route path="templates" element={<LecturerTemplatesPage />} />
-            <Route path="accounts" element={<AdminAccountsPage restrictRoles={["STUDENT", "MEMBER", "GUEST"]} />} />
+            {/* Lecturer chỉ quản lý tài khoản STUDENT và GUEST */}
+            <Route
+              path="accounts"
+              element={<AdminAccountsPage restrictRoles={["STUDENT", "GUEST"]} />}
+            />
             <Route path="notifications" element={<LecturerNotificationsPage />} />
             <Route path="spinner" element={<LecturerLuckyDrawManagement />} />
             <Route path="profile" element={<ProfileManagement />} />
           </Route>
 
-          {/* Admin/Super Admin Routes */}
+          {/* ═══════════════════════════════════════════════════════════════
+              ADMIN / SUPER_ADMIN (/admin)
+              - Quản trị toàn hệ thống
+              - Bypass mọi org ownership check ở backend
+          ═══════════════════════════════════════════════════════════════ */}
           <Route path="/admin" element={<DashboardLayout />}>
             <Route index element={<Navigate to="dashboard" replace />} />
             <Route path="dashboard" element={<Dashboard />} />
             <Route path="plans" element={<AdminPlansPage />} />
             <Route path="events" element={<AdminEventsPage />} />
-            <Route path="events/create" element={<AdminEventCreatorPage onBack={() => window.history.back()} />} />
-            <Route path="events/edit/:id" element={<AdminEventCreatorPage onBack={() => window.history.back()} />} />
+            <Route
+              path="events/create"
+              element={<AdminEventCreatorPage onBack={() => window.history.back()} />}
+            />
+            <Route
+              path="events/edit/:id"
+              element={<AdminEventCreatorPage onBack={() => window.history.back()} />}
+            />
             <Route path="events/:id" element={<AdminEventDetailPage />} />
             <Route path="posts" element={<AdminPostManagement />} />
             <Route path="posts/:id" element={<AdminPostDetailPage />} />
             <Route path="notifications" element={<AdminNotificationsPage />} />
             <Route path="spinner" element={<AdminLuckyDrawManagement />} />
-            <Route path="events/:id/lucky-draw/setup" element={<LuckyDrawConfigPage userType="admin" />} />
+            <Route
+              path="events/:id/lucky-draw/setup"
+              element={<LuckyDrawConfigPage userType="admin" />}
+            />
             <Route path="templates" element={<AdminTemplatesPage />} />
             <Route path="departments" element={<AdminDepartmentsRolesPage />} />
             <Route path="roles" element={<AdminDepartmentsRolesPage />} />
+            {/* Quản lý toàn bộ tài khoản — không giới hạn role */}
             <Route path="accounts" element={<AdminAccountsPage />} />
             <Route path="profile" element={<ProfileManagement />} />
           </Route>
 
-          {/* Role-Based Management Routes (Special Operations) */}
-          <Route path="/events/:eventId/v3">
-            <Route path="leader" element={<LeaderDashboard />} />
-            <Route path="coordinator" element={<CoordinatorPage />} />
-            <Route path="member" element={<MemberScanPage />} />
-            <Route path="advisor" element={<AdvisorPage />} />
-          </Route>
 
           <Route path="*" element={<NotFoundPage />} />
         </Routes>

@@ -37,7 +37,8 @@ const EventActionModals = ({
   showQAModal,
   setShowQAModal,
   showFeedbackModal,
-  setShowFeedbackModal
+  setShowFeedbackModal,
+  quizControls
 }) => {
   return (
     <>
@@ -168,6 +169,7 @@ const EventActionModals = ({
           isOrganizer={false}
           eventId={event.id}
           quizId={joiningQuizId}
+          quizControls={quizControls}
         />
       )}
 

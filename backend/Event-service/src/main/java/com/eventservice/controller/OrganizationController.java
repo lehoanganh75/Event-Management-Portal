@@ -26,6 +26,20 @@ public class OrganizationController {
         return ResponseEntity.ok(organizationService.getOrganizationById(id));
     }
 
+    /**
+     * Lấy danh sách tổ chức mà user hiện tại sở hữu (ownerAccountId = currentUser)
+     * Dùng cho frontend để hiển thị dropdown organization khi STUDENT tạo event.
+     */
+    @GetMapping("/my-owned")
+    public ResponseEntity<List<Organization>> getMyOwnedOrganizations(
+            @AuthenticationPrincipal Jwt jwt) {
+        if (jwt == null) {
+            return ResponseEntity.status(401).build();
+        }
+        String accountId = jwt.getSubject();
+        return ResponseEntity.ok(organizationService.getOrganizationsByOwner(accountId));
+    }
+
     @PostMapping
     public ResponseEntity<Organization> createOrganization(
             @RequestBody Organization organization,
@@ -33,5 +47,12 @@ public class OrganizationController {
         
         organization.setOwnerAccountId(jwt.getSubject());
         return ResponseEntity.ok(organizationService.createOrganization(organization));
+    }
+
+    @PutMapping("/{id}/status")
+    public ResponseEntity<Organization> updateOrganizationStatus(
+            @PathVariable String id,
+            @RequestParam com.eventservice.entity.enums.OrganizationStatus status) {
+        return ResponseEntity.ok(organizationService.updateOrganizationStatus(id, status));
     }
 }

@@ -228,18 +228,7 @@ const EventSidebar = ({
           role.organizerRole ||
           isSystemAdmin) && (
             <div className="mt-5 pt-5 border-t border-gray-100 space-y-3">
-              {isQuizLive && (
-                <button
-                  onClick={() => {
-                    setJoiningQuizId(quizState.data || wsActiveQuizId);
-                    setShowQuizModal(true);
-                  }}
-                  className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-amber-500 text-white text-sm font-medium hover:bg-amber-600 transition-all"
-                >
-                  <Trophy size={18} />
-                  Tham gia Quiz
-                </button>
-              )}
+
 
               <button
                 onClick={() => setShowJoinCodeModal(true)}

@@ -12,6 +12,7 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(ResponseStatusException.class)
     public ResponseEntity<Map<String, Object>> handleResponseStatusException(ResponseStatusException ex) {
+        ex.printStackTrace();
         return ResponseEntity
                 .status(ex.getStatusCode())
                 .body(Map.of(
@@ -23,6 +24,7 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(RuntimeException.class)
     public ResponseEntity<Map<String, Object>> handleRuntimeException(RuntimeException ex) {
+        ex.printStackTrace();
         String message = ex.getMessage() != null ? ex.getMessage() : "Runtime error occurred";
         return ResponseEntity
                 .status(400) // Default to 400 for business logic errors
@@ -35,6 +37,7 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(Exception.class)
     public ResponseEntity<Map<String, Object>> handleGeneralException(Exception ex) {
+        ex.printStackTrace();
         String message = ex.getMessage() != null ? ex.getMessage() : "System error occurred";
         return ResponseEntity
                 .status(500)

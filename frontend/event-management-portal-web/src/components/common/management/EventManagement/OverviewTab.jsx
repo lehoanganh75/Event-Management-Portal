@@ -11,7 +11,9 @@ const OverviewTab = ({
   isMember, 
   isCoreTeam, 
   formatDate, 
-  formatFullDateTime 
+  formatFullDateTime,
+  user,
+  getOrganizerRole
 }) => {
   const { t } = useLanguage();
 
@@ -180,15 +182,31 @@ const OverviewTab = ({
           <div>
             <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4">Nhân sự phụ trách</h4>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              {event.organizers?.filter(o => o.role === 'LEADER' || o.role === 'ADMIN' || o.role === 'COORDINATOR').slice(0, 4).map((org, idx) => (
-                <div key={idx} className="flex items-center gap-3 p-3 border border-slate-100 rounded-xl bg-white hover:bg-slate-50 transition-colors">
-                  <img src={org.avatarUrl || "https://cdn-icons-png.flaticon.com/512/3135/3135715.png"} className="w-8 h-8 rounded-lg object-cover shadow-sm" alt="" />
-                  <div>
-                    <p className="text-[11px] font-bold text-slate-800 leading-none">{org.fullName}</p>
-                    <p className="text-[9px] text-indigo-500 font-black uppercase mt-1 tracking-tighter">{t(`role_${org.role.toLowerCase()}`)}</p>
-                  </div>
-                </div>
-              ))}
+              {event.organizers
+                ?.filter(o => !o.status || o.status === 'ACTIVE')
+                ?.slice(0, 6)
+                ?.map((org, idx) => {
+                  const fullName = org.profile?.fullName || org.fullName;
+                  const avatarUrl = org.profile?.avatarUrl || org.avatarUrl;
+                  const roleData = getOrganizerRole ? getOrganizerRole(org.role) : null;
+                  const roleLabel = roleData?.label || org.role;
+
+                  return (
+                    <div key={idx} className="flex items-center gap-3 p-3 border border-slate-100 rounded-xl bg-white hover:bg-slate-50 transition-colors">
+                      <img 
+                        src={avatarUrl || "https://cdn-icons-png.flaticon.com/512/3135/3135715.png"} 
+                        className="w-8 h-8 rounded-lg object-cover shadow-sm border border-slate-100" 
+                        alt="" 
+                      />
+                      <div>
+                        <p className="text-[11px] font-bold text-slate-800 leading-none">{fullName || "Thành viên"}</p>
+                        <p className="text-[9px] text-indigo-500 font-black uppercase mt-1 tracking-tighter">
+                          {roleLabel}
+                        </p>
+                      </div>
+                    </div>
+                  );
+                })}
             </div>
           </div>
         </div>

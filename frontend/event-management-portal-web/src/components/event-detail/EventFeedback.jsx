@@ -32,6 +32,13 @@ const EventFeedback = ({ eventId, event, role }) => {
     };
   }, [eventId]);
 
+  // Sync feedbackEnabled from event prop as initial value
+  useEffect(() => {
+    if (event?.feedbackEnabled !== undefined) {
+      setFeedbackEnabled(event.feedbackEnabled);
+    }
+  }, [event?.feedbackEnabled]);
+
   const fetchFeedbackStatus = async () => {
     try {
       const res = await eventService.getFeedbackStatus(eventId);
@@ -213,7 +220,7 @@ const EventFeedback = ({ eventId, event, role }) => {
 
       <div className="p-6">
         {/* Form */}
-        {role.registered && role.registration?.checkedIn && (
+        {role.registered && (
           (event?.status === "COMPLETED" || feedbackEnabled) ? (
             <div className="mb-8 border border-slate-200 rounded-2xl p-5 bg-slate-50">
               <div className="flex items-center gap-3 mb-5">

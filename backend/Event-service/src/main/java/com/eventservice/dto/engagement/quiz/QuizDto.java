@@ -17,6 +17,7 @@ public class QuizDto {
     private String description;
     private List<QuestionDto> questions;
     private boolean isActive;
+    private boolean requireCheckIn;
 
     public static QuizDto from(com.eventservice.entity.engagement.quiz.Quiz quiz) {
         if (quiz == null)
@@ -27,6 +28,7 @@ public class QuizDto {
                 .title(quiz.getTitle())
                 .description(quiz.getDescription())
                 .isActive(quiz.isActive())
+                .requireCheckIn(quiz.isRequireCheckIn())
                 .questions(quiz.getQuestions() != null ? quiz.getQuestions().stream()
                         .map(QuestionDto::from)
                         .collect(java.util.stream.Collectors.toList()) : null)

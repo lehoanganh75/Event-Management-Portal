@@ -7,6 +7,9 @@ export const useQuiz = (eventId) => {
     const [leaderboard, setLeaderboard] = useState([]);
     const [participants, setParticipants] = useState([]);
     const [activeQuizId, setActiveQuizId] = useState(null);
+    const [joinedQuizzes, setJoinedQuizzes] = useState({});
+    const [lastQuestionIndex, setLastQuestionIndex] = useState(0);
+    const [lastQuestionId, setLastQuestionId] = useState(null);
     const stompClientRef = useRef(null);
 
     useEffect(() => {
@@ -39,12 +42,26 @@ export const useQuiz = (eventId) => {
                         } else if (event.type === 'START') {
                             setActiveQuizId(event.data);
                             setQuizState({ type: 'START', data: event.data });
+                            setLastQuestionIndex(0);
+                            setLastQuestionId(null);
                         } else if (event.type === 'LOBBY_UPDATE') {
                             setParticipants(event.data || []);
                         } else if (event.type === 'END') {
                             setQuizState({ type: 'END', data: null });
+                            setLastQuestionIndex(0);
+                            setLastQuestionId(null);
                         } else if (event.type === 'FORCE_CLOSE') {
                             setQuizState({ type: 'FORCE_CLOSE', data: event.data });
+                            setLastQuestionIndex(0);
+                            setLastQuestionId(null);
+                        } else if (event.type === 'NEXT_QUESTION') {
+                            if (event.data && typeof event.data.orderIndex === 'number') {
+                                setLastQuestionIndex(event.data.orderIndex);
+                            }
+                            if (event.data && event.data.id) {
+                                setLastQuestionId(event.data.id);
+                            }
+                            setQuizState({ type: event.type, data: event.data });
                         } else {
                             setQuizState({ type: event.type, data: event.data });
                         }
@@ -65,6 +82,11 @@ export const useQuiz = (eventId) => {
                 destination: `/app/quiz.join/${quizId}`,
                 body: JSON.stringify({ nickname, avatar, userId })
             });
+            const effectiveId = userId || nickname;
+            setJoinedQuizzes(prev => ({
+                ...prev,
+                [quizId]: { nickname, avatar, participantId: effectiveId }
+            }));
             return true;
         }
         return false;
@@ -75,6 +97,11 @@ export const useQuiz = (eventId) => {
             stompClientRef.current.publish({
                 destination: `/app/quiz.leave/${quizId}`,
                 body: JSON.stringify({ userId })
+            });
+            setJoinedQuizzes(prev => {
+                const copy = { ...prev };
+                delete copy[quizId];
+                return copy;
             });
             return true;
         }
@@ -91,6 +118,20 @@ export const useQuiz = (eventId) => {
         return false;
     };
 
-    return { quizState, leaderboard, participants, activeQuizId, joinQuiz, leaveQuiz, closeQuiz };
+    return { 
+        quizState, 
+        leaderboard, 
+        participants, 
+        activeQuizId, 
+        joinQuiz, 
+        leaveQuiz, 
+        closeQuiz, 
+        joinedQuizzes, 
+        setJoinedQuizzes,
+        lastQuestionIndex,
+        setLastQuestionIndex,
+        lastQuestionId,
+        setLastQuestionId
+    };
 };
 

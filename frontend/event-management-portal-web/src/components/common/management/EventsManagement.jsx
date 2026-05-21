@@ -5,6 +5,7 @@ import {
   Plus,
   FileUp,
   Loader2,
+  X,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
@@ -94,6 +95,19 @@ const EventsManagement = ({ type = "lecturer", mode = "all" }) => {
 
   const [isImporting, setIsImporting] = useState(false);
 
+  // Organization
+  const [isOrgModalOpen, setIsOrgModalOpen] = useState(false);
+  const [ownedOrgs, setOwnedOrgs] = useState([]);
+  const [orgForm, setOrgForm] = useState({
+    name: "",
+    email: "",
+    phone: "",
+    officeLocation: "",
+    type: "CLUB",
+    logoUrl: "",
+    description: ""
+  });
+
   // Allowed statuses
   const allowedStatuses = useMemo(() => {
     if (mode === "plan") {
@@ -161,6 +175,20 @@ const EventsManagement = ({ type = "lecturer", mode = "all" }) => {
   useEffect(() => {
     fetchData();
   }, [fetchData]);
+
+  const fetchMyOwnedOrgs = useCallback(async () => {
+    if (!user) return;
+    try {
+      const orgs = await eventService.getMyOwnedOrganizations();
+      setOwnedOrgs(orgs || []);
+    } catch (err) {
+      console.error("Failed to fetch owned organizations:", err);
+    }
+  }, [user]);
+
+  useEffect(() => {
+    fetchMyOwnedOrgs();
+  }, [fetchMyOwnedOrgs]);
 
   // Notification refresh
   useEffect(() => {
@@ -675,6 +703,19 @@ const EventsManagement = ({ type = "lecturer", mode = "all" }) => {
     <div className="min-h-screen bg-slate-50 p-6">
       <ImportOverlay isImporting={isImporting} />
 
+      {/* Banners for pending organizations */}
+      {ownedOrgs.filter(org => org.status === "PENDING").map(org => (
+        <div key={org.id} className="mb-6 p-4 rounded-2xl bg-amber-50 border border-amber-200 text-amber-800 flex items-center justify-between text-sm shadow-sm">
+          <div className="flex items-center gap-3">
+            <span className="inline-block w-2.5 h-2.5 rounded-full bg-amber-500 animate-pulse"></span>
+            <div>
+              <span className="font-semibold">Tổ chức/CLB: "{org.name}"</span> đang chờ Admin phê duyệt. Bạn có thể tạo sự kiện/kế hoạch sau khi tổ chức được phê duyệt hoạt động.
+            </div>
+          </div>
+          <span className="px-3 py-1 rounded-full bg-amber-100/80 text-[10px] font-black uppercase tracking-wider text-amber-800 border border-amber-200">Đang chờ duyệt</span>
+        </div>
+      ))}
+
       {/* Header */}
       <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 mb-6">
         <div>
@@ -728,11 +769,16 @@ const EventsManagement = ({ type = "lecturer", mode = "all" }) => {
           </p>
         </div>
 
-        {(isAdminMode ||
-          user?.role === "LECTURER" ||
-          user?.role === "MEMBER" ||
-          mode === "plan") && (
-            <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 flex-wrap">
+          {/* Import & Create Buttons (Only if Admin, Lecturer, or Student with APPROVED organizations) */}
+          {(isAdminMode ||
+            user?.role === "LECTURER" ||
+            ((["STUDENT", "GUEST"].includes(user?.role?.toUpperCase())) && (
+              ownedOrgs.some(org => org.status === "APPROVED" || !org.status) ||
+              (user?.eventRoles && user.eventRoles.length > 0)
+            )) ||
+            mode === "plan") && (
+            <>
               {/* Import */}
               <label
                 className={`
@@ -797,8 +843,9 @@ const EventsManagement = ({ type = "lecturer", mode = "all" }) => {
                   ? "Tạo kế hoạch"
                   : "Tạo sự kiện"}
               </button>
-            </div>
+            </>
           )}
+        </div>
       </div>
 
       {/* Stats */}
@@ -915,7 +962,6 @@ const EventsManagement = ({ type = "lecturer", mode = "all" }) => {
         </div>
       )}
 
-      {/* Modals */}
       <ManagementModals
         mode={mode}
         isAdminMode={isAdminMode}

@@ -18,6 +18,7 @@ import EventSidebar from "../../components/event-detail/EventSidebar";
 import JoinCodeModal from "../../components/event-detail/JoinCodeModal";
 import EventActionModals from "../../components/event-detail/EventActionModals";
 import EventFeedback from "../../components/event-detail/EventFeedback";
+import QRScannerModal from "../../components/common/management/QRScannerModal";
 
 export default function EventDetail() {
   const { eventId } = useParams();
@@ -30,6 +31,7 @@ export default function EventDetail() {
   const [isRegistering, setIsRegistering] = useState(false);
   const [showTicket, setShowTicket] = useState(false);
   const [showScanner, setShowScanner] = useState(false);
+  const [showQuizScanner, setShowQuizScanner] = useState(false);
   const [showRegisterModal, setShowRegisterModal] = useState(false);
   const [showCancelModal, setShowCancelModal] = useState(false);
   const [showQuizModal, setShowQuizModal] = useState(false);
@@ -42,7 +44,8 @@ export default function EventDetail() {
   const [pinInput, setPinInput] = useState("");
   const [registrationError, setRegistrationError] = useState("");
 
-  const { quizState, activeQuizId: wsActiveQuizId } = useQuiz(event?.id);
+  const quizControls = useQuiz(event?.id);
+  const { quizState, activeQuizId: wsActiveQuizId } = quizControls;
   const isQuizLive = ['START', 'NEXT_QUESTION', 'LEADERBOARD'].includes(quizState.type);
 
   const fetchEvent = async () => {
@@ -78,21 +81,12 @@ export default function EventDetail() {
               <p className="font-black text-[11px] uppercase tracking-wider">Thử thách mới đã bắt đầu!</p>
             </div>
             <p className="text-[10px] text-slate-600 font-medium leading-relaxed">
-              Ban tổ chức vừa kích hoạt một thử thách mới. Hãy tham gia ngay để dành lấy những phần quà hấp dẫn!
+              Ban tổ chức vừa kích hoạt một thử thách mới. Hãy nhấn vào "Trò chơi tương tác" và nhập mã PIN để tham gia!
             </p>
-            <button
-              onClick={() => {
-                setJoiningQuizId(qId);
-                setShowQuizModal(true);
-              }}
-              className="mt-3 w-full py-2 bg-indigo-600 text-white rounded-lg text-[9px] font-black uppercase tracking-[0.2em] shadow-lg shadow-indigo-100 hover:bg-indigo-700 transition-all"
-            >
-              Tham gia ngay
-            </button>
           </div>,
           {
             position: "top-right",
-            autoClose: 15000,
+            autoClose: 5000,
             pauseOnHover: true,
             theme: "light"
           }
@@ -173,6 +167,63 @@ export default function EventDetail() {
       await fetchEvent();
     } catch (err) {
       toast.error(err.response?.data?.message || "Mã QR không hợp lệ");
+    }
+  };
+
+  const handleQuizScanSuccess = async (scannedData) => {
+    setShowQuizScanner(false);
+    
+    let pin = scannedData ? scannedData.replace(/\s+/g, "") : "";
+    if (pin.includes("pin=")) {
+      const match = pin.match(/[?&]pin=([^&]+)/);
+      if (match) {
+        pin = match[1];
+      }
+    } else if (pin.includes("/")) {
+      const parts = pin.split("/");
+      const lastPart = parts[parts.length - 1];
+      if (lastPart.length === 6) {
+        pin = lastPart;
+      }
+    }
+    
+    pin = pin.toUpperCase();
+    
+    if (!pin || pin.length !== 6) {
+      toast.error("Mã QR không hợp lệ. Vui lòng quét mã QR chứa mã PIN thử thách 6 ký tự.");
+      return;
+    }
+    
+    try {
+      const res = await eventService.getQuizByPin(pin);
+      if (res.data?.id) {
+        // Enforce Check-in logic
+        const isSystemAdmin = ["SUPER_ADMIN", "ADMIN"].includes(user?.role?.toUpperCase());
+        const isLecturer = user?.role?.toUpperCase() === "LECTURER";
+        const roleData = event?.currentUserRole || {};
+        const isTeam = roleData?.creator || roleData?.approver || !!roleData?.organizerRole;
+        const canBypassCheckIn = isSystemAdmin || isLecturer || isTeam;
+
+        if (res.data.requireCheckIn && !canBypassCheckIn) {
+          if (!user) {
+            toast.error("Vui lòng đăng nhập và check-in để tham gia thử thách này.");
+            return;
+          }
+          if (!roleData?.registered || !roleData?.registration?.checkedIn) {
+            toast.error("Bạn cần hoàn tất Check-in tại quầy để tham gia thử thách này!");
+            return;
+          }
+        }
+
+        setJoiningQuizId(res.data.id);
+        setShowQuizModal(true);
+        setPinInput("");
+        toast.success("Kết nối thử thách thành công!");
+      } else {
+        toast.error("Mã PIN không đúng hoặc trò chơi chưa bắt đầu");
+      }
+    } catch (err) {
+      toast.error("Mã PIN từ QR không đúng hoặc trò chơi chưa được tạo");
     }
   };
 
@@ -290,6 +341,7 @@ export default function EventDetail() {
         setShowQAModal={setShowQAModal}
         showFeedbackModal={showFeedbackModal}
         setShowFeedbackModal={setShowFeedbackModal}
+        quizControls={quizControls}
       />
 
       <JoinCodeModal
@@ -299,7 +351,18 @@ export default function EventDetail() {
         setPinInput={setPinInput}
         setJoiningQuizId={setJoiningQuizId}
         setShowQuizModal={setShowQuizModal}
-        setShowScanner={setShowScanner}
+        setShowQuizScanner={setShowQuizScanner}
+        user={user}
+        role={role}
+        event={event}
+      />
+
+      <QRScannerModal
+        isOpen={showQuizScanner}
+        onClose={() => setShowQuizScanner(false)}
+        onScanSuccess={handleQuizScanSuccess}
+        title="Quét mã PIN thử thách"
+        description="Vui lòng đưa mã QR chứa mã PIN hoặc link tham gia thử thách vào khung hình camera."
       />
     </div>
   );

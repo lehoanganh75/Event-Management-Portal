@@ -1,5 +1,5 @@
 import React from "react";
-import { format } from "date-fns";
+import { format, isSameDay } from "date-fns";
 import { X, Calendar as CalendarIcon, MapPin, Users, ChevronRight } from "lucide-react";
 import { Link } from "react-router-dom";
 
@@ -67,9 +67,15 @@ const CalendarModal = ({
                   </div>
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm text-slate-600">
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 col-span-1 sm:col-span-2">
                       <CalendarIcon size={15} className="text-[#1E40AF]" />
-                      <span>{event.startTime ? format(new Date(event.startTime), "HH:mm") : "N/A"}</span>
+                      <span>
+                        {event.startTime ? (
+                          event.endTime && !isSameDay(new Date(event.startTime), new Date(event.endTime))
+                            ? `${format(new Date(event.startTime), "HH:mm dd/MM/yyyy")} - ${format(new Date(event.endTime), "HH:mm dd/MM/yyyy")}`
+                            : format(new Date(event.startTime), "HH:mm")
+                        ) : "N/A"}
+                      </span>
                     </div>
 
                     {event.location && (

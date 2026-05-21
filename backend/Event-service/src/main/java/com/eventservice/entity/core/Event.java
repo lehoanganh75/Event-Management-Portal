@@ -106,6 +106,9 @@ public class Event {
     private boolean checkInEnabled = false;
 
     @Builder.Default
+    private boolean feedbackEnabled = false;
+
+    @Builder.Default
     private String qrType = "DYNAMIC"; // "DYNAMIC" or "STATIC"
 
     // --- AUDIT ---
@@ -145,6 +148,7 @@ public class Event {
 
     // --- RELATIONSHIPS ---
     @OneToMany(mappedBy = "event", cascade = CascadeType.ALL, orphanRemoval = true)
+    @SQLRestriction("is_deleted = false")
     @JsonIgnore
     @Builder.Default
     private Set<EventRegistration> registrations = new HashSet<>();
@@ -162,21 +166,25 @@ public class Event {
     private Set<EventPresenter> presenters = new HashSet<>();
 
     @OneToMany(mappedBy = "event", cascade = CascadeType.ALL, orphanRemoval = true)
+    @SQLRestriction("is_deleted = false")
     @JsonIgnoreProperties("event")
     @Builder.Default
     private Set<EventSession> sessions = new HashSet<>();
 
     @OneToMany(mappedBy = "event", cascade = CascadeType.ALL, orphanRemoval = true)
+    @SQLRestriction("is_deleted = false")
     @JsonIgnore
     @Builder.Default
     private Set<EventPost> posts = new HashSet<>();
 
     @OneToMany(mappedBy = "event", cascade = CascadeType.ALL, orphanRemoval = true)
+    @SQLRestriction("is_deleted = false")
     @JsonIgnore
     @Builder.Default
     private Set<EventFeedback> feedbacks = new HashSet<>();
 
     @OneToMany(mappedBy = "event", cascade = CascadeType.ALL, orphanRemoval = true)
+    @SQLRestriction("is_deleted = false")
     @JsonIgnoreProperties("event")
     @Builder.Default
     private Set<EventInvitation> invitations = new HashSet<>();

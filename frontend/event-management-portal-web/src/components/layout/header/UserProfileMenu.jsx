@@ -20,6 +20,7 @@ const UserProfileMenu = ({
   isAdminOnly,
   hasRole,
   isEventStaff,
+  isStudentOrganizer,
   setIsLogoutModalOpen,
   t,
   menuRef,
@@ -36,7 +37,8 @@ const UserProfileMenu = ({
     {
       label: "Sự kiện của tôi",
       icon: Calendar,
-      path: hasRole("MEMBER") ? "/student/events" : "/guest-events",
+      // isStudentOrganizer -> /student/events, otherwise -> /guest-events
+      path: isStudentOrganizer?.() ? "/student/events" : "/guest-events",
       show:
         !isSuperAdmin() &&
         !isAdminOnly() &&
@@ -53,7 +55,8 @@ const UserProfileMenu = ({
       label: "Vào trang BTC",
       icon: LayoutDashboard,
       path: "/student/events",
-      show: hasRole("MEMBER"),
+      // Hiện cho STUDENT sở hữu organization (Organization-Based Authorization)
+      show: isStudentOrganizer?.(),
     },
     {
       label: "Bảng điều khiển BTC",

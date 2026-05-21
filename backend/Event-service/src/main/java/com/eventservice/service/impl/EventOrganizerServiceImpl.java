@@ -25,6 +25,7 @@ public class EventOrganizerServiceImpl implements EventOrganizerService {
     private final EventOrganizerRepository organizerRepository;
     private final EventRepository eventRepository;
     private final NotificationProducer notificationProducer;
+    private final EventOrganizerHelper organizerHelper;
 
     @Override
     @Transactional
@@ -33,6 +34,7 @@ public class EventOrganizerServiceImpl implements EventOrganizerService {
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy sự kiện với ID: " + eventId));
         organizer.setEvent(event);
         organizer.setAssignedAt(LocalDateTime.now());
+        organizerHelper.enrichAndValidateOrganizer(organizer, event);
         return organizerRepository.save(organizer);
     }
 
@@ -55,6 +57,7 @@ public class EventOrganizerServiceImpl implements EventOrganizerService {
     public EventOrganizer updateOrganizerRole(String organizerId, OrganizerRole role) {
         EventOrganizer organizer = organizerRepository.findById(organizerId)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy thành viên ban tổ chức với ID: " + organizerId));
+        organizerHelper.validateRoleUpdate(organizer, role);
         organizer.setRole(role);
         return organizerRepository.save(organizer);
     }

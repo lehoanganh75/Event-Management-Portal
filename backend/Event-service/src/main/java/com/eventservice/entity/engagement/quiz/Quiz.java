@@ -33,6 +33,10 @@ public class Quiz {
     @Builder.Default
     private boolean isActive = false;
 
+    @Column(columnDefinition = "boolean default true")
+    @Builder.Default
+    private boolean requireCheckIn = true;
+
     @CreationTimestamp
     private LocalDateTime createdAt;
 

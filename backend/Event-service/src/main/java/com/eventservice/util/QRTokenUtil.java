@@ -22,7 +22,7 @@ public class QRTokenUtil {
 
         if (eventEndTime != null) {
             expiry = Date.from(
-                    eventEndTime.plusHours(1)
+                    eventEndTime.plusHours(24)
                             .atZone(ZoneId.systemDefault()).toInstant());
         } else {
             expiry = new Date(System.currentTimeMillis() + EXPIRY_HOURS * 3600 * 1000);
@@ -40,8 +40,14 @@ public class QRTokenUtil {
 
     public String generateEventQRToken(String eventId, LocalDateTime eventEndTime, String qrType) {
         Date expiry;
-        if ("STATIC".equalsIgnoreCase(qrType) && eventEndTime != null) {
-            expiry = Date.from(eventEndTime.atZone(ZoneId.systemDefault()).toInstant());
+        if ("STATIC".equalsIgnoreCase(qrType)) {
+            if (eventEndTime != null) {
+                // Expire 24 hours after the event ends to give plenty of buffer for check-ins
+                expiry = Date.from(eventEndTime.plusHours(24).atZone(ZoneId.systemDefault()).toInstant());
+            } else {
+                // If no end time, expire in 7 days
+                expiry = new Date(System.currentTimeMillis() + 7L * 24 * 3600 * 1000);
+            }
         } else {
             // Dynamic tokens are short-lived (e.g., 60 seconds)
             expiry = new Date(System.currentTimeMillis() + 60 * 1000);

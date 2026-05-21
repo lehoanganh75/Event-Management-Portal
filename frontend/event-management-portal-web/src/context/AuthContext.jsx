@@ -37,6 +37,14 @@ export const AuthProvider = ({ children }) => {
                 profileData.eventRoles = [];
             }
 
+            // Fetch owned organizations (Organization-Based Authorization)
+            try {
+                const ownedOrgs = await eventService.getMyOwnedOrganizations();
+                profileData.ownedOrganizations = ownedOrgs || [];
+            } catch (e) {
+                profileData.ownedOrganizations = [];
+            }
+
             setUser(profileData);
             setIsAuthenticated(true);
         } catch (error) {
@@ -72,6 +80,14 @@ export const AuthProvider = ({ children }) => {
             profileData.eventRoles = rolesRes || [];
         } catch (e) {
             profileData.eventRoles = [];
+        }
+
+        // Fetch owned organizations (Organization-Based Authorization)
+        try {
+            const ownedOrgs = await eventService.getMyOwnedOrganizations();
+            profileData.ownedOrganizations = ownedOrgs || [];
+        } catch (e) {
+            profileData.ownedOrganizations = [];
         }
 
         setUser(profileData);

@@ -60,9 +60,22 @@ public class QuizController {
         return ResponseEntity.ok().build();
     }
 
+    @PatchMapping("/{quizId}/toggle-checkin")
+    public ResponseEntity<QuizDto> toggleCheckInRequirement(
+            @PathVariable String quizId,
+            @RequestParam boolean requireCheckIn) {
+        return ResponseEntity.ok(quizService.toggleCheckInRequirement(quizId, requireCheckIn));
+    }
+
     @PostMapping("/{quizId}/next")
     public ResponseEntity<Void> nextQuestion(@PathVariable String quizId, @RequestParam int index) {
         quizService.nextQuestion(quizId, index);
+        return ResponseEntity.ok().build();
+    }
+
+    @PostMapping("/{quizId}/show-leaderboard")
+    public ResponseEntity<Void> showLeaderboard(@PathVariable String quizId) {
+        quizService.showLeaderboard(quizId);
         return ResponseEntity.ok().build();
     }
 

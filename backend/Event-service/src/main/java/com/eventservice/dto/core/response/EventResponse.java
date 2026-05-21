@@ -53,6 +53,7 @@ public class EventResponse {
 
     private boolean checkInEnabled;
     private String qrType;
+    private boolean feedbackEnabled;
 
     private boolean isDeleted;
 
@@ -109,6 +110,7 @@ public class EventResponse {
                 .additionalInfo(event.getAdditionalInfo())
                 .checkInEnabled(event.isCheckInEnabled())
                 .qrType(event.getQrType())
+                .feedbackEnabled(event.isFeedbackEnabled())
                 .isDeleted(event.isDeleted())
                 .customFieldsJson(event.getCustomFieldsJson())
                 .targetObjects(event.getTargetObjects())

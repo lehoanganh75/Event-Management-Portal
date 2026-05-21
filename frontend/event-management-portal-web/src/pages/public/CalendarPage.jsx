@@ -88,6 +88,9 @@ const CalendarPage = () => {
     }
   };
 
+  console.log("events: ", events);
+  
+
   const nextMonth = () => setCurrentDate(addMonths(currentDate, 1));
   const prevMonth = () => setCurrentDate(subMonths(currentDate, 1));
 
@@ -98,8 +101,34 @@ const CalendarPage = () => {
 
   const getEventsForDay = (day) => {
     return events
-      .filter((event) => event.startTime && isSameDay(new Date(event.startTime), day))
-      .sort((a, b) => (b.registeredCount || 0) - (a.registeredCount || 0));
+      .filter((event) => {
+        if (!event.startTime) return false;
+        const start = new Date(event.startTime);
+        const end = event.endTime ? new Date(event.endTime) : start;
+        
+        const dDate = new Date(day.getFullYear(), day.getMonth(), day.getDate());
+        const sDate = new Date(start.getFullYear(), start.getMonth(), start.getDate());
+        const eDate = new Date(end.getFullYear(), end.getMonth(), end.getDate());
+        
+        return dDate >= sDate && dDate <= eDate;
+      })
+      .sort((a, b) => {
+        const aStart = new Date(a.startTime).getTime();
+        const bStart = new Date(b.startTime).getTime();
+        const aEnd = a.endTime ? new Date(a.endTime).getTime() : aStart;
+        const bEnd = b.endTime ? new Date(b.endTime).getTime() : bStart;
+        
+        const aDuration = aEnd - aStart;
+        const bDuration = bEnd - bStart;
+        
+        if (aDuration !== bDuration) {
+          return bDuration - aDuration; // Longer events first
+        }
+        if (aStart !== bStart) {
+          return aStart - bStart; // Earlier events first
+        }
+        return (b.registeredCount || 0) - (a.registeredCount || 0);
+      });
   };
 
   const handleDayClick = (day, dayEvents) => {

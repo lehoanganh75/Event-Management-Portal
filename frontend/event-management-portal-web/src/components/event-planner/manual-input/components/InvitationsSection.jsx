@@ -3,7 +3,6 @@ import { UserPlus, UserCheck, Plus, Sparkles, X, Check, Search, Briefcase } from
 import { Field, Input, Select } from "./BaseUI";
 
 export const ORGANIZER_ROLES = [
-  { value: "ORGANIZER", label: "Người tổ chức" },
   { value: "LEADER", label: "Trưởng ban" },
   { value: "COORDINATOR", label: "Điều phối viên" },
   { value: "MEMBER", label: "Thành viên" },

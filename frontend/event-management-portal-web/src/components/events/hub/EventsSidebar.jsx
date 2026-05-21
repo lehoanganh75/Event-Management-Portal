@@ -20,7 +20,7 @@ const EventsSidebar = ({
       return;
     }
     const role = user?.role?.toUpperCase();
-    if (role === "MEMBER") {
+    if (role === "MEMBER" || role === "STUDENT") {
       navigate("/student/notifications");
     } else if (role === "LECTURER") {
       navigate("/lecturer/notifications");
@@ -37,7 +37,7 @@ const EventsSidebar = ({
       return;
     }
     const role = user?.role?.toUpperCase();
-    if (role === "MEMBER") {
+    if (role === "MEMBER" || role === "STUDENT") {
       navigate("/student/events");
     } else if (role === "LECTURER") {
       navigate("/lecturer/events");

@@ -88,6 +88,10 @@ const Header = () => {
   const isLeaderRole = () => user?.eventRoles?.some(role => role.toUpperCase() === 'LEADER');
   const hasRole = (roleName) => user?.role?.toUpperCase() === roleName.toUpperCase();
 
+  const isStudentOrganizer = () =>
+    (hasRole("STUDENT") || hasRole("GUEST")) &&
+    (user?.ownedOrganizations?.length > 0 || (user?.eventRoles && user.eventRoles.length > 0));
+
   const handleLogout = async () => {
     try {
       await logout();
@@ -181,12 +185,12 @@ const Header = () => {
               {isAuthenticated && user ? (
                 <>
                   {/* Dashboard */}
-                  {(isEventStaff() || isAdminOnly() || isSuperAdmin() || hasRole("MEMBER") || hasRole("LECTURER")) && (
+                  {(isEventStaff() || isAdminOnly() || isSuperAdmin() || hasRole("LECTURER") || isStudentOrganizer()) && (
                     <Link
                       to={
                         isSuperAdmin() || isAdminOnly()
                           ? "/admin/dashboard"
-                          : hasRole("MEMBER")
+                          : isStudentOrganizer()
                             ? "/student/events"
                             : isLeaderRole()
                               ? "/lecturer/dashboard"
@@ -224,6 +228,7 @@ const Header = () => {
                     isAdminOnly={isAdminOnly}
                     hasRole={hasRole}
                     isEventStaff={isEventStaff}
+                    isStudentOrganizer={isStudentOrganizer}
                     setIsLogoutModalOpen={setIsLogoutModalOpen}
                     t={t}
                     menuRef={menuRef}
@@ -273,6 +278,7 @@ const Header = () => {
         isAdminOnly={isAdminOnly}
         isEventStaff={isEventStaff}
         isLeaderRole={isLeaderRole}
+        isStudentOrganizer={isStudentOrganizer}
         setIsLogoutModalOpen={setIsLogoutModalOpen}
         language={language}
         setLanguage={setLanguage}

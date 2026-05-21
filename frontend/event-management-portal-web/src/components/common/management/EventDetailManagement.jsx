@@ -433,6 +433,7 @@ const EventDetailManagement = ({
 
   // Quiz & Survey states
   const [showQuizModal, setShowQuizModal] = useState(false);
+  const [quizIsOrganizer, setQuizIsOrganizer] = useState(true);
   const [showQuizCreatorModal, setShowQuizCreatorModal] = useState(false);
   const [showSurveyModal, setShowSurveyModal] = useState(false);
   const [showSurveyCreatorModal, setShowSurveyCreatorModal] = useState(false);
@@ -474,68 +475,71 @@ const EventDetailManagement = ({
   };
 
   const [showJoinCodeModal, setShowJoinCodeModal] = useState(false);
+  const [showQuizScanner, setShowQuizScanner] = useState(false);
 
-  // Always-on WebSocket for quiz - connected at component level to never miss events
-  const { quizState, leaderboard, activeQuizId: wsActiveQuizId } = useQuiz(event?.id);
-
-  // --- AUTOMATIC QUIZ NOTIFICATION FOR PARTICIPANTS ---
-  useEffect(() => {
-    if (quizState?.type === "START" && quizState.data) {
-      const qId = quizState.data;
-
-      if (!showQuizModal) {
-        toast.info(
-          <div className="text-left">
-            <div className="flex items-center gap-2 mb-2">
-              <div className="w-8 h-8 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center">
-                <Trophy size={16} />
-              </div>
-
-              <div>
-                <p className="text-sm font-semibold text-slate-800">
-                  Thử thách đã bắt đầu
-                </p>
-                <p className="text-xs text-slate-500">
-                  Ban tổ chức vừa mở một quiz mới
-                </p>
-              </div>
-            </div>
-
-            <p className="text-sm text-slate-600 leading-relaxed mb-3">
-              Hãy tham gia ngay để trả lời câu hỏi và nhận phần thưởng từ sự kiện.
-            </p>
-
-            <button
-              onClick={() => {
-                setActiveQuizId(qId);
-                setShowQuizModal(true);
-              }}
-              className="
-              w-full h-9
-              rounded-lg
-              bg-indigo-600
-              text-white
-              text-sm font-medium
-              hover:bg-indigo-700
-              transition-colors
-            "
-            >
-              Tham gia ngay
-            </button>
-          </div>,
-          {
-            position: "top-right",
-            autoClose: 15000,
-            hideProgressBar: false,
-            closeOnClick: false,
-            pauseOnHover: true,
-            draggable: true,
-            theme: "light",
-          }
-        );
+  const handleQuizScanSuccess = async (scannedData) => {
+    setShowQuizScanner(false);
+    
+    let pin = scannedData ? scannedData.replace(/\s+/g, "") : "";
+    if (pin.includes("pin=")) {
+      const match = pin.match(/[?&]pin=([^&]+)/);
+      if (match) {
+        pin = match[1];
+      }
+    } else if (pin.includes("/")) {
+      const parts = pin.split("/");
+      const lastPart = parts[parts.length - 1];
+      if (lastPart.length === 6) {
+        pin = lastPart;
       }
     }
-  }, [quizState, event?.id, showQuizModal]);
+    
+    pin = pin.toUpperCase();
+    
+    if (!pin || pin.length !== 6) {
+      toast.error("Mã QR không hợp lệ. Vui lòng quét mã QR chứa mã PIN thử thách 6 ký tự.");
+      return;
+    }
+    
+    try {
+      const res = await eventService.getQuizByPin(pin);
+      if (res.data?.id) {
+        // Enforce Check-in logic
+        const isSystemAdmin = ["SUPER_ADMIN", "ADMIN"].includes(authUser?.role?.toUpperCase());
+        const isLecturer = authUser?.role?.toUpperCase() === "LECTURER";
+        const roleData = event?.currentUserRole || {};
+        const isTeam = roleData?.creator || roleData?.approver || !!roleData?.organizerRole;
+        const canBypassCheckIn = isSystemAdmin || isLecturer || isTeam;
+
+        if (res.data.requireCheckIn && !canBypassCheckIn) {
+          if (!authUser) {
+            toast.error("Vui lòng đăng nhập và check-in để tham gia thử thách này.");
+            return;
+          }
+          if (!roleData?.registered || !roleData?.registration?.checkedIn) {
+            toast.error("Bạn cần hoàn tất Check-in tại quầy để tham gia thử thách này!");
+            return;
+          }
+        }
+
+        setActiveQuizId(res.data.id);
+        setQuizIsOrganizer(false);
+        setShowQuizModal(true);
+        toast.success("Kết nối thử thách thành công!");
+      } else {
+        toast.error("Mã PIN không đúng hoặc trò chơi chưa bắt đầu");
+      }
+    } catch (err) {
+      toast.error("Mã PIN từ QR không đúng hoặc trò chơi chưa được tạo");
+    }
+  };
+
+  // Always-on WebSocket for quiz - connected at component level to never miss events
+  const quizControls = useQuiz(event?.id);
+  const { quizState, leaderboard, activeQuizId: wsActiveQuizId } = quizControls;
+
+  // This is the management view — only organizers can access it,
+  // so no need to show "quiz started" notifications here.
 
   const fetchQuizzes = async () => {
     try {
@@ -556,8 +560,15 @@ const EventDetailManagement = ({
   }, [activeTab, event?.id]);
 
   const handleStartQuiz = async (quizId) => {
-    // Just open the lobby — admin will click 'Bắt đầu' inside the modal to start
+    try {
+      // Always call startQuiz to ensure active=true in DB
+      // (local quizzes data may be stale after a previous force-close)
+      await eventService.startQuiz(quizId);
+    } catch (err) {
+      console.error("Failed to activate quiz:", err);
+    }
     setActiveQuizId(quizId);
+    setQuizIsOrganizer(true);
     setShowQuizModal(true);
   };
 
@@ -721,7 +732,7 @@ const EventDetailManagement = ({
   // 1. Nhóm Ban điều hành cốt lõi (Core Management)
   const isCoreTeam =
     up.isCreator || up.creator ||
-    ['LEADER', 'COORDINATOR', 'ORGANIZER'].includes(up.organizerRole);
+    ['LEADER', 'COORDINATOR'].includes(up.organizerRole);
 
   // 2. Diễn giả (Presenter)
   const isPresenter = up.isPresented || up.presented || up.presenter;
@@ -1041,6 +1052,8 @@ const EventDetailManagement = ({
                 isCoreTeam={isCoreTeam}
                 formatDate={formatDate}
                 formatFullDateTime={formatFullDateTime}
+                user={authUser}
+                getOrganizerRole={getOrganizerRole}
               />
             )}
 
@@ -1296,7 +1309,7 @@ const EventDetailManagement = ({
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   exit={{ opacity: 0 }}
-                  className="fixed inset-0 z-[9999] bg-slate-900 flex flex-col items-center justify-center p-6"
+                  className="fixed inset-0 z-[5000] bg-slate-900 flex flex-col items-center justify-center p-6"
                 >
                   <button
                     onClick={() => setShowJoinCodeModal(false)}
@@ -1339,13 +1352,35 @@ const EventDetailManagement = ({
                         outline-none
                       "
                         onChange={(e) => {
-                          const val = e.target.value.toUpperCase();
+                          const val = e.target.value.replace(/\s+/g, "").toUpperCase();
+                          e.target.value = val;
                           if (val.length === 6) {
                             const matched = quizzes.find((q) =>
                               q.id?.startsWith(val.toLowerCase())
                             );
                             if (matched) {
+                                // Enforce Check-in logic
+                                const isSystemAdmin = ["SUPER_ADMIN", "ADMIN"].includes(authUser?.role?.toUpperCase());
+                                const isLecturer = authUser?.role?.toUpperCase() === "LECTURER";
+                                const roleData = event?.currentUserRole || {};
+                                const isTeam = roleData?.creator || roleData?.approver || !!roleData?.organizerRole;
+                                const canBypassCheckIn = isSystemAdmin || isLecturer || isTeam;
+
+                                if (matched.requireCheckIn && !canBypassCheckIn) {
+                                  if (!authUser) {
+                                    toast.error("Vui lòng đăng nhập và check-in để tham gia thử thách này.");
+                                    e.target.value = "";
+                                    return;
+                                  }
+                                  if (!roleData?.registered || !roleData?.registration?.checkedIn) {
+                                    toast.error("Bạn cần hoàn tất Check-in tại quầy để tham gia thử thách này!");
+                                    e.target.value = "";
+                                    return;
+                                  }
+                                }
+
                               setActiveQuizId(matched.id);
+                              setQuizIsOrganizer(false);
                               setShowQuizModal(true);
                               setShowJoinCodeModal(false);
                               toast.success("Đang kết nối...");
@@ -1359,7 +1394,9 @@ const EventDetailManagement = ({
                       <button
                         onClick={() => {
                           setShowJoinCodeModal(false);
-                          setShowScanner(true);
+                          setTimeout(() => {
+                            setShowQuizScanner(true);
+                          }, 300);
                         }}
                         className="
                         w-full md:w-28 h-16 md:h-24
@@ -1699,7 +1736,8 @@ const EventDetailManagement = ({
           onClose={() => setShowQuizModal(false)}
           eventId={event.id}
           quizId={activeQuizId || wsActiveQuizId}
-          isOrganizer={true}
+          isOrganizer={quizIsOrganizer}
+          quizControls={quizControls}
         />
       )}
 
@@ -1741,6 +1779,14 @@ const EventDetailManagement = ({
         onClose={() => setShowLuckyDrawCreatorModal(false)}
         event={event}
         onRefresh={onRefresh}
+      />
+
+      <QRScannerModal
+        isOpen={showQuizScanner}
+        onClose={() => setShowQuizScanner(false)}
+        onScanSuccess={handleQuizScanSuccess}
+        title="Quét mã PIN thử thách"
+        description="Vui lòng đưa mã QR chứa mã PIN hoặc link tham gia thử thách vào khung hình camera."
       />
     </div>
   );

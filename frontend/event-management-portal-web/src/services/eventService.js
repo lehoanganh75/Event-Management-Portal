@@ -181,6 +181,12 @@ const eventService = {
 
     getAllOrganizations: () => privateApi.get('/organizations'),
     createOrganization: (data) => privateApi.post('/organizations', data),
+    /**
+     * Lấy danh sách Organization mà user hiện tại sở hữu (ownerAccountId = currentUser).
+     * Dùng để quyết định có hiện nút tạo sự kiện không và lọc dropdown tổ chức.
+     */
+    getMyOwnedOrganizations: () => privateApi.get('/organizations/my-owned').then(res => res.data || []),
+    updateOrganizationStatus: (id, status) => privateApi.put(`/organizations/${id}/status`, null, { params: { status } }),
 
     // --- GROUP 2: AUTHENTICATED / MY EVENTS ---
     getMyEvents: () => privateApi.get('/events/my-events').then(transformListResponse),
@@ -373,7 +379,9 @@ const eventService = {
             return axios.post(`${BASE_URL}/ai/api/chat`, { prompt });
         },
     },
+    // --- Quiz & Engagement ---
     createQuiz: (quizData) => privateApi.post('/quizzes', quizData),
+    toggleQuizCheckInRequirement: (quizId, requireCheckIn) => privateApi.patch(`/quizzes/${quizId}/toggle-checkin?requireCheckIn=${requireCheckIn}`),
     getQuizzesByEvent: (eventId) => {
         const token = localStorage.getItem('accessToken');
         const api = token ? privateApi : publicApi;
@@ -384,6 +392,7 @@ const eventService = {
     endQuiz: (quizId) => privateApi.post(`/quizzes/${quizId}/end`),
     resetQuiz: (quizId) => privateApi.post(`/quizzes/${quizId}/reset`),
     nextQuizQuestion: (quizId, index) => privateApi.post(`/quizzes/${quizId}/next`, null, { params: { index } }),
+    showQuizLeaderboard: (quizId) => privateApi.post(`/quizzes/${quizId}/show-leaderboard`),
     submitQuizAnswer: (submission) => privateApi.post('/quizzes/submit', submission),
     getQuizLeaderboard: (quizId) => privateApi.get(`/quizzes/${quizId}/leaderboard`),
     importQuizFromWord: (eventId, file) => {
@@ -411,7 +420,7 @@ const eventService = {
             headers: { 'Content-Type': 'multipart/form-data' }
         });
     },
-    getSurveyResponses: (surveyId) => privateApi.get(`/surveys/${surveyId}/responses`),
+    getSurveyResponses: (surveyId) => publicApi.get(`/surveys/${surveyId}/responses`),
 
     // --- Q&A API ---
     getQAMessages: (eventId) => {
