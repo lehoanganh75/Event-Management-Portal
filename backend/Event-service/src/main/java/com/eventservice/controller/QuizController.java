@@ -88,6 +88,11 @@ public class QuizController {
         return ResponseEntity.ok(Map.of("points", points));
     }
 
+    @GetMapping("/questions/{questionId}/stats")
+    public ResponseEntity<Map<String, Long>> getQuestionStats(@PathVariable String questionId) {
+        return ResponseEntity.ok(quizService.getQuestionStats(questionId));
+    }
+
     @GetMapping("/{quizId}/leaderboard")
     public ResponseEntity<List<?>> getLeaderboard(@PathVariable String quizId) {
         return ResponseEntity.ok(quizService.getLeaderboard(quizId));
