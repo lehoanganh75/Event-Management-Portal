@@ -351,13 +351,7 @@ const QuestionScreen = ({
   const [answered, setAnswered] = useState(null);        // option id chosen
   const [result, setResult] = useState(null);            // { points, correct }
   const [subPhase, setSubPhase] = useState('answering'); // 'answering' | 'revealing' | 'summarizing'
-  const [answerCounts] = useState(() => {
-    // Generate fake answer distribution for display (will be replaced by real data later)
-    if (!question.options) return {};
-    const counts = {};
-    question.options.forEach(o => { counts[o.id] = 0; });
-    return counts;
-  });
+  const [stats, setStats] = useState({});
   const [revealCountdown, setRevealCountdown] = useState(5);
 
   const timerRef = useRef(null);
@@ -373,6 +367,7 @@ const QuestionScreen = ({
     setSubPhase('answering');
     timerEndedRef.current = false;
     setRevealCountdown(5);
+    setStats({});
 
     timerRef.current = setInterval(() => {
       setTimeLeft(prev => {
@@ -393,6 +388,37 @@ const QuestionScreen = ({
       setSubPhase('revealing');
     }
   }, [timeLeft, subPhase]);
+
+  // Fetch statistics when timer hits 0 (revealing phase)
+  useEffect(() => {
+    if (subPhase === 'revealing' && question?.id) {
+      eventService.getQuizQuestionStats(question.id)
+        .then(res => {
+          if (res.data) {
+            setStats(res.data);
+          }
+        })
+        .catch(err => console.error("[QuizModal] Error fetching stats:", err));
+    }
+  }, [subPhase, question?.id]);
+
+  const getWordScrambleCorrectCount = () => {
+    if (!question.correctData) return 0;
+    const correctKey = question.correctData.trim().toLowerCase();
+    let total = 0;
+    Object.keys(stats).forEach(ans => {
+      if (ans.trim().toLowerCase() === correctKey) {
+        total += stats[ans];
+      }
+    });
+    return total;
+  };
+  
+  const getWordScrambleTotalSubmissions = () => {
+    let total = 0;
+    Object.values(stats).forEach(v => { total += v; });
+    return total;
+  };
 
   // Revealing phase: show correct/wrong 2s, then summarizing 5s countdown
   useEffect(() => {
@@ -474,20 +500,33 @@ const QuestionScreen = ({
                 <span className="text-2xl md:text-4xl opacity-70 shrink-0">{shape.icon}</span>
                 <span className="flex-1 leading-snug">{opt.content}</span>
                 {showResult && (
-                  opt.isCorrect
-                    ? <CheckCircle2 className="shrink-0 text-white drop-shadow w-5 h-5 md:w-7 md:h-7" />
-                    : <XCircle className="shrink-0 text-white/40 w-5 h-5 md:w-7 md:h-7" />
+                  <div className="flex items-center gap-2 shrink-0">
+                    <span className="px-2.5 py-1 bg-white/20 rounded-full text-xs font-black flex items-center gap-1">
+                      👥 {stats[opt.id] || 0}
+                    </span>
+                    {opt.isCorrect
+                      ? <CheckCircle2 className="text-white drop-shadow w-5 h-5 md:w-7 md:h-7" />
+                      : <XCircle className="text-white/40 w-5 h-5 md:w-7 md:h-7" />
+                    }
+                  </div>
                 )}
               </div>
             );
           })}
 
           {question.type === 'WORD_SCRAMBLE' && (
-            <div className="col-span-1 md:col-span-2 flex items-center justify-center">
+            <div className="col-span-1 md:col-span-2 flex flex-col items-center justify-center gap-4">
               <div className="bg-white/10 border-2 border-white/30 rounded-2xl px-8 py-4 text-center">
                 <p className="text-white/60 text-sm font-bold uppercase mb-2">Đáp án đúng:</p>
                 <p className="text-white font-black text-3xl tracking-widest">{question.correctData}</p>
               </div>
+              {showResult && (
+                <div className="bg-white/5 rounded-xl px-6 py-3 text-center border border-white/10">
+                  <p className="text-white text-sm font-bold">
+                    👥 {getWordScrambleCorrectCount()} / {getWordScrambleTotalSubmissions()} người trả lời đúng
+                  </p>
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -571,15 +610,33 @@ const QuestionScreen = ({
                 </motion.span>
               )}
 
-              {/* Result icons only in revealing/summarizing */}
-              {showResult && opt.isCorrect && <CheckCircle2 className="text-white drop-shadow-lg w-6 h-6 md:w-8 md:h-8" />}
-              {showResult && isSelected && !opt.isCorrect && <XCircle className="text-white drop-shadow-lg w-6 h-6 md:w-8 md:h-8" />}
+              {/* Result icons and selection stats in revealing/summarizing */}
+              {showResult && (
+                <div className="flex flex-col items-center gap-1 mt-1">
+                  <div className="flex items-center gap-1">
+                    {opt.isCorrect && <CheckCircle2 className="text-white drop-shadow-lg w-6 h-6 md:w-7 md:h-7" />}
+                    {isSelected && !opt.isCorrect && <XCircle className="text-white drop-shadow-lg w-6 h-6 md:w-7 md:h-7" />}
+                  </div>
+                  <span className="px-2 py-0.5 bg-black/20 rounded-full text-[10px] md:text-xs font-black flex items-center gap-1">
+                    👥 {stats[opt.id] || 0} chọn
+                  </span>
+                </div>
+              )}
             </motion.button>
           );
         })}
 
         {question.type === 'WORD_SCRAMBLE' && (
-          <WordScrambleInline data={question.correctData || ''} onAnswer={handleAnswer} done={locked} />
+          <div className="col-span-2 flex flex-col items-center gap-4 w-full">
+            <WordScrambleInline data={question.correctData || ''} onAnswer={handleAnswer} done={locked} />
+            {showResult && (
+              <div className="bg-white/10 rounded-xl px-6 py-3 text-center border border-white/20 mt-4">
+                <p className="text-white text-sm font-bold">
+                  👥 {getWordScrambleCorrectCount()} / {getWordScrambleTotalSubmissions()} người trả lời đúng
+                </p>
+              </div>
+            )}
+          </div>
         )}
       </div>
 

@@ -395,6 +395,7 @@ const eventService = {
     showQuizLeaderboard: (quizId) => privateApi.post(`/quizzes/${quizId}/show-leaderboard`),
     submitQuizAnswer: (submission) => privateApi.post('/quizzes/submit', submission),
     getQuizLeaderboard: (quizId) => privateApi.get(`/quizzes/${quizId}/leaderboard`),
+    getQuizQuestionStats: (questionId) => privateApi.get(`/quizzes/questions/${questionId}/stats`),
     importQuizFromWord: (eventId, file) => {
         const formData = new FormData();
         formData.append('file', file);
