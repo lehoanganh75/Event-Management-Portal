@@ -86,18 +86,21 @@ export default function ManualInputStep({
 
     const orgId = formData.orgSelectionMode === "new" ? null : formData.organizationId;
 
+    const selectedOrg = orgId && orgs.length > 0 ? orgs.find(o => o.id === orgId) : null;
+    const ownerId = selectedOrg?.ownerAccountId || selectedOrg?.owner_account_id;
+    const isCreatorOwner = orgId && ownerId === creatorId;
+
     const getCreatorInvite = () => ({
       inviteeAccountId: creatorId,
       inviteeEmail: creatorEmail || "",
       inviteeName: creatorName,
+      inviteePhone: user?.phone || user?.profile?.phone || "",
       targetRole: "LEADER",
-      message: "Người tạo sự kiện",
+      message: isCreatorOwner ? "Chủ sở hữu đơn vị tổ chức" : "Người tạo sự kiện",
       isConfirmed: true,
-      isCreator: true
+      isCreator: true,
+      isOrgOwner: isCreatorOwner ? true : false
     });
-
-    const selectedOrg = orgId && orgs.length > 0 ? orgs.find(o => o.id === orgId) : null;
-    const ownerId = selectedOrg?.ownerAccountId;
 
     // BƯỚC 1: Đồng bộ người tạo (creator) và lọc bỏ các isOrgOwner cũ/không phù hợp trước một cách đồng bộ
     setFormData(prev => {
@@ -122,7 +125,15 @@ export default function ManualInputStep({
             inv.inviteeAccountId === creatorId ||
             (inv.inviteeEmail && creatorEmail && inv.inviteeEmail.toLowerCase() === creatorEmail.toLowerCase())
           ) {
-            return { ...inv, targetRole: "LEADER", isConfirmed: true, isCreator: true };
+            return { 
+              ...inv, 
+              targetRole: "LEADER", 
+              isConfirmed: true, 
+              isCreator: true,
+              isOrgOwner: isCreatorOwner ? true : false,
+              message: isCreatorOwner ? "Chủ sở hữu đơn vị tổ chức" : "Người tạo sự kiện",
+              inviteePhone: user?.phone || user?.profile?.phone || ""
+            };
           }
           return inv;
         });
@@ -149,11 +160,13 @@ export default function ManualInputStep({
 
         const ownerEmail = ownerData.email || ownerData.username;
         const ownerName = ownerData.fullName || ownerData.profile?.fullName || ownerData.username || "Chủ đơn vị";
+        const ownerPhone = ownerData.phone || ownerData.profile?.phone || "";
 
         const ownerInvite = {
           inviteeAccountId: ownerId,
           inviteeEmail: ownerEmail || "",
           inviteeName: ownerName,
+          inviteePhone: ownerPhone || "",
           targetRole: "LEADER",
           message: "Chủ sở hữu đơn vị tổ chức",
           isConfirmed: true,

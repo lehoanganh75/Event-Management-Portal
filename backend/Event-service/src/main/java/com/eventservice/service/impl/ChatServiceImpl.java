@@ -15,6 +15,8 @@ import com.eventservice.entity.social.ChatSession;
 import com.eventservice.entity.enums.ChatMessageRole;
 import com.eventservice.entity.enums.ChatMessageType;
 import com.eventservice.entity.enums.ChatSessionStatus;
+import com.eventservice.entity.enums.EventStatus;
+import com.eventservice.entity.enums.RegistrationStatus;
 import com.eventservice.repository.ChatMessageRepository;
 import com.eventservice.repository.ChatSessionRepository;
 import com.eventservice.entity.mongodb.EventVector;
@@ -53,7 +55,8 @@ public class ChatServiceImpl implements ChatService {
             TemplateRecommendationService templateRecommendationService,
             @org.springframework.beans.factory.annotation.Autowired(required = false) EmbeddingModel embeddingModel,
             SimpMessagingTemplate messagingTemplate,
-            ObjectMapper objectMapper
+            ObjectMapper objectMapper,
+            com.eventservice.service.EventRegistrationService eventRegistrationService
     ) {
         this.chatSessionRepository = chatSessionRepository;
         this.chatMessageRepository = chatMessageRepository;
@@ -67,6 +70,7 @@ public class ChatServiceImpl implements ChatService {
         this.embeddingModel = embeddingModel;
         this.messagingTemplate = messagingTemplate;
         this.objectMapper = objectMapper;
+        this.eventRegistrationService = eventRegistrationService;
     }
 
 
@@ -82,6 +86,7 @@ public class ChatServiceImpl implements ChatService {
     private final EmbeddingModel embeddingModel;
     private final SimpMessagingTemplate messagingTemplate;
     private final ObjectMapper objectMapper;
+    private final com.eventservice.service.EventRegistrationService eventRegistrationService;
 
     @Override
     @Transactional
@@ -158,24 +163,30 @@ public class ChatServiceImpl implements ChatService {
 
         userMessage = chatMessageRepository.save(userMessage);
 
-        // Analyze intent - OPTIMIZATION: Skip AI call to save time (it takes ~20s per call)
+        // Analyze intent using keyword/regex classifier
         String content = request.getContent();
-        String intent = "GENERAL_QUESTION";
-        /* 
-        if (content.length() > 25) {
-            try {
-                intent = geminiChatService.analyzeUserIntent(content);
-            } catch (Exception e) {
-                log.warn("Intent analysis failed: {}", e.getMessage());
-            }
-        }
-        */
-        log.info("User intent (defaulted to save time): {}", intent);
+        String intent = detectIntent(content);
+        log.info("Detected intent: {}", intent);
 
         // Update context if needed
-        if ("EVENT_PLANNING".equals(intent) && session.getContextType() == null) {
+        if (("EVENT_PLANNING".equals(intent) || "GENERATE_EVENT_PLAN".equals(intent) || "GENERATE_PROGRAM_ITEMS".equals(intent)) 
+                && session.getContextType() == null) {
             session.setContextType("EVENT_PLANNING");
             chatSessionRepository.save(session);
+        }
+
+        // Process specific intents directly if matched
+        if ("REGISTER_EVENT".equals(intent)) {
+            return processRegisterEvent(session, content, userId);
+        } else if ("CANCEL_REGISTRATION".equals(intent)) {
+            return processCancelRegistration(session, content, userId);
+        } else if ("CHECK_EVENT_REGISTRATION_STATUS".equals(intent)) {
+            return processCheckEventRegistrationStatus(session, content, userId);
+        } else if ("FIND_MY_REGISTERED_EVENTS".equals(intent)) {
+            return processFindMyRegisteredEvents(session, content, userId);
+        } else if ("FIND_FEATURED_EVENTS".equals(intent) || "FIND_EVENTS".equals(intent) 
+                || "FIND_UPCOMING_EVENTS".equals(intent) || "FIND_ONGOING_EVENTS".equals(intent)) {
+            return processFindOrRecommendEvents(session, content, userId, intent);
         }
 
         // Get conversation history
@@ -678,6 +689,618 @@ public class ChatServiceImpl implements ChatService {
         }
 
         return sb.toString();
+    }
+
+    private String detectIntent(String content) {
+        if (content == null || content.isBlank()) {
+            return "GENERAL_QUESTION";
+        }
+        String lower = content.toLowerCase();
+        
+        // Check Find My Registered Events
+        if (lower.contains("sự kiện tôi đã đăng ký") || lower.contains("sự kiện đã đăng ký") 
+                || lower.contains("sự kiện tôi tham gia") || lower.contains("các sự kiện đã đăng ký")
+                || lower.contains("lịch sử đăng ký") || lower.contains("my registered events")
+                || lower.contains("danh sách sự kiện đã đăng ký")) {
+            return "FIND_MY_REGISTERED_EVENTS";
+        }
+        
+        // Check Cancel Registration
+        if (lower.contains("hủy đăng ký") || lower.contains("hủy tham gia") 
+                || lower.contains("cancel registration") || lower.contains("cancel event")) {
+            return "CANCEL_REGISTRATION";
+        }
+        
+        // Check Check Event Registration Status
+        if ((lower.contains("đã đăng ký") && (lower.contains("chưa") || lower.contains("không")))
+                || lower.contains("kiểm tra trạng thái đăng ký") || lower.contains("kiểm tra đăng ký")
+                || lower.contains("trạng thái đăng ký của tôi")) {
+            return "CHECK_EVENT_REGISTRATION_STATUS";
+        }
+        
+        // Check Register Event
+        if (lower.contains("đăng ký") || lower.contains("tham gia") || lower.contains("register")) {
+            return "REGISTER_EVENT";
+        }
+        
+        // Check Featured Events
+        if (lower.contains("nổi bật") || lower.contains("đề xuất") || lower.contains("hot nhất") 
+                || lower.contains("sự kiện hot") || lower.contains("featured")) {
+            return "FIND_FEATURED_EVENTS";
+        }
+        
+        // Check Event Plan
+        if (lower.contains("tạo kế hoạch") || lower.contains("lập kế hoạch") || lower.contains("vạch kế hoạch") 
+                || lower.contains("thiết lập kế hoạch") || lower.contains("event plan")) {
+            return "GENERATE_EVENT_PLAN";
+        }
+        
+        // Check program items
+        if (lower.contains("gợi ý chương trình") || lower.contains("gợi ý session") || lower.contains("sắp xếp lịch trình") 
+                || lower.contains("thiết kế chương trình") || lower.contains("program item")) {
+            return "GENERATE_PROGRAM_ITEMS";
+        }
+
+        // Default to search if it looks like a query
+        if (lower.contains("tìm") || lower.contains("có sự kiện") || lower.contains("gợi ý") 
+                || lower.contains("sắp diễn ra") || lower.contains("đang diễn ra")) {
+            return "FIND_EVENTS";
+        }
+        
+        return "GENERAL_QUESTION";
+    }
+
+    private String extractEventNameFromMessage(String message) {
+        if (message == null || message.isBlank()) return "";
+        String lower = message.toLowerCase();
+        String[] prefixes = {
+            "đăng ký sự kiện", "đăng ký workshop", "đăng ký hội thảo", "đăng ký talkshow", "đăng ký",
+            "hủy đăng ký sự kiện", "hủy đăng ký", "hủy tham gia",
+            "tôi đã đăng ký sự kiện", "tôi đã đăng ký", "đã đăng ký sự kiện", "đã đăng ký",
+            "kiểm tra đăng ký sự kiện", "kiểm tra đăng ký"
+        };
+        for (String prefix : prefixes) {
+            int idx = lower.indexOf(prefix);
+            if (idx != -1) {
+                String candidate = message.substring(idx + prefix.length()).trim();
+                candidate = candidate.replaceAll("[?\\.!]+$", "").trim();
+                if (!candidate.isEmpty()) {
+                    return candidate;
+                }
+            }
+        }
+        return "";
+    }
+
+    private List<com.eventservice.entity.core.Event> findMatchingEvents(String content) {
+        String eventName = extractEventNameFromMessage(content);
+        log.info("Extracted eventName candidate: '{}'", eventName);
+        
+        List<com.eventservice.entity.core.Event> matches = new ArrayList<>();
+        if (eventName == null || eventName.trim().isEmpty()) {
+            try {
+                String prompt = String.format("""
+                    Bạn là trợ lý trích xuất thông tin. Nhiệm vụ của bạn là phân tích tin nhắn người dùng và trích xuất ra duy nhất tên sự kiện (hội thảo, workshop, talkshow, ngày hội...) mà người dùng đang nhắc tới để đăng ký, hủy hoặc kiểm tra.
+                    Tin nhắn: "%s"
+                    Trả về DUY NHẤT tên sự kiện trích xuất được. Không giải thích, không thêm bớt từ nào khác. Nếu không có tên sự kiện nào, trả về chuỗi rỗng.
+                    """, content);
+                String geminiExtracted = geminiChatService.callGemini(prompt).trim();
+                log.info("Gemini extracted eventName: '{}'", geminiExtracted);
+                if (geminiExtracted.length() > 2 && !geminiExtracted.contains("ERROR_AI_OVERLOADED")) {
+                    eventName = geminiExtracted;
+                }
+            } catch (Exception e) {
+                log.warn("Gemini event extraction failed: {}", e.getMessage());
+            }
+        }
+        
+        if (eventName != null && !eventName.trim().isEmpty()) {
+            eventName = eventName.replace("\"", "").replace("'", "").trim();
+            Optional<com.eventservice.entity.core.Event> bySlug = eventRepository.findBySlugAndIsDeletedFalse(eventName);
+            if (bySlug.isPresent()) {
+                matches.add(bySlug.get());
+            } else {
+                matches = eventRepository.searchByKeyword(eventName);
+            }
+        }
+        
+        if (matches.isEmpty() && eventName != null && !eventName.trim().isEmpty()) {
+            String finalName = eventName.toLowerCase();
+            List<com.eventservice.entity.core.Event> allEvents = eventRepository.findByStatusInAndIsDeletedFalse(
+                List.of(com.eventservice.entity.enums.EventStatus.PUBLISHED, com.eventservice.entity.enums.EventStatus.ONGOING)
+            );
+            matches = allEvents.stream()
+                .filter(e -> e.getTitle().toLowerCase().contains(finalName) 
+                          || finalName.contains(e.getTitle().toLowerCase()))
+                .collect(Collectors.toList());
+        }
+        
+        return matches;
+    }
+
+    private double calculateFeaturedScore(com.eventservice.entity.core.Event event, LocalDateTime now) {
+        // 1. Registration Score (35%)
+        double registrationScore = 0.0;
+        int maxP = event.getMaxParticipants();
+        int regCount = event.getRegisteredCount();
+        if (maxP > 0) {
+            registrationScore = Math.min(1.0, (double) regCount / maxP);
+        } else {
+            registrationScore = Math.min(1.0, (double) regCount / 100.0);
+        }
+
+        // 2. Feedback Score (25%)
+        double feedbackScore = 0.8;
+        if (event.getFeedbacks() != null && !event.getFeedbacks().isEmpty()) {
+            double avg = event.getFeedbacks().stream()
+                    .filter(f -> !f.isDeleted())
+                    .mapToInt(f -> f.getRating() != null ? f.getRating() : 4)
+                    .average()
+                    .orElse(4.0);
+            feedbackScore = avg / 5.0;
+        }
+
+        // 3. Recency Score (20%)
+        double recencyScore = 0.0;
+        if (event.getStartTime() != null) {
+            if (event.getStatus() == com.eventservice.entity.enums.EventStatus.ONGOING) {
+                recencyScore = 1.0;
+            } else if (event.getStartTime().isAfter(now)) {
+                long days = java.time.temporal.ChronoUnit.DAYS.between(now, event.getStartTime());
+                if (days <= 7) {
+                    recencyScore = 1.0 - (days * 0.1);
+                } else if (days <= 30) {
+                    recencyScore = 0.3 - ((days - 7) * 0.01);
+                }
+                recencyScore = Math.max(0.0, recencyScore);
+            } else {
+                long days = java.time.temporal.ChronoUnit.DAYS.between(event.getEndTime() != null ? event.getEndTime() : event.getStartTime(), now);
+                if (days <= 7) {
+                    recencyScore = 0.5 - (days * 0.07);
+                }
+                recencyScore = Math.max(0.0, recencyScore);
+            }
+        }
+
+        // 4. Interaction Score (15%)
+        double interactionScore = 0.0;
+        if (event.isCheckInEnabled()) interactionScore += 0.2;
+        if (event.isFeedbackEnabled()) interactionScore += 0.2;
+        if (event.isHasLuckyDraw()) interactionScore += 0.2;
+        try {
+            if (event.getPosts() != null) interactionScore += Math.min(0.2, event.getPosts().size() * 0.05);
+            if (event.getQuizzes() != null) interactionScore += Math.min(0.2, event.getQuizzes().size() * 0.1);
+        } catch (Exception e) {
+            // Lazy load safeguard
+        }
+        interactionScore = Math.min(1.0, interactionScore);
+
+        // 5. Completeness Score (5%)
+        double completenessScore = 0.0;
+        if (event.getDescription() != null && !event.getDescription().isBlank()) completenessScore += 0.2;
+        if (event.getEventTopic() != null && !event.getEventTopic().isBlank()) completenessScore += 0.2;
+        if (event.getLocation() != null && !event.getLocation().isBlank()) completenessScore += 0.2;
+        if (event.getCoverImage() != null && !event.getCoverImage().isBlank()) completenessScore += 0.2;
+        try {
+            if (event.getPresenters() != null && !event.getPresenters().isEmpty()) completenessScore += 0.2;
+        } catch (Exception e) {
+            // Safe check
+        }
+
+        return (registrationScore * 0.35)
+                + (feedbackScore * 0.25)
+                + (recencyScore * 0.20)
+                + (interactionScore * 0.15)
+                + (completenessScore * 0.05);
+    }
+
+    private String generateFeaturedReason(com.eventservice.entity.core.Event event, LocalDateTime now) {
+        List<String> factors = new ArrayList<>();
+        
+        int regCount = event.getRegisteredCount();
+        if (regCount > 20) {
+            factors.add("thu hút đông đảo người tham gia (" + regCount + " người đăng ký)");
+        }
+        
+        if (event.getFeedbacks() != null && !event.getFeedbacks().isEmpty()) {
+            double avg = event.getFeedbacks().stream()
+                    .filter(f -> !f.isDeleted())
+                    .mapToInt(f -> f.getRating() != null ? f.getRating() : 4)
+                    .average()
+                    .orElse(4.0);
+            if (avg >= 4.0) {
+                factors.add("được đánh giá rất cao (" + String.format("%.1f", avg) + "⭐)");
+            }
+        }
+        
+        if (event.getStatus() == com.eventservice.entity.enums.EventStatus.ONGOING) {
+            factors.add("đang diễn ra sôi nổi");
+        } else if (event.getStartTime() != null && event.getStartTime().isAfter(now)) {
+            long days = java.time.temporal.ChronoUnit.DAYS.between(now, event.getStartTime());
+            if (days <= 3) {
+                factors.add("sắp khởi tranh trong ít ngày tới");
+            } else {
+                factors.add("sắp diễn ra");
+            }
+        }
+        
+        try {
+            if (event.getPresenters() != null && !event.getPresenters().isEmpty()) {
+                factors.add("có sự góp mặt của các diễn giả uy tín");
+            }
+        } catch (Exception e) {
+            // Safe check
+        }
+        
+        if (factors.isEmpty()) {
+            return "Sự kiện được đề xuất đặc biệt dành cho sinh viên IUH.";
+        }
+        
+        StringBuilder sb = new StringBuilder("Sự kiện ");
+        for (int i = 0; i < factors.size(); i++) {
+            sb.append(factors.get(i));
+            if (i < factors.size() - 2) {
+                sb.append(", ");
+            } else if (i == factors.size() - 2) {
+                sb.append(" và ");
+            }
+        }
+        sb.append(".");
+        return sb.toString();
+    }
+
+    private String formatEventCardsJson(List<com.eventservice.entity.core.Event> events, LocalDateTime now) {
+        if (events == null || events.isEmpty()) {
+            return "";
+        }
+        
+        java.time.format.DateTimeFormatter fmt = java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm");
+        StringBuilder sb = new StringBuilder();
+        sb.append("\n\n[EVENT_CARDS_START]\n[\n");
+        
+        for (int i = 0; i < events.size(); i++) {
+            com.eventservice.entity.core.Event e = events.get(i);
+            double score = calculateFeaturedScore(e, now);
+            String reason = generateFeaturedReason(e, now);
+            
+            sb.append("  {\n");
+            sb.append(String.format("    \"id\": \"%s\",\n", e.getId()));
+            sb.append(String.format("    \"title\": \"%s\",\n", escapeJson(e.getTitle())));
+            sb.append(String.format("    \"date\": \"%s\",\n", e.getStartTime() != null ? e.getStartTime().format(fmt) : ""));
+            sb.append(String.format("    \"location\": \"%s\",\n", e.getLocation() != null ? escapeJson(e.getLocation()) : ""));
+            sb.append(String.format("    \"image\": \"%s\",\n", e.getCoverImage() != null ? escapeJson(e.getCoverImage()) : "/placeholder-event.jpg"));
+            sb.append(String.format("    \"slug\": \"%s\",\n", e.getSlug() != null ? escapeJson(e.getSlug()) : ""));
+            sb.append(String.format("    \"featuredScore\": %.2f,\n", score));
+            sb.append(String.format("    \"reason\": \"%s\"\n", escapeJson(reason)));
+            sb.append("  }");
+            
+            if (i < events.size() - 1) {
+                sb.append(",");
+            }
+            sb.append("\n");
+        }
+        
+        sb.append("]\n[EVENT_CARDS_END]");
+        return sb.toString();
+    }
+
+    private String escapeJson(String input) {
+        if (input == null) return "";
+        return input.replace("\\", "\\\\")
+                    .replace("\"", "\\\"")
+                    .replace("\n", "\\n")
+                    .replace("\r", "\\r");
+    }
+
+    private String generateNaturalLanguageResponse(String userQuery, String action, String status, String message, String eventJson) {
+        try {
+            String prompt = String.format("""
+                Bạn là trợ lý sự kiện IUH. Người dùng vừa gửi yêu cầu: "%s"
+                Hành động: %s
+                Trạng thái xử lý của hệ thống: %s
+                Thông báo từ hệ thống: %s
+                Dữ liệu sự kiện liên quan: %s
+                
+                Nhiệm vụ:
+                - Trả lời tự nhiên, ngắn gọn bằng tiếng Việt thân thiện.
+                - Không bịa thêm thông tin ngoài hệ thống cung cấp.
+                - Nếu thao tác thành công (đăng ký/hủy thành công), hãy chúc mừng hoặc chia sẻ niềm vui với người dùng.
+                - Nếu thất bại (quá hạn, chưa đăng nhập, sự kiện kết thúc/hủy, hết chỗ, trùng lịch), giải thích lý do rõ ràng, lịch sự.
+                - Nếu hệ thống trả về thông báo cần chọn sự kiện, hãy yêu cầu người dùng chọn một trong các sự kiện hiển thị bên dưới.
+                - KHÔNG kèm mã JSON thẻ sự kiện trong câu trả lời của bạn. Chỉ trả lời phần văn bản tự nhiên.
+                """, userQuery, action, status, message, eventJson);
+            String response = geminiChatService.callGemini(prompt);
+            if (response != null && !response.isBlank() && !response.contains("ERROR_AI_OVERLOADED")) {
+                return response.trim();
+            }
+        } catch (Exception e) {
+            log.warn("Gemini call failed for natural response: {}", e.getMessage());
+        }
+        return message;
+    }
+
+    private ChatMessageResponse saveAndBroadcastAssistantMessage(ChatSession session, String content, List<String> quickReplies) {
+        ChatMessage aiMessage = ChatMessage.builder()
+                .chatSession(session)
+                .role(ChatMessageRole.ASSISTANT)
+                .type(ChatMessageType.TEXT)
+                .content(content)
+                .build();
+
+        aiMessage = chatMessageRepository.save(aiMessage);
+
+        try {
+            ChatMessageResponse response = mapMessageToResponse(aiMessage, quickReplies);
+            messagingTemplate.convertAndSend("/topic/chat/" + session.getSessionId(), response);
+            return response;
+        } catch (Exception e) {
+            log.warn("WebSocket failed: {}", e.getMessage());
+            return mapMessageToResponse(aiMessage, quickReplies);
+        }
+    }
+
+    private ChatMessageResponse processRegisterEvent(ChatSession session, String content, String userId) {
+        if (userId == null) {
+            String aiResponse = "Bạn cần đăng nhập hệ thống để thực hiện đăng ký sự kiện. Vui lòng đăng nhập và thử lại nhé! 😊";
+            return saveAndBroadcastAssistantMessage(session, aiResponse, List.of("Đăng nhập hệ thống"));
+        }
+        
+        List<com.eventservice.entity.core.Event> matches = findMatchingEvents(content);
+        if (matches.isEmpty()) {
+            String aiResponse = "Tôi chưa tìm thấy sự kiện nào khớp với tên bạn yêu cầu trong hệ thống. Bạn vui lòng kiểm tra lại tên sự kiện hoặc thử tìm kiếm các sự kiện nổi bật nhé! 😊";
+            return saveAndBroadcastAssistantMessage(session, aiResponse, List.of("Tìm sự kiện nổi bật", "Sự kiện sắp diễn ra"));
+        }
+        
+        if (matches.size() > 1) {
+            String message = "Tôi tìm thấy nhiều sự kiện có tên gần giống. Bạn vui lòng chọn sự kiện muốn đăng ký dưới đây:";
+            String aiResponse = message + formatEventCardsJson(matches, LocalDateTime.now());
+            return saveAndBroadcastAssistantMessage(session, aiResponse, List.of("Quay lại"));
+        }
+        
+        com.eventservice.entity.core.Event event = matches.get(0);
+        LocalDateTime now = LocalDateTime.now();
+        
+        String denyReason = null;
+        String status = "SUCCESS";
+        if (event.isDeleted()) {
+            denyReason = "EVENT_NOT_FOUND";
+        } else if (event.getStatus() == com.eventservice.entity.enums.EventStatus.DRAFT) {
+            denyReason = "EVENT_NOT_OPEN";
+        } else if (event.getStatus() == com.eventservice.entity.enums.EventStatus.CANCELLED) {
+            denyReason = "EVENT_CANCELLED";
+        } else if (event.getEndTime() != null && now.isAfter(event.getEndTime())) {
+            denyReason = "EVENT_ENDED";
+        } else if (event.getRegistrationDeadline() != null && now.isAfter(event.getRegistrationDeadline())) {
+            denyReason = "REGISTRATION_CLOSED";
+        } else if (event.getRegisteredCount() >= event.getMaxParticipants()) {
+            denyReason = "EVENT_FULL";
+        } else {
+            boolean alreadyReg = eventRegistrationRepository.existsByEventIdAndParticipantAccountIdAndIsDeletedFalse(event.getId(), userId);
+            if (alreadyReg) {
+                denyReason = "ALREADY_REGISTERED";
+            }
+        }
+        
+        String actionMessage;
+        if (denyReason == null) {
+            try {
+                eventRegistrationService.registerForEvent(event.getId(), userId);
+                actionMessage = "Đăng ký thành công tham gia sự kiện '" + event.getTitle() + "'.";
+            } catch (org.springframework.web.server.ResponseStatusException rse) {
+                status = "FAILED";
+                denyReason = rse.getReason();
+                actionMessage = "Đăng ký thất bại: " + rse.getReason();
+            } catch (Exception e) {
+                status = "FAILED";
+                denyReason = "REGISTRATION_ERROR";
+                actionMessage = "Đăng ký thất bại: " + e.getMessage();
+            }
+        } else {
+            status = "FAILED";
+            actionMessage = switch (denyReason) {
+                case "EVENT_NOT_FOUND" -> "Không tìm thấy sự kiện này hoặc sự kiện đã bị xóa.";
+                case "EVENT_NOT_OPEN" -> "Sự kiện hiện tại chưa mở đăng ký.";
+                case "EVENT_CANCELLED" -> "Sự kiện này đã bị hủy bỏ bởi ban tổ chức.";
+                case "EVENT_ENDED" -> "Sự kiện này đã kết thúc nên không thể đăng ký.";
+                case "REGISTRATION_CLOSED" -> "Sự kiện này đã quá hạn đăng ký.";
+                case "EVENT_FULL" -> "Sự kiện đã hết chỗ đăng ký.";
+                case "ALREADY_REGISTERED" -> "Bạn đã đăng ký tham gia sự kiện này rồi.";
+                default -> "Không thể thực hiện đăng ký.";
+            };
+        }
+        
+        String eventJson = String.format("{\"title\":\"%s\",\"location\":\"%s\",\"startTime\":\"%s\"}", 
+            event.getTitle(), event.getLocation(), event.getStartTime());
+        String naturalReply = generateNaturalLanguageResponse(content, "ĐĂNG KÝ SỰ KIỆN", status, actionMessage, eventJson);
+        naturalReply += formatEventCardsJson(List.of(event), now);
+        return saveAndBroadcastAssistantMessage(session, naturalReply, List.of("Xem sự kiện đã đăng ký", "Sự kiện nổi bật"));
+    }
+
+    private ChatMessageResponse processCancelRegistration(ChatSession session, String content, String userId) {
+        if (userId == null) {
+            String aiResponse = "Bạn cần đăng nhập hệ thống để thực hiện hủy đăng ký sự kiện. Vui lòng đăng nhập và thử lại nhé! 😊";
+            return saveAndBroadcastAssistantMessage(session, aiResponse, List.of("Đăng nhập hệ thống"));
+        }
+        
+        List<com.eventservice.entity.core.Event> matches = findMatchingEvents(content);
+        if (matches.isEmpty()) {
+            String aiResponse = "Tôi chưa tìm thấy sự kiện nào khớp với yêu cầu hủy đăng ký của bạn. Vui lòng kiểm tra lại tên sự kiện nhé! 😊";
+            return saveAndBroadcastAssistantMessage(session, aiResponse, List.of("Xem sự kiện đã đăng ký"));
+        }
+        
+        if (matches.size() > 1) {
+            String message = "Tôi tìm thấy nhiều sự kiện có tên gần giống. Bạn vui lòng chọn sự kiện muốn hủy đăng ký dưới đây:";
+            String aiResponse = message + formatEventCardsJson(matches, LocalDateTime.now());
+            return saveAndBroadcastAssistantMessage(session, aiResponse, List.of("Quay lại"));
+        }
+        
+        com.eventservice.entity.core.Event event = matches.get(0);
+        LocalDateTime now = LocalDateTime.now();
+        
+        Optional<com.eventservice.entity.registration.EventRegistration> regOpt = 
+            eventRegistrationRepository.findByEventIdAndParticipantAccountId(event.getId(), userId);
+        
+        String denyReason = null;
+        String status = "SUCCESS";
+        
+        if (regOpt.isEmpty() || regOpt.get().isDeleted() || regOpt.get().getStatus() == com.eventservice.entity.enums.RegistrationStatus.CANCELLED) {
+            denyReason = "NOT_REGISTERED";
+        } else {
+            com.eventservice.entity.registration.EventRegistration reg = regOpt.get();
+            if (reg.isCheckedIn()) {
+                denyReason = "ALREADY_CHECKED_IN";
+            } else {
+                LocalDateTime cancelDeadline = event.getStartTime().minusMinutes(30);
+                if (now.isAfter(cancelDeadline)) {
+                    denyReason = "PAST_CANCEL_DEADLINE";
+                }
+            }
+        }
+        
+        String actionMessage;
+        if (denyReason == null) {
+            try {
+                eventRegistrationService.cancelRegistration(event.getId(), userId);
+                actionMessage = "Hủy đăng ký thành công cho sự kiện '" + event.getTitle() + "'.";
+            } catch (Exception e) {
+                status = "FAILED";
+                denyReason = "CANCEL_ERROR";
+                actionMessage = "Hủy đăng ký thất bại: " + e.getMessage();
+            }
+        } else {
+            status = "FAILED";
+            actionMessage = switch (denyReason) {
+                case "NOT_REGISTERED" -> "Bạn chưa đăng ký tham gia sự kiện này.";
+                case "ALREADY_CHECKED_IN" -> "Không thể hủy vì bạn đã thực hiện check-in rồi.";
+                case "PAST_CANCEL_DEADLINE" -> "Đã quá hạn hủy đăng ký (Hạn cuối là 30 phút trước khi sự kiện diễn ra).";
+                default -> "Không thể thực hiện hủy đăng ký.";
+            };
+        }
+        
+        String eventJson = String.format("{\"title\":\"%s\",\"location\":\"%s\"}", event.getTitle(), event.getLocation());
+        String naturalReply = generateNaturalLanguageResponse(content, "HỦY ĐĂNG KÝ SỰ KIỆN", status, actionMessage, eventJson);
+        naturalReply += formatEventCardsJson(List.of(event), now);
+        return saveAndBroadcastAssistantMessage(session, naturalReply, List.of("Sự kiện nổi bật", "Quay lại"));
+    }
+
+    private ChatMessageResponse processCheckEventRegistrationStatus(ChatSession session, String content, String userId) {
+        if (userId == null) {
+            String aiResponse = "Bạn cần đăng nhập để kiểm tra trạng thái đăng ký sự kiện. Vui lòng đăng nhập và thử lại! 😊";
+            return saveAndBroadcastAssistantMessage(session, aiResponse, List.of("Đăng nhập hệ thống"));
+        }
+        
+        List<com.eventservice.entity.core.Event> matches = findMatchingEvents(content);
+        if (matches.isEmpty()) {
+            String aiResponse = "Tôi chưa tìm thấy sự kiện nào khớp với yêu cầu kiểm tra của bạn. Vui lòng kiểm tra lại tên sự kiện nhé! 😊";
+            return saveAndBroadcastAssistantMessage(session, aiResponse, List.of("Xem các sự kiện"));
+        }
+        
+        if (matches.size() > 1) {
+            String message = "Tôi tìm thấy nhiều sự kiện có tên gần giống. Bạn vui lòng chọn sự kiện muốn kiểm tra:";
+            String aiResponse = message + formatEventCardsJson(matches, LocalDateTime.now());
+            return saveAndBroadcastAssistantMessage(session, aiResponse, List.of("Quay lại"));
+        }
+        
+        com.eventservice.entity.core.Event event = matches.get(0);
+        Optional<com.eventservice.entity.registration.EventRegistration> regOpt = 
+            eventRegistrationRepository.findByEventIdAndParticipantAccountId(event.getId(), userId);
+        
+        String status = "SUCCESS";
+        String actionMessage;
+        if (regOpt.isEmpty() || regOpt.get().isDeleted() || regOpt.get().getStatus() == com.eventservice.entity.enums.RegistrationStatus.CANCELLED) {
+            actionMessage = "Bạn chưa đăng ký tham gia sự kiện này.";
+        } else {
+            com.eventservice.entity.registration.EventRegistration reg = regOpt.get();
+            if (reg.isCheckedIn()) {
+                actionMessage = "Bạn đã đăng ký và ĐÃ check-in tham gia sự kiện này lúc " + 
+                    (reg.getCheckInTime() != null ? reg.getCheckInTime().format(java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm")) : "n/a") + ".";
+            } else {
+                actionMessage = "Bạn đã đăng ký thành công sự kiện này và vé đang ở trạng thái hoạt động (Chưa check-in).";
+            }
+        }
+        
+        String eventJson = String.format("{\"title\":\"%s\",\"location\":\"%s\"}", event.getTitle(), event.getLocation());
+        String naturalReply = generateNaturalLanguageResponse(content, "KIỂM TRA TRẠNG THÁI ĐĂNG KÝ", status, actionMessage, eventJson);
+        naturalReply += formatEventCardsJson(List.of(event), LocalDateTime.now());
+        return saveAndBroadcastAssistantMessage(session, naturalReply, List.of("Hủy đăng ký sự kiện này", "Quay lại"));
+    }
+
+    private ChatMessageResponse processFindMyRegisteredEvents(ChatSession session, String content, String userId) {
+        if (userId == null) {
+            String aiResponse = "Bạn cần đăng nhập để xem danh sách sự kiện đã đăng ký. Vui lòng đăng nhập và thử lại nhé! 😊";
+            return saveAndBroadcastAssistantMessage(session, aiResponse, List.of("Đăng nhập hệ thống"));
+        }
+        
+        List<com.eventservice.entity.registration.EventRegistration> regs = 
+            eventRegistrationRepository.findByParticipantAccountId(userId);
+        
+        List<com.eventservice.entity.core.Event> myEvents = regs.stream()
+            .filter(r -> r.getStatus() == com.eventservice.entity.enums.RegistrationStatus.REGISTERED 
+                      || r.getStatus() == com.eventservice.entity.enums.RegistrationStatus.ATTENDED)
+            .map(com.eventservice.entity.registration.EventRegistration::getEvent)
+            .filter(e -> !e.isDeleted())
+            .collect(Collectors.toList());
+        
+        String actionMessage;
+        if (myEvents.isEmpty()) {
+            actionMessage = "Bạn hiện chưa đăng ký tham gia sự kiện nào.";
+        } else {
+            actionMessage = "Bạn đã đăng ký tham gia " + myEvents.size() + " sự kiện dưới đây.";
+        }
+        
+        String naturalReply = generateNaturalLanguageResponse(content, "TÌM SỰ KIỆN ĐÃ ĐĂNG KÝ", "SUCCESS", actionMessage, "[]");
+        naturalReply += formatEventCardsJson(myEvents, LocalDateTime.now());
+        return saveAndBroadcastAssistantMessage(session, naturalReply, List.of("Tìm sự kiện nổi bật", "Quay lại"));
+    }
+
+    private ChatMessageResponse processFindOrRecommendEvents(ChatSession session, String content, String userId, String intent) {
+        LocalDateTime now = LocalDateTime.now();
+        List<com.eventservice.entity.core.Event> allEvents = eventRepository.findByStatusInAndIsDeletedFalse(
+            List.of(com.eventservice.entity.enums.EventStatus.PUBLISHED, com.eventservice.entity.enums.EventStatus.ONGOING)
+        );
+        
+        List<com.eventservice.entity.core.Event> filtered = allEvents.stream()
+            .filter(e -> {
+                if ("FIND_UPCOMING_EVENTS".equals(intent)) {
+                    return e.getStartTime() != null && e.getStartTime().isAfter(now);
+                }
+                if ("FIND_ONGOING_EVENTS".equals(intent)) {
+                    return e.getStatus() == com.eventservice.entity.enums.EventStatus.ONGOING 
+                        || (e.getStartTime() != null && e.getStartTime().isBefore(now) && e.getEndTime() != null && e.getEndTime().isAfter(now));
+                }
+                return true;
+            })
+            .sorted((e1, e2) -> Double.compare(calculateFeaturedScore(e2, now), calculateFeaturedScore(e1, now)))
+            .collect(Collectors.toList());
+            
+        int limit = 4;
+        if (content.contains(" 5 ") || content.toLowerCase().contains("năm sự kiện")) {
+            limit = 5;
+        }
+        List<com.eventservice.entity.core.Event> topEvents = filtered.stream().limit(limit).collect(Collectors.toList());
+        
+        String actionMessage;
+        if (topEvents.isEmpty()) {
+            actionMessage = "Hiện tại không tìm thấy sự kiện nào phù hợp.";
+        } else {
+            actionMessage = "Tìm thấy " + topEvents.size() + " sự kiện nổi bật phù hợp.";
+        }
+        
+        String prompt = String.format("""
+            Bạn là trợ lý sự kiện IUH. Người dùng vừa hỏi: "%s"
+            Hệ thống đã chọn ra danh sách sự kiện nổi bật/sắp diễn ra/đang diễn ra sau:
+            %s
+            
+            Nhiệm vụ:
+            - Trả lời tự nhiên, giới thiệu hấp dẫn và thân thiện các sự kiện này bằng tiếng Việt.
+            - Giải thích ngắn gọn lý do tại sao các sự kiện này lại nổi bật hoặc phù hợp với họ (ví dụ: thu hút đông người đăng ký, được đánh giá tốt, sắp khởi tranh).
+            - KHÔNG kèm mã JSON thẻ sự kiện trong câu trả lời của bạn. Chỉ trả lời phần văn bản tự nhiên.
+            """, content, buildEventContext(topEvents));
+        
+        String naturalReply = geminiChatService.callGemini(prompt);
+        naturalReply += formatEventCardsJson(topEvents, now);
+        
+        return saveAndBroadcastAssistantMessage(session, naturalReply, List.of("Cách đăng ký tham gia", "Xem lịch trình"));
     }
 
     @Override

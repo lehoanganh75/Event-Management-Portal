@@ -18,4 +18,39 @@ const query = async (sql, params = []) => {
   return rows;
 };
 
-module.exports = { pool, query };
+const initDb = async () => {
+  try {
+    console.log("[DB] Initializing AI planning audit and feedback tables...");
+    await query(`
+      CREATE TABLE IF NOT EXISTS ai_planning_audit_logs (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        session_id VARCHAR(255) NULL,
+        user_prompt TEXT NULL,
+        intent_extracted JSON NULL,
+        events_retrieved JSON NULL,
+        best_events_selected JSON NULL,
+        validation_errors JSON NULL,
+        repair_attempts INT DEFAULT 0,
+        final_output JSON NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+    `);
+
+    await query(`
+      CREATE TABLE IF NOT EXISTS ai_planning_feedbacks (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        event_id VARCHAR(255) NOT NULL,
+        original_plan JSON NULL,
+        edited_plan JSON NULL,
+        edited_fields JSON NULL,
+        rating INT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+    `);
+    console.log("[DB] AI planning tables checked/created successfully.");
+  } catch (err) {
+    console.error("[DB-Init] Error creating tables:", err.message);
+  }
+};
+
+module.exports = { pool, query, initDb };

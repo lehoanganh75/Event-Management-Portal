@@ -54,6 +54,7 @@ const PostManagement = ({
   const [typeFilter, setTypeFilter] = useState("all");
   const [currentPage, setCurrentPage] = useState(1);
   const [activeTab, setActiveTab] = useState("Tất cả");
+  const [scopeFilter, setScopeFilter] = useState("all");
 
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -266,7 +267,13 @@ const PostManagement = ({
 
   const filteredPosts = useMemo(() => {
     return (posts || []).filter((post) => {
-      if (!isSystemAdmin) {
+      if (isSystemAdmin) {
+        if (scopeFilter === "my") {
+          const authorId = post.author?.id || post.createdByAccountId || post.accountId;
+          const isAuthor = authorId === (user?.id || user?.accountId);
+          if (!isAuthor) return false;
+        }
+      } else {
         const authorId = post.author?.id || post.createdByAccountId || post.accountId;
         const isAuthor = authorId === (user?.id || user?.accountId);
         const eventId = post.eventId || post.event?.id;
@@ -296,7 +303,7 @@ const PostManagement = ({
 
       return matchSearch && matchTab && matchStatus && matchType;
     });
-  }, [posts, searchTerm, statusFilter, typeFilter, activeTab, isSystemAdmin, user, eligibleEvents]);
+  }, [posts, searchTerm, statusFilter, typeFilter, activeTab, isSystemAdmin, user, eligibleEvents, scopeFilter]);
 
   const stats = useMemo(() => ({
     total: posts?.length || 0,
@@ -318,9 +325,13 @@ const PostManagement = ({
         setSearchTerm={setSearchTerm}
         typeFilter={typeFilter}
         setTypeFilter={setTypeFilter}
-        onReset={() => { setSearchTerm(""); setStatusFilter("all"); setTypeFilter("all"); setActiveTab("Tất cả"); }}
+        onReset={() => { setSearchTerm(""); setStatusFilter("all"); setTypeFilter("all"); setActiveTab("Tất cả"); setScopeFilter("all"); }}
         onOpenCreateModal={() => { resetForm(); if (fetchEligibleEvents) fetchEligibleEvents(); setIsCreateModalOpen(true); }}
         postTypes={POST_TYPES}
+        isSystemAdmin={isSystemAdmin}
+        scopeFilter={scopeFilter}
+        setScopeFilter={setScopeFilter}
+        setCurrentPage={setCurrentPage}
       />
 
       <PostStats

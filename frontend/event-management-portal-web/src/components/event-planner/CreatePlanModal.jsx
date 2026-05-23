@@ -240,7 +240,11 @@ const CreatePlanModal = ({ isOpen, onClose, onSelectPlan, onCreateNew, initialAi
     setIsAIPlanning(true);
     try {
       // ✨ Truyền cả đối tượng targetTemplate để AI có thêm context về mẫu
-      const res = await eventService.aiPlanning.generateFromTemplate(targetTemplate, userContext);
+      const res = await eventService.aiPlanning.generateFromTemplate(
+        targetTemplate,
+        userContext,
+        user?.accountId || user?.id || null
+      );
 
       let rawResult = res.data.reply?.reply || res.data.result;
       if (!rawResult) throw new Error("Không nhận được phản hồi từ AI.");
@@ -258,6 +262,8 @@ const CreatePlanModal = ({ isOpen, onClose, onSelectPlan, onCreateNew, initialAi
         location: suggestion.suggestedLocation || targetTemplate.defaultLocation,
         maxParticipants: suggestion.estimatedParticipants || targetTemplate.defaultMaxParticipants,
         registrationDeadline: formatAIDate(suggestion.registrationDeadline, "23:59"),
+        goal: suggestion.goal || "",
+        requirement: suggestion.requirement || "",
         sessions: (suggestion.programItems || []).map((item, idx) => ({
           title: item.title || "Không tên",
           description: item.description || "",
@@ -291,7 +297,7 @@ const CreatePlanModal = ({ isOpen, onClose, onSelectPlan, onCreateNew, initialAi
         let highestScore = 0;
 
         organizations.forEach(o => {
-          const score = calculateSimilarity(suggestion.suggestedOrganizerName, o.organizationName);
+          const score = calculateSimilarity(suggestion.suggestedOrganizerName, o.name || o.organizationName || "");
           if (score > highestScore) {
             highestScore = score;
             bestMatch = o;
@@ -299,7 +305,7 @@ const CreatePlanModal = ({ isOpen, onClose, onSelectPlan, onCreateNew, initialAi
         });
 
         if (bestMatch && highestScore > 0.4) {
-          console.log(`Fuzzy match found: ${bestMatch.organizationName} (Score: ${highestScore.toFixed(2)})`);
+          console.log(`Fuzzy match found: ${bestMatch.name || bestMatch.organizationName} (Score: ${highestScore.toFixed(2)})`);
           mappedData.orgSelectionMode = "existing";
           mappedData.organizationId = bestMatch.id;
           mappedData.organizerId = bestMatch.id;
@@ -346,7 +352,10 @@ const CreatePlanModal = ({ isOpen, onClose, onSelectPlan, onCreateNew, initialAi
     if (!aiText.trim()) return;
     setIsAIPlanning(true);
     try {
-      const res = await eventService.aiPlanning.generateFromRawText(aiText);
+      const res = await eventService.aiPlanning.generateFromRawText(
+        aiText,
+        user?.accountId || user?.id || null
+      );
       let rawResult = res.data.reply?.reply || res.data.result;
 
       if (!rawResult) throw new Error("Không nhận được phản hồi từ AI.");
@@ -372,6 +381,8 @@ const CreatePlanModal = ({ isOpen, onClose, onSelectPlan, onCreateNew, initialAi
         startTime: formatAIDate(suggestion.suggestedStartTime, forceStartTime || (suggestion.suggestedStartTime?.includes('T07:00') ? null : "07:00")),
         endTime: formatAIDate(suggestion.suggestedEndTime, forceEndTime || "23:59"),
         registrationDeadline: formatAIDate(suggestion.registrationDeadline, forceDeadline || "23:59"),
+        goal: suggestion.goal || "",
+        requirement: suggestion.requirement || "",
         sessions: (suggestion.programItems || []).map((item, idx) => ({
           title: item.title || "Không tên",
           description: item.description || "",
@@ -413,7 +424,7 @@ const CreatePlanModal = ({ isOpen, onClose, onSelectPlan, onCreateNew, initialAi
         let highestScore = 0;
 
         organizations.forEach(o => {
-          const score = calculateSimilarity(suggestion.suggestedOrganizerName, o.organizationName);
+          const score = calculateSimilarity(suggestion.suggestedOrganizerName, o.name || o.organizationName || "");
           if (score > highestScore) {
             highestScore = score;
             bestMatch = o;
@@ -421,7 +432,7 @@ const CreatePlanModal = ({ isOpen, onClose, onSelectPlan, onCreateNew, initialAi
         });
 
         if (bestMatch && highestScore > 0.4) {
-          console.log(`Fuzzy match found: ${bestMatch.organizationName} (Score: ${highestScore.toFixed(2)})`);
+          console.log(`Fuzzy match found: ${bestMatch.name || bestMatch.organizationName} (Score: ${highestScore.toFixed(2)})`);
           mappedData.orgSelectionMode = "existing";
           mappedData.organizationId = bestMatch.id;
           mappedData.organizerId = bestMatch.id;

@@ -64,7 +64,7 @@ const OrganizationSection = ({
 
   const displayedOrgs = isStudent
     ? orgs.filter((org) =>
-        org.ownerAccountId === (user?.accountId || user?.id) &&
+        (org.ownerAccountId || org.owner_account_id) === (user?.accountId || user?.id) &&
         (org.status === "APPROVED" || !org.status)
       )
     : orgs.filter((org) =>
@@ -169,6 +169,36 @@ const OrganizationSection = ({
               ))}
             </Select>
           </Field>
+
+          {formData.organizationId && (() => {
+            const selectedOrg = orgs.find(o => o.id === formData.organizationId);
+            if (!selectedOrg) return null;
+            
+            const ownerInvite = (formData.invitations || []).find(inv => inv.isOrgOwner);
+            const ownerName = ownerInvite?.inviteeName || selectedOrg.ownerName || "Chưa cập nhật";
+            const ownerEmail = ownerInvite?.inviteeEmail || selectedOrg.ownerEmail || "Chưa cập nhật";
+            const ownerPhone = ownerInvite?.inviteePhone || selectedOrg.ownerPhone || "--";
+            
+            return (
+              <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 mt-2 space-y-2">
+                <span className="block text-xs font-bold text-slate-500">Thông tin chủ sở hữu đơn vị / CLB:</span>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div>
+                    <span className="block text-xs text-slate-400">Tên chủ sở hữu</span>
+                    <span className="text-sm font-semibold text-slate-700">{ownerName}</span>
+                  </div>
+                  <div>
+                    <span className="block text-xs text-slate-400">Email liên hệ</span>
+                    <span className="text-sm font-semibold text-slate-700">{ownerEmail}</span>
+                  </div>
+                  <div>
+                    <span className="block text-xs text-slate-400">Số điện thoại</span>
+                    <span className="text-sm font-semibold text-slate-700">{ownerPhone}</span>
+                  </div>
+                </div>
+              </div>
+            );
+          })()}
 
           {/* Hiển thị khi STUDENT / GUEST chưa có tổ chức nào APPROVED */}
           {isStudent && displayedOrgs.length === 0 && (
@@ -494,6 +524,17 @@ const OrganizationSection = ({
               }
             />
           </Field>
+
+          <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 mt-2">
+            <span className="block text-xs font-bold text-slate-500 mb-1.5">Chủ sở hữu đơn vị (Mặc định là người tạo):</span>
+            <div className="flex items-center justify-between bg-white px-4 py-2.5 rounded-lg border border-slate-100">
+              <div>
+                <span className="block text-sm font-bold text-slate-700">{user?.fullName || user?.username}</span>
+                <span className="block text-xs text-slate-500">{user?.email}</span>
+              </div>
+              <span className="px-2.5 py-1 rounded bg-indigo-50 text-indigo-700 text-xs font-black uppercase">Người tạo / Trưởng ban</span>
+            </div>
+          </div>
         </div>
       )}
 

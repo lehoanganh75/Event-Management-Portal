@@ -17,6 +17,10 @@ const PostFilters = ({
   onReset,
   onOpenCreateModal,
   postTypes,
+  isSystemAdmin = false,
+  scopeFilter = "all",
+  setScopeFilter,
+  setCurrentPage,
 }) => {
   return (
     <>
@@ -26,12 +30,45 @@ const PostFilters = ({
           <div className="w-11 h-11 rounded-xl bg-blue-600 text-white flex items-center justify-center shadow-sm shrink-0">
             <FileText size={20} />
           </div>
-
+ 
           <div>
-            <h1 className="text-2xl font-semibold text-slate-800">
-              {title}
-            </h1>
-
+            <div className="flex items-center gap-3 flex-wrap">
+              <h1 className="text-2xl font-semibold text-slate-800">
+                {scopeFilter === "all" ? title : "Bài đăng của tôi"}
+              </h1>
+ 
+              {isSystemAdmin && (
+                <div className="flex bg-slate-200/60 p-0.5 rounded-xl border border-slate-200 ml-2">
+                  <button
+                    onClick={() => {
+                      if (setScopeFilter) setScopeFilter("all");
+                      if (setCurrentPage) setCurrentPage(1);
+                    }}
+                    className={`px-3 py-1 text-xs font-semibold rounded-lg transition-all ${
+                      scopeFilter === "all"
+                        ? "bg-white text-[#1E40AF] shadow-sm"
+                        : "text-slate-500 hover:text-slate-800"
+                    }`}
+                  >
+                    Tất cả
+                  </button>
+                  <button
+                    onClick={() => {
+                      if (setScopeFilter) setScopeFilter("my");
+                      if (setCurrentPage) setCurrentPage(1);
+                    }}
+                    className={`px-3 py-1 text-xs font-semibold rounded-lg transition-all ${
+                      scopeFilter === "my"
+                        ? "bg-white text-[#1E40AF] shadow-sm"
+                        : "text-slate-500 hover:text-slate-800"
+                    }`}
+                  >
+                    Của tôi
+                  </button>
+                </div>
+              )}
+            </div>
+ 
             <p className="text-sm text-slate-500 mt-1">
               {eventTitle} •{" "}
               <span className="font-medium text-slate-700">

@@ -58,6 +58,16 @@ public class GeminiChatServiceImpl implements GeminiChatService {
     }
 
     @Override
+    public String callGemini(String prompt) {
+        try {
+            return callGeminiAPI(prompt);
+        } catch (Exception e) {
+            log.error("Error calling Gemini directly: {}", e.getMessage(), e);
+            return "ERROR_AI_OVERLOADED";
+        }
+    }
+
+    @Override
     public EventPlanSuggestion generateEventPlanSuggestion(String userInput, List<ChatMessage> conversationHistory) {
         try {
             String conversationContext = buildConversationContext(conversationHistory);

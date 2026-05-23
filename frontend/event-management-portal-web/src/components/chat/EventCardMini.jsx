@@ -33,6 +33,12 @@ const EventCardMini = ({ event }) => {
           </div>
         )}
 
+        {event.reason && (
+          <p className="text-[10px] text-amber-700 bg-amber-50 border border-amber-100 rounded-md px-1.5 py-0.5 mt-1.5 self-start font-medium leading-relaxed line-clamp-2">
+            💡 {event.reason}
+          </p>
+        )}
+
         <div className="mt-auto pt-3 border-t border-slate-100 flex items-center justify-between">
           <span className="text-[10px] font-medium text-blue-600">Khám phá ngay</span>
           <button 

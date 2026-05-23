@@ -14,6 +14,11 @@ public interface GeminiChatService {
     String generateChatResponse(String userMessage, List<ChatMessage> conversationHistory, String contextType);
 
     /**
+     * Call Gemini API directly with custom prompt
+     */
+    String callGemini(String prompt);
+
+    /**
      * Generate event plan suggestions based on conversation
      */
     EventPlanSuggestion generateEventPlanSuggestion(String userInput, List<ChatMessage> conversationHistory);

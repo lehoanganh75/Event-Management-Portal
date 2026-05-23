@@ -284,99 +284,22 @@ const eventService = {
     toggleCheckIn: (eventId, enabled) => privateApi.patch(`/registrations/event/${eventId}/toggle-check-in`, null, { params: { enabled } }),
     updateQRType: (eventId, qrType) => privateApi.patch(`/registrations/event/${eventId}/qr-type`, null, { params: { qrType } }),
 
-    // --- QUIZ API ---
     aiPlanning: {
-        generateFromTemplate: (template, userContext) => {
-            const today = new Date().toISOString().split('T')[0];
-            const prompt = `Bạn là một chuyên gia lập kế hoạch sự kiện chuyên nghiệp.
-            NHIỆM VỤ: Lập kế hoạch chi tiết cho sự kiện dựa trên MẪU (TEMPLATE) và YÊU CẦU NGƯỜI DÙNG.
-            
-            1. MẪU SỰ KIỆN BẮT BUỘC: "${template.templateName}"
-            2. MÔ TẢ MẪU: ${template.description}
-            3. YÊU CẦU BỔ SUNG TỪ NGƯỜI DÙNG: "${userContext}"
-            
-            YÊU CẦU QUAN TRỌNG: 
-            - TÊN SỰ KIỆN và NỘI DUNG phải bám sát MẪU SỰ KIỆN "${template.templateName}". KHÔNG ĐƯỢC tự ý đổi sang loại hình sự kiện khác.
-            - LOGIC THỜI GIAN: Hôm nay là ${today}. PHẢI TUÂN THỦ: Hôm nay <= registrationDeadline <= suggestedStartTime < suggestedEndTime.
-            - MẶC ĐỊNH GIỜ (BẮT BUỘC TUÂN THỦ):
-                + registrationDeadline: 23:59:59 (cuối ngày đăng ký).
-                + suggestedStartTime: 07:00:00 (sáng ngày bắt đầu).
-                + suggestedEndTime: 23:59:59 (cuối ngày kết thúc).
-            - Trả về DUY NHẤT một khối JSON hợp lệ. KHÔNG giải thích thêm.
-            - Nếu trong nội dung có dấu ngoặc kép, hãy dùng dấu nháy đơn hoặc escape nó bằng \\".
-            
-            Cấu trúc JSON:
-            {
-              "title": "Tên sự kiện",
-              "purpose": "Mục đích sự kiện",
-              "description": "Mô tả chi tiết",
-              "subject": "Chủ đề",
-              "suggestedLocation": "Địa điểm",
-              "estimatedParticipants": 100,
-              "suggestedOrganizerName": "Tên ban tổ chức đề xuất",
-              "suggestedOrganizerDescription": "Mô tả ngắn về ban tổ chức",
-              "suggestedStartTime": "YYYY-MM-DDT07:00:00",
-              "suggestedEndTime": "YYYY-MM-DDT23:59:59",
-              "registrationDeadline": "YYYY-MM-DDT23:59:59",
-              "programItems": [
-                {
-                  "title": "Tên phiên",
-                  "description": "Mô tả phiên",
-                  "startTime": "YYYY-MM-DDT07:00:00",
-                  "endTime": "YYYY-MM-DDT08:00:00",
-                  "durationMinutes": 60,
-                  "speaker": "Diễn giả",
-                  "location": "Phòng/Vị trí"
-                }
-              ],
-              "reasoning": "Lý do đề xuất"
-            }`;
-            return axios.post(`${BASE_URL}/ai/api/chat`, { prompt });
+        generateFromTemplate: (template, userContext, accountId) => {
+            const templateId = template?.id || template;
+            return axios.post(`${BASE_URL}/ai/api/planning/template`, {
+                templateId,
+                userContext,
+                accountId,
+                template: typeof template === 'object' ? template : undefined
+            });
         },
-        generateFromRawText: (rawText) => {
-            const today = new Date().toISOString().split('T')[0];
-            const prompt = `Bạn là một chuyên gia lập kế hoạch sự kiện. Hãy trích xuất và đề xuất thông tin sự kiện từ văn bản sau. 
-            YÊU CẦU QUAN TRỌNG VỀ LOGIC THỜI GIAN: 
-            1. Hôm nay là ngày: ${today}.
-            2. THỨ TỰ THỜI GIAN BẮT BUỘC: Ngày hôm nay <= Hạn đăng ký (registrationDeadline) <= Ngày bắt đầu sự kiện (suggestedStartTime) < Ngày kết thúc sự kiện (suggestedEndTime).
-            3. Nếu người dùng nói "hạn đăng ký 2 tuần và diễn ra trong 2 tuần", nghĩa là:
-               - registrationDeadline = Hôm nay + 2 tuần (lúc 23:59:59).
-               - suggestedStartTime = sau registrationDeadline (lúc 07:00:00 sáng hôm sau).
-               - suggestedEndTime = suggestedStartTime + 2 tuần (lúc 23:59:59 đêm).
-            4. QUY TẮC GIỜ MẶC ĐỊNH (KHÔNG ĐƯỢC THAY ĐỔI):
-               - Bắt đầu (startTime) PHẢI LÀ 07:00:00.
-               - Kết thúc (endTime) và Hạn đăng ký (deadline) PHẢI LÀ 23:59:59.
-            5. Trả về DUY NHẤT một khối JSON hợp lệ. KHÔNG giải thích thêm.
-            6. Nếu trong nội dung có dấu ngoặc kép, hãy dùng dấu nháy đơn hoặc escape nó bằng \\".
-
-            Cấu trúc JSON:
-            {
-              "title": "Tên sự kiện",
-              "purpose": "Mục đích sự kiện",
-              "description": "Mô tả chi tiết",
-              "subject": "Chủ đề",
-              "suggestedLocation": "Địa điểm",
-              "estimatedParticipants": 200,
-              "suggestedOrganizerName": "Tên ban tổ chức đề xuất (ví dụ: CLB IT, Đoàn Thanh niên...)",
-              "suggestedOrganizerDescription": "Mô tả chuyên môn của ban tổ chức phù hợp với sự kiện",
-              "suggestedStartTime": "YYYY-MM-DDT07:00:00",
-              "suggestedEndTime": "YYYY-MM-DDT23:59:59",
-              "registrationDeadline": "YYYY-MM-DDT23:59:59",
-              "programItems": [
-                {
-                  "title": "Phiên khai mạc",
-                  "description": "Giới thiệu sự kiện",
-                  "startTime": "YYYY-MM-DDT07:00:00",
-                  "endTime": "YYYY-MM-DDT08:00:00",
-                  "durationMinutes": 60,
-                  "speaker": "BTC",
-                  "location": "Hội trường"
-                }
-              ],
-              "reasoning": "Lý do đề xuất"
-            }
-            Văn bản đầu vào: ${rawText}`;
-            return axios.post(`${BASE_URL}/ai/api/chat`, { prompt });
+        
+        generateFromRawText: (rawText, accountId) => {
+            return axios.post(`${BASE_URL}/ai/api/planning/raw-text`, {
+                rawText,
+                accountId
+            });
         },
     },
     // --- Quiz & Engagement ---

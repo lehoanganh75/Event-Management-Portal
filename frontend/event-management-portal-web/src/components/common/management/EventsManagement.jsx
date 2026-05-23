@@ -6,6 +6,7 @@ import {
   FileUp,
   Loader2,
   X,
+  Calendar,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
@@ -718,55 +719,57 @@ const EventsManagement = ({ type = "lecturer", mode = "all" }) => {
 
       {/* Header */}
       <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 mb-6">
-        <div>
-          <div className="flex items-center gap-3 flex-wrap">
-            <div className="w-9 h-9 rounded-xl bg-[#1E40AF] text-white flex items-center justify-center font-semibold shadow-sm">
-              E
-            </div>
-
-            <h1 className="text-2xl font-semibold text-slate-800">
-              {scopeFilter === "all"
-                ? mode === "plan"
-                  ? "Tất cả kế hoạch"
-                  : "Tất cả sự kiện"
-                : mode === "plan"
-                  ? "Kế hoạch của tôi"
-                  : "Sự kiện của tôi"}
-            </h1>
-
-            <div className="flex bg-slate-200/60 p-0.5 rounded-xl border border-slate-200 ml-2">
-              <button
-                onClick={() => {
-                  setScopeFilter("all");
-                  setPage(1);
-                }}
-                className={`px-3 py-1 text-xs font-semibold rounded-lg transition-all ${
-                  scopeFilter === "all"
-                    ? "bg-white text-[#1E40AF] shadow-sm"
-                    : "text-slate-500 hover:text-slate-800"
-                }`}
-              >
-                Tất cả
-              </button>
-              <button
-                onClick={() => {
-                  setScopeFilter("my");
-                  setPage(1);
-                }}
-                className={`px-3 py-1 text-xs font-semibold rounded-lg transition-all ${
-                  scopeFilter === "my"
-                    ? "bg-white text-[#1E40AF] shadow-sm"
-                    : "text-slate-500 hover:text-slate-800"
-                }`}
-              >
-                Của tôi
-              </button>
-            </div>
+        <div className="flex items-start gap-3">
+          <div className="w-11 h-11 rounded-xl bg-blue-600 text-white flex items-center justify-center shadow-sm shrink-0">
+            <Calendar size={20} />
           </div>
 
-          <p className="text-sm text-slate-500 mt-2 ml-12">
-            Theo dõi và quản lý toàn bộ hoạt động
-          </p>
+          <div>
+            <div className="flex items-center gap-3 flex-wrap">
+              <h1 className="text-2xl font-semibold text-slate-800">
+                {scopeFilter === "all"
+                  ? mode === "plan"
+                    ? "Tất cả kế hoạch"
+                    : "Tất cả sự kiện"
+                  : mode === "plan"
+                    ? "Kế hoạch của tôi"
+                    : "Sự kiện của tôi"}
+              </h1>
+
+              <div className="flex bg-slate-200/60 p-0.5 rounded-xl border border-slate-200 ml-2">
+                <button
+                  onClick={() => {
+                    setScopeFilter("all");
+                    setPage(1);
+                  }}
+                  className={`px-3 py-1 text-xs font-semibold rounded-lg transition-all ${
+                    scopeFilter === "all"
+                      ? "bg-white text-[#1E40AF] shadow-sm"
+                      : "text-slate-500 hover:text-slate-800"
+                  }`}
+                >
+                  Tất cả
+                </button>
+                <button
+                  onClick={() => {
+                    setScopeFilter("my");
+                    setPage(1);
+                  }}
+                  className={`px-3 py-1 text-xs font-semibold rounded-lg transition-all ${
+                    scopeFilter === "my"
+                      ? "bg-white text-[#1E40AF] shadow-sm"
+                      : "text-slate-500 hover:text-slate-800"
+                  }`}
+                >
+                  Của tôi
+                </button>
+              </div>
+            </div>
+
+            <p className="text-sm text-slate-500 mt-1">
+              Theo dõi và quản lý toàn bộ hoạt động
+            </p>
+          </div>
         </div>
 
         <div className="flex items-center gap-3 flex-wrap">

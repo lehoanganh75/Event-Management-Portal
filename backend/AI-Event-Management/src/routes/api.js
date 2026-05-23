@@ -1,14 +1,7 @@
 const express = require("express");
 const router = express.Router();
-const multer = require("multer");
-const chatController = require("../controllers/chatController");
-const uploadController = require("../controllers/uploadController");
+const aiRouter = require("./ai");
 
-// Cấu hình multer lưu vào RAM
-const upload = multer({ storage: multer.memoryStorage() });
-
-router.post("/chat", chatController.handleChat);
-router.post("/embeddings", chatController.handleEmbedding);
-router.post("/upload", upload.single("file"), uploadController.handleUpload);
+router.use("/", aiRouter);
 
 module.exports = router;

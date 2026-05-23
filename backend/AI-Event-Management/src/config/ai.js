@@ -10,6 +10,9 @@ const OLLAMA_URL =
 const OLLAMA_MODEL =
   process.env.OLLAMA_MODEL || "qwen2.5:3b";
 
+const OLLAMA_EMBEDDING_MODEL =
+  process.env.OLLAMA_EMBEDDING_MODEL || "nomic-embed-text";
+
 const GEMINI_MODELS = [
   "gemini-2.5-flash",
   "gemini-2.5-flash-lite",
@@ -66,7 +69,10 @@ async function generateGeminiEmbedding(text) {
         model: modelName,
       });
 
-      const result = await model.embedContent(text);
+      const result = await model.embedContent({
+        content: { parts: [{ text }] },
+        outputDimensionality: 768
+      });
 
       return result.embedding.values || [];
     } catch (error) {
@@ -92,7 +98,7 @@ async function generateOllamaEmbedding(text) {
         },
 
         body: JSON.stringify({
-          model: OLLAMA_MODEL,
+          model: OLLAMA_EMBEDDING_MODEL,
           prompt: text,
         }),
       }
@@ -164,6 +170,8 @@ module.exports = {
   OLLAMA_URL,
 
   OLLAMA_MODEL,
+
+  OLLAMA_EMBEDDING_MODEL,
 
   getGeminiModel,
 

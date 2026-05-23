@@ -56,13 +56,16 @@ const EventRow = ({
   return (
     <tr className="hover:bg-slate-50 transition-colors">
       <td className="px-4 py-4">
-        <p className="font-semibold text-slate-800 max-w-[240px] truncate">
+        <p 
+          className="font-semibold text-slate-800 max-w-[240px] whitespace-normal break-words"
+          title={event.title}
+        >
           {event.title}
         </p>
       </td>
 
       <td className="px-4 py-4">
-        <p className="text-sm text-slate-600 max-w-[180px] truncate">
+        <p className="text-sm text-slate-600 max-w-[180px] whitespace-normal break-words">
           {event.location || "Chưa cập nhật"}
         </p>
       </td>
