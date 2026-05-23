@@ -111,7 +111,7 @@ export default function EventDetail() {
     const isStudent = sysRole === "STUDENT";
     const isInTeam = role.creator || role.approver || !!role.organizerRole;
 
-    if (isInTeam || isSysAdmin) {
+    if (isInTeam) {
       if (isSysAdmin) {
         navigate(`/admin/events/${event.id}`);
       } else if (isLecturer) {

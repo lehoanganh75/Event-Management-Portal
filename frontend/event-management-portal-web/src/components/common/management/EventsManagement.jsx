@@ -53,7 +53,7 @@ const EventsManagement = ({ type = "lecturer", mode = "all" }) => {
   const [statusFilter, setStatusFilter] = useState("ALL");
   const [activeTab, setActiveTab] = useState("Tất cả");
   const [scopeFilter, setScopeFilter] = useState(() => {
-    return (type === "admin" && isAdminMode) ? "all" : "my";
+    return isAdminMode ? "all" : "my";
   });
 
   // Pagination
@@ -736,34 +736,36 @@ const EventsManagement = ({ type = "lecturer", mode = "all" }) => {
                     : "Sự kiện của tôi"}
               </h1>
 
-              <div className="flex bg-slate-200/60 p-0.5 rounded-xl border border-slate-200 ml-2">
-                <button
-                  onClick={() => {
-                    setScopeFilter("all");
-                    setPage(1);
-                  }}
-                  className={`px-3 py-1 text-xs font-semibold rounded-lg transition-all ${
-                    scopeFilter === "all"
-                      ? "bg-white text-[#1E40AF] shadow-sm"
-                      : "text-slate-500 hover:text-slate-800"
-                  }`}
-                >
-                  Tất cả
-                </button>
-                <button
-                  onClick={() => {
-                    setScopeFilter("my");
-                    setPage(1);
-                  }}
-                  className={`px-3 py-1 text-xs font-semibold rounded-lg transition-all ${
-                    scopeFilter === "my"
-                      ? "bg-white text-[#1E40AF] shadow-sm"
-                      : "text-slate-500 hover:text-slate-800"
-                  }`}
-                >
-                  Của tôi
-                </button>
-              </div>
+              {isAdminMode && (
+                <div className="flex bg-slate-200/60 p-0.5 rounded-xl border border-slate-200 ml-2">
+                  <button
+                    onClick={() => {
+                      setScopeFilter("all");
+                      setPage(1);
+                    }}
+                    className={`px-3 py-1 text-xs font-semibold rounded-lg transition-all ${
+                      scopeFilter === "all"
+                        ? "bg-white text-[#1E40AF] shadow-sm"
+                        : "text-slate-500 hover:text-slate-800"
+                    }`}
+                  >
+                    Tất cả
+                  </button>
+                  <button
+                    onClick={() => {
+                      setScopeFilter("my");
+                      setPage(1);
+                    }}
+                    className={`px-3 py-1 text-xs font-semibold rounded-lg transition-all ${
+                      scopeFilter === "my"
+                        ? "bg-white text-[#1E40AF] shadow-sm"
+                        : "text-slate-500 hover:text-slate-800"
+                    }`}
+                  >
+                    Của tôi
+                  </button>
+                </div>
+              )}
             </div>
 
             <p className="text-sm text-slate-500 mt-1">

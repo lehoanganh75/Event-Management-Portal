@@ -8,6 +8,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import eventService from "../../services/eventService";
 import EventCardMini from "./EventCardMini";
+import { useAuth } from "../../context/AuthContext";
 
 // ✨ Icon: IUH logo + Gemini badge
 const ChatIcon = ({ size = 48 }) => (
@@ -101,8 +102,11 @@ function MessageContent({ text }) {
     return rawText.split("\n").map((line, i) => {
       if (!line.trim()) return <div key={i} className="h-2" />;
 
+      const isBullet = line.trim().startsWith("* ");
+      const cleanLine = isBullet ? line.trim().substring(2) : line;
+
       // Xử lý Bold: **text** -> <strong>text</strong>
-      const parts = line.split(/(\*\*.*?\*\*)/g);
+      const parts = cleanLine.split(/(\*\*.*?\*\*)/g);
       const formattedLine = parts.map((part, idx) => {
         if (part.startsWith("**") && part.endsWith("**")) {
           return <strong key={idx} className="font-bold text-blue-700">{part.slice(2, -2)}</strong>;
@@ -111,11 +115,11 @@ function MessageContent({ text }) {
       });
 
       // Xử lý Bullet point: * text -> bullet
-      if (line.trim().startsWith("* ")) {
+      if (isBullet) {
         return (
           <div key={i} className="flex gap-2 ml-1 my-0.5">
             <span className="text-blue-500">•</span>
-            <span className="flex-1 leading-relaxed">{formattedLine.slice(1)}</span>
+            <span className="flex-1 leading-relaxed">{formattedLine}</span>
           </div>
         );
       }
@@ -131,9 +135,9 @@ function MessageContent({ text }) {
       </div>
 
       {eventCards.length > 0 && (
-        <div className="flex gap-3 overflow-x-auto pb-2 pt-1 scrollbar-thin scrollbar-thumb-slate-200">
+        <div className={`flex gap-3 pb-2 pt-1 scrollbar-thin scrollbar-thumb-slate-200 ${eventCards.length === 1 ? 'overflow-x-hidden' : 'overflow-x-auto'}`}>
           {eventCards.map((event, idx) => (
-            <EventCardMini key={idx} event={event} />
+            <EventCardMini key={idx} event={event} isSingle={eventCards.length === 1} />
           ))}
         </div>
       )}
@@ -192,6 +196,7 @@ function RetryBanner({ seconds, onRetry }) {
 }
 
 export default function AIChatBot() {
+  const { user } = useAuth();
   const navigate = useNavigate();
   const [isOpen, setIsOpen] = useState(false);
   const [minimized, setMinimized] = useState(false);
@@ -202,6 +207,7 @@ export default function AIChatBot() {
   const [sessionId, setSessionId] = useState(localStorage.getItem("ai_chat_session_id"));
   const [retryInfo, setRetryInfo] = useState(null);
 
+  const messagesContainerRef = useRef(null);
   const bottomRef = useRef(null);
   const inputRef = useRef(null);
   const textareaRef = useRef(null);
@@ -213,13 +219,25 @@ export default function AIChatBot() {
     "Hướng dẫn tôi đăng ký sự kiện",
   ];
 
-  useEffect(() => {
-    if (isOpen) {
-      setTimeout(() => {
-        bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-      }, 100);
+  const scrollToBottom = (behavior = "smooth") => {
+    if (messagesContainerRef.current) {
+      const container = messagesContainerRef.current;
+      container.scrollTo({
+        top: container.scrollHeight,
+        behavior: behavior
+      });
     }
-  }, [messages, loading, isOpen]);
+  };
+
+  useEffect(() => {
+    if (isOpen && !minimized) {
+      scrollToBottom("auto");
+      const timer = setTimeout(() => {
+        scrollToBottom("smooth");
+      }, 100);
+      return () => clearTimeout(timer);
+    }
+  }, [messages, loading, isOpen, minimized]);
 
   const initChat = useCallback(async () => {
     try {
@@ -258,7 +276,7 @@ export default function AIChatBot() {
     } catch (err) {
       console.error("Init session failed:", err);
     }
-  }, []);
+  }, [user?.id]);
 
   useEffect(() => {
     if (isOpen) initChat();
@@ -377,7 +395,10 @@ export default function AIChatBot() {
             </div>
 
             {/* Messages */}
-            <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-gray-50/50">
+            <div 
+              ref={messagesContainerRef}
+              className="flex-1 overflow-y-auto p-4 space-y-4 bg-gray-50/50"
+            >
               {messages.map((msg) => (
                 <div key={msg.id} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"} gap-2`}>
                   {msg.role !== "user" && <ChatIcon size={28} />}

@@ -196,7 +196,7 @@ const MobileDrawer = ({
 
 
 
-              {(isEventStaff() || isAdminOnly() || isSuperAdmin()) && (
+              {(isEventStaff() || isAdminOnly() || isSuperAdmin() || user?.role?.toUpperCase() === "LECTURER" || user?.role?.toUpperCase() === "STUDENT" || isStudentOrganizer?.()) && (
                 <div className="pt-4 mt-4 border-t border-slate-100">
                   <p className="px-4 mb-2 text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
                     {"Quản lý"}
@@ -206,9 +206,11 @@ const MobileDrawer = ({
                     to={
                       isSuperAdmin() || isAdminOnly()
                         ? "/admin/dashboard"
-                        : isLeaderRole()
-                          ? "/lecturer/dashboard"
-                          : "/lecturer/events"
+                        : (user?.role?.toUpperCase() === "STUDENT" || isStudentOrganizer?.())
+                          ? "/student/plans"
+                          : isLeaderRole()
+                            ? "/lecturer/dashboard"
+                            : "/lecturer/events"
                     }
                     onClick={() => setIsOpen(false)}
                     className="

@@ -33,6 +33,7 @@ const EventSidebar = ({
   setShowFeedbackModal,
 }) => {
   console.log("event sidebar", event);
+  const isInTeam = !!(role?.creator || role?.approver || role?.organizerRole);
   return (
     <div className="lg:col-span-4 space-y-5">
       {/* ORGANIZATION */}
@@ -145,15 +146,10 @@ const EventSidebar = ({
             isRegistering ||
             ((!role.registered ||
               role.registration?.status === "CANCELLED") &&
-              !role.creator &&
-              !role.approver &&
-              !role.organizerRole &&
+              !isInTeam &&
               isDeadlinePassed(event.registrationDeadline))
           }
-          className={`w-full py-3 rounded-xl text-sm font-medium transition-all flex items-center justify-center gap-2 ${role.creator ||
-            role.approver ||
-            role.organizerRole ||
-            isSystemAdmin
+          className={`w-full py-3 rounded-xl text-sm font-medium transition-all flex items-center justify-center gap-2 ${isInTeam
             ? "bg-gray-900 text-white"
             : role.registered
               ? role.registration?.checkedIn
@@ -166,10 +162,7 @@ const EventSidebar = ({
         >
           {isRegistering ? (
             <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-          ) : role.creator ||
-            role.approver ||
-            role.organizerRole ||
-            isSystemAdmin ? (
+          ) : isInTeam ? (
             <>
               <ShieldCheck size={18} />
               {"Bảng điều khiển BTC"}
@@ -223,10 +216,7 @@ const EventSidebar = ({
 
         {/* INTERACTIONS */}
         {((role.registered && role.registration?.status !== "CANCELLED") ||
-          role.creator ||
-          role.approver ||
-          role.organizerRole ||
-          isSystemAdmin) && (
+          isInTeam) && (
             <div className="mt-5 pt-5 border-t border-gray-100 space-y-3">
 
 

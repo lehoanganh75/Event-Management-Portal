@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useRef } from "react";
 import {
   Building,
   Sparkles,
@@ -9,6 +9,9 @@ import {
   X,
   Check,
   AlertCircle,
+  Upload,
+  Loader2,
+  Trash2,
 } from "lucide-react";
 import {
   Field,
@@ -54,6 +57,41 @@ const OrganizationSection = ({
   const [isOrgModalOpen, setIsOrgModalOpen] = useState(false);
   const [orgForm, setOrgForm] = useState({ name: "", email: "", phone: "", officeLocation: "", type: "CLUB", logoUrl: "", description: "" });
   const [isSubmittingOrg, setIsSubmittingOrg] = useState(false);
+  const logoInputRef = useRef(null);
+  const [uploadingLogo, setUploadingLogo] = useState(false);
+
+  const handleLogoUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error("File quá lớn! Vui lòng chọn ảnh dưới 5MB.");
+      return;
+    }
+
+    if (!file.type.startsWith("image/")) {
+      toast.error("Chỉ chấp nhận file hình ảnh!");
+      return;
+    }
+
+    setUploadingLogo(true);
+    const formData = new FormData();
+    formData.append("file", file);
+
+    try {
+      const res = await eventService.uploadImage(formData);
+      if (res.data && res.data.url) {
+        setOrgForm(p => ({ ...p, logoUrl: res.data.url }));
+        toast.success("Tải ảnh logo lên thành công!");
+      }
+    } catch (error) {
+      console.error("Upload logo error:", error);
+      toast.error("Lỗi khi tải ảnh logo lên. Vui lòng thử lại!");
+    } finally {
+      setUploadingLogo(false);
+      if (logoInputRef.current) logoInputRef.current.value = "";
+    }
+  };
 
   /**
    * Lọc danh sách organization dựa trên quyền của user:
@@ -277,9 +315,66 @@ const OrganizationSection = ({
                         <option value="OTHER">Khác</option>
                       </select>
                     </div>
-                    <div>
-                      <label className="block text-xs font-bold text-slate-500 mb-1.5">Ảnh đại diện / Logo (URL)</label>
-                      <input value={orgForm.logoUrl} onChange={e => setOrgForm(p => ({ ...p, logoUrl: e.target.value }))} placeholder="Nhập link ảnh logo hoặc để trống" className="w-full px-4 py-2.5 border border-slate-200 rounded-xl text-sm outline-none bg-slate-50 focus:bg-white focus:border-indigo-500 transition-all" />
+                    <div className="md:col-span-2 flex items-center gap-4 p-3.5 rounded-xl bg-slate-50 border border-slate-200">
+                      <input 
+                        type="file" 
+                        ref={logoInputRef} 
+                        onChange={handleLogoUpload} 
+                        className="hidden" 
+                        accept="image/*" 
+                      />
+                      
+                      {/* Preview Area */}
+                      {orgForm.logoUrl ? (
+                        <div className="relative w-16 h-16 rounded-full overflow-hidden border-2 border-indigo-100 flex-shrink-0 group shadow-sm bg-white">
+                          <img src={orgForm.logoUrl} alt="Logo preview" className="w-full h-full object-cover" />
+                          <div 
+                            onClick={() => setOrgForm(p => ({ ...p, logoUrl: "" }))}
+                            className="absolute inset-0 bg-slate-900/60 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer text-white"
+                            title="Xóa logo"
+                          >
+                            <Trash2 size={16} />
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="w-16 h-16 rounded-full border-2 border-dashed border-slate-300 bg-white flex items-center justify-center flex-shrink-0 text-slate-400">
+                          <Building size={24} />
+                        </div>
+                      )}
+                      
+                      {/* Actions & Input */}
+                      <div className="flex-1 min-w-0 space-y-2">
+                        <div className="flex items-center gap-2">
+                          <label className="text-xs font-bold text-slate-500">Ảnh đại diện / Logo</label>
+                          <button
+                            type="button"
+                            disabled={uploadingLogo}
+                            onClick={() => logoInputRef.current?.click()}
+                            className="px-2.5 py-1 bg-white hover:bg-slate-100 disabled:opacity-50 text-[11px] font-bold text-slate-700 rounded-lg border border-slate-200 cursor-pointer shadow-sm transition-all flex items-center gap-1.5"
+                          >
+                            {uploadingLogo ? (
+                              <>
+                                <Loader2 className="animate-spin text-slate-500" size={11} />
+                                <span>Đang tải...</span>
+                              </>
+                            ) : (
+                              <>
+                                <Upload size={11} className="text-slate-500" />
+                                <span>Tải ảnh lên</span>
+                              </>
+                            )}
+                          </button>
+                          {orgForm.logoUrl && (
+                            <span className="text-[10px] text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full font-bold border border-emerald-100">Đã liên kết</span>
+                          )}
+                        </div>
+                        <input 
+                          value={orgForm.logoUrl} 
+                          onChange={e => setOrgForm(p => ({ ...p, logoUrl: e.target.value }))} 
+                          placeholder="Đường dẫn link logo (hoặc tải ảnh từ máy tính)..." 
+                          className="w-full px-3 py-1.5 border border-slate-200 rounded-lg text-xs outline-none bg-white focus:border-indigo-500 transition-all text-slate-600" 
+                        />
+                      </div>
                     </div>
                   </div>
 

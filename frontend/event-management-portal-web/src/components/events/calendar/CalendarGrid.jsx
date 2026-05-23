@@ -118,11 +118,15 @@ const CalendarGrid = ({
     let days = [];
     let day = startDate;
 
+    let rowCount = 0;
     while (day <= endDate) {
+      rowCount++;
+      const currentWeekRow = rowCount;
       for (let i = 0; i < 7; i++) {
         const cloneDay = day;
         const formattedDate = format(day, "d");
         const dayEvents = getEventsForDay(day);
+        const isBottomHalf = currentWeekRow >= 4;
 
         days.push(
           <div
@@ -139,6 +143,7 @@ const CalendarGrid = ({
               cursor-pointer
               overflow-visible
               relative
+              hover:z-20
               ${!isSameMonth(day, monthStart) ? "opacity-40" : ""}
               ${
                 isSameDay(day, new Date())
@@ -200,6 +205,7 @@ const CalendarGrid = ({
                       hover:brightness-95
                       overflow-visible
                       z-10
+                      hover:z-30
                     `}
                   >
                     {layout.showTitle ? (
@@ -224,13 +230,11 @@ const CalendarGrid = ({
                     )}
 
                     <div
-                      className="
+                      className={`
                         pointer-events-none
                         absolute
                         left-0
-                        top-full
                         z-[999]
-                        mt-1
                         hidden
                         w-max
                         max-w-[320px]
@@ -245,7 +249,8 @@ const CalendarGrid = ({
                         group-hover:block
                         whitespace-normal
                         break-words
-                      "
+                        ${isBottomHalf ? "bottom-full mb-1" : "top-full mt-1"}
+                      `}
                     >
                       <div className="font-semibold">
                         {event.title}

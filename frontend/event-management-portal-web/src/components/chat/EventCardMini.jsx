@@ -2,13 +2,13 @@ import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Calendar, MapPin, ArrowRight } from 'lucide-react';
 
-const EventCardMini = ({ event }) => {
+const EventCardMini = ({ event, isSingle }) => {
   const navigate = useNavigate();
 
   return (
     <div 
       onClick={() => navigate(`/events/${event.slug || event.id}`)}
-      className="flex flex-col bg-white border border-slate-200 rounded-xl overflow-hidden hover:shadow-lg transition-all duration-300 w-64 shrink-0 group cursor-pointer"
+      className={`flex flex-col bg-white border border-slate-200 rounded-xl overflow-hidden hover:shadow-lg transition-all duration-300 shrink-0 group cursor-pointer ${isSingle ? 'w-full' : 'w-64'}`}
     >
       {/* Cover Image */}
       <div className="relative h-32 overflow-hidden">

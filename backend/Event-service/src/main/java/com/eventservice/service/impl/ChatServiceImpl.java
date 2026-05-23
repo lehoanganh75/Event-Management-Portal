@@ -91,27 +91,54 @@ public class ChatServiceImpl implements ChatService {
     @Override
     @Transactional
     public ChatSessionResponse createOrResumeSession(ChatSessionRequest request, String userId) {
-        ChatSession session;
+        ChatSession session = null;
 
-        // Try to resume existing session
-        if (request.getSessionId() != null) {
-            session = chatSessionRepository.findBySessionId(request.getSessionId())
+        // 1. If user is logged in, prioritize finding their latest active session in database
+        if (userId != null) {
+            List<ChatSession> userSessions = chatSessionRepository.findByUserId(userId);
+            session = userSessions.stream()
+                    .filter(s -> s.getStatus() == ChatSessionStatus.ACTIVE)
+                    .max(Comparator.comparing(s -> s.getUpdatedAt() != null ? s.getUpdatedAt() : s.getCreatedAt()))
                     .orElse(null);
 
-            if (session != null && session.getStatus() == ChatSessionStatus.ACTIVE) {
-                log.info("Resuming chat session: {}", request.getSessionId());
+            if (session != null) {
+                log.info("Resuming user's existing active session: {}", session.getSessionId());
                 return mapToResponse(session);
             }
         }
 
-        // Create new session
+        // 2. Otherwise, check if request contains a valid sessionId to resume
+        if (request.getSessionId() != null) {
+            ChatSession sessionBySessionId = chatSessionRepository.findBySessionId(request.getSessionId())
+                    .orElse(null);
+
+            if (sessionBySessionId != null && sessionBySessionId.getStatus() == ChatSessionStatus.ACTIVE) {
+                // Double check ownership
+                boolean ownerMatch = false;
+                if (userId == null && sessionBySessionId.getUserId() == null) {
+                    ownerMatch = true;
+                } else if (userId != null && userId.equals(sessionBySessionId.getUserId())) {
+                    ownerMatch = true;
+                }
+
+                if (ownerMatch) {
+                    log.info("Resuming session by sessionId: {}", request.getSessionId());
+                    return mapToResponse(sessionBySessionId);
+                } else {
+                    log.info("Session ownership mismatch. Request sessionId={}, session userId={}, current userId={}. Starting fresh.",
+                            request.getSessionId(), sessionBySessionId.getUserId(), userId);
+                }
+            }
+        }
+
+        // 3. Create new session
         session = ChatSession.builder()
                 .sessionId(UUID.randomUUID().toString())
                 .userId(userId) // null for guest
                 .guestName(request.getGuestName())
                 .guestEmail(request.getGuestEmail())
                 .status(ChatSessionStatus.ACTIVE)
-                .contextType(request.getContextType())
+                .contextType(request.getContextType() != null ? request.getContextType() : "GENERAL_INQUIRY")
                 .contextId(request.getContextId())
                 .build();
 
@@ -1270,8 +1297,150 @@ public class ChatServiceImpl implements ChatService {
                 }
                 return true;
             })
-            .sorted((e1, e2) -> Double.compare(calculateFeaturedScore(e2, now), calculateFeaturedScore(e1, now)))
             .collect(Collectors.toList());
+
+        // Date extraction
+        int targetStartDay = -1;
+        int targetStartMonth = now.getMonthValue();
+        int targetStartYear = now.getYear();
+        
+        int targetEndDay = -1;
+        int targetEndMonth = now.getMonthValue();
+        int targetEndYear = now.getYear();
+        
+        boolean hasDateFilter = false;
+        boolean isRange = false;
+
+        String lowerContent = content.toLowerCase();
+        
+        // Range Pattern: e.g. "từ ngày 24 đến ngày 27", "24/05 đến 27/05", "ngày 24 - 27 tháng 5"
+        java.util.regex.Pattern rangePattern = java.util.regex.Pattern.compile(
+            "(?i)(?:từ\\s+)?(?:ngày\\s+)?(\\d{1,2})(?:\\s*[/.-]\\s*(\\d{1,2}))?\\s+(?:đến|\\-|\\bsang\\b)\\s+(?:ngày\\s+)?(\\d{1,2})(?:\\s*[/.-]\\s*(\\d{1,2}))?(?:\\s+tháng\\s+(\\d{1,2}))?(?:\\s+năm\\s+(\\d{4}))?"
+        );
+        java.util.regex.Matcher mRange = rangePattern.matcher(lowerContent);
+        if (mRange.find()) {
+            targetStartDay = Integer.parseInt(mRange.group(1));
+            targetEndDay = Integer.parseInt(mRange.group(3));
+            
+            int mVal = now.getMonthValue();
+            if (mRange.group(5) != null) {
+                mVal = Integer.parseInt(mRange.group(5));
+            }
+            
+            int startM = mRange.group(2) != null ? Integer.parseInt(mRange.group(2)) : mVal;
+            int endM = mRange.group(4) != null ? Integer.parseInt(mRange.group(4)) : mVal;
+            
+            if (mRange.group(2) == null && mRange.group(4) != null) {
+                startM = endM;
+            } else if (mRange.group(2) != null && mRange.group(4) == null) {
+                endM = startM;
+            }
+            
+            targetStartMonth = startM;
+            targetEndMonth = endM;
+            
+            int yVal = now.getYear();
+            if (mRange.group(6) != null) {
+                yVal = Integer.parseInt(mRange.group(6));
+            }
+            targetStartYear = yVal;
+            targetEndYear = yVal;
+            
+            hasDateFilter = true;
+            isRange = true;
+        } else {
+            // Pattern 1: ngày X tháng Y năm Z hoặc ngày X tháng Y
+            java.util.regex.Pattern p1 = java.util.regex.Pattern.compile("(?i)ngày\\s+(\\d{1,2})\\s+tháng\\s+(\\d{1,2})(?:\\s+năm\\s+(\\d{4}))?");
+            java.util.regex.Matcher m1 = p1.matcher(lowerContent);
+            if (m1.find()) {
+                targetStartDay = Integer.parseInt(m1.group(1));
+                targetStartMonth = Integer.parseInt(m1.group(2));
+                if (m1.group(3) != null) {
+                    targetStartYear = Integer.parseInt(m1.group(3));
+                }
+                hasDateFilter = true;
+            } else {
+                // Pattern 2: X/Y/Z hoặc X/Y hoặc X-Y
+                java.util.regex.Pattern p2 = java.util.regex.Pattern.compile("(\\d{1,2})[/-](\\d{1,2})(?:[/-](\\d{4}))?");
+                java.util.regex.Matcher m2 = p2.matcher(lowerContent);
+                if (m2.find()) {
+                    targetStartDay = Integer.parseInt(m2.group(1));
+                    targetStartMonth = Integer.parseInt(m2.group(2));
+                    if (m2.group(3) != null) {
+                        targetStartYear = Integer.parseInt(m2.group(3));
+                    }
+                    hasDateFilter = true;
+                } else {
+                    // Pattern 3: ngày X (lấy tháng và năm hiện tại)
+                    java.util.regex.Pattern p3 = java.util.regex.Pattern.compile("(?i)ngày\\s+(\\d{1,2})");
+                    java.util.regex.Matcher m3 = p3.matcher(lowerContent);
+                    if (m3.find()) {
+                        targetStartDay = Integer.parseInt(m3.group(1));
+                        hasDateFilter = true;
+                    }
+                }
+            }
+        }
+
+        // Apply Date Filter if present
+        if (hasDateFilter) {
+            final int finalStartDay = targetStartDay;
+            final int finalStartMonth = targetStartMonth;
+            final int finalStartYear = targetStartYear;
+            
+            final int finalEndDay = targetEndDay;
+            final int finalEndMonth = targetEndMonth;
+            final int finalEndYear = targetEndYear;
+            
+            final boolean finalIsRange = isRange;
+            
+            List<com.eventservice.entity.core.Event> temp = filtered.stream()
+                .filter(e -> {
+                    if (e.getStartTime() == null) return false;
+                    java.time.LocalDate startDate = e.getStartTime().toLocalDate();
+                    try {
+                        if (finalIsRange) {
+                            java.time.LocalDate targetStartDate = java.time.LocalDate.of(finalStartYear, finalStartMonth, finalStartDay);
+                            java.time.LocalDate targetEndDate = java.time.LocalDate.of(finalEndYear, finalEndMonth, finalEndDay);
+                            return !startDate.isBefore(targetStartDate) && !startDate.isAfter(targetEndDate);
+                        } else {
+                            java.time.LocalDate targetDate = java.time.LocalDate.of(finalStartYear, finalStartMonth, finalStartDay);
+                            return startDate.equals(targetDate);
+                        }
+                    } catch (Exception ex) {
+                        return false;
+                    }
+                })
+                .collect(Collectors.toList());
+            
+            filtered = temp;
+        }
+
+        // Apply Keyword Filter if present
+        String keyword = extractSearchKeyword(content);
+        if (keyword != null && !keyword.isBlank()) {
+            String cleanedKw = keyword.replaceAll("(?i)ngày\\s+\\d+|tháng\\s+\\d+|năm\\s+\\d+|\\d+[/-]\\d+", "").trim();
+            cleanedKw = cleanedKw.replaceAll("(?i)diễn ra|vào|không|nào|có|gì|ngày|từ|đến", "").trim();
+            if (cleanedKw.length() > 2) {
+                final String finalKw = cleanedKw.toLowerCase();
+                List<com.eventservice.entity.core.Event> temp = filtered.stream()
+                    .filter(e -> {
+                        String title = e.getTitle() != null ? e.getTitle().toLowerCase() : "";
+                        String topic = e.getEventTopic() != null ? e.getEventTopic().toLowerCase() : "";
+                        String desc = e.getDescription() != null ? e.getDescription().toLowerCase() : "";
+                        String loc = e.getLocation() != null ? e.getLocation().toLowerCase() : "";
+                        return title.contains(finalKw) || topic.contains(finalKw) || desc.contains(finalKw) || loc.contains(finalKw);
+                    })
+                    .collect(Collectors.toList());
+                
+                if (!temp.isEmpty()) {
+                    filtered = temp;
+                }
+            }
+        }
+
+        // Sort the filtered events by featuredScore
+        filtered.sort((e1, e2) -> Double.compare(calculateFeaturedScore(e2, now), calculateFeaturedScore(e1, now)));
             
         int limit = 4;
         if (content.contains(" 5 ") || content.toLowerCase().contains("năm sự kiện")) {

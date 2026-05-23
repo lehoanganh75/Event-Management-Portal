@@ -82,16 +82,10 @@ const Sidebar = ({ isCollapsed, onToggle }) => {
             { name: "Thông báo", icon: Bell, path: "/lecturer/notifications" },
             { name: "Hồ sơ cá nhân", icon: UserCircle, path: "/lecturer/profile" },
         ],
-        STUDENT: [
-            { name: "Sự kiện của tôi", icon: Calendar, path: "/guest-events" },
+        MEMBER: [
+            { name: "Sự kiện của tôi", icon: Calendar, path: "/student/events" },
             { name: "Bản tin & Truyền thông", icon: Share2, path: "/student/posts" },
             { name: "Trò chơi & Vòng quay", icon: RotateCw, path: "/student/spinner" },
-            { name: "Thông báo", icon: Bell, path: "/notifications" },
-            { name: "Hồ sơ cá nhân", icon: UserCircle, path: "/student/profile" },
-        ],
-        MEMBER: [
-            { name: "Quản lý sự kiện", icon: Calendar, path: "/student/events" },
-            { name: "Bản tin & Truyền thông", icon: Share2, path: "/student/posts" },
             { name: "Thông báo", icon: Bell, path: "/student/notifications" },
             { name: "Hồ sơ cá nhân", icon: UserCircle, path: "/student/profile" },
         ],
