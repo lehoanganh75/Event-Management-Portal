@@ -73,24 +73,32 @@ function parseGeminiError(err) {
 }
 
 function MessageContent({ text }) {
-  const cardMatch = text.match(/\[EVENT_CARDS_START\]([\s\S]*?)\[EVENT_CARDS_END\]/);
-  const cleanText = text.replace(/\[EVENT_CARDS_START\][\s\S]*?\[EVENT_CARDS_END\]/, "").trim();
+  const cardMatch = text.match(/\[EVENT_CARDS_START\]([\s\S]*?)(?:\[EVENT_CARDS_END\]|$)/);
+  let cleanText = text.replace(/\[EVENT_CARDS_START\][\s\S]*?(?:\[EVENT_CARDS_END\]|$)/, "").trim();
+
+  // Đảm bảo không bao giờ rò rỉ tag này ra UI
+  cleanText = cleanText.replace(/\[EVENT_CARDS_START\]/g, "").replace(/\[EVENT_CARDS_END\]/g, "").trim();
 
   let eventCards = [];
-  if (cardMatch) {
+  if (cardMatch && cardMatch[1]) {
     try {
       let content = cardMatch[1].trim();
+      if (content) {
+        // Tìm khối JSON dạng mảng [...] bên trong thẻ
+        const jsonArrayMatch = content.match(/\[\s*\{[\s\S]*\}\s*\]/);
 
-      // Tìm khối JSON dạng mảng [...] bên trong thẻ
-      const jsonArrayMatch = content.match(/\[\s*\{[\s\S]*\}\s*\]/);
-
-      if (jsonArrayMatch) {
-        let jsonStr = jsonArrayMatch[0];
-        eventCards = JSON.parse(jsonStr);
-      } else {
-        // Fallback: nếu không tìm thấy dạng mảng, thử dọn dẹp markdown như cũ
-        let jsonStr = content.replace(/^```json\s*/i, "").replace(/```\s*$/, "").trim();
-        eventCards = JSON.parse(jsonStr);
+        if (jsonArrayMatch) {
+          let jsonStr = jsonArrayMatch[0];
+          eventCards = JSON.parse(jsonStr);
+        } else {
+          // Fallback: nếu không tìm thấy dạng mảng, thử dọn dẹp markdown như cũ
+          let jsonStr = content.replace(/^```json\s*/i, "").replace(/```\s*$/, "").trim();
+          if (jsonStr.startsWith("{") && jsonStr.endsWith("}")) {
+            eventCards = [JSON.parse(jsonStr)]; // Nếu model trả về 1 object thay vì array
+          } else {
+            eventCards = JSON.parse(jsonStr);
+          }
+        }
       }
     } catch (e) {
       console.error("Failed to parse event cards JSON", e);

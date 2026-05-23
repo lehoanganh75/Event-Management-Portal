@@ -739,6 +739,17 @@ QUY TẮC:
 - Không dùng dấu **.
 - Nếu không có dữ liệu phù hợp, nói: "Hiện tại hệ thống chưa cập nhật thông tin này."
 - Với yêu cầu tạo JSON, chỉ trả JSON hợp lệ, không markdown.
+- NẾU BẠN GỢI Ý SỰ KIỆN TỪ EVENT_DB: BẠN PHẢI luôn luôn đính kèm khối EVENT_CARDS ở cuối câu trả lời theo đúng định dạng sau (để hệ thống hiển thị Card cho người dùng nhấn vào):
+[EVENT_CARDS_START]
+[
+  {
+    "id": 123,
+    "title": "Tên sự kiện",
+    "date": "Thời gian",
+    "reason": "Lý do ngắn gọn gợi ý sự kiện này"
+  }
+]
+[EVENT_CARDS_END]
 
 DỊCH TRẠNG THÁI:
 PUBLISHED => Đã công bố
@@ -797,10 +808,14 @@ FORMAT SỰ KIỆN NGẮN:
 🏷️ Tên sự kiện: [TITLE]
 ⏳ Hạn đăng ký: [REGISTRATION_DEADLINE]
 📅 Bắt đầu: [START_TIME]
-📅 Kết thúc: [END_TIME]
 📍 Địa điểm: [LOCATION]
 📌 Trạng thái: [STATUS]
 🔗 Chi tiết: https://fitiuh-events.io.vn/events/[ID]
+
+NẾU GỢI Ý SỰ KIỆN, BẠN PHẢI CHÈN KHỐI SAU VÀO CUỐI:
+[EVENT_CARDS_START]
+[{"id": 123, "title": "Tên", "date": "Thời gian", "reason": "Lý do"}]
+[EVENT_CARDS_END]
 
 ${isExtraction ? "CHẾ ĐỘ JSON: Chỉ trả JSON hợp lệ." : ""}
 
@@ -1084,22 +1099,58 @@ const chatWithAI = async ({
     isExtraction,
   });
 
+  let finalResult = null;
+
   if (geminiResult) {
     console.log(`[AI-Success] Gemini phản hồi thành công (${geminiResult.model})`);
-    return geminiResult;
+    finalResult = geminiResult;
+  } else {
+    console.log("[AI-Fallback] Gemini thất bại hoặc hết lượt. Đang chuyển sang Ollama...");
+    const ollamaResult = await askOllama({
+      systemInstruction: ollamaSystemInstruction,
+      userPrompt,
+      isExtraction,
+    });
+    console.log(`[AI-Result] Kết quả từ ${ollamaResult.provider} (${ollamaResult.model})`);
+    finalResult = ollamaResult;
   }
 
-  console.log("[AI-Fallback] Gemini thất bại hoặc hết lượt. Đang chuyển sang Ollama...");
+  // Khắc phục lỗi AI không trả về hoặc trả về sai định dạng EVENT_CARDS_START
+  if (finalResult && shouldUseEventDb && eventDbContext) {
+    try {
+      // Dọn dẹp lỡ như con AI trả về tag rác hoặc thiếu JSON
+      finalResult.reply = finalResult.reply.replace(/\[EVENT_CARDS_START\][\s\S]*/, "").trim();
 
-  const ollamaResult = await askOllama({
-    systemInstruction: ollamaSystemInstruction,
-    userPrompt,
-    isExtraction,
-  });
+      const blocks = eventDbContext.split('---');
+      const cards = [];
+      for (const b of blocks) {
+        const idMatch = b.match(/ID:\s*([a-zA-Z0-9\-]+)/);
+        const nameMatch = b.match(/Tên:\s*([^\n]+)/);
+        const dateMatch = b.match(/Bắt đầu:\s*([^\n]+)/);
+        
+        if (idMatch && nameMatch) {
+          const eventName = nameMatch[1].trim();
+          cards.push({
+            id: idMatch[1],
+            title: eventName,
+            date: dateMatch ? dateMatch[1].trim() : "",
+            reason: "Sự kiện được đề xuất"
+          });
+        }
+      }
+      
+      // Lấy tối đa 3 sự kiện để hiển thị card tránh bị quá dài
+      const limitedCards = cards.slice(0, 3);
+      
+      if (limitedCards.length > 0) {
+        finalResult.reply += `\n\n[EVENT_CARDS_START]\n${JSON.stringify(limitedCards)}\n[EVENT_CARDS_END]`;
+      }
+    } catch (e) {
+      console.error("[AI-Process] Lỗi khi tự động chèn thẻ sự kiện:", e);
+    }
+  }
 
-  console.log(`[AI-Result] Kết quả từ ${ollamaResult.provider} (${ollamaResult.model})`);
-
-  return ollamaResult;
+  return finalResult;
 };
 
 const generateEmbedding = async (text) => {

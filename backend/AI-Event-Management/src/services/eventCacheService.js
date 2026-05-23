@@ -28,9 +28,9 @@ const loadEventDataOnce = async (creatorId = null) => {
                 registration_deadline, event_topic, event_mode,
                 registered_count, max_participants, has_lucky_draw, check_in_enabled
              FROM events 
-             WHERE status IN (?, ?, ?) 
+             WHERE status IN (?, ?, ?, ?, ?, ?, ?) 
              ORDER BY start_time ASC`,
-            ["PUBLISHED", "ONGOING", "COMPLETED"]
+            ["PUBLISHED", "ONGOING", "COMPLETED", "PLAN_APPROVED", "DRAFT", "PLAN_PENDING_APPROVAL", "EVENT_PENDING_APPROVAL"]
         );
 
         let cacheText = "";

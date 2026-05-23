@@ -40,14 +40,19 @@ const NotificationBell = () => {
     setIsOpen(false);
     if (user) {
       const role = user.role?.toUpperCase();
-      if (role === "MEMBER" || role === "STUDENT") {
+      const isStudentOrganizer =
+        (role === "STUDENT" || role === "GUEST") &&
+        ((user?.ownedOrganizations && user.ownedOrganizations.length > 0) ||
+         (user?.eventRoles && user.eventRoles.length > 0));
+
+      if (role === "MEMBER" || isStudentOrganizer) {
         navigate("/student/notifications");
       } else if (role === "LECTURER") {
         navigate("/lecturer/notifications");
       } else if (role === "ADMIN" || role === "SUPER_ADMIN") {
         navigate("/admin/notifications");
       } else {
-        // GUEST, etc.
+        // GUEST, normal STUDENT, etc.
         navigate("/notifications");
       }
     } else {

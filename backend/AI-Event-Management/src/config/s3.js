@@ -11,7 +11,7 @@ const requiredEnvs = [
 
 requiredEnvs.forEach((env) => {
   if (!process.env[env]) {
-    throw new Error(`Missing environment variable: ${env}`);
+    console.warn(`[CẢNH BÁO] Thiếu biến môi trường S3: ${env}. Tính năng upload ảnh có thể không hoạt động.`);
   }
 });
 

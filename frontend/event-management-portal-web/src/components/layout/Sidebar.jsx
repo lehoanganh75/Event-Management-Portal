@@ -20,7 +20,6 @@ import {
     ChevronLeft,
     ChevronRight,
     ChevronDown,
-    Activity,
 } from "lucide-react";
 import logo_iuh from "../../assets/images/iuh.png";
 
@@ -389,72 +388,6 @@ const Sidebar = ({ isCollapsed, onToggle }) => {
                 </div>
             </div>
 
-            <div className="p-3 border-t border-slate-100 bg-slate-50/60">
-                {isCollapsed ? (
-                    <div className="flex flex-col items-center gap-2 group relative">
-                        <div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center">
-                            <Activity size={19} className="animate-pulse" />
-                        </div>
-
-                        <div
-                            className="
-                                absolute left-full ml-3
-                                p-3
-                                rounded-lg
-                                bg-slate-900
-                                text-white
-                                text-xs
-                                opacity-0
-                                pointer-events-none
-                                group-hover:opacity-100
-                                group-hover:translate-x-1
-                                transition-all
-                                z-[200]
-                                shadow-lg
-                                min-w-[150px]
-                            "
-                        >
-                            <p className="font-semibold text-blue-400">IUH - EMS</p>
-                            <p className="text-[10px] text-slate-300 mt-1">
-                                Version: 2.5.0
-                            </p>
-                            <p className="text-[10px] text-emerald-400 mt-0.5">
-                                Status: Operational
-                            </p>
-                            <span className="absolute top-1/2 -left-1 -translate-y-1/2 w-2 h-2 bg-slate-900 rotate-45" />
-                        </div>
-                    </div>
-                ) : (
-                    <div className="rounded-xl border border-slate-100 bg-white p-3 shadow-sm">
-                        <div className="flex items-center justify-between mb-2">
-                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">
-                                Hệ thống
-                            </span>
-
-                            <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-600 text-[10px] font-semibold">
-                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                                <span>Hoạt động</span>
-                            </div>
-                        </div>
-
-                        <div className="space-y-1 text-[11px] text-slate-600">
-                            <div className="flex justify-between gap-2">
-                                <span className="text-slate-400">Phiên bản:</span>
-                                <span className="font-medium text-slate-800">
-                                    2.5.0-stable
-                                </span>
-                            </div>
-
-                            <div className="flex justify-between gap-2">
-                                <span className="text-slate-400">Máy chủ:</span>
-                                <span className="font-medium text-slate-800 truncate">
-                                    iuh.events.portal
-                                </span>
-                            </div>
-                        </div>
-                    </div>
-                )}
-            </div>
         </aside>
     );
 };

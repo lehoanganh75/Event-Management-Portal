@@ -729,43 +729,41 @@ const EventsManagement = ({ type = "lecturer", mode = "all" }) => {
               <h1 className="text-2xl font-semibold text-slate-800">
                 {scopeFilter === "all"
                   ? mode === "plan"
-                    ? "Tất cả kế hoạch"
-                    : "Tất cả sự kiện"
+                    ? (isAdminMode ? "Tất cả kế hoạch" : "Kế hoạch của khoa")
+                    : (isAdminMode ? "Tất cả sự kiện" : "Sự kiện của khoa")
                   : mode === "plan"
                     ? "Kế hoạch của tôi"
                     : "Sự kiện của tôi"}
               </h1>
 
-              {isAdminMode && (
-                <div className="flex bg-slate-200/60 p-0.5 rounded-xl border border-slate-200 ml-2">
-                  <button
-                    onClick={() => {
-                      setScopeFilter("all");
-                      setPage(1);
-                    }}
-                    className={`px-3 py-1 text-xs font-semibold rounded-lg transition-all ${
-                      scopeFilter === "all"
-                        ? "bg-white text-[#1E40AF] shadow-sm"
-                        : "text-slate-500 hover:text-slate-800"
-                    }`}
-                  >
-                    Tất cả
-                  </button>
-                  <button
-                    onClick={() => {
-                      setScopeFilter("my");
-                      setPage(1);
-                    }}
-                    className={`px-3 py-1 text-xs font-semibold rounded-lg transition-all ${
-                      scopeFilter === "my"
-                        ? "bg-white text-[#1E40AF] shadow-sm"
-                        : "text-slate-500 hover:text-slate-800"
-                    }`}
-                  >
-                    Của tôi
-                  </button>
-                </div>
-              )}
+              <div className="flex bg-slate-200/60 p-0.5 rounded-xl border border-slate-200 ml-2">
+                <button
+                  onClick={() => {
+                    setScopeFilter("all");
+                    setPage(1);
+                  }}
+                  className={`px-3 py-1 text-xs font-semibold rounded-lg transition-all ${
+                    scopeFilter === "all"
+                      ? "bg-white text-[#1E40AF] shadow-sm"
+                      : "text-slate-500 hover:text-slate-800"
+                  }`}
+                >
+                  {isAdminMode ? "Tất cả" : "Của khoa"}
+                </button>
+                <button
+                  onClick={() => {
+                    setScopeFilter("my");
+                    setPage(1);
+                  }}
+                  className={`px-3 py-1 text-xs font-semibold rounded-lg transition-all ${
+                    scopeFilter === "my"
+                      ? "bg-white text-[#1E40AF] shadow-sm"
+                      : "text-slate-500 hover:text-slate-800"
+                  }`}
+                >
+                  Của tôi
+                </button>
+              </div>
             </div>
 
             <p className="text-sm text-slate-500 mt-1">
