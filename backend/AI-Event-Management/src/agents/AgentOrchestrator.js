@@ -19,9 +19,9 @@ async function chatWithAI({ userPrompt, pdfContext = "", isExtraction = false, a
   const eventQuery = isEventQuery(userPrompt);
 
   // 2. TẠO NỘI DUNG TRUYỀN THÔNG (Content Generation)
-  if (externalDataPrompt && !eventQuery) {
+  if (externalDataPrompt) {
     console.log("[AgentOrchestrator] Intent: CONTENT_GENERATION -> Invoking EventContentAgent...");
-    return await EventContentAgent.run({ userPrompt, isExtraction });
+    return await EventContentAgent.run({ userPrompt, isExtraction, accountId });
   }
 
   // 3. TẠO CÂU HỎI TRẮC NGHIỆM (Quiz/Trivia Generation)
@@ -31,7 +31,7 @@ async function chatWithAI({ userPrompt, pdfContext = "", isExtraction = false, a
   }
 
   // 4. TRA CỨU SỰ KIỆN (Event Query/Search)
-  if (eventQuery && !externalDataPrompt) {
+  if (eventQuery) {
     console.log("[AgentOrchestrator] Intent: EVENT_SEARCH -> Invoking EventSearchAgent...");
     return await EventSearchAgent.run({ userPrompt, pdfContext, isExtraction, accountId });
   }
