@@ -22,12 +22,12 @@ const GuestEventsFilter = ({ search, setSearch, activeFilter, setActiveFilter, t
         />
       </div>
 
-      <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl">
+      <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl w-full md:w-auto overflow-x-auto no-scrollbar flex-nowrap shrink-0">
         {filterButtons.map((btn) => (
           <button
             key={btn.key}
             onClick={() => setActiveFilter(btn.key)}
-            className={`px-6 py-2.5 rounded-xl text-sm font-bold whitespace-nowrap transition-all ${
+            className={`px-6 py-2.5 rounded-xl text-sm font-bold whitespace-nowrap shrink-0 transition-all ${
               activeFilter === btn.key
                 ? "bg-slate-900 text-white shadow-lg shadow-slate-200"
                 : "text-slate-500 hover:bg-slate-100"

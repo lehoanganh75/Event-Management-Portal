@@ -23,6 +23,7 @@ const MobileDrawer = ({
   isAdminOnly,
   isEventStaff,
   isLeaderRole,
+  isStudentOrganizer,
   setIsLogoutModalOpen,
   language,
   setLanguage,

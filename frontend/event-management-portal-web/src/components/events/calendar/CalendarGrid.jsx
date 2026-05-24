@@ -313,30 +313,33 @@ const CalendarGrid = ({
         bg-white
         border border-slate-200
         rounded-2xl
-        overflow-hidden
+        overflow-x-auto
+        no-scrollbar
         shadow-sm
       "
     >
-      {/* Header */}
-      <div className="grid grid-cols-7 bg-slate-100 border-b border-slate-200">
-        {daysHeader.map((day, idx) => (
-          <div
-            key={idx}
-            className="
-              py-3
-              text-center
-              text-sm
-              font-semibold
-              text-slate-600
-            "
-          >
-            {day}
-          </div>
-        ))}
-      </div>
+      <div className="min-w-[800px] md:min-w-0">
+        {/* Header */}
+        <div className="grid grid-cols-7 bg-slate-100 border-b border-slate-200">
+          {daysHeader.map((day, idx) => (
+            <div
+              key={idx}
+              className="
+                py-3
+                text-center
+                text-sm
+                font-semibold
+                text-slate-600
+              "
+            >
+              {day}
+            </div>
+          ))}
+        </div>
 
-      {/* Calendar Cells */}
-      <div>{renderCells()}</div>
+        {/* Calendar Cells */}
+        <div>{renderCells()}</div>
+      </div>
     </div>
   );
 };

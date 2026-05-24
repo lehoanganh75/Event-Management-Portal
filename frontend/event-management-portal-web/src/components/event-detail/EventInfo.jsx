@@ -2,6 +2,18 @@ import React from "react";
 import { Users, MapPin, Info, Mail, Phone } from "lucide-react";
 
 const EventInfo = ({ event, language, t }) => {
+  const formatSessionTime = (dateStr) => {
+    if (!dateStr) return "";
+    const date = new Date(dateStr);
+    if (isNaN(date.getTime())) return "";
+    let hours = date.getHours();
+    const minutes = date.getMinutes().toString().padStart(2, "0");
+    const ampm = hours >= 12 ? "p.m." : "a.m.";
+    hours = hours % 12;
+    hours = hours ? hours : 12;
+    return `${hours}:${minutes} ${ampm}`;
+  };
+
   return (
     <div className="lg:col-span-8 space-y-6">
       {/* GIỚI THIỆU */}
@@ -93,25 +105,13 @@ const EventInfo = ({ event, language, t }) => {
                 <div className="flex flex-col md:flex-row gap-5">
                   {/* Time */}
                   <div className="md:w-24 shrink-0">
-                    <div className="bg-indigo-50 border border-indigo-100 rounded-xl px-3 py-2 text-center">
-                      <p className="text-sm font-semibold text-indigo-700">
-                        {new Date(session.startTime).toLocaleTimeString(
-                          language === "VI" ? "vi-VN" : "en-US",
-                          {
-                            hour: "2-digit",
-                            minute: "2-digit"
-                          }
-                        )}
+                    <div className="bg-indigo-50 border border-indigo-100 rounded-xl px-2 py-2 text-center">
+                      <p className="text-xs font-bold text-indigo-700 whitespace-nowrap">
+                        {formatSessionTime(session.startTime)}
                       </p>
 
-                      <p className="text-[11px] text-indigo-400 mt-1">
-                        {new Date(session.endTime).toLocaleTimeString(
-                          language === "VI" ? "vi-VN" : "en-US",
-                          {
-                            hour: "2-digit",
-                            minute: "2-digit"
-                          }
-                        )}
+                      <p className="text-[10px] font-medium text-indigo-400 mt-1 whitespace-nowrap">
+                        {formatSessionTime(session.endTime)}
                       </p>
                     </div>
                   </div>

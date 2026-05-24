@@ -360,7 +360,7 @@ export default function AIChatBot() {
             animate={{ scale: 1, opacity: 1 }}
             exit={{ scale: 0, opacity: 0 }}
             onClick={handleOpen}
-            className="fixed bottom-6 right-6 z-50 w-14 h-14 rounded-full shadow-2xl bg-white flex items-center justify-center overflow-hidden"
+            className="fixed bottom-4 right-4 sm:bottom-6 sm:right-6 z-50 w-14 h-14 rounded-full shadow-2xl bg-white flex items-center justify-center overflow-hidden"
           >
             <ChatIcon size={56} />
             {unread > 0 && (
@@ -378,7 +378,11 @@ export default function AIChatBot() {
             initial={{ opacity: 0, y: 20, scale: 0.95 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 20, scale: 0.95 }}
-            className="fixed bottom-6 right-6 z-50 w-[380px] h-[600px] bg-white rounded-3xl shadow-2xl flex flex-col overflow-hidden border border-gray-100"
+            onAnimationComplete={() => {
+              scrollToBottom("auto");
+              setTimeout(() => scrollToBottom("smooth"), 100);
+            }}
+            className="fixed bottom-4 right-4 sm:bottom-6 sm:right-6 z-50 w-[calc(100vw-32px)] sm:w-[380px] h-[500px] sm:h-[600px] max-h-[85vh] bg-white rounded-3xl shadow-2xl flex flex-col overflow-hidden border border-gray-100"
           >
             {/* Header */}
             <div className="bg-gradient-to-r from-blue-600 to-indigo-600 p-4 text-white flex items-center justify-between">

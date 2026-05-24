@@ -135,7 +135,7 @@ const GuestEventsPage = () => {
           t={t}
         />
 
-        <div className="max-w-7xl mx-auto px-6 -mt-8">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 mt-6 sm:-mt-8">
 
           {/* ── Banner kêu gọi thành lập CLB cho STUDENT chưa có tổ chức ── */}
           {isStudent && (
@@ -291,7 +291,7 @@ const GuestEventsPage = () => {
                       <option value="OTHER">Khác</option>
                     </select>
                   </div>
-                  <div className="md:col-span-2 flex items-center gap-4 p-3.5 rounded-xl bg-slate-50 border border-slate-200">
+                  <div className="md:col-span-2 w-full flex flex-col sm:flex-row items-center sm:items-start gap-4 p-3.5 rounded-xl bg-slate-50 border border-slate-200">
                     <input 
                       type="file" 
                       ref={logoInputRef} 

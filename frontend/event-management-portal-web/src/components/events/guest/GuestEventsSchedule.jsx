@@ -45,9 +45,14 @@ const GuestEventsSchedule = ({ currentDate, setCurrentDate, events, navigate, t 
   return (
     <div className="bg-white rounded-lg shadow-sm border border-[#dee2e6] overflow-hidden animate-in fade-in duration-500">
       <div className="p-4 flex flex-col xl:flex-row items-center justify-between gap-4 border-b border-[#dee2e6] bg-white">
-        <h2 className="text-xl font-bold text-[#444] shrink-0">
-          {"Lịch sự kiện theo tuần"}
-        </h2>
+        <div className="flex flex-col md:flex-row md:items-center gap-2">
+          <h2 className="text-xl font-bold text-[#444] shrink-0">
+            {"Lịch sự kiện theo tuần"}
+          </h2>
+          <span className="xl:hidden text-[10px] text-indigo-600 bg-indigo-50 px-2.5 py-0.5 rounded-full font-semibold border border-indigo-100 w-fit">
+            ← Vuốt ngang để xem →
+          </span>
+        </div>
 
         <div className="flex flex-wrap items-center justify-center gap-3">
           <div className="flex items-center gap-2 mr-2">

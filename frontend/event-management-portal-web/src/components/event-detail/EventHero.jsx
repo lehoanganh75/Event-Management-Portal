@@ -10,7 +10,7 @@ const EventHero = ({ event, language, t }) => {
 
 
   return (
-    <section className="relative h-[65vh] min-h-[500px] w-full overflow-hidden">
+    <section className="relative h-[55vh] sm:h-[65vh] min-h-[400px] sm:min-h-[500px] w-full overflow-hidden">
       <motion.img
         initial={{ scale: 1.1 }}
         animate={{ scale: 1 }}
@@ -21,7 +21,7 @@ const EventHero = ({ event, language, t }) => {
       />
       <div className="absolute inset-0 bg-black/40" />
 
-      <div className="absolute top-8 left-8 z-20">
+      <div className="absolute top-4 left-4 sm:top-8 sm:left-8 z-20">
         <button
           onClick={() => navigate(-1)}
           className="group bg-white/10 backdrop-blur-md hover:bg-white/20 text-white border border-white/20 px-4 py-2 rounded-2xl flex items-center gap-2 transition-all active:scale-95"
@@ -31,7 +31,7 @@ const EventHero = ({ event, language, t }) => {
         </button>
       </div>
 
-      <div className="absolute bottom-12 left-0 right-0 z-10">
+      <div className="absolute bottom-6 sm:bottom-12 left-0 right-0 z-10">
         <div className="max-w-7xl mx-auto px-6 md:px-12">
           <motion.div
             initial={{ y: 30, opacity: 0 }}

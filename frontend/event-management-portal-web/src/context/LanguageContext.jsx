@@ -51,7 +51,9 @@ export const LanguageProvider = ({ children }) => {
     upcoming: "Sắp diễn ra",
     ongoing: "Đang diễn ra",
     completed: "Đã kết thúc",
-    hour_ago: "giờ trước"
+    hour_ago: "giờ trước",
+    session_start: "Phiên bắt đầu",
+    session_end: "Phiên kết thúc"
   };
 
   const t = (key) => {

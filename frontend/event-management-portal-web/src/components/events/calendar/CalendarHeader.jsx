@@ -30,10 +30,12 @@ const CalendarHeader = ({
 
       <div
         className="
-          text-2xl
+          text-xl
+          sm:text-2xl
           font-bold
           text-slate-800
           tracking-tight
+          text-center
         "
       >
         {language === "VI"

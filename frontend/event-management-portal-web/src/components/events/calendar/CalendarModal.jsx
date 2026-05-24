@@ -18,7 +18,7 @@ const CalendarModal = ({
   return (
     <div
       onClick={onClose}
-      className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4"
+      className="fixed inset-0 z-[150] bg-black/50 backdrop-blur-sm flex items-center justify-center p-4"
     >
       <div
         onClick={(e) => e.stopPropagation()}
