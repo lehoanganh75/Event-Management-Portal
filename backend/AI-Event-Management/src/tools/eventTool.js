@@ -68,7 +68,8 @@ const pickRelevantEventsFromCache = (eventDbContext = "", userPrompt = "", limit
   const stopWords = new Set([
     "hãy", "tìm", "cho", "tôi", "sự", "kiện", "về", "và", "tại", "trường", "đại", 
     "học", "công", "nghiệp", "của", "có", "là", "trong", "ở", "được", "đến", 
-    "các", "những", "tôi", "muốn", "hỏi", "xem", "lịch", "trình", "ngày", "hội", "thảo", "workshop", "event"
+    "các", "những", "tôi", "muốn", "hỏi", "xem", "lịch", "trình", "ngày", "hội", "thảo", "workshop", "event",
+    "viết", "bài", "đăng", "quảng", "bá", "tạo", "caption", "post", "facebook", "linkedin", "email", "thông", "báo", "giới", "thiệu"
   ]);
 
   // Extract clean keywords from userPrompt (Vietnamese support)
@@ -148,6 +149,13 @@ const querySessionsForEvent = async (eventId) => {
   );
 };
 
+const queryPresentersForEvent = async (eventId) => {
+  return await query(
+    `SELECT presenter_account_id FROM event_presenters WHERE event_id = ? AND is_deleted = 0`,
+    [eventId]
+  );
+};
+
 module.exports = {
   isPlanningRequest,
   isEventQuery,
@@ -158,5 +166,6 @@ module.exports = {
   queryCandidateEvents,
   queryFeedbacksForEvent,
   querySessionsForEvent,
+  queryPresentersForEvent,
   toSafeString,
 };
