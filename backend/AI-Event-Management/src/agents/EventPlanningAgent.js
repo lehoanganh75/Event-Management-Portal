@@ -322,6 +322,12 @@ Hãy chỉnh sửa lại khối JSON trên để khắc phục hoàn toàn các 
   finalPlan.dataSourceQuality = dataSourceQuality;
   finalPlan.similarEventsUsed = selectedEvents.length;
   finalPlan.needsHumanReview = needsHumanReview;
+  finalPlan.referencedEvents = selectedEvents.map(e => ({
+    id: e.id,
+    title: e.title,
+    location: e.location,
+    score: parseFloat(e.finalScore.toFixed(2))
+  }));
 
   await logPlanningAudit({
     sessionId,
