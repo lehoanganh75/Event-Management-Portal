@@ -117,7 +117,21 @@ function searchRelevantChunks(question, limit = 4) {
 
 const handleChat = async (req, res) => {
   try {
-    const { prompt } = req.body;
+    let { prompt } = req.body;
+
+    if (!prompt) {
+      if (req.body.statsJson) {
+        prompt = `Hãy phân tích dữ liệu thống kê sự kiện sau và đưa ra nhận xét chuyên sâu: ${req.body.statsJson}`;
+      } else if (req.body.text && req.body.isExtraction) {
+        prompt = `Trích xuất thông tin sự kiện từ văn bản sau và trả về DUY NHẤT định dạng JSON. 
+        Yêu cầu các trường: title, subject, suggestedStartTime, suggestedEndTime, suggestedLocation, estimatedParticipants, programItems (mảng các session).
+        Văn bản: ${req.body.text}`;
+      } else if (req.body.eventDetails) {
+        prompt = `Dựa trên thông tin sự kiện sau, hãy viết một bài đăng truyền thông (Facebook/LinkedIn) hấp dẫn. 
+        Yêu cầu: Trả về JSON có cấu trúc {"title": "...", "content": "..."}.
+        Dữ liệu: ${req.body.eventDetails}`;
+      }
+    }
 
     if (!prompt) {
       return res.status(400).json({

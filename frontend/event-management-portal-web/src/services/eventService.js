@@ -407,26 +407,19 @@ const eventService = {
             return api.post('/api/v1/chat/messages', data, { timeout: 60000 });
         },
         analyzeStats: (statsJson) => {
-            const prompt = `Hãy phân tích dữ liệu thống kê sự kiện sau và đưa ra nhận xét chuyên sâu: ${statsJson}`;
             const token = localStorage.getItem('accessToken');
             const api = token ? privateApi : publicApi;
-            return api.post('/ai/api/chat', { prompt }, { timeout: 90000 });
+            return api.post('/ai/api/chat', { statsJson }, { timeout: 90000 });
         },
         extractFromText: (text) => {
-            const prompt = `Trích xuất thông tin sự kiện từ văn bản sau và trả về DUY NHẤT định dạng JSON. 
-            Yêu cầu các trường: title, subject, suggestedStartTime, suggestedEndTime, suggestedLocation, estimatedParticipants, programItems (mảng các session).
-            Văn bản: ${text}`;
             const token = localStorage.getItem('accessToken');
             const api = token ? privateApi : publicApi;
-            return api.post('/ai/api/chat', { prompt, isExtraction: true }, { timeout: 90000 });
+            return api.post('/ai/api/chat', { text, isExtraction: true }, { timeout: 90000 });
         },
         generateMediaPost: (eventDetails) => {
-            const prompt = `Dựa trên thông tin sự kiện sau, hãy viết một bài đăng truyền thông (Facebook/LinkedIn) hấp dẫn. 
-            Yêu cầu: Trả về JSON có cấu trúc {"title": "...", "content": "..."}.
-            Dữ liệu: ${eventDetails}`;
             const token = localStorage.getItem('accessToken');
             const api = token ? privateApi : publicApi;
-            return api.post('/ai/api/chat', { prompt }, { timeout: 90000 });
+            return api.post('/ai/api/chat', { eventDetails }, { timeout: 90000 });
         },
     },
 
