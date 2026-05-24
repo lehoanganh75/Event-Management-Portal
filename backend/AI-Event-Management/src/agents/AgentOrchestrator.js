@@ -15,6 +15,13 @@ async function chatWithAI({ userPrompt, pdfContext = "", isExtraction = false, a
     return await EventPlanningAgent.run(userPrompt, accountId);
   }
 
+  // 1.5 PHÂN TÍCH SỐ LIỆU THỐNG KÊ (Event Stats/Feedback Analysis)
+  if (userPrompt.includes("Hãy phân tích dữ liệu thống kê sự kiện sau")) {
+    const FeedbackAnalysisAgent = require("./FeedbackAnalysisAgent");
+    console.log("[AgentOrchestrator] Intent: STATS_ANALYSIS -> Invoking FeedbackAnalysisAgent...");
+    return await FeedbackAnalysisAgent.run({ userPrompt, isExtraction });
+  }
+
   const externalDataPrompt = isExternalDataPrompt(userPrompt);
   const eventQuery = isEventQuery(userPrompt);
 
