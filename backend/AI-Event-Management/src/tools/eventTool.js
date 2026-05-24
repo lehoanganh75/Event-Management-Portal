@@ -127,7 +127,7 @@ const queryCandidateEvents = async () => {
   return await query(`
     SELECT id, title, description, event_topic, location, start_time, end_time, max_participants, registration_deadline, event_mode, has_lucky_draw, check_in_enabled, created_at
     FROM events
-    WHERE status IN ('PUBLISHED', 'ONGOING', 'COMPLETED')
+    WHERE status IN ('PUBLISHED', 'ONGOING', 'COMPLETED', 'PLAN_APPROVED', 'DRAFT', 'PLAN_PENDING_APPROVAL', 'EVENT_PENDING_APPROVAL')
   `);
 };
 
