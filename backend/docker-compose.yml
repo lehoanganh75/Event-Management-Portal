@@ -176,8 +176,6 @@ services:
         echo "Ollama server is up!"
         echo "Pulling qwen2.5:3b model..."
         ollama pull qwen2.5:3b
-        echo "Pulling nomic-embed-text model for embeddings..."
-        ollama pull nomic-embed-text
         echo "Creating event-assistant model..."
         ollama create event-assistant -f /Modelfile
         echo "Ollama setup complete!"
@@ -226,6 +224,33 @@ services:
       - identity-service
       - lucky-draw-service
       - notification-service
+    networks:
+      - micro-network
+
+# ========================
+# FRONTEND
+# ========================
+  frontend:
+    build: 
+      context: ../frontend/event-management-portal-web
+      dockerfile: Dockerfile
+    container_name: event-management-frontend
+    restart: always
+    ports:
+      - "80:80"
+    depends_on:
+      - kong
+    networks:
+      - micro-network
+
+# ========================
+# CLOUDFLARE TUNNEL
+# ========================
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    container_name: cloudflared-tunnel
+    restart: always
+    command: tunnel --no-autoupdate run --token eyJhIjoiMzdkMjllMjAwZjg3NGUyYjM2ZTJiMjU2OWM1NWE0MGIiLCJ0IjoiOWYzZjc0MGEtNDFjOS00YzZjLThhOTEtNDgwZWU2NmNiMGZiIiwicyI6Ik5tWmpPVGhpWm1VdE5tVTNPQzAwWVRrekxXRXdPRGN0WW1Vd09ETTVObU5tTnpWbCJ9 --protocol http2
     networks:
       - micro-network
 
