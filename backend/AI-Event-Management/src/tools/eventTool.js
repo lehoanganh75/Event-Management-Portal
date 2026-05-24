@@ -44,6 +44,46 @@ const toSafeString = (val) => {
   return String(val);
 };
 
+const detectDateRangeInPrompt = (prompt = "") => {
+  const lower = prompt.toLowerCase();
+  let startDate = null;
+  let endDate = null;
+
+  // Today is May 24, 2026 based on system clock
+  const today = new Date(2026, 4, 24);
+
+  if (lower.includes("hôm nay") || lower.includes("ngày mai")) {
+    startDate = new Date(today);
+    if (lower.includes("ngày mai")) {
+      startDate.setDate(startDate.getDate() + 1);
+    }
+  }
+
+  const dayMatches = lower.match(/(?:ngày|đến)\s*(\d{1,2})/g);
+  if (dayMatches) {
+    dayMatches.forEach(m => {
+      const dayNum = parseInt(m.match(/\d+/)[0], 10);
+      if (dayNum >= 1 && dayNum <= 31) {
+        const d = new Date(today.getFullYear(), today.getMonth(), dayNum);
+        if (!startDate) {
+          startDate = d;
+        } else {
+          endDate = d;
+        }
+      }
+    });
+  }
+
+  if (startDate && !endDate) {
+    if (lower.includes("đến")) {
+      endDate = startDate;
+      startDate = new Date(today);
+    }
+  }
+
+  return { startDate, endDate };
+};
+
 const pickRelevantEventsFromCache = (eventDbContext = "", userPrompt = "", limit = 5) => {
   const text = toSafeString(eventDbContext);
 
@@ -78,15 +118,24 @@ const pickRelevantEventsFromCache = (eventDbContext = "", userPrompt = "", limit
     .split(/\s+/)
     .filter((x) => x.length >= 2 && !stopWords.has(x));
 
-  let filtered = [];
+  const dateRange = detectDateRangeInPrompt(userPrompt);
 
-  if (keywords.length > 0) {
-    const scoredBlocks = blocks.map((block) => {
-      const lowerBlock = block.toLowerCase();
-      const titleLine = lowerBlock.split('\n').find((line) => line.includes('tên:')) || '';
-      let score = 0;
+  const scoredBlocks = blocks.map((block) => {
+    const lowerBlock = block.toLowerCase();
+    const titleLine = lowerBlock.split('\n').find((line) => line.includes('tên:')) || '';
+    let score = 0;
+
+    if (keywords.length > 0) {
       keywords.forEach((kw) => {
-        if (lowerBlock.includes(kw)) {
+        let matches = false;
+        if (/^\d+$/.test(kw) || kw.length <= 3) {
+          const regex = new RegExp(`\\b${kw}\\b|\\b${kw}/|/${kw}/`, 'i');
+          matches = regex.test(lowerBlock);
+        } else {
+          matches = lowerBlock.includes(kw);
+        }
+
+        if (matches) {
           score += 1;
           // Boost for matching in the title line specifically
           if (titleLine.includes(kw)) {
@@ -94,32 +143,44 @@ const pickRelevantEventsFromCache = (eventDbContext = "", userPrompt = "", limit
           }
         }
       });
-      return { block, score };
-    });
-
-    filtered = scoredBlocks
-      .filter((x) => x.score > 0)
-      .sort((a, b) => b.score - a.score)
-      .map((x) => x.block);
-  }
-
-  if (filtered.length === 0) {
-    let statusFiltered = blocks;
-    if (
-      lowerPrompt.includes("sắp diễn ra") ||
-      lowerPrompt.includes("sắp tới") ||
-      lowerPrompt.includes("mở đăng ký") ||
-      lowerPrompt.includes("workshop") ||
-      lowerPrompt.includes("event")
-    ) {
-      statusFiltered = blocks.filter((b) =>
-        /PUBLISHED|ONGOING|Đã công bố|Đang diễn ra/i.test(b)
-      );
     }
-    filtered = statusFiltered;
-  }
 
-  const result = filtered.slice(0, limit).join("\n\n---\n\n");
+    if (dateRange.startDate) {
+      const startMatch = block.match(/Bắt đầu:\s*(\d{2})\/(\d{2})\/(\d{4})/);
+      if (startMatch) {
+        const day = parseInt(startMatch[1], 10);
+        const month = parseInt(startMatch[2], 10);
+        const year = parseInt(startMatch[3], 10);
+        const eventStart = new Date(year, month - 1, day);
+
+        if (dateRange.endDate) {
+          if (eventStart >= dateRange.startDate && eventStart <= dateRange.endDate) {
+            score += 100;
+          }
+        } else {
+          if (eventStart.getTime() === dateRange.startDate.getTime()) {
+            score += 100;
+          }
+        }
+      }
+    }
+
+    if (/Trạng thái:\s*ONGOING|Đang diễn ra/i.test(block)) {
+      score += 15;
+    } else if (/Trạng thái:\s*PUBLISHED|Đã công bố/i.test(block)) {
+      score += 10;
+    }
+
+    return { block, score };
+  });
+
+  const filtered = scoredBlocks
+    .filter((x) => x.score > 0)
+    .sort((a, b) => b.score - a.score)
+    .map((x) => x.block);
+
+  const resultBlocks = filtered.length > 0 ? filtered : blocks;
+  const result = resultBlocks.slice(0, limit).join("\n\n---\n\n");
   
   return statsData ? result + "\n\n" + statsData : result;
 };

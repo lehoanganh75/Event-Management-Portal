@@ -467,26 +467,19 @@ const NotificationManagement = ({
         <div className="flex justify-center gap-2 mt-8">
           <button
             onClick={() => setPage(p => Math.max(1, p - 1))}
-            className="p-2 border border-gray-200 rounded-xl hover:bg-gray-50 disabled:opacity-50"
+            className="p-2 border border-gray-200 rounded-xl hover:bg-gray-50 disabled:opacity-50 cursor-pointer"
             disabled={page === 1}
           >
             <ChevronLeft size={20} />
           </button>
-          {Array.from({ length: totalPages }, (_, i) => i + 1).map((num) => (
-            <button
-              key={num}
-              onClick={() => setPage(num)}
-              className={`w-10 h-10 rounded-xl flex items-center justify-center text-sm font-medium transition-all ${page === num
-                ? "bg-blue-600 text-white shadow-sm"
-                : "border border-gray-200 hover:bg-gray-50"
-              }`}
-            >
-              {num}
-            </button>
-          ))}
+          
+          <span className="h-10 px-4 bg-white border border-gray-200 rounded-xl flex items-center justify-center text-sm font-extrabold text-slate-700 shadow-sm select-none">
+            {page}/{totalPages}
+          </span>
+
           <button
             onClick={() => setPage(p => Math.min(totalPages, p + 1))}
-            className="p-2 border border-gray-200 rounded-xl hover:bg-gray-50 disabled:opacity-50"
+            className="p-2 border border-gray-200 rounded-xl hover:bg-gray-50 disabled:opacity-50 cursor-pointer"
             disabled={page === totalPages}
           >
             <ChevronRight size={20} />

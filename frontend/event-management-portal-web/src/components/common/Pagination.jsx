@@ -30,21 +30,9 @@ const Pagination = ({
           <ChevronLeft size={20} />
         </button>
 
-        <div className="flex items-center gap-1">
-          {Array.from({ length: totalPages }, (_, i) => i + 1).map((num) => (
-            <button
-              key={num}
-              onClick={() => onPageChange(num)}
-              className={`w-10 h-10 rounded-xl flex items-center justify-center text-sm font-bold transition-all ${
-                currentPage === num 
-                  ? "bg-blue-600 text-white shadow-lg shadow-blue-200 scale-105" 
-                  : "bg-white border border-gray-200 text-slate-400 hover:bg-slate-50 hover:text-slate-600 shadow-sm"
-              }`}
-            >
-              {num}
-            </button>
-          ))}
-        </div>
+        <span className="h-10 px-4 bg-white border border-gray-200 rounded-xl flex items-center justify-center text-sm font-extrabold text-slate-700 shadow-sm select-none">
+          {currentPage}/{totalPages}
+        </span>
 
         <button
           onClick={() => onPageChange(Math.min(totalPages, currentPage + 1))}
