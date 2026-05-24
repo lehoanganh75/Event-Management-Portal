@@ -64,22 +64,58 @@ const pickRelevantEventsFromCache = (eventDbContext = "", userPrompt = "", limit
 
   const lowerPrompt = userPrompt.toLowerCase();
 
-  let filtered = blocks;
+  // Define stop words to ignore when scoring event relevance
+  const stopWords = new Set([
+    "hãy", "tìm", "cho", "tôi", "sự", "kiện", "về", "và", "tại", "trường", "đại", 
+    "học", "công", "nghiệp", "của", "có", "là", "trong", "ở", "được", "đến", 
+    "các", "những", "tôi", "muốn", "hỏi", "xem", "lịch", "trình", "ngày", "hội", "thảo", "workshop", "event"
+  ]);
 
-  if (
-    lowerPrompt.includes("sắp diễn ra") ||
-    lowerPrompt.includes("sắp tới") ||
-    lowerPrompt.includes("mở đăng ký") ||
-    lowerPrompt.includes("workshop") ||
-    lowerPrompt.includes("event")
-  ) {
-    filtered = blocks.filter((b) =>
-      /PUBLISHED|ONGOING|Đã công bố|Đang diễn ra/i.test(b)
-    );
+  // Extract clean keywords from userPrompt (Vietnamese support)
+  const keywords = lowerPrompt
+    .replace(/[^\w\sàáạảãâầấậẩẫăằắặẳẵèéẹẻẽêềếệểễìíịỉĩòóọỏõôồốộổỗơờớợởỡùúụủũưừứựửữỳýỵỷỹđ]/g, " ")
+    .split(/\s+/)
+    .filter((x) => x.length >= 2 && !stopWords.has(x));
+
+  let filtered = [];
+
+  if (keywords.length > 0) {
+    const scoredBlocks = blocks.map((block) => {
+      const lowerBlock = block.toLowerCase();
+      const titleLine = lowerBlock.split('\n').find((line) => line.includes('tên:')) || '';
+      let score = 0;
+      keywords.forEach((kw) => {
+        if (lowerBlock.includes(kw)) {
+          score += 1;
+          // Boost for matching in the title line specifically
+          if (titleLine.includes(kw)) {
+            score += 5;
+          }
+        }
+      });
+      return { block, score };
+    });
+
+    filtered = scoredBlocks
+      .filter((x) => x.score > 0)
+      .sort((a, b) => b.score - a.score)
+      .map((x) => x.block);
   }
 
   if (filtered.length === 0) {
-    filtered = blocks;
+    let statusFiltered = blocks;
+    if (
+      lowerPrompt.includes("sắp diễn ra") ||
+      lowerPrompt.includes("sắp tới") ||
+      lowerPrompt.includes("mở đăng ký") ||
+      lowerPrompt.includes("workshop") ||
+      lowerPrompt.includes("event")
+    ) {
+      statusFiltered = blocks.filter((b) =>
+        /PUBLISHED|ONGOING|Đã công bố|Đang diễn ra/i.test(b)
+      );
+    }
+    filtered = statusFiltered;
   }
 
   const result = filtered.slice(0, limit).join("\n\n---\n\n");
