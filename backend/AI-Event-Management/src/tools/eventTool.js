@@ -9,7 +9,7 @@ const isEventQuery = (prompt = "") => {
 };
 
 const isExternalDataPrompt = (prompt = "") => {
-  return /dữ liệu\s*:|dữ liệu sự kiện\s*:|eventdetails|thông tin sự kiện sau|hãy viết|bài đăng truyền thông|facebook|linkedin|generate|lập kế hoạch|mẫu sự kiện|template/i.test(prompt);
+  return prompt.includes("Dựa trên thông tin sự kiện sau, hãy viết một bài đăng truyền thông");
 };
 
 const calculateTextSimilarity = (text1, text2) => {
