@@ -231,18 +231,9 @@ const PlanManagement = ({
             <ChevronLeft size={20} />
           </button>
 
-          {Array.from({ length: totalPages }, (_, i) => i + 1).map((num) => (
-            <button
-              key={num}
-              onClick={() => setCurrentPage(num)}
-              className={`w-10 h-10 rounded-xl flex items-center justify-center text-sm font-black transition-all ${currentPage === num
-                ? "bg-blue-600 text-white shadow-md shadow-blue-100"
-                : "bg-white border border-slate-200 text-slate-400 hover:border-blue-300 hover:text-blue-600"
-                }`}
-            >
-              {num}
-            </button>
-          ))}
+          <span className="h-10 px-4 bg-white border border-slate-200 rounded-xl flex items-center justify-center text-sm font-extrabold text-slate-700 shadow-sm select-none">
+            {currentPage}/{totalPages}
+          </span>
 
           <button
             onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}

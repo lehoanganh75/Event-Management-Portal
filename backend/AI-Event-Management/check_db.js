@@ -8,15 +8,20 @@ async function check() {
       port: 3309,
       user: "root",
       password: "root",
-      database: "event_db"
+      database: "lucky_draw_db"
     });
-    console.log("Connected successfully!");
+    console.log("Connected successfully to lucky_draw_db!");
 
-    const [cols] = await conn.execute("SHOW COLUMNS FROM event_sessions");
-    console.log("Columns in event_sessions:", cols.map(c => c.Field).join(", "));
+    const [tables] = await conn.execute("SHOW TABLES");
+    console.log("Tables in lucky_draw_db:", tables.map(t => Object.values(t)[0]));
 
-    const [sess] = await conn.execute("SELECT * FROM event_sessions LIMIT 2");
-    console.log("Sample event_sessions:", sess);
+    const tableNames = tables.map(t => Object.values(t)[0]);
+    for (const table of tableNames) {
+      const [cols] = await conn.execute(`SHOW COLUMNS FROM ${table}`);
+      console.log(`Columns in ${table}:`, cols.map(c => `${c.Field} (${c.Type})`).join(", "));
+      const [[{ count }]] = await conn.execute(`SELECT COUNT(*) as count FROM ${table}`);
+      console.log(`Table: ${table}, Count: ${count}`);
+    }
 
   } catch (err) {
     console.error("Failed:", err);

@@ -79,6 +79,9 @@ function MessageContent({ text }) {
   // Đảm bảo không bao giờ rò rỉ tag này ra UI
   cleanText = cleanText.replace(/\[EVENT_CARDS_START\]/g, "").replace(/\[EVENT_CARDS_END\]/g, "").trim();
 
+  // Dọn dẹp triệt để mọi khối JSON thô rò rỉ (không có thẻ bao bọc) từ LLM
+  cleanText = cleanText.replace(/\[\s*\{[\s\S]*?\}\s*\]/g, "").trim();
+
   let eventCards = [];
   if (cardMatch && cardMatch[1]) {
     try {

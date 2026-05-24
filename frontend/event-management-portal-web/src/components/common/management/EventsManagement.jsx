@@ -919,27 +919,9 @@ const EventsManagement = ({ type = "lecturer", mode = "all" }) => {
             <ChevronLeft size={18} />
           </button>
 
-          {Array.from(
-            { length: totalPages },
-            (_, i) => i + 1
-          ).map((num) => (
-            <button
-              key={num}
-              onClick={() => setPage(num)}
-              className={`
-                w-10 h-10
-                rounded-xl
-                text-sm font-medium
-                transition-all
-                ${page === num
-                  ? "bg-[#1E40AF] text-white shadow-sm"
-                  : "bg-white border border-slate-200 text-slate-600 hover:bg-slate-100"
-                }
-              `}
-            >
-              {num}
-            </button>
-          ))}
+          <span className="h-10 px-4 bg-white border border-slate-200 rounded-xl flex items-center justify-center text-sm font-extrabold text-slate-700 shadow-sm select-none">
+            {page}/{totalPages}
+          </span>
 
           <button
             onClick={() =>

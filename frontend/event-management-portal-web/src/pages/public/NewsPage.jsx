@@ -48,7 +48,7 @@ export default function NewsPage() {
   const loadData = useCallback(async () => {
     try {
       setLoading(true);
-      const res = await eventService.getAllPosts();
+      const res = await eventService.getAllPosts({ size: 1000 });
 
       const allPosts = Array.isArray(res.data) ? res.data : [];
       setPosts(allPosts);

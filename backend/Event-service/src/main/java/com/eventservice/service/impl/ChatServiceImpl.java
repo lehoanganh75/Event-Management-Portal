@@ -1038,7 +1038,9 @@ public class ChatServiceImpl implements ChatService {
                 """, userQuery, action, status, message, eventJson);
             String response = geminiChatService.callGemini(prompt);
             if (response != null && !response.isBlank() && !response.contains("ERROR_AI_OVERLOADED")) {
-                return response.trim();
+                String cleanResponse = response.replaceAll("(?s)\\[\\s*\\{[\\s\\S]*?\\}\\s*\\]", "").trim();
+                cleanResponse = cleanResponse.replaceAll("(?s)\\{[\\s\\S]*?\\}", "").trim();
+                return cleanResponse.trim();
             }
         } catch (Exception e) {
             log.warn("Gemini call failed for natural response: {}", e.getMessage());

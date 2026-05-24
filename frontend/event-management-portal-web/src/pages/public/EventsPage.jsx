@@ -112,7 +112,7 @@ const EventsPage = () => {
 
       const res = eventId
         ? await eventService.getEventPosts(eventId)
-        : await eventService.getAllPosts();
+        : await eventService.getAllPosts({ size: 1000 });
 
       setPosts(res.data || []);
     } catch (err) {

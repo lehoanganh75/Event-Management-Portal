@@ -174,10 +174,10 @@ const AdminDepartmentsRolesPage = () => {
 
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h2 className="text-2xl font-black text-slate-800 tracking-tight uppercase">
+          <h2 className="text-base font-black text-slate-800 tracking-tight uppercase">
             {activeTab === "departments" ? "Cơ cấu tổ chức" : "Phân quyền hệ thống"}
           </h2>
-          <p className="text-slate-500 text-sm mt-1">
+          <p className="text-slate-400 text-[11px] mt-0.5">
             {activeTab === "departments"
               ? "Quản lý đơn vị tổ chức trong hệ thống"
               : "Quản lý vai trò và phân quyền tài khoản người dùng"}
@@ -185,26 +185,26 @@ const AdminDepartmentsRolesPage = () => {
         </div>
         <button
           onClick={activeTab === "departments" ? openCreateDept : openCreateRole}
-          className="flex items-center gap-2 bg-blue-600 text-white px-5 py-2.5 rounded-xl font-bold shadow-lg shadow-blue-200 hover:bg-blue-700 transition-all cursor-pointer active:scale-95"
+          className="flex items-center gap-2 bg-blue-600 text-white px-5 py-2.5 rounded-xl font-bold shadow-lg shadow-blue-200 hover:bg-blue-700 transition-all cursor-pointer active:scale-95 text-xs"
         >
           <Plus size={18} /> {activeTab === "departments" ? "Thêm đơn vị" : "Thêm vai trò"}
         </button>
       </div>
-
+ 
       {activeTab === "departments" && (
         <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse">
               <thead>
-                <tr className="bg-slate-50/75 border-b border-slate-200 text-xs font-bold text-slate-500 uppercase tracking-wider">
-                  <th className="px-6 py-4">Đơn vị</th>
-                  <th className="px-6 py-4">Phân loại</th>
-                  <th className="px-6 py-4">Liên hệ</th>
-                  <th className="px-6 py-4">Địa điểm</th>
-                  <th className="px-6 py-4">Người sở hữu</th>
-                  <th className="px-6 py-4">Trạng thái</th>
-                  <th className="px-6 py-4 text-center">Phê duyệt yêu cầu</th>
-                  <th className="px-6 py-4 text-right">Thao tác</th>
+                <tr className="bg-slate-50/75 border-b border-slate-200 text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+                  <th className="px-4 py-3">Đơn vị</th>
+                  <th className="px-4 py-3">Phân loại</th>
+                  <th className="px-4 py-3">Liên hệ</th>
+                  <th className="px-4 py-3">Địa điểm</th>
+                  <th className="px-4 py-3">Người sở hữu</th>
+                  <th className="px-4 py-3">Trạng thái</th>
+                  <th className="px-4 py-3 text-center">Phê duyệt yêu cầu</th>
+                  <th className="px-4 py-3 text-right">Thao tác</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 text-sm">
@@ -224,120 +224,122 @@ const AdminDepartmentsRolesPage = () => {
                     statusClass = "bg-slate-50 text-slate-500 border-slate-200";
                     statusText = "Đình chỉ";
                   }
-
+ 
                   return (
                     <tr key={dept.id} className="hover:bg-slate-50/50 transition-colors">
                       {/* Đơn vị */}
-                      <td className="px-6 py-4">
+                      <td className="px-4 py-3">
                         <div className="flex items-center gap-3">
                           {dept.logoUrl ? (
                             <img
                               src={dept.logoUrl}
                               alt={dept.name}
-                              className="w-10 h-10 rounded-xl object-cover border border-slate-100 shrink-0"
+                              className="w-9 h-9 rounded-xl object-cover border border-slate-100 shrink-0"
                             />
                           ) : (
-                            <div className="w-10 h-10 bg-blue-100 rounded-xl flex items-center justify-center shrink-0">
-                              <Building2 size={20} className="text-blue-600" />
+                            <div className="w-9 h-9 bg-blue-100 rounded-xl flex items-center justify-center shrink-0">
+                              <Building2 size={18} className="text-blue-600" />
                             </div>
                           )}
                           <div>
-                            <div className="font-bold text-slate-800 leading-snug">{dept.name}</div>
+                            <div className="font-bold text-slate-800 leading-snug text-xs max-w-[200px] line-clamp-2">{dept.name}</div>
                             {dept.description && (
-                              <div className="text-xs text-slate-400 line-clamp-1 mt-0.5 max-w-[200px]">
+                              <div className="text-[10px] text-slate-400 line-clamp-1 mt-0.5 max-w-[180px]">
                                 {dept.description}
                               </div>
                             )}
                           </div>
                         </div>
                       </td>
-
+ 
                       {/* Loại hình */}
-                      <td className="px-6 py-4">
-                        <span className="text-[10px] font-black text-blue-600 bg-blue-50 border border-blue-100 px-2 py-0.5 rounded-md uppercase tracking-wider">
+                      <td className="px-4 py-3">
+                        <span className="text-[9px] font-black text-blue-600 bg-blue-50 border border-blue-100 px-2 py-0.5 rounded-md uppercase tracking-wider whitespace-nowrap">
                           {dept.type || "ORGANIZATION"}
                         </span>
                       </td>
-
+ 
                       {/* Liên hệ */}
-                      <td className="px-6 py-4">
-                        <div className="text-xs space-y-0.5">
+                      <td className="px-4 py-3">
+                        <div className="text-xs space-y-0.5 whitespace-nowrap">
                           <p className="text-slate-600 font-medium">{dept.email}</p>
-                          {dept.phone && <p className="text-slate-400">{dept.phone}</p>}
+                          {dept.phone && <p className="text-slate-400 text-[10px]">{dept.phone}</p>}
                         </div>
                       </td>
-
+ 
                       {/* Văn phòng / Địa điểm */}
-                      <td className="px-6 py-4 text-slate-600 text-xs">
-                        {dept.officeLocation || <span className="text-slate-300">-</span>}
+                      <td className="px-4 py-3 text-slate-600 text-xs">
+                        <div className="max-w-[150px] line-clamp-2 leading-relaxed">
+                          {dept.officeLocation || <span className="text-slate-300">-</span>}
+                        </div>
                       </td>
-
+ 
                       {/* Người sở hữu */}
-                      <td className="px-6 py-4">
+                      <td className="px-4 py-3">
                         {dept.ownerName ? (
-                          <div className="text-xs space-y-0.5">
+                          <div className="text-xs space-y-0.5 whitespace-nowrap">
                             <p className="font-bold text-slate-800 leading-none mb-1">
                               {dept.ownerName}
                             </p>
-                            <p className="text-slate-500 text-[11px]">{dept.ownerEmail}</p>
+                            <p className="text-slate-500 text-[10px]">{dept.ownerEmail}</p>
                             {dept.ownerPhone && (
-                              <p className="text-slate-400 text-[10px]">{dept.ownerPhone}</p>
+                              <p className="text-slate-400 text-[9px]">{dept.ownerPhone}</p>
                             )}
                           </div>
                         ) : (
-                          <span className="font-mono text-[11px] text-slate-400">
+                          <span className="font-mono text-[10px] text-slate-400">
                             {dept.ownerAccountId || "Hệ thống"}
                           </span>
                         )}
                       </td>
-
+ 
                       {/* Trạng thái */}
-                      <td className="px-6 py-4">
-                        <span className={`px-2.5 py-1 rounded-full text-[10px] font-black uppercase border ${statusClass}`}>
+                      <td className="px-4 py-3">
+                        <span className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase border whitespace-nowrap ${statusClass}`}>
                           {statusText}
                         </span>
                       </td>
-
+ 
                       {/* Phê duyệt yêu cầu */}
-                      <td className="px-6 py-4">
-                        <div className="flex items-center justify-center gap-2">
+                      <td className="px-4 py-3">
+                        <div className="flex items-center justify-center gap-1.5">
                           {dept.status === "PENDING" ? (
                             <>
                               <button
                                 onClick={() => handleUpdateStatus(dept.id, "APPROVED")}
-                                className="flex items-center justify-center gap-1 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold transition-all cursor-pointer shadow-sm shadow-emerald-100"
+                                className="flex items-center justify-center gap-1 px-2.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold transition-all cursor-pointer shadow-sm shadow-emerald-100 whitespace-nowrap"
                                 title="Chấp nhận yêu cầu"
                               >
-                                <Check size={14} /> Duyệt
+                                <Check size={12} /> Duyệt
                               </button>
                               <button
                                 onClick={() => handleUpdateStatus(dept.id, "REJECTED")}
-                                className="flex items-center justify-center gap-1 px-3 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-600 rounded-lg text-xs font-bold transition-all cursor-pointer border border-rose-100"
+                                className="flex items-center justify-center gap-1 px-2.5 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-600 rounded-lg text-xs font-bold transition-all cursor-pointer border border-rose-100 whitespace-nowrap"
                                 title="Từ chối yêu cầu"
                               >
-                                <X size={14} /> Từ chối
+                                <X size={12} /> Từ chối
                               </button>
                             </>
                           ) : dept.status === "APPROVED" ? (
                             <button
                               onClick={() => handleUpdateStatus(dept.id, "SUSPENDED")}
-                              className="flex items-center justify-center gap-1 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 rounded-lg text-xs font-bold transition-all cursor-pointer"
+                              className="flex items-center justify-center gap-1 px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 rounded-lg text-xs font-bold transition-all cursor-pointer whitespace-nowrap"
                               title="Tạm đình chỉ hoạt động"
                             >
-                              <ShieldAlert size={13} className="text-amber-500" /> Đình chỉ
+                              <ShieldAlert size={12} className="text-amber-500" /> Đình chỉ
                             </button>
                           ) : dept.status === "SUSPENDED" ? (
                             <button
                               onClick={() => handleUpdateStatus(dept.id, "APPROVED")}
-                              className="flex items-center justify-center gap-1 px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 rounded-lg text-xs font-bold transition-all cursor-pointer"
+                              className="flex items-center justify-center gap-1 px-2.5 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 rounded-lg text-xs font-bold transition-all cursor-pointer whitespace-nowrap"
                               title="Kích hoạt lại hoạt động"
                             >
-                              <Check size={13} /> Kích hoạt lại
+                              <Check size={12} /> Kích hoạt lại
                             </button>
                           ) : dept.status === "REJECTED" ? (
                             <button
                               onClick={() => handleUpdateStatus(dept.id, "APPROVED")}
-                              className="flex items-center justify-center gap-1 px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 rounded-lg text-xs font-bold transition-all cursor-pointer"
+                              className="flex items-center justify-center gap-1 px-2.5 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 rounded-lg text-xs font-bold transition-all cursor-pointer whitespace-nowrap"
                               title="Xét duyệt lại"
                             >
                               Duyệt lại
@@ -347,16 +349,16 @@ const AdminDepartmentsRolesPage = () => {
                           )}
                         </div>
                       </td>
-
+ 
                       {/* Thao tác */}
-                      <td className="px-6 py-4 text-right">
-                        <div className="flex justify-end gap-1">
+                      <td className="px-4 py-3 text-right">
+                        <div className="flex justify-end gap-1.5">
                           <button
                             onClick={() => openEditDept(dept)}
                             className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors cursor-pointer"
                             title="Sửa thông tin"
                           >
-                            <Edit2 size={14} />
+                            <Edit2 size={13} />
                           </button>
                           <button
                             onClick={() => {
@@ -366,7 +368,7 @@ const AdminDepartmentsRolesPage = () => {
                             className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
                             title="Xóa đơn vị"
                           >
-                            <Trash2 size={14} />
+                            <Trash2 size={13} />
                           </button>
                         </div>
                       </td>

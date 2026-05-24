@@ -6,19 +6,22 @@ import luckyDrawService from '../../services/luckyDrawService';
 import { showToast } from '../../utils/toast';
 
 /* ================= DUCK COMPONENT ================= */
-const DuckIcon = ({ color = "#FFD700", name = "", isWinner = false, isRacing = false, currentSpeed = 0 }) => {
+const DuckIcon = ({ color = "#FFD700", name = "", isWinner = false, isRacing = false, currentSpeed = 0, size = 50 }) => {
     const tilt = isRacing ? Math.min(currentSpeed * 2, 10) : 0;
+    const labelOffset = size < 40 ? "-top-6" : size < 50 ? "-top-7" : "-top-8";
+    const labelTextSize = size < 40 ? "text-[7px]" : size < 50 ? "text-[8px]" : "text-[9px]";
+    const labelPadding = size < 40 ? "px-1.5 py-0.5" : size < 50 ? "px-2 py-0.5" : "px-3 py-1";
 
     return (
-        <div className="relative flex flex-col items-center select-none">
-            <div className="absolute -top-12 px-4 py-1.5 bg-slate-800/60 backdrop-blur-md border border-white/20 rounded-lg shadow-lg z-20">
-                <span className="text-[11px] font-bold text-white whitespace-nowrap">{name}</span>
+        <div className="relative flex flex-col items-center select-none" style={{ width: size }}>
+            <div className={`absolute ${labelOffset} ${labelPadding} bg-slate-950/20 rounded-md pointer-events-none z-30`}>
+                <span className={`${labelTextSize} font-extrabold text-white whitespace-nowrap drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]`}>{name}</span>
             </div>
 
             <motion.div
                 animate={isRacing ? {
                     rotate: [tilt, tilt - 4, tilt + 4, tilt],
-                    y: [0, -4, 2, 0]
+                    y: [0, -3, 1, 0]
                 } : {}}
                 transition={isRacing ? { repeat: Infinity, duration: 0.15, ease: "linear" } : { duration: 0.4 }}
                 className="relative"
@@ -27,11 +30,11 @@ const DuckIcon = ({ color = "#FFD700", name = "", isWinner = false, isRacing = f
                     <motion.div
                         animate={{ scale: [1, 1.2, 1], opacity: [0.3, 0.6, 0.3] }}
                         transition={{ repeat: Infinity, duration: 0.3 }}
-                        className="absolute -bottom-2 left-1/2 -translate-x-1/2 w-16 h-4 bg-white rounded-full blur-md -z-10"
+                        className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-10 h-2 bg-white rounded-full blur-sm -z-10"
                     />
                 )}
 
-                <svg width="65" height="65" viewBox="0 0 100 100" className="drop-shadow-lg">
+                <svg width={size} height={size} viewBox="0 0 100 100" className="drop-shadow-lg">
                     <path d="M10 60C10 80 30 90 50 90C70 90 90 80 90 60C90 40 70 30 50 30C30 30 10 40 10 60Z" fill={color} />
                     <circle cx="75" cy="40" r="22" fill={color} />
                     <path d="M92 40L108 45L92 50V40Z" fill="#FF4500" />
@@ -301,17 +304,44 @@ const DuckRaceLuckyDraw = ({
                 )}
 
                 <div className="flex-1 relative z-10 flex flex-col lg:flex-row overflow-hidden mt-4">
-                    <div className="flex-1 relative flex flex-col overflow-hidden">
-                        <div className="absolute right-32 top-0 bottom-0 w-24 checkered-line skew-x-[-15deg] z-0 opacity-80" />
+                    <div className="flex-1 relative flex flex-col overflow-hidden px-6 pb-6">
+                        {/* Shared river playground */}
+                        <div className="flex-1 relative bg-gradient-to-b from-sky-400 via-sky-300 to-sky-400 rounded-[2rem] border-4 border-white/20 overflow-hidden shadow-inner">
+                            {/* Slanted Checkered Finish Line at 80% */}
+                            <div className="absolute left-[80%] top-0 bottom-0 w-16 checkered-line skew-x-[-15deg] z-10 opacity-70 border-l-4 border-r-4 border-white/40 shadow-lg" />
+                            
+                            {/* River Waves Background lines */}
+                            <div className="absolute inset-0 pointer-events-none opacity-20 z-0">
+                                <div className="absolute top-1/4 left-0 right-0 h-0.5 bg-white border-t border-dashed border-white/30" />
+                                <div className="absolute top-2/4 left-0 right-0 h-0.5 bg-white border-t border-dashed border-white/30" />
+                                <div className="absolute top-3/4 left-0 right-0 h-0.5 bg-white border-t border-dashed border-white/30" />
+                            </div>
 
-                        <div className="flex-1 relative px-12 py-6 overflow-y-auto custom-scrollbar bg-white/5">
-                            <div className="space-y-8 py-4">
-                                {racers.map((racer) => (
-                                    <div key={racer.id} className="relative h-20 flex items-center group">
-                                        <div className="absolute left-0 right-0 h-[1px] bg-white/5 group-hover:bg-white/10 transition-colors -z-10" />
+                            {/* River Bank Forest top shadow/vibe */}
+                            <div className="absolute top-0 left-0 right-0 h-4 bg-gradient-to-b from-slate-900/10 to-transparent z-10" />
+
+                            <div className="absolute inset-0 p-4">
+                                {racers.map((racer, index) => {
+                                    // Sizing scale based on total count
+                                    const duckSize = racers.length > 40 ? 32 : racers.length > 25 ? 40 : racers.length > 12 ? 48 : 56;
+                                    
+                                    // Distribute ducks evenly from top to bottom
+                                    const topPercent = racers.length > 1 ? (index / (racers.length - 1)) * 74 + 10 : 45;
+                                    
+                                    // Small deterministic wobble to feel natural and offset
+                                    const seed = racer.id.split('').reduce((a, b) => a + b.charCodeAt(0), 0);
+                                    const offset = (seed % 8) - 4;
+                                    const top = Math.min(88, Math.max(8, topPercent + offset));
+
+                                    return (
                                         <motion.div
+                                            key={racer.id}
                                             className="absolute"
-                                            style={{ left: `${racer.progress}%` }}
+                                            style={{
+                                                left: `${racer.progress * 0.82}%`,
+                                                top: `${top}%`,
+                                                zIndex: 20 + Math.floor(top) // overlap lower ducks on top of higher ones
+                                            }}
                                             transition={{ type: "spring", damping: 15 }}
                                         >
                                             <DuckIcon
@@ -320,12 +350,14 @@ const DuckRaceLuckyDraw = ({
                                                 isRacing={phase === 'RACING'}
                                                 currentSpeed={racer.speed}
                                                 isWinner={winner?.id === racer.id}
+                                                size={duckSize}
                                             />
                                         </motion.div>
-                                    </div>
-                                ))}
+                                    );
+                                })}
+
                                 {racers.length === 0 && !loading && (
-                                    <div className="h-full flex flex-col items-center justify-center text-white/40 py-20">
+                                    <div className="h-full flex flex-col items-center justify-center text-white/40">
                                         <Users size={64} className="mb-4 opacity-10" />
                                         <p className="font-bold uppercase tracking-widest text-[10px]">Chưa có người đua hoặc mọi người đã trúng giải</p>
                                     </div>
