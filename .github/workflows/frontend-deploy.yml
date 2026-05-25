@@ -22,12 +22,10 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 22
-          cache: npm
-          cache-dependency-path: frontend/event-management-portal-web/package-lock.json
 
       - name: Install dependencies
         working-directory: frontend/event-management-portal-web
-        run: npm ci
+        run: npm install
 
       - name: Build frontend production
         working-directory: frontend/event-management-portal-web
