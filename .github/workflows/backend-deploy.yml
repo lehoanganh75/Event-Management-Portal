@@ -66,6 +66,16 @@ jobs:
       - name: Checkout backend source
         uses: actions/checkout@v4
 
+      - name: Create dummy env files
+        working-directory: backend
+        run: |
+          touch AI-Event-Management/.env
+          touch Analytics-service/.env
+          touch Event-service/.env
+          touch Identity-service/.env
+          touch Lucky-draw-service/.env
+          touch Notification-service/.env
+
       - name: Validate docker-compose.yml
         working-directory: backend
         run: docker compose config
