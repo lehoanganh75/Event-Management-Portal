@@ -55,6 +55,47 @@ public class AISummaryServiceImpl implements AISummaryService {
             } catch (Exception e) {
                 log.warn("Không thể lấy dữ liệu Lucky Draw cho sự kiện {}: {}", eventId, e.getMessage());
             }
+            // Safe call to get posts and feedbacks for calculating live metrics
+            int totalLikes = 0;
+            int totalComments = 0;
+            double averageRating = 0.0;
+
+            try {
+                List<Map<String, Object>> posts = eventClient.getPostsByEvent(eventId);
+                if (posts != null) {
+                    for (Map<String, Object> post : posts) {
+                        // Calculate likes
+                        Map<String, Object> reactions = (Map<String, Object>) post.get("reactions");
+                        if (reactions != null) {
+                            totalLikes += reactions.size();
+                        }
+                        // Calculate comments
+                        List<?> comments = (List<?>) post.get("comments");
+                        if (comments != null) {
+                            totalComments += comments.size();
+                        }
+                    }
+                }
+            } catch (Exception e) {
+                log.warn("Không thể lấy dữ liệu bài viết (likes/comments) cho sự kiện {}: {}", eventId, e.getMessage());
+            }
+
+            try {
+                List<Map<String, Object>> feedbacks = eventClient.getFeedbacksByEvent(eventId);
+                if (feedbacks != null && !feedbacks.isEmpty()) {
+                    double sumRating = 0;
+                    for (Map<String, Object> feedback : feedbacks) {
+                        Number ratingNum = (Number) feedback.get("rating");
+                        if (ratingNum != null) {
+                            sumRating += ratingNum.doubleValue();
+                        }
+                    }
+                    averageRating = sumRating / feedbacks.size();
+                }
+            } catch (Exception e) {
+                log.warn("Không thể lấy dữ liệu feedbacks (rating) cho sự kiện {}: {}", eventId, e.getMessage());
+            }
+
             EventAnalytic analytic = analyticsRepository.findById(eventId).orElse(null);
 
             if (eventData == null || registrations == null) {
@@ -74,12 +115,19 @@ public class AISummaryServiceImpl implements AISummaryService {
                         .eventId(eventId)
                         .totalRegistrations((int) totalRegistrations)
                         .totalAttendees((int) totalAttendances)
+                        .totalLikes(totalLikes)
+                        .totalComments(totalComments)
+                        .averageRating(averageRating)
                         .build();
             } else {
                 analytic.setTotalRegistrations((int) totalRegistrations);
                 analytic.setTotalAttendees((int) totalAttendances);
+                analytic.setTotalLikes(totalLikes);
+                analytic.setTotalComments(totalComments);
+                analytic.setAverageRating(averageRating);
             }
             analyticsRepository.save(analytic);
+
 
             String quantitativeSummary = String.format(
                     "Tổng đăng ký: %d\nTổng tham gia: %d\nTỷ lệ tham gia thực tế: %.2f%%",

@@ -1,8 +1,9 @@
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import {
   Plus, Eye, Edit, Trash2, Gift, Award,
   Users, Target, X, Settings2, Save, AlertCircle, Loader2, Calendar, Clock,
-  CheckCircle2, XCircle, PlayCircle, Layers, MousePointer2, Trophy, Search
+  CheckCircle2, XCircle, PlayCircle, Layers, MousePointer2, Trophy, Search,
+  ChevronLeft, ChevronRight
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -37,6 +38,25 @@ const LuckyDrawManagement = ({
     eventId: "", title: "", description: "", status: "PENDING", allowMultipleWins: false,
     prizes: [{ name: "", quantity: 1 }]
   });
+
+  // Pagination states and computed variables
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
+
+  const totalPages = useMemo(() => {
+    return Math.ceil((luckyDraws?.length || 0) / itemsPerPage) || 1;
+  }, [luckyDraws]);
+
+  useEffect(() => {
+    if (currentPage > totalPages) {
+      setCurrentPage(totalPages);
+    }
+  }, [totalPages, currentPage]);
+
+  const paginatedDraws = useMemo(() => {
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    return (luckyDraws || []).slice(startIndex, startIndex + itemsPerPage);
+  }, [luckyDraws, currentPage]);
 
   const stats = useMemo(() => ({
     total: luckyDraws?.length || 0,
@@ -219,13 +239,13 @@ const LuckyDrawManagement = ({
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
-                {luckyDraws.map((item) => (
+                {paginatedDraws.map((item) => (
                   <tr key={item.id} className="hover:bg-slate-50 transition-colors">
                     <td className="p-4">
                       <p className="font-bold text-slate-800">{item.title}</p>
                       <p className="text-[10px] text-slate-400 font-mono">ID: {item.id.substring(0, 8)}</p>
                     </td>
-                    <td className="p-4 text-center">
+                    <td className="p-4">
                       <span className="px-2 py-1 bg-indigo-50 rounded text-[10px] font-bold text-indigo-600 border border-indigo-100">
                         {item.eventTitle || item.eventId}
                       </span>
@@ -259,6 +279,31 @@ const LuckyDrawManagement = ({
           </div>
         )}
       </div>
+
+      {/* Pagination */}
+      {totalPages > 1 && (
+        <div className="flex justify-center items-center gap-2 mt-8">
+          <button
+            onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+            disabled={currentPage === 1}
+            className="w-10 h-10 rounded-xl border border-slate-200 bg-white flex items-center justify-center text-slate-500 hover:bg-slate-100 disabled:opacity-50 transition-all"
+          >
+            <ChevronLeft size={18} />
+          </button>
+
+          <span className="h-10 px-4 bg-white border border-slate-200 rounded-xl flex items-center justify-center text-sm font-extrabold text-slate-700 shadow-sm select-none">
+            {currentPage}/{totalPages}
+          </span>
+
+          <button
+            onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+            disabled={currentPage === totalPages}
+            className="w-10 h-10 rounded-xl border border-slate-200 bg-white flex items-center justify-center text-slate-500 hover:bg-slate-100 disabled:opacity-50 transition-all"
+          >
+            <ChevronRight size={18} />
+          </button>
+        </div>
+      )}
 
       {/* MODAL CONFIG */}
       <AnimatePresence>

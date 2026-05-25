@@ -18,4 +18,11 @@ public interface EventClient {
 
     @GetMapping("/surveys/event/{eventId}")
     Map<String, Object> getSurveyByEvent(@PathVariable("eventId") String eventId);
+
+    @GetMapping("/posts/detail/{eventId}")
+    List<Map<String, Object>> getPostsByEvent(@PathVariable("eventId") String eventId);
+
+    @GetMapping("/api/v1/feedbacks/event/{eventId}")
+    List<Map<String, Object>> getFeedbacksByEvent(@PathVariable("eventId") String eventId);
 }
+

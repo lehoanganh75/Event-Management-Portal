@@ -542,34 +542,25 @@ const AdminAccountsPage = ({ restrictRoles }) => {
       </div>
 
       {totalPages > 1 && (
-        <div className="mt-8 flex justify-center gap-2">
+        <div className="flex justify-center items-center gap-2 mt-8">
           <button
             onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-            className="rounded-lg border border-slate-200 p-2 transition-colors hover:bg-slate-50 disabled:opacity-50"
             disabled={currentPage === 1}
+            className="w-10 h-10 rounded-xl border border-slate-200 bg-white flex items-center justify-center text-slate-500 hover:bg-slate-100 disabled:opacity-50 transition-all"
           >
-            <ChevronLeft size={20} />
+            <ChevronLeft size={18} />
           </button>
 
-          {Array.from({ length: totalPages }, (_, i) => i + 1).map((num) => (
-            <button
-              key={num}
-              onClick={() => setCurrentPage(num)}
-              className={`flex h-10 w-10 items-center justify-center rounded-lg text-sm font-medium transition-colors ${currentPage === num
-                  ? "bg-blue-600 text-white"
-                  : "border border-slate-200 hover:bg-slate-50"
-                }`}
-            >
-              {num}
-            </button>
-          ))}
+          <span className="h-10 px-4 bg-white border border-slate-200 rounded-xl flex items-center justify-center text-sm font-extrabold text-slate-700 shadow-sm select-none">
+            {currentPage}/{totalPages}
+          </span>
 
           <button
             onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-            className="rounded-lg border border-slate-200 p-2 transition-colors hover:bg-slate-50 disabled:opacity-50"
             disabled={currentPage === totalPages}
+            className="w-10 h-10 rounded-xl border border-slate-200 bg-white flex items-center justify-center text-slate-500 hover:bg-slate-100 disabled:opacity-50 transition-all"
           >
-            <ChevronRight size={20} />
+            <ChevronRight size={18} />
           </button>
         </div>
       )}
