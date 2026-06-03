@@ -1,5 +1,5 @@
-import React from "react";
-import { ThumbsUp, MessageCircle, Share2 } from "lucide-react";
+import React, { useState, useRef, useEffect } from "react";
+import { ThumbsUp, MessageCircle, Share2, Copy, Facebook } from "lucide-react";
 
 const PostStatsBar = ({
   post,
@@ -15,6 +15,21 @@ const PostStatsBar = ({
   hoveredPostEmoji,
   setHoveredPostEmoji
 }) => {
+  const [showShareMenu, setShowShareMenu] = useState(false);
+  const shareMenuRef = useRef(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (shareMenuRef.current && !shareMenuRef.current.contains(event.target)) {
+        setShowShareMenu(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, []);
+
   const postReactions = post.reactions || {};
   const postReactionList = Object.values(postReactions);
 
@@ -84,16 +99,47 @@ const PostStatsBar = ({
           <MessageCircle size={18} /> {"Bình luận"}
         </button>
 
-        <button
-          onClick={() => {
-            const url = `${window.location.origin}/posts/${post.id}`;
-            navigator.clipboard.writeText(url);
-            import("react-toastify").then(({ toast }) => toast.success("Đã sao chép liên kết bài viết!"));
-          }}
-          className="flex-1 flex items-center justify-center gap-2 py-2 hover:bg-slate-50 rounded-xl transition-all text-slate-600 font-bold text-[14px]"
-        >
-          <Share2 size={18} /> {"Chia sẻ"}
-        </button>
+        <div className="flex-1 relative">
+          <button
+            onClick={() => setShowShareMenu(!showShareMenu)}
+            className="w-full flex items-center justify-center gap-2 py-2 hover:bg-slate-50 rounded-xl transition-all text-slate-600 font-bold text-[14px]"
+          >
+            <Share2 size={18} /> {"Chia sẻ"}
+          </button>
+
+          {showShareMenu && (
+            <div
+              ref={shareMenuRef}
+              className="absolute bottom-full right-0 mb-2 bg-white rounded-xl shadow-xl border border-slate-100 py-1.5 min-w-[180px] z-50 animate-in fade-in slide-in-from-bottom-2"
+            >
+              <button
+                onClick={() => {
+                  const url = `${window.location.origin}/posts/${post.id}`;
+                  navigator.clipboard.writeText(url);
+                  import("react-toastify").then(({ toast }) => toast.success("Đã sao chép liên kết bài viết!"));
+                  setShowShareMenu(false);
+                }}
+                className="w-full flex items-center gap-2.5 px-3 py-2 text-[13px] font-medium text-slate-700 hover:bg-slate-50 transition-colors text-left"
+              >
+                <Copy size={16} className="text-slate-400" />
+                <span>Sao chép liên kết</span>
+              </button>
+
+              <button
+                onClick={() => {
+                  const url = `${window.location.origin}/posts/${post.id}`;
+                  const fbUrl = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(url)}`;
+                  window.open(fbUrl, "_blank");
+                  setShowShareMenu(false);
+                }}
+                className="w-full flex items-center gap-2.5 px-3 py-2 text-[13px] font-medium text-slate-700 hover:bg-slate-50 transition-colors text-left border-t border-slate-50"
+              >
+                <Facebook size={16} className="text-[#1877F2] fill-[#1877F2]" />
+                <span>Chia sẻ lên Facebook</span>
+              </button>
+            </div>
+          )}
+        </div>
       </div>
     </>
   );

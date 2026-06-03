@@ -49,8 +49,8 @@ public class QRTokenUtil {
                 expiry = new Date(System.currentTimeMillis() + 7L * 24 * 3600 * 1000);
             }
         } else {
-            // Dynamic tokens are short-lived (e.g., 60 seconds)
-            expiry = new Date(System.currentTimeMillis() + 60 * 1000);
+            // Dynamic tokens are short-lived (e.g., 10 seconds to allow buffer for 4s refresh)
+            expiry = new Date(System.currentTimeMillis() + 10 * 1000);
         }
 
         return Jwts.builder()

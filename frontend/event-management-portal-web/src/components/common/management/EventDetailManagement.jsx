@@ -429,7 +429,7 @@ const EventDetailManagement = ({
   const [showAllSurveyQuestions, setShowAllSurveyQuestions] = useState(false);
   const [loadingQR, setLoadingQR] = useState(false);
   const [showQRZoom, setShowQRZoom] = useState(false);
-  const [qrCountdown, setQrCountdown] = useState(30);
+  const [qrCountdown, setQrCountdown] = useState(4);
 
   // Quiz & Survey states
   const [showQuizModal, setShowQuizModal] = useState(false);
@@ -610,15 +610,15 @@ const EventDetailManagement = ({
     }
   };
 
-  // 🔄 Tự động làm mới QR mỗi 30 giây khi modal đang mở và là loại DYNAMIC
+  // 🔄 Tự động làm mới QR mỗi 4 giây khi modal đang mở và là loại DYNAMIC
   useEffect(() => {
     let interval;
     let timer;
     if (showEventQRModal && !loadingQR && event?.qrType === "DYNAMIC") {
-      setQrCountdown(30);
+      setQrCountdown(4);
 
       timer = setInterval(() => {
-        setQrCountdown(prev => (prev <= 1 ? 30 : prev - 1));
+        setQrCountdown(prev => (prev <= 1 ? 4 : prev - 1));
       }, 1000);
 
       interval = setInterval(async () => {
@@ -628,9 +628,9 @@ const EventDetailManagement = ({
         } catch (err) {
           console.error("Lỗi refresh QR:", err);
         }
-      }, 30000); // 30 giây
+      }, 4000); // 4 giây
     } else {
-      setQrCountdown(30);
+      setQrCountdown(4);
     }
     return () => {
       clearInterval(interval);
@@ -1567,12 +1567,12 @@ const EventDetailManagement = ({
                       {event?.qrType === "DYNAMIC" && (
                         <div className="absolute bottom-0 left-0 right-0 h-1 bg-slate-200 overflow-hidden rounded-b-xl">
                           <motion.div
+                            key={eventQRToken}
                             initial={{ width: "100%" }}
                             animate={{ width: "0%" }}
                             transition={{
-                              duration: 30,
+                              duration: 4,
                               ease: "linear",
-                              repeat: Infinity,
                             }}
                             className="h-full bg-indigo-600"
                           />
